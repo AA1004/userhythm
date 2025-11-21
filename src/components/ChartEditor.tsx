@@ -2,7 +2,6 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Note, Lane } from '../types/game';
 import { extractYouTubeVideoId, waitForYouTubeAPI } from '../utils/youtube';
 import { TapBPMCalculator, bpmToBeatDuration, isValidBPM } from '../utils/bpmAnalyzer';
-import { getBPMFromMetadata } from '../utils/bpmMetadata';
 
 interface ChartEditorProps {
   onSave: (notes: Note[]) => void;
@@ -36,20 +35,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel }) =>
   const tapBpmCalculatorRef = useRef(new TapBPMCalculator());
   const [tapBpmResult, setTapBpmResult] = useState<{ bpm: number; confidence: number } | null>(null);
   
-  // BPM 자동 분석 상태 (Spotify API만 사용)
-  const [bpmAnalysisState, setBpmAnalysisState] = useState<{
-    status: 'idle' | 'analyzing-metadata' | 'success' | 'failed';
-    progress: number;
-    message: string;
-    result?: { bpm: number; confidence: number; method: string };
-  }>({
-    status: 'idle',
-    progress: 0,
-    message: '',
-  });
-
-  // 메뉴 열림/닫힘 상태
-  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
 
   // 노트 추가
   const addNote = useCallback((lane: Lane, time: number) => {
@@ -121,6 +106,23 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel }) =>
   useEffect(() => {
     if (!youtubeVideoId || !youtubePlayerRef.current) return;
 
+    // 기존 플레이어 정리
+    const cleanup = () => {
+      if (youtubePlayer) {
+        try {
+          console.log('🧹 기존 플레이어 정리 중...');
+          youtubePlayer.destroy();
+        } catch (e) {
+          console.warn('기존 플레이어 제거 실패 (무시):', e);
+        }
+      }
+      setYoutubePlayer(null);
+      youtubePlayerReadyRef.current = false;
+    };
+
+    // 플레이어 초기화 전 정리
+    cleanup();
+
     waitForYouTubeAPI().then(() => {
       if (!window.YT || !window.YT.Player) {
         console.error('YouTube IFrame API를 로드할 수 없습니다.');
@@ -130,10 +132,23 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel }) =>
       const playerElement = youtubePlayerRef.current;
       if (!playerElement) return;
       
+      // 기존 플레이어 인스턴스가 남아있으면 정리
+      cleanup();
+      
       // div 요소에 id 추가 (YouTube API가 필요로 함)
-      if (!playerElement.id) {
-        playerElement.id = `youtube-player-${youtubeVideoId}`;
+      const playerId = `youtube-player-${youtubeVideoId}`;
+      
+      // 기존 요소가 있으면 제거
+      const existingPlayer = document.getElementById(playerId);
+      if (existingPlayer && existingPlayer !== playerElement) {
+        existingPlayer.remove();
       }
+      
+      if (!playerElement.id) {
+        playerElement.id = playerId;
+      }
+      
+      console.log(`🎬 새 플레이어 초기화 시작: ${youtubeVideoId}`);
       
       new window.YT.Player(playerElement.id, {
         videoId: youtubeVideoId,
@@ -144,50 +159,22 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel }) =>
         } as any,
           events: {
             onReady: async (event: any) => {
-              console.log('✅ YouTube 플레이어 준비 시작');
-              youtubePlayerReadyRef.current = true;
+              console.log('✅ YouTube 플레이어 준비 시작:', youtubeVideoId);
+              
+              // 플레이어가 이 비디오 ID와 일치하는지 확인
               const player = event.target;
+              const currentVideoId = player.getVideoData?.()?.video_id;
+              
+              if (currentVideoId !== youtubeVideoId) {
+                console.warn('⚠️ 플레이어 비디오 ID 불일치:', currentVideoId, 'vs', youtubeVideoId);
+                return; // 다른 비디오의 플레이어이면 무시
+              }
+              
+              youtubePlayerReadyRef.current = true;
               setYoutubePlayer(player);
               
-              // 플레이어가 완전히 준비되고 제목을 가져올 수 있을 때까지 대기
-              const waitForTitleAndAnalyze = async () => {
-                let attempts = 0;
-                const maxAttempts = 50; // 5초 (100ms * 50)
-                
-                while (attempts < maxAttempts) {
-                  try {
-                    const videoData = player.getVideoData();
-                    if (videoData && videoData.title && videoData.title.trim() !== '' && 
-                        !videoData.title.includes('youtu.be') && 
-                        !videoData.title.includes('youtube.com')) {
-                      console.log('✅ YouTube 제목 확인 성공:', videoData.title);
-                      // 제목을 확실히 가져올 수 있으면 BPM 분석 시작
-                      if (youtubeUrl) {
-                        console.log('📊 BPM 분석 시작 (플레이어 완전 준비)');
-                        handleAutoBPMAnalysis(youtubeUrl);
-                      }
-                      return;
-                    }
-                  } catch (error) {
-                    // 아직 준비되지 않았거나 에러
-                  }
-                  
-                  attempts++;
-                  if (attempts % 10 === 0) {
-                    console.log(`⏳ 플레이어 준비 대기 중... (${attempts * 100}ms)`);
-                  }
-                  await new Promise(resolve => setTimeout(resolve, 100)); // 100ms 대기
-                }
-                
-                // 타임아웃 시에도 시도
-                console.warn('⚠️ 제목 가져오기 타임아웃, 그래도 BPM 분석 시도');
-                if (youtubeUrl) {
-                  handleAutoBPMAnalysis(youtubeUrl);
-                }
-              };
-              
-              // 약간의 추가 대기 후 제목 확인 시작
-              setTimeout(waitForTitleAndAnalyze, 300);
+              // 플레이어가 완전히 준비되었는지 확인
+              console.log('✅ YouTube 플레이어 준비 완료');
             },
           onStateChange: (event: any) => {
             if (event.data === window.YT.PlayerState.PLAYING) {
@@ -203,7 +190,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel }) =>
         },
       });
     });
-  }, [youtubeVideoId]);
+
+    // cleanup 함수 반환 (컴포넌트 언마운트 또는 youtubeVideoId 변경 시)
+    return () => {
+      console.log('🧹 useEffect cleanup: 플레이어 정리');
+      cleanup();
+    };
+  }, [youtubeVideoId, youtubePlayer]);
 
   // YouTube 재생 시간 동기화
   useEffect(() => {
@@ -222,182 +215,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel }) =>
     return () => clearInterval(syncInterval);
   }, [youtubePlayer]);
 
-  // BPM 자동 분석 (하이브리드 접근법)
-  const handleAutoBPMAnalysis = useCallback(async (url: string) => {
-    setBpmAnalysisState({
-      status: 'analyzing-metadata',
-      progress: 0,
-      message: '메타데이터에서 BPM 조회 중...',
-    });
-
-    try {
-      // 1단계: 메타데이터에서 BPM 조회
-      // YouTube URL인 경우 플레이어에서 제목 가져오기 시도
-      let metadataTitle = '';
-      
-      if (url.includes('http://') || url.includes('https://') || 
-          url.includes('youtu.be') || url.includes('youtube.com')) {
-        // YouTube URL인 경우 플레이어가 준비될 때까지 대기
-        console.log('📺 YouTube URL 감지, 플레이어 준비 대기 중...');
-        
-        let waitCount = 0;
-        const maxWait = 50; // 5초 (100ms * 50)
-        
-        while (!youtubePlayerReadyRef.current || !youtubePlayer) {
-          if (waitCount >= maxWait) {
-            console.warn('⚠️ 플레이어 준비 시간 초과');
-            break;
-          }
-          await new Promise(resolve => setTimeout(resolve, 100)); // 100ms 대기
-          waitCount++;
-          if (waitCount % 10 === 0) {
-            console.log(`⏳ 플레이어 준비 대기 중... (${waitCount * 100}ms)`);
-          }
-        }
-        
-        // 플레이어에서 제목 가져오기
-        if (youtubePlayer && youtubePlayerReadyRef.current && youtubePlayer.getVideoData) {
-          let titleAttempts = 0;
-          const maxTitleAttempts = 20; // 2초 (100ms * 20)
-          
-          while (titleAttempts < maxTitleAttempts) {
-            try {
-              const videoData = youtubePlayer.getVideoData();
-              if (videoData && videoData.title && 
-                  videoData.title.trim() !== '' && 
-                  !videoData.title.includes('youtu.be') && 
-                  !videoData.title.includes('youtube.com')) {
-                metadataTitle = videoData.title;
-                console.log('✅ YouTube 제목 가져옴:', metadataTitle);
-                break;
-              }
-            } catch (error) {
-              // 계속 시도
-            }
-            
-            titleAttempts++;
-            if (titleAttempts < maxTitleAttempts) {
-              await new Promise(resolve => setTimeout(resolve, 100)); // 100ms 대기
-            }
-          }
-          
-          if (!metadataTitle) {
-            console.warn('⚠️ YouTube 제목을 가져올 수 없음');
-          }
-        } else {
-          console.warn('⚠️ YouTube 플레이어가 준비되지 않음');
-        }
-      } else {
-        // URL이 아닌 경우 제목으로 사용
-        metadataTitle = url;
-      }
-      
-      // 제목이 있으면 메타데이터 조회 시도
-      if (metadataTitle && !metadataTitle.includes('http://') && !metadataTitle.includes('https://')) {
-        const metadataResult = await getBPMFromMetadata(metadataTitle);
-        
-        if (metadataResult) {
-          setBpmAnalysisState({
-            status: 'success',
-            progress: 100,
-            message: `BPM 발견 (${metadataResult.source || '메타데이터'}): ${Math.round(metadataResult.bpm)} (신뢰도: ${(metadataResult.confidence * 100).toFixed(0)}%)`,
-            result: {
-              bpm: metadataResult.bpm,
-              confidence: metadataResult.confidence,
-              method: metadataResult.method,
-            },
-          });
-          setBpm(Math.round(metadataResult.bpm));
-          return;
-        }
-      } else {
-        console.log('메타데이터 조회 건너뛰기 (URL 또는 플레이어 미준비)');
-      }
-
-      // 메타데이터 조회 실패 시 종료
-      setBpmAnalysisState({
-        status: 'failed',
-        progress: 0,
-        message: 'BPM을 찾을 수 없습니다. YouTube 제목이 정확한지 확인하거나, 수동으로 BPM을 입력하세요.',
-      });
-    } catch (error) {
-      console.error('BPM 자동 분석 오류:', error);
-      setBpmAnalysisState({
-        status: 'failed',
-        progress: 0,
-        message: 'BPM 자동 분석에 실패했습니다. 수동으로 입력하거나 탭 BPM을 사용하세요.',
-      });
-    }
-  }, []);
-  
-
-  // YouTube URL 처리
-  const handleYouTubeUrlSubmit = useCallback(() => {
-    if (!youtubeUrl.trim()) {
-      alert('YouTube URL을 입력해주세요.');
-      return;
-    }
-
-    const videoId = extractYouTubeVideoId(youtubeUrl);
-    if (!videoId) {
-      alert('유효한 YouTube URL이 아닙니다.');
-      return;
-    }
-
-    // 기존 플레이어 제거
-    if (youtubePlayer) {
-      try {
-        youtubePlayer.destroy();
-      } catch (e) {
-        console.error('기존 플레이어 제거 실패:', e);
-      }
-    }
-
-    setYoutubeVideoId(videoId);
-    setYoutubePlayer(null);
-    youtubePlayerReadyRef.current = false;
-    
-    // BPM 자동 분석 시작
-    handleAutoBPMAnalysis(youtubeUrl);
-  }, [youtubeUrl, youtubePlayer, handleAutoBPMAnalysis]);
-
-  // 클립보드에서 YouTube URL 붙여넣기 및 자동 로드
-  const handlePasteFromClipboard = useCallback(async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (text.trim()) {
-        const trimmedText = text.trim();
-        setYoutubeUrl(trimmedText);
-        
-        // 유효한 YouTube URL이면 자동으로 로드
-        const videoId = extractYouTubeVideoId(trimmedText);
-        if (videoId) {
-          // 기존 플레이어 제거
-          if (youtubePlayer) {
-            try {
-              youtubePlayer.destroy();
-            } catch (e) {
-              console.error('기존 플레이어 제거 실패:', e);
-            }
-          }
-
-          setYoutubeVideoId(videoId);
-          setYoutubePlayer(null);
-          youtubePlayerReadyRef.current = false;
-          
-          // BPM 분석은 플레이어가 준비되면 onReady에서 자동으로 시작됨
-        } else {
-          // 유효하지 않은 URL인 경우 알림
-          alert('유효한 YouTube URL이 아닙니다. URL을 확인해주세요.');
-        }
-      } else {
-        alert('클립보드가 비어있습니다.');
-      }
-    } catch (error) {
-      console.error('클립보드 읽기 실패:', error);
-      alert('클립보드를 읽을 수 없습니다. 수동으로 붙여넣어주세요.');
-    }
-  }, [youtubePlayer, handleAutoBPMAnalysis]);
 
   // BPM 탭 계산
   const handleBpmTap = useCallback(() => {
@@ -611,14 +428,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel }) =>
           borderBottom: '2px solid #444',
         }}
       >
-        {/* 메뉴 토글 버튼 */}
+        {/* 헤더 */}
         <div
           style={{
             padding: '12px 20px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            borderBottom: isMenuOpen ? '1px solid #444' : 'none',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -627,26 +443,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel }) =>
                 color: '#fff', 
                 margin: 0, 
                 fontSize: '20px',
-                cursor: 'pointer',
-                userSelect: 'none',
               }}
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
               채보 에디터
             </h2>
-            <span 
-              style={{ 
-                color: '#aaa', 
-                fontSize: '18px', 
-                transition: 'transform 0.3s', 
-                transform: isMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                cursor: 'pointer',
-                userSelect: 'none',
-              }}
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-            >
-              ▼
-            </span>
             {/* 플레이어 컨트롤 버튼들 */}
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginLeft: '20px' }} onClick={(e) => e.stopPropagation()}>
               <button
@@ -743,174 +543,49 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel }) =>
               </button>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             <span style={{ color: '#FFD700', fontSize: '16px', fontWeight: 'bold' }}>
               BPM: {Math.round(bpm)}
             </span>
-          </div>
-        </div>
-
-        {/* 접을 수 있는 메뉴 내용 */}
-        {isMenuOpen && (
-          <div
-            style={{
-              padding: '20px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '15px',
-            }}
-          >
-            {/* YouTube URL 입력 */}
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <input
-                type="text"
-                placeholder="YouTube URL 입력..."
-                value={youtubeUrl}
-                onChange={(e) => setYoutubeUrl(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    handleYouTubeUrlSubmit();
-                  }
-                }}
-                onClick={(e) => e.stopPropagation()}
-                style={{
-                  padding: '8px 12px',
-                  fontSize: '14px',
-                  backgroundColor: '#1f1f1f',
-                  color: '#fff',
-                  border: '1px solid #444',
-                  borderRadius: '6px',
-                  width: '300px',
-                }}
-              />
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handlePasteFromClipboard();
-                }}
-                style={{
-                  padding: '8px 16px',
-                  fontSize: '14px',
-                  backgroundColor: '#757575',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  transition: 'background-color 0.2s',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#616161';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#757575';
-                }}
-                title="클립보드에서 붙여넣기"
-              >
-                📋 붙여넣기
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleYouTubeUrlSubmit();
-                }}
-                style={{
-                  padding: '8px 16px',
-                  fontSize: '14px',
-                  backgroundColor: '#FF0000',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                }}
-              >
-                ▶ 로드
-              </button>
-            </div>
-            
-            {/* BPM 설정 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ color: '#fff', fontSize: '14px' }}>BPM:</span>
-                <span style={{ color: '#FFD700', fontSize: '16px', fontWeight: 'bold' }}>{Math.round(bpm)}</span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsBpmInputOpen(!isBpmInputOpen);
-                  }}
-                  style={{
-                    padding: '6px 12px',
-                    fontSize: '12px',
-                    backgroundColor: '#2196F3',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  입력
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleBpmTap();
-                  }}
-                  style={{
-                    padding: '6px 12px',
-                    fontSize: '12px',
-                    backgroundColor: '#4CAF50',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  탭 ({tapBpmCalculatorRef.current.getTapCount()})
-                </button>
-                {tapBpmResult && (
-                  <span style={{ color: '#aaa', fontSize: '12px' }}>
-                    (신뢰도: {(tapBpmResult.confidence * 100).toFixed(0)}%)
-                  </span>
-                )}
-              </div>
-            
-            {/* BPM 분석 상태 표시 */}
-            {bpmAnalysisState.status !== 'idle' && (
-              <div
-                style={{
-                  padding: '8px 12px',
-                  backgroundColor: bpmAnalysisState.status === 'success' 
-                    ? 'rgba(76, 175, 80, 0.2)' 
-                    : bpmAnalysisState.status === 'failed'
-                    ? 'rgba(244, 67, 54, 0.2)'
-                    : 'rgba(33, 150, 243, 0.2)',
-                  borderRadius: '6px',
-                  border: `1px solid ${
-                    bpmAnalysisState.status === 'success'
-                      ? 'rgba(76, 175, 80, 0.5)'
-                      : bpmAnalysisState.status === 'failed'
-                      ? 'rgba(244, 67, 54, 0.5)'
-                      : 'rgba(33, 150, 243, 0.5)'
-                  }`,
-                }}
-              >
-                <div style={{ color: '#fff', fontSize: '12px', marginBottom: '4px' }}>
-                  {bpmAnalysisState.message}
-                </div>
-                {bpmAnalysisState.status === 'analyzing-metadata' && (
-                  <div style={{ width: '100%', height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
-                    <div
-                      style={{
-                        width: `${bpmAnalysisState.progress}%`,
-                        height: '100%',
-                        backgroundColor: '#2196F3',
-                        transition: 'width 0.3s ease',
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsBpmInputOpen(!isBpmInputOpen);
+              }}
+              style={{
+                padding: '6px 12px',
+                fontSize: '12px',
+                backgroundColor: '#2196F3',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+              }}
+            >
+              입력
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleBpmTap();
+              }}
+              style={{
+                padding: '6px 12px',
+                fontSize: '12px',
+                backgroundColor: '#4CAF50',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+              }}
+            >
+              탭 ({tapBpmCalculatorRef.current.getTapCount()})
+            </button>
+            {tapBpmResult && (
+              <span style={{ color: '#aaa', fontSize: '12px' }}>
+                (신뢰도: {(tapBpmResult.confidence * 100).toFixed(0)}%)
+              </span>
             )}
-            
             {isBpmInputOpen && (
               <input
                 type="number"
@@ -929,14 +604,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel }) =>
                   color: '#fff',
                   border: '1px solid #444',
                   borderRadius: '4px',
-                  width: '200px',
+                  width: '120px',
                 }}
               />
             )}
-            
-            </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* 메인 에디터 영역 */}

@@ -9,7 +9,6 @@ import { useKeyboard } from '../hooks/useKeyboard';
 import { useGameLoop } from '../hooks/useGameLoop';
 import { judgeTiming } from '../utils/judge';
 import { generateNotes } from '../utils/noteGenerator';
-import { isServerAvailable } from '../utils/youtubeDownloader';
 
 const LANE_KEYS = [
   ['D'],
@@ -66,21 +65,6 @@ export const Game: React.FC = () => {
     return savedSpeed ? parseFloat(savedSpeed) : 1.0;
   });
 
-  // 서버 상태 확인
-  const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
-  
-  useEffect(() => {
-    // 서버 상태 주기적으로 확인
-    const checkServer = async () => {
-      const available = await isServerAvailable();
-      setServerStatus(available ? 'online' : 'offline');
-    };
-    
-    checkServer();
-    const interval = setInterval(checkServer, 5000); // 5초마다 확인
-    
-    return () => clearInterval(interval);
-  }, []);
 
   // 속도가 변경될 때마다 localStorage에 저장
   useEffect(() => {
@@ -645,73 +629,6 @@ export const Game: React.FC = () => {
               </button>
             </div>
 
-            {/* 서버 상태 */}
-            <div
-              style={{
-                backgroundColor: serverStatus === 'online' 
-                  ? 'rgba(76, 175, 80, 0.1)' 
-                  : serverStatus === 'offline'
-                  ? 'rgba(244, 67, 54, 0.1)'
-                  : 'rgba(255, 255, 255, 0.05)',
-                padding: '16px 24px',
-                borderRadius: '12px',
-                marginTop: '32px',
-                border: `2px solid ${serverStatus === 'online' ? '#4CAF50' : serverStatus === 'offline' ? '#f44336' : '#666'}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '24px' }}>
-                  {serverStatus === 'online' ? '🟢' : serverStatus === 'offline' ? '🔴' : '🟡'}
-                </span>
-                <div>
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#fff' }}>
-                    YouTube 다운로드 서버
-                  </div>
-                  <div style={{ fontSize: '14px', color: '#aaa', marginTop: '4px' }}>
-                    {serverStatus === 'online' 
-                      ? '서버가 실행 중입니다' 
-                      : serverStatus === 'offline'
-                      ? '서버가 꺼져있습니다'
-                      : '서버 상태 확인 중...'}
-                  </div>
-                </div>
-              </div>
-              {serverStatus === 'offline' && (
-                <button
-                  style={{
-                    padding: '10px 20px',
-                    fontSize: '14px',
-                    backgroundColor: '#4CAF50',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                    transition: 'all 0.2s',
-                  }}
-                  onClick={async () => {
-                    setServerStatus('checking');
-                    const available = await isServerAvailable();
-                    if (!available) {
-                      alert(
-                        '서버를 수동으로 시작해주세요.\n\n터미널에서 다음 명령어를 실행하세요:\n\n' +
-                        'npm run dev\n\n' +
-                        '또는 서버만 실행하려면:\n\n' +
-                        'cd server && npm start'
-                      );
-                      setServerStatus('offline');
-                    } else {
-                      setServerStatus('online');
-                    }
-                  }}
-                >
-                  다시 확인
-                </button>
-              )}
-            </div>
 
             {/* 설정 */}
             <div

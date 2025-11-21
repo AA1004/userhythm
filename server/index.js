@@ -229,9 +229,15 @@ app.post('/api/spotify/bpm', async (req, res) => {
   try {
     const { artist, title } = req.body;
     
-    if (!artist || !title) {
-      return res.status(400).json({ error: '아티스트와 곡명이 필요합니다.' });
+    if (!title || title.trim() === '') {
+      return res.status(400).json({ error: '곡명이 필요합니다.' });
     }
+    
+    // artist가 없으면 빈 문자열로 처리
+    const cleanArtist = (artist || '').trim();
+    const cleanTitle = title.trim();
+    
+    console.log(`📝 Spotify BPM 요청: artist="${cleanArtist}", title="${cleanTitle}"`);
 
     // Spotify Client Credentials Flow로 토큰 가져오기
     const clientId = process.env.SPOTIFY_CLIENT_ID;
@@ -260,31 +266,112 @@ app.post('/api/spotify/bpm', async (req, res) => {
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.access_token;
 
-    // 2. 트랙 검색
-    const searchQuery = `artist:${encodeURIComponent(artist)} track:${encodeURIComponent(title)}`;
-    const searchResponse = await fetch(
-      `https://api.spotify.com/v1/search?q=${encodeURIComponent(searchQuery)}&type=track&limit=1`,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      }
-    );
+    // 2. 트랙 검색 (여러 방법 시도)
+    let searchData = null;
+    let trackId = null;
+    let searchResponse = null;
+    
+    // 방법 1: 정확한 검색 (artist:name track:title) - artist가 있을 때만
+    if (cleanArtist) {
+      // 대소문자 구분 없이 검색하기 위해 따옴표로 감싸기
+      const searchQuery1 = `artist:"${cleanArtist}" track:"${cleanTitle}"`;
+      console.log(`🔍 검색 방법 1 (정확 검색): ${searchQuery1}`);
+      searchResponse = await fetch(
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(searchQuery1)}&type=track&limit=5`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      );
 
-    if (!searchResponse.ok) {
-      console.error('Spotify 검색 실패:', searchResponse.status, searchResponse.statusText);
-      return res.status(500).json({ error: 'Spotify 검색 실패' });
+      if (searchResponse.ok) {
+        searchData = await searchResponse.json();
+        if (searchData.tracks && searchData.tracks.items && searchData.tracks.items.length > 0) {
+          trackId = searchData.tracks.items[0].id;
+          console.log(`✅ 방법 1 성공: ${searchData.tracks.items[0].name} - ${searchData.tracks.items[0].artists[0].name}`);
+        }
+      } else {
+        console.warn(`방법 1 실패: ${searchResponse.status} ${searchResponse.statusText}`);
+      }
     }
 
-    const searchData = await searchResponse.json();
+    // 방법 2: 제목과 아티스트를 일반 검색어로 (정확한 검색 실패 시)
+    if (!trackId && cleanArtist) {
+      const searchQuery2 = `${cleanArtist} ${cleanTitle}`;
+      console.log(`🔍 검색 방법 2 (일반 검색): ${searchQuery2}`);
+      searchResponse = await fetch(
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(searchQuery2)}&type=track&limit=5`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (searchResponse.ok) {
+        searchData = await searchResponse.json();
+        if (searchData.tracks && searchData.tracks.items && searchData.tracks.items.length > 0) {
+          trackId = searchData.tracks.items[0].id;
+          console.log(`✅ 방법 2 성공: ${searchData.tracks.items[0].name} - ${searchData.tracks.items[0].artists[0].name}`);
+        }
+      } else {
+        console.warn(`방법 2 실패: ${searchResponse.status} ${searchResponse.statusText}`);
+      }
+    }
+
+    // 방법 3: 제목만으로 검색 (아티스트 이름이 정확하지 않을 수 있음)
+    if (!trackId) {
+      // 제목만 검색
+      const searchQuery3 = cleanArtist ? `track:${cleanTitle}` : cleanTitle;
+      console.log(`🔍 검색 방법 3 (제목만): ${searchQuery3}`);
+      searchResponse = await fetch(
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(searchQuery3)}&type=track&limit=10`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      if (searchResponse.ok) {
+        searchData = await searchResponse.json();
+        if (searchData.tracks && searchData.tracks.items && searchData.tracks.items.length > 0) {
+          // 아티스트가 있으면 아티스트 이름이 부분적으로 일치하는 곡 찾기
+          if (cleanArtist) {
+            const lowerArtist = cleanArtist.toLowerCase();
+            const matchingTrack = searchData.tracks.items.find(track => 
+              track.artists.some(a => a.name.toLowerCase().includes(lowerArtist) || 
+                                    lowerArtist.includes(a.name.toLowerCase()))
+            );
+            
+            if (matchingTrack) {
+              trackId = matchingTrack.id;
+              console.log(`✅ 방법 3 성공 (아티스트 매칭): ${matchingTrack.name} - ${matchingTrack.artists[0].name}`);
+            }
+          }
+          
+          // 매칭되는 게 없으면 첫 번째 곡 사용
+          if (!trackId) {
+            trackId = searchData.tracks.items[0].id;
+            console.log(`✅ 방법 3 성공 (첫 번째 결과): ${searchData.tracks.items[0].name} - ${searchData.tracks.items[0].artists[0].name}`);
+          }
+        }
+      } else {
+        console.warn(`방법 3 실패: ${searchResponse.status} ${searchResponse.statusText}`);
+      }
+    }
     
-    if (!searchData.tracks || !searchData.tracks.items || searchData.tracks.items.length === 0) {
+    if (!trackId || !searchData) {
+      console.error('❌ Spotify에서 트랙을 찾을 수 없습니다.');
+      console.error('   검색어:', { artist: cleanArtist, title: cleanTitle });
       return res.status(404).json({ error: '트랙을 찾을 수 없습니다.' });
     }
 
-    const trackId = searchData.tracks.items[0].id;
-
-    // 3. Audio Features 가져오기 (BPM 포함)
+    console.log(`✅ 트랙 ID 찾음: ${trackId}`);
+    
+    // 3. Audio Features 가져오기 (BPM 포함) - trackId는 이미 설정됨
+    console.log(`🔍 Audio Features 요청: trackId=${trackId}`);
     const featuresResponse = await fetch(
       `https://api.spotify.com/v1/audio-features/${trackId}`,
       {
@@ -295,25 +382,57 @@ app.post('/api/spotify/bpm', async (req, res) => {
     );
 
     if (!featuresResponse.ok) {
-      console.error('Spotify Audio Features 요청 실패:', featuresResponse.status, featuresResponse.statusText);
-      return res.status(500).json({ error: 'Audio Features 조회 실패' });
+      const errorText = await featuresResponse.text();
+      console.error('❌ Spotify Audio Features 요청 실패:');
+      console.error('   상태 코드:', featuresResponse.status);
+      console.error('   상태 텍스트:', featuresResponse.statusText);
+      console.error('   응답 본문:', errorText);
+      console.error('   trackId:', trackId);
+      
+      // 에러 상세 정보 반환
+      try {
+        const errorData = JSON.parse(errorText);
+        return res.status(500).json({ 
+          error: 'Audio Features 조회 실패',
+          details: errorData.error?.message || errorText,
+          status: featuresResponse.status
+        });
+      } catch (e) {
+        return res.status(500).json({ 
+          error: 'Audio Features 조회 실패',
+          details: errorText,
+          status: featuresResponse.status
+        });
+      }
     }
 
     const featuresData = await featuresResponse.json();
     
-    if (featuresData.tempo && featuresData.tempo > 0) {
-      console.log(`✅ Spotify BPM 발견: ${featuresData.tempo} (${artist} - ${title})`);
+    console.log('📊 Audio Features 응답:', {
+      tempo: featuresData?.tempo,
+      hasTempo: !!featuresData?.tempo,
+      tempoValue: featuresData?.tempo
+    });
+    
+    if (featuresData && featuresData.tempo && featuresData.tempo > 0) {
+      const foundTrack = searchData.tracks.items.find(t => t.id === trackId) || searchData.tracks.items[0];
+      console.log(`✅ Spotify BPM 발견: ${featuresData.tempo} BPM`);
+      console.log(`   트랙: ${foundTrack.name} - ${foundTrack.artists[0].name}`);
       return res.json({
         bpm: Math.round(featuresData.tempo),
         confidence: 0.95,
         track: {
-          name: searchData.tracks.items[0].name,
-          artist: searchData.tracks.items[0].artists[0].name,
+          name: foundTrack.name,
+          artist: foundTrack.artists[0].name,
         },
       });
     }
 
-    return res.status(404).json({ error: 'BPM 정보를 찾을 수 없습니다.' });
+    console.warn('⚠️ Audio Features에 tempo 정보가 없음:', featuresData);
+    return res.status(404).json({ 
+      error: 'BPM 정보를 찾을 수 없습니다.',
+      details: 'Audio Features에 tempo 값이 없습니다.'
+    });
   } catch (error) {
     console.error('Spotify API 오류:', error);
     return res.status(500).json({ error: error.message || 'Spotify API 오류' });
