@@ -1,14 +1,19 @@
 export type Lane = 0 | 1 | 2 | 3;
 
-export type JudgeType = 'perfect' | 'great' | 'good' | 'miss' | null;
+export type NoteType = 'tap' | 'hold';
 
 export interface Note {
   id: number;
   lane: Lane;
-  time: number; // 노트가 판정선에 도달하는 시간 (ms)
-  y: number; // 화면상 y 좌표
-  hit: boolean; // 이미 맞췄는지
+  time: number; // 시작 시각 (ms)
+  duration: number; // 지속 시간 (ms) - 탭은 0
+  endTime: number; // time + duration
+  type: NoteType;
+  y: number;
+  hit: boolean;
 }
+
+export type JudgeType = 'perfect' | 'great' | 'good' | 'miss';
 
 export interface Score {
   perfect: number;
