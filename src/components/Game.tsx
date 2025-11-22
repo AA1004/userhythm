@@ -5,6 +5,8 @@ import { KeyLane } from './KeyLane';
 import { JudgeLine } from './JudgeLine';
 import { Score as ScoreComponent } from './Score';
 import { ChartEditor } from './ChartEditor';
+import { ChartSelect } from './ChartSelect';
+import { ChartAdmin } from './ChartAdmin';
 import { useKeyboard } from '../hooks/useKeyboard';
 import { useGameLoop } from '../hooks/useGameLoop';
 import { judgeTiming } from '../utils/judge';
@@ -40,6 +42,8 @@ const START_DELAY_MS = 2000; // 게임 시작 전 딜레이
 
 export const Game: React.FC = () => {
   const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
+  const [isChartSelectOpen, setIsChartSelectOpen] = useState<boolean>(false);
+  const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [isTestMode, setIsTestMode] = useState<boolean>(false);
   const testPreparedNotesRef = useRef<Note[]>([]);
   
@@ -727,9 +731,87 @@ export const Game: React.FC = () => {
     setIsEditorOpen(false);
   }, []);
 
+  // 채보 선택 핸들러
+  const handleChartSelect = useCallback((chartData: any) => {
+    try {
+      if (!chartData) {
+        console.error('Chart data is missing');
+        alert('채보 데이터가 없습니다.');
+        return;
+      }
+
+      if (!chartData.notes || !Array.isArray(chartData.notes)) {
+        console.error('Invalid chart data: notes array missing');
+        alert('유효하지 않은 채보 데이터입니다.');
+        return;
+      }
+
+      setIsChartSelectOpen(false);
+      setIsTestMode(false);
+      
+      // 선택된 채보 데이터로 게임 상태 초기화
+      const preparedNotes = chartData.notes.map((note: Note) => ({
+        ...note,
+        y: 0,
+        hit: false,
+      }));
+      
+      if (preparedNotes.length === 0) {
+        alert('이 채보에는 노트가 없습니다.');
+        return;
+      }
+      
+      setGameState({
+        notes: preparedNotes,
+        score: buildInitialScore(),
+        currentTime: -START_DELAY_MS,
+        gameStarted: true,
+        gameEnded: false,
+      });
+      
+      setHoldingNotes(new Map());
+      processedMissNotes.current = new Set();
+      
+      // YouTube 플레이어 설정 (필요시)
+      if (chartData.youtubeVideoId) {
+        testAudioSettingsRef.current = {
+          youtubeVideoId: chartData.youtubeVideoId,
+          youtubeUrl: chartData.youtubeUrl || '',
+          startTimeMs: 0,
+          playbackSpeed: 1,
+        };
+        setIsTestMode(true);
+      }
+    } catch (error) {
+      console.error('Failed to load chart:', error);
+      alert('채보를 불러오는데 실패했습니다. 다시 시도해주세요.');
+    }
+  }, [buildInitialScore]);
+
+  // 관리자 테스트 핸들러
+  const handleAdminTest = useCallback((chartData: any) => {
+    handleEditorTest({
+      notes: chartData.notes || [],
+      startTimeMs: 0,
+      youtubeVideoId: chartData.youtubeVideoId || null,
+      youtubeUrl: chartData.youtubeUrl || '',
+      playbackSpeed: 1,
+    });
+  }, [handleEditorTest]);
+
   // 에디터가 열려있으면 에디터만 표시
   if (isEditorOpen) {
     return <ChartEditor onSave={handleChartSave} onCancel={handleEditorCancel} onTest={handleEditorTest} />;
+  }
+
+  // 채보 선택 화면
+  if (isChartSelectOpen) {
+    return <ChartSelect onSelect={handleChartSelect} onClose={() => setIsChartSelectOpen(false)} />;
+  }
+
+  // 관리자 화면
+  if (isAdminOpen) {
+    return <ChartAdmin onClose={() => setIsAdminOpen(false)} onTestChart={handleAdminTest} />;
   }
 
   return (
@@ -1023,8 +1105,7 @@ export const Game: React.FC = () => {
                   e.currentTarget.style.boxShadow = '0 4px 12px rgba(33, 150, 243, 0.3)';
                 }}
                 onClick={() => {
-                  // TODO: 채보 선택 화면으로 이동
-                  alert('채보 선택 기능은 준비 중입니다.');
+                  setIsChartSelectOpen(true);
                 }}
               >
                 📂 채보 선택하기
@@ -1058,6 +1139,36 @@ export const Game: React.FC = () => {
                 }}
               >
                 ✏️ 채보 만들기
+              </button>
+
+              <button
+                style={{
+                  padding: '12px 24px',
+                  fontSize: '16px',
+                  backgroundColor: '#9C27B0',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 4px 12px rgba(156, 39, 176, 0.3)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#7B1FA2';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(156, 39, 176, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#9C27B0';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(156, 39, 176, 0.3)';
+                }}
+                onClick={() => {
+                  setIsAdminOpen(true);
+                }}
+              >
+                🔐 관리자
               </button>
             </div>
 

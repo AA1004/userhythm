@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { Note, Lane } from '../types/game';
 import { extractYouTubeVideoId, waitForYouTubeAPI } from '../utils/youtube';
 import { TapBPMCalculator, bpmToBeatDuration, isValidBPM } from '../utils/bpmAnalyzer';
+import { chartAPI, isSupabaseConfigured } from '../lib/supabaseClient';
 
 interface ChartEditorProps {
   onSave: (notes: Note[]) => void;
@@ -81,6 +82,15 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
   const [isLongNoteMode, setIsLongNoteMode] = useState<boolean>(false);
   const [pendingLongNote, setPendingLongNote] = useState<{ lane: Lane; startTime: number } | null>(null);
   const [testStartInput, setTestStartInput] = useState<string>('0');
+  
+  // 공유 관련 상태
+  const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
+  const [shareTitle, setShareTitle] = useState<string>('');
+  const [shareAuthor, setShareAuthor] = useState<string>('');
+  const [shareDifficulty, setShareDifficulty] = useState<string>('Normal');
+  const [shareDescription, setShareDescription] = useState<string>('');
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [uploadStatus, setUploadStatus] = useState<string>('');
 
   const maxNoteTime = useMemo(() => {
     if (!notes.length) return 0;
@@ -1013,6 +1023,74 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
       onSave(notes);
     }
   }, [notes, bpm, timeSignatures, timeSignatureOffset, youtubeVideoId, youtubeUrl, onSave]);
+
+  // 온라인 공유
+  const handleShareChart = useCallback(async () => {
+    if (!isSupabaseConfigured) {
+      alert('Supabase ?섍꼍 蹂?섍? ?ㅼ젙?섏? ?딆븘 怨듭쑀 湲곕뒫???ъ슜?????놁뒿?덈떎. 猷⑦듃 ?붾젆?곕━??CHART_SHARING_SETUP.md瑜?李멸퀬???섍꼍 蹂?섎? ?ㅼ젙?????ㅼ떆 ?쒕룄?댁＜?몄슂.');
+      setUploadStatus('Supabase ?섍꼍 蹂?섍? ?놁뼱 怨듭쑀?????놁뒿?덈떎.');
+      return;
+    }
+    if (notes.length === 0) {
+      alert('노트가 없습니다. 노트를 추가한 후 공유해주세요.');
+      return;
+    }
+    
+    if (!shareTitle.trim() || !shareAuthor.trim()) {
+      alert('제목과 작성자를 입력해주세요.');
+      return;
+    }
+    
+    setIsUploading(true);
+    setUploadStatus('업로드 중...');
+    
+    try {
+      const chartData = {
+        notes: notes.map(({ id, lane, time, duration, endTime, type }) => ({
+          id,
+          lane,
+          time,
+          duration,
+          endTime,
+          type,
+        })),
+        bpm,
+        timeSignatures,
+        timeSignatureOffset,
+        youtubeVideoId,
+        youtubeUrl,
+        playbackSpeed,
+      };
+      
+      await chartAPI.uploadChart({
+        title: shareTitle.trim(),
+        author: shareAuthor.trim(),
+        bpm,
+        difficulty: shareDifficulty,
+        description: shareDescription.trim() || undefined,
+        data_json: JSON.stringify(chartData),
+        youtube_url: youtubeUrl || undefined,
+      });
+      
+      setUploadStatus('업로드 완료! 관리자 승인 후 공개됩니다.');
+      setIsShareModalOpen(false);
+      
+      // 폼 초기화
+      setShareTitle('');
+      setShareAuthor('');
+      setShareDescription('');
+      setShareDifficulty('Normal');
+      
+      setTimeout(() => {
+        setUploadStatus('');
+      }, 3000);
+    } catch (error: any) {
+      console.error('채보 업로드 실패:', error);
+      setUploadStatus(`업로드 실패: ${error.message || '알 수 없는 오류'}`);
+    } finally {
+      setIsUploading(false);
+    }
+  }, [notes, bpm, timeSignatures, timeSignatureOffset, youtubeVideoId, youtubeUrl, playbackSpeed, shareTitle, shareAuthor, shareDifficulty, shareDescription]);
 
   // 채보 로드
   const handleLoad = useCallback(() => {
@@ -2217,8 +2295,219 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
               </button>
             </div>
           </div>
+
+          {/* 온라인 공유 */}
+          <div>
+            <div style={{ color: '#fff', marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>
+              온라인 공유
+            </div>
+            <button
+              onClick={() => setIsShareModalOpen(true)}
+              style={{
+                padding: '10px 12px',
+                fontSize: '13px',
+                fontWeight: 'bold',
+                backgroundColor: '#2196F3',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                width: '100%',
+              }}
+            >
+              🌐 채보 공유하기
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* 공유 모달 */}
+      {isShareModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+          }}
+          onClick={() => !isUploading && setIsShareModalOpen(false)}
+        >
+          <div
+            style={{
+              backgroundColor: '#2a2a2a',
+              padding: '30px',
+              borderRadius: '12px',
+              maxWidth: '500px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{ color: '#fff', marginBottom: '20px', fontSize: '20px' }}>
+              채보 공유하기
+            </h2>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+              <div>
+                <label style={{ color: '#ddd', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
+                  제목 *
+                </label>
+                <input
+                  type="text"
+                  value={shareTitle}
+                  onChange={(e) => setShareTitle(e.target.value)}
+                  placeholder="채보 제목을 입력하세요"
+                  disabled={isUploading}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid #555',
+                    backgroundColor: '#1f1f1f',
+                    color: '#fff',
+                    fontSize: '14px',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ color: '#ddd', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
+                  작성자 *
+                </label>
+                <input
+                  type="text"
+                  value={shareAuthor}
+                  onChange={(e) => setShareAuthor(e.target.value)}
+                  placeholder="작성자 이름을 입력하세요"
+                  disabled={isUploading}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid #555',
+                    backgroundColor: '#1f1f1f',
+                    color: '#fff',
+                    fontSize: '14px',
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ color: '#ddd', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
+                  난이도
+                </label>
+                <select
+                  value={shareDifficulty}
+                  onChange={(e) => setShareDifficulty(e.target.value)}
+                  disabled={isUploading}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid #555',
+                    backgroundColor: '#1f1f1f',
+                    color: '#fff',
+                    fontSize: '14px',
+                  }}
+                >
+                  <option value="Easy">Easy</option>
+                  <option value="Normal">Normal</option>
+                  <option value="Hard">Hard</option>
+                  <option value="Expert">Expert</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ color: '#ddd', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
+                  설명
+                </label>
+                <textarea
+                  value={shareDescription}
+                  onChange={(e) => setShareDescription(e.target.value)}
+                  placeholder="채보에 대한 설명을 입력하세요 (선택사항)"
+                  disabled={isUploading}
+                  rows={3}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid #555',
+                    backgroundColor: '#1f1f1f',
+                    color: '#fff',
+                    fontSize: '14px',
+                    resize: 'vertical',
+                  }}
+                />
+              </div>
+
+              <div style={{ color: '#aaa', fontSize: '12px', padding: '10px', backgroundColor: '#1f1f1f', borderRadius: '6px' }}>
+                <strong>채보 정보:</strong><br />
+                노트 수: {notes.length}개<br />
+                BPM: {bpm}<br />
+                {youtubeUrl && `YouTube: ${youtubeUrl}`}
+              </div>
+
+              {uploadStatus && (
+                <div
+                  style={{
+                    padding: '12px',
+                    borderRadius: '6px',
+                    backgroundColor: uploadStatus.includes('완료') ? '#4CAF50' : uploadStatus.includes('실패') ? '#f44336' : '#2196F3',
+                    color: '#fff',
+                    fontSize: '13px',
+                    textAlign: 'center',
+                  }}
+                >
+                  {uploadStatus}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                <button
+                  onClick={() => setIsShareModalOpen(false)}
+                  disabled={isUploading}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    fontSize: '14px',
+                    backgroundColor: '#616161',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: isUploading ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleShareChart}
+                  disabled={isUploading || !shareTitle.trim() || !shareAuthor.trim()}
+                  style={{
+                    flex: 1,
+                    padding: '12px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    backgroundColor: (isUploading || !shareTitle.trim() || !shareAuthor.trim()) ? '#424242' : '#2196F3',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: (isUploading || !shareTitle.trim() || !shareAuthor.trim()) ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {isUploading ? '업로드 중...' : '공유하기'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
