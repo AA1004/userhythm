@@ -9,12 +9,18 @@ export function useGameLoop(
   gameState: GameState,
   setGameState: (state: GameState | ((prev: GameState) => GameState)) => void,
   onNoteMiss: (note: Note) => void,
-  speed: number = 1.0 // 속도 배율 (1.0 = 기본, 높을수록 빠름)
+  speed: number = 1.0, // 속도 배율 (1.0 = 기본, 높을수록 빠름)
+  startDelayMs: number = 0
 ) {
   const fallDuration = BASE_FALL_DURATION / speed;
   const frameRef = useRef<number>();
   const lastTimeRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
+  const delayRef = useRef<number>(startDelayMs);
+
+  useEffect(() => {
+    delayRef.current = startDelayMs;
+  }, [startDelayMs]);
 
   useEffect(() => {
     if (!gameState.gameStarted) {
@@ -24,7 +30,7 @@ export function useGameLoop(
     }
 
     if (startTimeRef.current === 0) {
-      startTimeRef.current = performance.now();
+      startTimeRef.current = performance.now() + delayRef.current;
       lastTimeRef.current = startTimeRef.current;
     }
 
@@ -51,7 +57,10 @@ export function useGameLoop(
           const y = progress * JUDGE_LINE_Y; // 0에서 JUDGE_LINE_Y까지
 
           // 판정선을 지나간 노트는 miss 처리
-          if (timeUntilHit < -150 && !note.hit) {
+          const isHoldNote = note.duration > 0;
+          const missThreshold = isHoldNote ? note.endTime - elapsedTime : timeUntilHit;
+
+          if (missThreshold < -150 && !note.hit) {
             missCount++;
             return { ...note, hit: true, y: JUDGE_LINE_Y + 50 };
           }

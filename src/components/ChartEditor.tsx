@@ -6,6 +6,15 @@ import { TapBPMCalculator, bpmToBeatDuration, isValidBPM } from '../utils/bpmAna
 interface ChartEditorProps {
   onSave: (notes: Note[]) => void;
   onCancel: () => void;
+  onTest?: (payload: ChartTestPayload) => void;
+}
+
+interface ChartTestPayload {
+  notes: Note[];
+  startTimeMs: number;
+  youtubeVideoId: string | null;
+  youtubeUrl: string;
+  playbackSpeed: number;
 }
 
 interface TimeSignatureEvent {
@@ -16,6 +25,7 @@ interface TimeSignatureEvent {
 
 const LANE_POSITIONS = [100, 200, 300, 400];
 const LANE_KEY_LABELS = ['D', 'F', 'J', 'K'];
+const TAP_NOTE_HEIGHT = 60;
 const JUDGE_LINE_Y = 640;
 const PIXELS_PER_SECOND = 200; // 타임라인 확대 비율
 const TIMELINE_TOP_PADDING = 600;
@@ -25,7 +35,7 @@ const PLAYBACK_SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const MIN_PLAYBACK_SPEED = 0.5;
 const MAX_PLAYBACK_SPEED = 2;
 
-export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel }) => {
+export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTest }) => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -70,6 +80,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel }) =>
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState<boolean>(true);
   const [isLongNoteMode, setIsLongNoteMode] = useState<boolean>(false);
   const [pendingLongNote, setPendingLongNote] = useState<{ lane: Lane; startTime: number } | null>(null);
+  const [testStartInput, setTestStartInput] = useState<string>('0');
 
   const maxNoteTime = useMemo(() => {
     if (!notes.length) return 0;
@@ -217,6 +228,22 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel }) =>
     },
     [normalizePlaybackSpeed]
   );
+
+  const getClampedTestStart = useCallback(() => {
+    const parsed = parseFloat(testStartInput);
+    if (Number.isNaN(parsed)) {
+      return 0;
+    }
+    return Math.max(0, Math.min(timelineDurationMs, parsed));
+  }, [testStartInput, timelineDurationMs]);
+
+  const handleTestStartFromCurrent = useCallback(() => {
+    setTestStartInput(Math.max(0, Math.round(currentTime)).toString());
+  }, [currentTime]);
+
+  const handleResetTestStart = useCallback(() => {
+    setTestStartInput('0');
+  }, []);
 
   // 초기 스크롤 위치 설정: 재생선을 화면 중앙에 맞춤
   useEffect(() => {
@@ -407,10 +434,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel }) =>
   }, [handleLaneClick]);
 
   const applySeek = useCallback(
-    (timeMs: number) => {
+    (timeMs: number, options?: { skipPlayerSync?: boolean }) => {
       const clampedTime = Math.max(0, Math.min(timelineDurationMs, timeMs));
       setCurrentTime(clampedTime);
-      if (youtubePlayer && youtubePlayerReadyRef.current) {
+      if (!options?.skipPlayerSync && youtubePlayer && youtubePlayerReadyRef.current) {
         try {
           youtubePlayer.seekTo(clampedTime / 1000, true);
         } catch (error) {
@@ -423,13 +450,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel }) =>
   );
 
   const updateCurrentTimeFromPointer = useCallback(
-    (clientY: number) => {
+    (clientY: number, options?: { skipPlayerSync?: boolean }) => {
       const container = timelineScrollRef.current;
       if (!container) return null;
       const rect = container.getBoundingClientRect();
       const contentY = clientY - rect.top + container.scrollTop;
       const newTime = yToTime(contentY);
-      return applySeek(newTime);
+      return applySeek(newTime, options);
     },
     [applySeek, yToTime]
   );
@@ -517,13 +544,17 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel }) =>
       document.body.style.cursor = 'ns-resize';
       isDraggingPlayheadRef.current = true;
 
-      const initialTime = updateCurrentTimeFromPointer(event.clientY);
+      const initialTime = updateCurrentTimeFromPointer(event.clientY, {
+        skipPlayerSync: true,
+      });
       lastDraggedPlayheadTimeRef.current =
         initialTime !== null ? initialTime : currentTime;
 
       const handleMouseMove = (moveEvent: MouseEvent) => {
         moveEvent.preventDefault();
-        const draggedTime = updateCurrentTimeFromPointer(moveEvent.clientY);
+        const draggedTime = updateCurrentTimeFromPointer(moveEvent.clientY, {
+          skipPlayerSync: true,
+        });
         if (draggedTime !== null) {
           lastDraggedPlayheadTimeRef.current = draggedTime;
           // applySeek가 이미 호출되어 currentTime이 업데이트됨
@@ -533,9 +564,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel }) =>
       const handleMouseUp = (upEvent: MouseEvent) => {
         upEvent.preventDefault();
         cleanupDrag();
-        if (wasPlaying) {
-          const resumeTime = lastDraggedPlayheadTimeRef.current ?? currentTime;
-          startPlayback(resumeTime);
+        const resumeTime = lastDraggedPlayheadTimeRef.current ?? currentTime;
+        if (resumeTime !== null) {
+          applySeek(resumeTime);
+          if (wasPlaying) {
+            startPlayback(resumeTime);
+          }
         }
       };
 
@@ -552,7 +586,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel }) =>
       document.addEventListener('mouseup', handleMouseUp);
       playheadDragCleanupRef.current = cleanupDrag;
     },
-    [currentTime, isPlaying, pausePlayback, startPlayback, updateCurrentTimeFromPointer]
+    [applySeek, currentTime, isPlaying, pausePlayback, startPlayback, updateCurrentTimeFromPointer]
   );
 
   // YouTube 플레이어 초기화
@@ -888,6 +922,39 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel }) =>
     }
     applySeek(0);
   }, [applySeek, pausePlayback, youtubePlayer]);
+
+  const handleTestRun = useCallback(() => {
+    if (!onTest) {
+      alert('테스트 기능을 사용할 수 없습니다.');
+      return;
+    }
+    if (!notes.length) {
+      alert('노트가 없습니다. 노트를 추가한 뒤 테스트하세요.');
+      return;
+    }
+
+    const startMs = getClampedTestStart();
+    const hasAvailableNotes = notes.some((note) => {
+      const duration = typeof note.duration === 'number' ? note.duration : 0;
+      const endTime = typeof note.endTime === 'number' ? note.endTime : note.time + duration;
+      return endTime >= startMs;
+    });
+
+    if (!hasAvailableNotes) {
+      alert('선택한 시작 위치 이후에 노트가 없습니다.');
+      return;
+    }
+
+    pausePlayback();
+
+    onTest({
+      notes: notes.map((note) => ({ ...note })),
+      startTimeMs: startMs,
+      youtubeVideoId,
+      youtubeUrl,
+      playbackSpeed,
+    });
+  }, [getClampedTestStart, notes, onTest, pausePlayback, playbackSpeed, youtubeUrl, youtubeVideoId]);
 
   // 저장
   const handleSave = useCallback(() => {
@@ -1729,6 +1796,97 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel }) =>
             )}
           </div>
 
+          <div>
+            <div style={{ color: '#fff', marginBottom: '10px', fontWeight: 'bold' }}>
+              테스트
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                backgroundColor: '#2a2a2a',
+                padding: '12px',
+                borderRadius: '6px',
+              }}
+            >
+              <label
+                style={{
+                  color: '#ddd',
+                  fontSize: '12px',
+                }}
+              >
+                시작 위치 (ms)
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={testStartInput}
+                onChange={(e) => setTestStartInput(e.target.value)}
+                style={{
+                  padding: '6px 8px',
+                  borderRadius: '4px',
+                  border: '1px solid #555',
+                  backgroundColor: '#1f1f1f',
+                  color: '#fff',
+                }}
+              />
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  onClick={handleTestStartFromCurrent}
+                  style={{
+                    flex: 1,
+                    padding: '6px 8px',
+                    fontSize: '11px',
+                    backgroundColor: '#424242',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  현재 시간 적용
+                </button>
+                <button
+                  onClick={handleResetTestStart}
+                  style={{
+                    flex: 1,
+                    padding: '6px 8px',
+                    fontSize: '11px',
+                    backgroundColor: '#555',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  처음부터
+                </button>
+              </div>
+              <button
+                onClick={handleTestRun}
+                disabled={!onTest}
+                style={{
+                  padding: '8px 10px',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  backgroundColor: onTest ? '#4CAF50' : '#616161',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: onTest ? 'pointer' : 'not-allowed',
+                }}
+              >
+                🎮 테스트 실행
+              </button>
+              {!onTest && (
+                <div style={{ color: '#888', fontSize: '11px', lineHeight: 1.4 }}>
+                  테스트 기능을 사용할 수 없습니다.
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
 
         {/* 에디터 캔버스 */}
@@ -1941,10 +2099,16 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel }) =>
                   const startY = getNoteY(note);
                   const isHold = note.duration > 0;
                   const endY = isHold ? timeToY(note.endTime) : startY;
+                  const holdTopEdge = isHold
+                    ? Math.min(startY, endY) - TAP_NOTE_HEIGHT / 2
+                    : startY;
+                  const holdBottomEdge = isHold
+                    ? Math.max(startY, endY) + TAP_NOTE_HEIGHT / 2
+                    : startY;
                   const noteHeight = isHold
-                    ? Math.max(30, Math.abs(endY - startY))
-                    : 60;
-                  const topPosition = isHold ? Math.min(startY, endY) : startY;
+                    ? Math.max(TAP_NOTE_HEIGHT, holdBottomEdge - holdTopEdge)
+                    : TAP_NOTE_HEIGHT;
+                  const topPosition = isHold ? holdTopEdge : startY;
                   const isOddLane = note.lane === 0 || note.lane === 2;
                   const baseColor = isOddLane ? '#FF6B6B' : '#4ECDC4';
                   const borderColor = isOddLane ? '#EE5A52' : '#45B7B8';

@@ -9,6 +9,15 @@ import { useKeyboard } from '../hooks/useKeyboard';
 import { useGameLoop } from '../hooks/useGameLoop';
 import { judgeTiming } from '../utils/judge';
 import { generateNotes } from '../utils/noteGenerator';
+import { waitForYouTubeAPI } from '../utils/youtube';
+
+interface EditorTestPayload {
+  notes: Note[];
+  startTimeMs: number;
+  youtubeVideoId: string | null;
+  youtubeUrl: string;
+  playbackSpeed: number;
+}
 
 const LANE_KEYS = [
   ['D'],
@@ -24,11 +33,26 @@ const LANE_KEYS = [
 const LANE_POSITIONS = [100, 200, 300, 400];
 const JUDGE_LINE_LEFT = 50; // 판정선 시작 위치 (첫 레인 왼쪽)
 const JUDGE_LINE_WIDTH = 400; // 판정선 너비 (키 레인 영역)
+const JUDGE_LINE_Y = 640;
 
 const GAME_DURATION = 30000; // 30초
+const START_DELAY_MS = 2000; // 게임 시작 전 딜레이
 
 export const Game: React.FC = () => {
   const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
+  const [isTestMode, setIsTestMode] = useState<boolean>(false);
+  const testPreparedNotesRef = useRef<Note[]>([]);
+  
+  // 테스트 모드 YouTube 플레이어 상태
+  const [testYoutubePlayer, setTestYoutubePlayer] = useState<any>(null);
+  const testYoutubePlayerRef = useRef<HTMLDivElement>(null);
+  const testYoutubePlayerReadyRef = useRef(false);
+  const testAudioSettingsRef = useRef<{
+    youtubeVideoId: string | null;
+    youtubeUrl: string;
+    startTimeMs: number;
+    playbackSpeed: number;
+  } | null>(null);
   const [gameState, setGameState] = useState<GameState>(() => ({
     notes: generateNotes(GAME_DURATION),
     score: {
@@ -58,6 +82,17 @@ export const Game: React.FC = () => {
   }>>([]);
   const keyEffectIdRef = useRef(0);
   const processedMissNotes = useRef<Set<number>>(new Set()); // 이미 Miss 처리된 노트 ID 추적
+  const buildInitialScore = useCallback(
+    () => ({
+      perfect: 0,
+      great: 0,
+      good: 0,
+      miss: 0,
+      combo: 0,
+      maxCombo: 0,
+    }),
+    []
+  );
   
   // localStorage에서 속도 불러오기
   const [speed, setSpeed] = useState<number>(() => {
@@ -198,7 +233,22 @@ export const Game: React.FC = () => {
     [] // 의존성 제거하여 함수 재생성 방지
   );
 
-  useKeyboard(handleKeyPress, gameState.gameStarted && !gameState.gameEnded);
+  const handleKeyRelease = useCallback(
+    (lane: Lane) => {
+      setPressedKeys((prev) => {
+        const next = new Set(prev);
+        next.delete(lane);
+        return next;
+      });
+    },
+    []
+  );
+
+  useKeyboard(
+    handleKeyPress,
+    handleKeyRelease,
+    gameState.gameStarted && !gameState.gameEnded
+  );
 
   const handleNoteMiss = useCallback((note: Note) => {
     // 이미 처리된 노트는 다시 처리하지 않음
@@ -222,7 +272,7 @@ export const Game: React.FC = () => {
     }));
   }, []);
 
-  useGameLoop(gameState, setGameState, handleNoteMiss, speed);
+  useGameLoop(gameState, setGameState, handleNoteMiss, speed, START_DELAY_MS);
 
   useEffect(() => {
     if (
@@ -231,46 +281,292 @@ export const Game: React.FC = () => {
       !gameState.gameEnded
     ) {
       setGameState((prev) => ({ ...prev, gameEnded: true }));
+      
+      // 게임 종료 시 YouTube 플레이어 일시정지
+      if (isTestMode && testYoutubePlayer && testYoutubePlayerReadyRef.current) {
+        try {
+          testYoutubePlayer.pauseVideo?.();
+        } catch (e) {
+          console.warn('YouTube 일시정지 실패:', e);
+        }
+      }
     }
-  }, [gameState.currentTime, gameState.gameStarted, gameState.gameEnded]);
+  }, [gameState.currentTime, gameState.gameStarted, gameState.gameEnded, isTestMode, testYoutubePlayer]);
 
   const startGame = () => {
+    setIsTestMode(false);
+    testPreparedNotesRef.current = [];
     processedMissNotes.current.clear(); // Miss 처리된 노트 추적 초기화
+    setPressedKeys(new Set());
     setGameState((prev) => ({
       ...prev,
       gameStarted: true,
       notes: generateNotes(GAME_DURATION),
-      score: {
-        perfect: 0,
-        great: 0,
-        good: 0,
-        miss: 0,
-        combo: 0,
-        maxCombo: 0,
-      },
-      currentTime: 0,
+      score: buildInitialScore(),
+      currentTime: -START_DELAY_MS,
       gameEnded: false,
     }));
   };
 
   const resetGame = () => {
+    setIsTestMode(false);
+    testPreparedNotesRef.current = [];
     processedMissNotes.current.clear(); // Miss 처리된 노트 추적 초기화
+    setPressedKeys(new Set());
     setGameState((prev) => ({
       ...prev,
       gameStarted: false,
       gameEnded: false,
       currentTime: 0,
       notes: generateNotes(GAME_DURATION),
-      score: {
-        perfect: 0,
-        great: 0,
-        good: 0,
-        miss: 0,
-        combo: 0,
-        maxCombo: 0,
-      },
+      score: buildInitialScore(),
     }));
   };
+
+  const startTestSession = useCallback(
+    (preparedNotes: Note[]) => {
+      if (!preparedNotes.length) return;
+      processedMissNotes.current.clear();
+      setPressedKeys(new Set());
+      setGameState((prev) => ({
+        ...prev,
+        gameStarted: true,
+        notes: preparedNotes.map((note, index) => ({
+          ...note,
+          id: index + 1,
+          y: 0,
+          hit: false,
+        })),
+        score: buildInitialScore(),
+        currentTime: -START_DELAY_MS,
+        gameEnded: false,
+      }));
+    },
+    [buildInitialScore]
+  );
+
+  const handleEditorTest = useCallback(
+    (payload: EditorTestPayload) => {
+      const startMs = Math.max(0, Math.floor(payload.startTimeMs || 0));
+      const preparedNotes = payload.notes
+        .map((note) => {
+          const rawDuration =
+            typeof note.duration === 'number'
+              ? Math.max(0, note.duration)
+              : Math.max(
+                  0,
+                  (typeof note.endTime === 'number' ? note.endTime : note.time) - note.time
+                );
+          const originalEnd =
+            typeof note.endTime === 'number' ? note.endTime : note.time + rawDuration;
+          if (originalEnd < startMs) {
+            return null;
+          }
+          const adjustedStart = Math.max(note.time, startMs);
+          const trimmedDuration = Math.max(0, originalEnd - adjustedStart);
+          const relativeStart = adjustedStart - startMs;
+          const relativeEnd = relativeStart + trimmedDuration;
+          return {
+            ...note,
+            time: relativeStart,
+            duration: trimmedDuration,
+            endTime: relativeEnd,
+            y: 0,
+            hit: false,
+          };
+        })
+        .filter((note): note is Note => note !== null && (note.duration > 0 || note.time >= 0))
+        .sort((a, b) => a.time - b.time)
+        .map((note, index) => ({ ...note, id: index + 1 }));
+
+      if (!preparedNotes.length) {
+        alert('선택한 시작 위치 이후에 노트가 없습니다. 시작 위치를 조정해주세요.');
+        return;
+      }
+
+      // YouTube 오디오 설정 저장
+      testAudioSettingsRef.current = {
+        youtubeVideoId: payload.youtubeVideoId,
+        youtubeUrl: payload.youtubeUrl,
+        startTimeMs: startMs,
+        playbackSpeed: payload.playbackSpeed || 1,
+      };
+
+      testPreparedNotesRef.current = preparedNotes.map((note) => ({ ...note }));
+      setIsTestMode(true);
+      setIsEditorOpen(false);
+      startTestSession(preparedNotes);
+    },
+    [startTestSession]
+  );
+
+  const handleRetest = useCallback(() => {
+    if (!testPreparedNotesRef.current.length) return;
+    setIsTestMode(true);
+    const clonedNotes = testPreparedNotesRef.current.map((note) => ({ ...note }));
+    startTestSession(clonedNotes);
+  }, [startTestSession]);
+
+  const handleReturnToEditor = useCallback(() => {
+    setIsEditorOpen(true);
+    setIsTestMode(false);
+    testPreparedNotesRef.current = [];
+    testAudioSettingsRef.current = null;
+    
+    // YouTube 플레이어 정리
+    if (testYoutubePlayer) {
+      try {
+        testYoutubePlayer.destroy();
+      } catch (e) {
+        console.warn('테스트 플레이어 제거 실패:', e);
+      }
+    }
+    setTestYoutubePlayer(null);
+    testYoutubePlayerReadyRef.current = false;
+    
+    setGameState((prev) => ({
+      ...prev,
+      gameStarted: false,
+      gameEnded: false,
+      currentTime: 0,
+    }));
+  }, [testYoutubePlayer]);
+
+  // 테스트 모드 YouTube 플레이어 초기화
+  useEffect(() => {
+    if (!isTestMode || !testAudioSettingsRef.current?.youtubeVideoId) return;
+    if (!testYoutubePlayerRef.current) return;
+
+    let playerInstance: any = null;
+    let isCancelled = false;
+
+    const cleanup = (player: any) => {
+      if (player) {
+        try {
+          if (typeof player.destroy === 'function') {
+            player.destroy();
+          }
+        } catch (e) {
+          console.warn('테스트 플레이어 정리 실패:', e);
+        }
+      }
+      setTestYoutubePlayer(null);
+      testYoutubePlayerReadyRef.current = false;
+    };
+
+    // 기존 플레이어 정리
+    setTestYoutubePlayer((currentPlayer: any) => {
+      if (currentPlayer) {
+        cleanup(currentPlayer);
+      }
+      return null;
+    });
+    testYoutubePlayerReadyRef.current = false;
+
+    waitForYouTubeAPI().then(() => {
+      if (isCancelled) return;
+
+      if (!window.YT || !window.YT.Player) {
+        console.error('YouTube IFrame API를 로드할 수 없습니다.');
+        return;
+      }
+
+      const playerElement = testYoutubePlayerRef.current;
+      if (!playerElement || isCancelled) return;
+
+      const videoId = testAudioSettingsRef.current?.youtubeVideoId;
+      if (!videoId) return;
+
+      const playerId = `test-youtube-player-${videoId}`;
+      if (playerElement.id !== playerId) {
+        playerElement.id = playerId;
+      }
+
+      try {
+        playerInstance = new window.YT.Player(playerElement.id, {
+          videoId: videoId,
+          playerVars: {
+            autoplay: 0,
+            controls: 0,
+            enablejsapi: 1,
+          } as any,
+          events: {
+            onReady: (event: any) => {
+              if (isCancelled) return;
+
+              const player = event.target;
+              testYoutubePlayerReadyRef.current = true;
+              setTestYoutubePlayer(player);
+              playerInstance = player;
+
+              console.log('✅ 테스트 YouTube 플레이어 준비 완료');
+            },
+          },
+        });
+      } catch (e) {
+        console.error('테스트 플레이어 생성 실패:', e);
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+      if (playerInstance) {
+        cleanup(playerInstance);
+      }
+    };
+  }, [isTestMode]);
+
+  // 테스트 모드 YouTube 오디오 동기화
+  useEffect(() => {
+    if (!isTestMode || !gameState.gameStarted) return;
+    if (!testYoutubePlayer || !testYoutubePlayerReadyRef.current) return;
+    if (!testAudioSettingsRef.current) return;
+
+    const syncInterval = setInterval(() => {
+      if (!testYoutubePlayer || !testYoutubePlayerReadyRef.current) return;
+
+      const currentGameTime = gameState.currentTime;
+      if (currentGameTime < 0) {
+        // 카운트다운 중에는 플레이어 일시정지
+        try {
+          testYoutubePlayer.pauseVideo?.();
+        } catch (e) {
+          console.warn('YouTube 일시정지 실패:', e);
+        }
+        return;
+      }
+
+      const desiredSeconds =
+        ((testAudioSettingsRef.current?.startTimeMs || 0) + currentGameTime) / 1000;
+      const currentSeconds = testYoutubePlayer.getCurrentTime?.() ?? 0;
+
+      // 오차가 0.3초 이상일 때만 동기화
+      if (Math.abs(currentSeconds - desiredSeconds) > 0.3) {
+        try {
+          testYoutubePlayer.seekTo(desiredSeconds, true);
+        } catch (e) {
+          console.warn('YouTube 시간 동기화 실패:', e);
+        }
+      }
+
+      // 재생 상태 확인
+      const playerState = testYoutubePlayer.getPlayerState?.();
+      if (
+        typeof window !== 'undefined' &&
+        window.YT &&
+        playerState !== window.YT.PlayerState.PLAYING &&
+        currentGameTime >= 0
+      ) {
+        try {
+          testYoutubePlayer.playVideo?.();
+        } catch (e) {
+          console.warn('YouTube 재생 실패:', e);
+        }
+      }
+    }, 100);
+
+    return () => clearInterval(syncInterval);
+  }, [isTestMode, gameState.gameStarted, gameState.currentTime, testYoutubePlayer]);
 
   const total = gameState.score.perfect + gameState.score.great + 
                 gameState.score.good + gameState.score.miss;
@@ -285,6 +581,8 @@ export const Game: React.FC = () => {
 
   // 채보 저장 핸들러
   const handleChartSave = useCallback((notes: Note[]) => {
+    setIsTestMode(false);
+    testPreparedNotesRef.current = [];
     setGameState((prev) => ({
       ...prev,
       notes: notes.map((note) => ({ ...note, y: 0, hit: false })),
@@ -294,12 +592,14 @@ export const Game: React.FC = () => {
 
   // 에디터 닫기 핸들러
   const handleEditorCancel = useCallback(() => {
+    setIsTestMode(false);
+    testPreparedNotesRef.current = [];
     setIsEditorOpen(false);
   }, []);
 
   // 에디터가 열려있으면 에디터만 표시
   if (isEditorOpen) {
-    return <ChartEditor onSave={handleChartSave} onCancel={handleEditorCancel} />;
+    return <ChartEditor onSave={handleChartSave} onCancel={handleEditorCancel} onTest={handleEditorTest} />;
   }
 
   return (
@@ -357,10 +657,11 @@ export const Game: React.FC = () => {
         {gameState.notes.map((note) => (
           <NoteComponent
             key={note.id}
-            x={LANE_POSITIONS[note.lane]}
-            y={note.y}
-            hit={note.hit}
-            lane={note.lane}
+            note={note}
+            fallDuration={2000 / speed}
+            currentTime={gameState.currentTime}
+            judgeLineY={JUDGE_LINE_Y}
+            laneX={LANE_POSITIONS[note.lane]}
           />
         ))}
 
@@ -700,42 +1001,130 @@ export const Game: React.FC = () => {
         )}
 
         {gameState.gameEnded && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              textAlign: 'center',
-              color: '#fff',
-              backgroundColor: 'rgba(0,0,0,0.8)',
-              padding: '32px',
-              borderRadius: '12px',
-            }}
-          >
-            <h1 style={{ fontSize: '48px', marginBottom: '32px' }}>
-              게임 종료
-            </h1>
-            <div style={{ fontSize: '24px', marginBottom: '32px' }}>
-              <div>최대 콤보: {gameState.score.maxCombo}</div>
-              <div>정확도: {accuracy.toFixed(2)}%</div>
-            </div>
-            <button
-              onClick={resetGame}
+          isTestMode ? (
+            <div
               style={{
-                padding: '16px 32px',
-                fontSize: '24px',
-                backgroundColor: '#2196F3',
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                textAlign: 'center',
                 color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
+                backgroundColor: 'rgba(0,0,0,0.85)',
+                padding: '32px',
+                borderRadius: '12px',
+                minWidth: '360px',
               }}
             >
-              다시 시작
-            </button>
-          </div>
+              <h1 style={{ fontSize: '40px', marginBottom: '20px' }}>테스트 종료</h1>
+              <div style={{ fontSize: '20px', marginBottom: '28px' }}>
+                <div>정확도: {accuracy.toFixed(2)}%</div>
+                <div>최대 콤보: {gameState.score.maxCombo}</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <button
+                  onClick={handleRetest}
+                  style={{
+                    padding: '14px 24px',
+                    fontSize: '18px',
+                    backgroundColor: '#4CAF50',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  🔁 다시 테스트
+                </button>
+                <button
+                  onClick={handleReturnToEditor}
+                  style={{
+                    padding: '14px 24px',
+                    fontSize: '18px',
+                    backgroundColor: '#FF9800',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  ✏️ 에디터로 돌아가기
+                </button>
+                <button
+                  onClick={resetGame}
+                  style={{
+                    padding: '14px 24px',
+                    fontSize: '18px',
+                    backgroundColor: '#616161',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  🏠 메인 메뉴
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div
+              style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                textAlign: 'center',
+                color: '#fff',
+                backgroundColor: 'rgba(0,0,0,0.8)',
+                padding: '32px',
+                borderRadius: '12px',
+              }}
+            >
+              <h1 style={{ fontSize: '48px', marginBottom: '32px' }}>
+                게임 종료
+              </h1>
+              <div style={{ fontSize: '24px', marginBottom: '32px' }}>
+                <div>최대 콤보: {gameState.score.maxCombo}</div>
+                <div>정확도: {accuracy.toFixed(2)}%</div>
+              </div>
+              <button
+                onClick={resetGame}
+                style={{
+                  padding: '16px 32px',
+                  fontSize: '24px',
+                  backgroundColor: '#2196F3',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                }}
+              >
+                다시 시작
+              </button>
+            </div>
+          )
+        )}
+        
+        {/* 테스트 모드 YouTube 플레이어 (숨김 - 오디오만 재생) */}
+        {isTestMode && testAudioSettingsRef.current?.youtubeVideoId && (
+          <div
+            ref={testYoutubePlayerRef}
+            style={{
+              position: 'absolute',
+              bottom: '-1000px',
+              left: '-1000px',
+              width: '1px',
+              height: '1px',
+              opacity: 0,
+              pointerEvents: 'none',
+              overflow: 'hidden',
+              zIndex: -1,
+            }}
+          />
         )}
       </div>
     </div>
