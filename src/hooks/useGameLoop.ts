@@ -38,37 +38,35 @@ export function useGameLoop(
       if (!gameState.gameStarted) return;
 
       const elapsedTime = currentTime - startTimeRef.current;
+      let missedInFrame: Note[] = [];
 
       setGameState((prev: GameState) => {
-        // 놓친 노트 개수 확인
         let missCount = 0;
-        
-        // 노트 위치 업데이트
+
         const updatedNotes = prev.notes.map((note) => {
           const timeUntilHit = note.time - elapsedTime;
-          
-          // 노트가 나타나기 전에는 화면 밖에 있음
-          if (timeUntilHit > fallDuration) {
-            return { ...note, y: -100 }; // 화면 위에 숨김
-          }
-          
-          // progress: 0 = 화면 상단, 1 = 판정선
-          const progress = 1 - (timeUntilHit / fallDuration);
-          const y = progress * JUDGE_LINE_Y; // 0에서 JUDGE_LINE_Y까지
 
-          // 판정선을 지나간 노트는 miss 처리
+          if (timeUntilHit > fallDuration) {
+            return { ...note, y: -100 };
+          }
+
+          const progress = 1 - timeUntilHit / fallDuration;
+          const y = progress * JUDGE_LINE_Y;
+
           const isHoldNote = note.duration > 0;
-          const missThreshold = isHoldNote ? note.endTime - elapsedTime : timeUntilHit;
+          const missThreshold = isHoldNote
+            ? note.endTime - elapsedTime
+            : timeUntilHit;
 
           if (missThreshold < -150 && !note.hit) {
             missCount++;
+            missedInFrame.push(note);
             return { ...note, hit: true, y: JUDGE_LINE_Y + 50 };
           }
 
           return { ...note, y: Math.max(-100, Math.min(GAME_HEIGHT, y)) };
         });
 
-        // Miss가 있으면 점수 업데이트
         if (missCount > 0) {
           return {
             ...prev,
@@ -89,6 +87,10 @@ export function useGameLoop(
         };
       });
 
+      if (missedInFrame.length && onNoteMiss) {
+        missedInFrame.forEach((note) => onNoteMiss(note));
+      }
+
       lastTimeRef.current = currentTime;
       frameRef.current = requestAnimationFrame(animate);
     };
@@ -102,4 +104,3 @@ export function useGameLoop(
     };
   }, [gameState.gameStarted, setGameState, onNoteMiss, speed]);
 }
-

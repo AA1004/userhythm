@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { GameState, Note, Lane, JudgeType, Score } from '../types/game';
+import { GameState, Note, Lane, JudgeType } from '../types/game';
 import { Note as NoteComponent } from './Note';
 import { KeyLane } from './KeyLane';
 import { JudgeLine } from './JudgeLine';
@@ -268,6 +268,7 @@ export const Game: React.FC = () => {
           const currentTime = currentState.currentTime;
           const endTime = typeof holdNote.endTime === 'number' ? holdNote.endTime : holdNote.time + (holdNote.duration || 0);
           const timeDiff = Math.abs(endTime - currentTime);
+          const isBeforeEnd = currentTime < endTime - 150;
           
           if (timeDiff <= 150) {
             // 롱노트 끝 판정
@@ -336,6 +337,35 @@ export const Game: React.FC = () => {
 
             // holdingNotes에서 제거
             next.delete(holdNote.id);
+          } else if (isBeforeEnd) {
+            // 롱노트를 충분히 유지하기 전에 손을 뗀 경우 Miss 처리
+            processedMissNotes.current.add(holdNote.id);
+
+            setGameState((prevState) => {
+              const newScore = { ...prevState.score };
+              newScore.miss++;
+              newScore.combo = 0;
+
+              const updatedNotes = prevState.notes.map((note) =>
+                note.id === holdNote.id ? { ...note, hit: true } : note
+              );
+
+              return {
+                ...prevState,
+                notes: updatedNotes,
+                score: newScore,
+              };
+            });
+
+            const feedbackId = feedbackIdRef.current++;
+            setJudgeFeedbacks([{ id: feedbackId, judge: 'miss' }]);
+            requestAnimationFrame(() => {
+              setTimeout(() => {
+                setJudgeFeedbacks((prev) => prev.filter((f) => f.id !== feedbackId));
+              }, 800);
+            });
+
+            next.delete(holdNote.id);
           }
         }
 
@@ -352,25 +382,20 @@ export const Game: React.FC = () => {
   );
 
   const handleNoteMiss = useCallback((note: Note) => {
-    // 이미 처리된 노트는 다시 처리하지 않음
     if (processedMissNotes.current.has(note.id)) {
-      console.log('이미 처리된 노트:', note.id);
       return;
     }
-    
-    console.log('Miss 처리:', note.id);
-    
-    // 처리된 노트 ID 기록
+
     processedMissNotes.current.add(note.id);
-    
-    setGameState((prev) => ({
-      ...prev,
-      score: {
-        ...prev.score,
-        miss: prev.score.miss + 1,
-        combo: 0,
-      },
-    }));
+
+    setHoldingNotes((prev) => {
+      if (!prev.has(note.id)) {
+        return prev;
+      }
+      const next = new Map(prev);
+      next.delete(note.id);
+      return next;
+    });
   }, []);
 
   useGameLoop(gameState, setGameState, handleNoteMiss, speed, START_DELAY_MS);
@@ -767,6 +792,7 @@ export const Game: React.FC = () => {
             currentTime={gameState.currentTime}
             judgeLineY={JUDGE_LINE_Y}
             laneX={LANE_POSITIONS[note.lane]}
+            isHolding={holdingNotes.has(note.id)}
           />
         ))}
 
@@ -1235,7 +1261,3 @@ export const Game: React.FC = () => {
     </div>
   );
 };
-
-
-
-
