@@ -51,6 +51,7 @@ export const Game: React.FC = () => {
   const [testYoutubePlayer, setTestYoutubePlayer] = useState<any>(null);
   const testYoutubePlayerRef = useRef<HTMLDivElement>(null);
   const testYoutubePlayerReadyRef = useRef(false);
+  const [testYoutubeVideoId, setTestYoutubeVideoId] = useState<string | null>(null);
   const testAudioSettingsRef = useRef<{
     youtubeVideoId: string | null;
     youtubeUrl: string;
@@ -546,6 +547,7 @@ export const Game: React.FC = () => {
     setIsTestMode(false);
     testPreparedNotesRef.current = [];
     testAudioSettingsRef.current = null;
+    setTestYoutubeVideoId(null);
     
     // YouTube 플레이어 정리
     if (testYoutubePlayer) {
@@ -568,7 +570,7 @@ export const Game: React.FC = () => {
 
   // 테스트 모드 YouTube 플레이어 초기화
   useEffect(() => {
-    if (!isTestMode || !testAudioSettingsRef.current?.youtubeVideoId) return;
+    if (!isTestMode || !testYoutubeVideoId) return;
     if (!testYoutubePlayerRef.current) return;
 
     let playerInstance: any = null;
@@ -608,7 +610,7 @@ export const Game: React.FC = () => {
       const playerElement = testYoutubePlayerRef.current;
       if (!playerElement || isCancelled) return;
 
-      const videoId = testAudioSettingsRef.current?.youtubeVideoId;
+      const videoId = testYoutubeVideoId;
       if (!videoId) return;
 
       const playerId = `test-youtube-player-${videoId}`;
@@ -634,6 +636,21 @@ export const Game: React.FC = () => {
               playerInstance = player;
 
               console.log('✅ 테스트 YouTube 플레이어 준비 완료');
+              
+              // 플레이어가 준비되면 즉시 재생 시작 (게임 시작 대기)
+              // currentTime이 0 이상이 될 때까지 대기하지 않고 바로 재생
+              setTimeout(() => {
+                if (!isCancelled && player) {
+                  try {
+                    // 0초부터 시작
+                    player.seekTo(0, true);
+                    player.playVideo?.();
+                    console.log('🎵 YouTube 플레이어 재생 시작');
+                  } catch (e) {
+                    console.warn('YouTube 자동 재생 실패:', e);
+                  }
+                }
+              }, 100);
             },
           },
         });
@@ -648,7 +665,7 @@ export const Game: React.FC = () => {
         cleanup(playerInstance);
       }
     };
-  }, [isTestMode]);
+  }, [isTestMode, testYoutubeVideoId]);
 
   // 테스트 모드 YouTube 오디오 동기화
   useEffect(() => {
@@ -660,41 +677,36 @@ export const Game: React.FC = () => {
       if (!testYoutubePlayer || !testYoutubePlayerReadyRef.current) return;
 
       const currentGameTime = gameState.currentTime;
-      if (currentGameTime < 0) {
-        // 카운트다운 중에는 플레이어 일시정지
-        try {
-          testYoutubePlayer.pauseVideo?.();
-        } catch (e) {
-          console.warn('YouTube 일시정지 실패:', e);
-        }
-        return;
-      }
-
-      const desiredSeconds =
-        ((testAudioSettingsRef.current?.startTimeMs || 0) + currentGameTime) / 1000;
-      const currentSeconds = testYoutubePlayer.getCurrentTime?.() ?? 0;
-
-      // 차이가 0.3초 이상일 때만 시키기
-      if (Math.abs(currentSeconds - desiredSeconds) > 0.3) {
-        try {
-          testYoutubePlayer.seekTo(desiredSeconds, true);
-        } catch (e) {
-          console.warn('YouTube 시간 시키기 실패:', e);
-        }
-      }
-
-      // 재생 상태 확인
+      
+      // 재생 상태 확인 - 항상 재생 중이어야 함
       const playerState = testYoutubePlayer.getPlayerState?.();
       if (
         typeof window !== 'undefined' &&
         window.YT &&
-        playerState !== window.YT.PlayerState.PLAYING &&
-        currentGameTime >= 0
+        playerState !== window.YT.PlayerState.PLAYING
       ) {
         try {
           testYoutubePlayer.playVideo?.();
+          console.log('🎵 YouTube 플레이어 재생 시작 (동기화)');
         } catch (e) {
           console.warn('YouTube 재생 실패:', e);
+        }
+      }
+
+      // 시간 동기화는 currentTime >= 0일 때만 수행 (게임이 실제로 시작된 후)
+      if (currentGameTime >= 0) {
+        const desiredSeconds =
+          ((testAudioSettingsRef.current?.startTimeMs || 0) + currentGameTime) / 1000;
+        const currentSeconds = testYoutubePlayer.getCurrentTime?.() ?? 0;
+
+        // 차이가 0.3초 이상일 때만 시키기
+        if (Math.abs(currentSeconds - desiredSeconds) > 0.3) {
+          try {
+            testYoutubePlayer.seekTo(desiredSeconds, true);
+            console.log(`⏱️ YouTube 시간 동기화: ${desiredSeconds.toFixed(2)}초`);
+          } catch (e) {
+            console.warn('YouTube 시간 시키기 실패:', e);
+          }
         }
       }
     }, 100);
@@ -747,7 +759,33 @@ export const Game: React.FC = () => {
       }
 
       setIsChartSelectOpen(false);
-      setIsTestMode(false);
+      
+      // 기존 테스트 모드 플레이어 정리
+      if (testYoutubePlayer) {
+        try {
+          testYoutubePlayer.destroy?.();
+        } catch (e) {
+          console.warn('기존 플레이어 정리 실패:', e);
+        }
+      }
+      setTestYoutubePlayer(null);
+      testYoutubePlayerReadyRef.current = false;
+      
+      // YouTube 플레이어 설정 (필요시) - 먼저 설정해야 useEffect가 올바르게 작동함
+      if (chartData.youtubeVideoId) {
+        testAudioSettingsRef.current = {
+          youtubeVideoId: chartData.youtubeVideoId,
+          youtubeUrl: chartData.youtubeUrl || '',
+          startTimeMs: 0,
+          playbackSpeed: 1,
+        };
+        setTestYoutubeVideoId(chartData.youtubeVideoId); // state로 설정하여 useEffect가 감지하도록
+        setIsTestMode(true);
+      } else {
+        setIsTestMode(false);
+        setTestYoutubeVideoId(null);
+        testAudioSettingsRef.current = null;
+      }
       
       // 선택된 채보 데이터로 게임 상태 초기화
       const preparedNotes = chartData.notes.map((note: Note) => ({
@@ -771,17 +809,6 @@ export const Game: React.FC = () => {
       
       setHoldingNotes(new Map());
       processedMissNotes.current = new Set();
-      
-      // YouTube 플레이어 설정 (필요시)
-      if (chartData.youtubeVideoId) {
-        testAudioSettingsRef.current = {
-          youtubeVideoId: chartData.youtubeVideoId,
-          youtubeUrl: chartData.youtubeUrl || '',
-          startTimeMs: 0,
-          playbackSpeed: 1,
-        };
-        setIsTestMode(true);
-      }
     } catch (error) {
       console.error('Failed to load chart:', error);
       alert('채보를 불러오는데 실패했습니다. 다시 시도해주세요.');
@@ -1352,7 +1379,7 @@ export const Game: React.FC = () => {
         )}
         
         {/* 테스트 모드 YouTube 플레이어 (숨김 - 오디오만 재생) */}
-        {isTestMode && testAudioSettingsRef.current?.youtubeVideoId && (
+        {isTestMode && testYoutubeVideoId && (
           <div
             ref={testYoutubePlayerRef}
             style={{

@@ -5,18 +5,30 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 // 환경 변수가 없으면 더미 클라이언트를 생성 (에러 방지)
 // 실제로 사용할 때는 API 호출이 실패하므로, 기능은 비활성화됩니다.
-export const isSupabaseConfigured = !!supabaseUrl && !!supabaseAnonKey && supabaseUrl.trim() !== '' && supabaseAnonKey.trim() !== '';
+const supabaseConfiguredFlag =
+  !!supabaseUrl && !!supabaseAnonKey && supabaseUrl.trim() !== '' && supabaseAnonKey.trim() !== '';
+export const isSupabaseConfigured = supabaseConfiguredFlag;
 
-if (!isSupabaseConfigured) {
+if (!supabaseConfiguredFlag) {
   console.warn('Supabase credentials not configured. Chart sharing features will be disabled.');
 }
 
 // 환경 변수가 없으면 더미 URL과 키로 클라이언트를 생성합니다.
 // 실제 API 호출 시 에러가 발생하지만, 초기화 오류는 방지합니다.
 export const supabase: SupabaseClient = createClient(
-  isSupabaseConfigured ? supabaseUrl : 'https://placeholder.supabase.co',
-  isSupabaseConfigured ? supabaseAnonKey : 'placeholder-anon-key'
+  supabaseConfiguredFlag ? supabaseUrl : 'https://placeholder.supabase.co',
+  supabaseConfiguredFlag ? supabaseAnonKey : 'placeholder-anon-key'
 );
+
+const missingConfigError = new Error(
+  'Supabase 환경 변수가 설정되지 않았습니다. 루트 디렉터리의 CHART_SHARING_SETUP.md를 참고해 .env 파일을 구성한 뒤 개발 서버를 재시작하세요.'
+);
+
+const ensureConfigured = () => {
+  if (!supabaseConfiguredFlag) {
+    throw missingConfigError;
+  }
+};
 
 // Database types
 export interface Chart {
@@ -47,19 +59,20 @@ export interface ChartReview {
 // Chart API functions
 export const chartAPI = {
   // Upload a new chart
+  // RLS INSERT 정책만 통과하면 되도록, INSERT 후 행을 다시 SELECT 하지 않습니다.
+  // (Supabase v2에서는 .select()를 호출하지 않으면 최소 반환 모드로 동작합니다.)
   async uploadChart(chartData: Omit<Chart, 'id' | 'created_at' | 'updated_at' | 'status' | 'play_count'>) {
-    const { data, error } = await supabase
+    ensureConfigured();
+    const { error } = await supabase
       .from('charts')
       .insert({
         ...chartData,
         status: 'pending',
         play_count: 0,
-      })
-      .select()
-      .single();
+      });
 
     if (error) throw error;
-    return data;
+    // 현재 호출 측에서는 반환값을 사용하지 않으므로 따로 data를 리턴하지 않습니다.
   },
 
   // Get approved charts with pagination and filters
@@ -70,6 +83,7 @@ export const chartAPI = {
     limit?: number;
     offset?: number;
   }) {
+    ensureConfigured();
     let query = supabase
       .from('charts')
       .select('*', { count: 'exact' })
@@ -95,6 +109,7 @@ export const chartAPI = {
 
   // Get pending charts (for admin)
   async getPendingCharts() {
+    ensureConfigured();
     const { data, error } = await supabase
       .from('charts')
       .select('*')
@@ -107,6 +122,7 @@ export const chartAPI = {
 
   // Get a single chart by ID
   async getChartById(id: string) {
+    ensureConfigured();
     const { data, error } = await supabase
       .from('charts')
       .select('*')
@@ -119,6 +135,7 @@ export const chartAPI = {
 
   // Update chart status (admin only)
   async updateChartStatus(chartId: string, status: 'approved' | 'rejected', reviewer: string, comment?: string) {
+    ensureConfigured();
     // Update chart status
     const { error: chartError } = await supabase
       .from('charts')
@@ -142,12 +159,16 @@ export const chartAPI = {
 
   // Increment play count
   async incrementPlayCount(chartId: string) {
+    if (!supabaseConfiguredFlag) {
+      return;
+    }
     const { error } = await supabase.rpc('increment_play_count', { chart_id: chartId });
     if (error) console.error('Failed to increment play count:', error);
   },
 
   // Upload preview image
   async uploadPreviewImage(chartId: string, file: File) {
+    ensureConfigured();
     const fileExt = file.name.split('.').pop();
     const fileName = `${chartId}-${Date.now()}.${fileExt}`;
     const filePath = `previews/${fileName}`;
@@ -165,4 +186,3 @@ export const chartAPI = {
     return data.publicUrl;
   },
 };
-
