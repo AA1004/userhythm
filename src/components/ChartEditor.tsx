@@ -563,13 +563,29 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
 
       const handleMouseUp = (upEvent: MouseEvent) => {
         upEvent.preventDefault();
-        cleanupDrag();
         const resumeTime = lastDraggedPlayheadTimeRef.current ?? currentTime;
+        
+        // cleanup 먼저 실행 (드래그 상태 해제는 나중에)
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        playheadDragCleanupRef.current = null;
+        
+        // YouTube 플레이어를 seek하고 currentTime 업데이트
         if (resumeTime !== null) {
           applySeek(resumeTime);
-          if (wasPlaying) {
-            startPlayback(resumeTime);
-          }
+          
+          // 약간의 지연 후에 드래그 플래그를 해제하여 YouTube 동기화가 다시 시작되도록 함
+          // 이렇게 하면 YouTube 플레이어 seek가 먼저 완료됩니다
+          setTimeout(() => {
+            isDraggingPlayheadRef.current = false;
+            if (wasPlaying) {
+              startPlayback(resumeTime);
+            }
+          }, 100);
+        } else {
+          isDraggingPlayheadRef.current = false;
         }
       };
 
@@ -756,8 +772,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
   // YouTube 재생 시간 동기화 (좀 더 부드럽게 업데이트)
   useEffect(() => {
     if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
+    // 재생 중이 아닐 때는 동기화하지 않음
+    if (!isPlaying) return;
 
     const syncInterval = setInterval(() => {
+      // 드래그 중일 때는 YouTube 동기화를 건너뜀
+      if (isDraggingPlayheadRef.current) return;
+      
       try {
         const currentTime = youtubePlayer.getCurrentTime() * 1000;
         setCurrentTime(currentTime);
@@ -767,7 +788,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
     }, 33); // 약 30fps
 
     return () => clearInterval(syncInterval);
-  }, [youtubePlayer]);
+  }, [youtubePlayer, isPlaying]);
 
   // 재생선 자동 스크롤: 재생 중 재생선을 화면 중앙에 고정
   useEffect(() => {
@@ -1443,7 +1464,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
 
       {/* 메인 에디터 영역 */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* 사이드바 - 레인 선택 및 컨트롤 */}
+        {/* 왼쪽 사이드바 - 기본 정보 */}
         <div
           style={{
             width: '150px',
@@ -1737,156 +1758,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
             </div>
           </div>
 
-          <div>
-            <div style={{ color: '#fff', marginBottom: '10px', fontWeight: 'bold' }}>
-              롱노트
-            </div>
-            <button
-              onClick={() => setIsLongNoteMode((prev) => !prev)}
-              style={{
-                padding: '6px 12px',
-                fontSize: '12px',
-                backgroundColor: isLongNoteMode ? '#FF7043' : '#424242',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                width: '100%',
-              }}
-            >
-              {isLongNoteMode ? '롱노트 모드 해제' : '롱노트 모드 활성화'}
-            </button>
-            {isLongNoteMode && (
-              <div
-                style={{
-                  marginTop: '8px',
-                  padding: '8px',
-                  backgroundColor: '#2a2a2a',
-                  borderRadius: '6px',
-                  color: '#ddd',
-                  fontSize: '12px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                }}
-              >
-                <div>
-                  {pendingLongNote
-                    ? `${LANE_KEY_LABELS[pendingLongNote.lane]} 레인 시작 지점 설정됨. 종료 위치에서 동일 키를 다시 눌러주세요.`
-                    : '원하는 레인의 키를 두 번 눌러 시작/종료를 지정하세요.'}
-                </div>
-                {pendingLongNote && (
-                  <button
-                    onClick={() => setPendingLongNote(null)}
-                    style={{
-                      padding: '4px 8px',
-                      fontSize: '11px',
-                      backgroundColor: '#616161',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      alignSelf: 'flex-start',
-                    }}
-                  >
-                    시작 지점 취소
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <div style={{ color: '#fff', marginBottom: '10px', fontWeight: 'bold' }}>
-              테스트
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-                backgroundColor: '#2a2a2a',
-                padding: '12px',
-                borderRadius: '6px',
-              }}
-            >
-              <label
-                style={{
-                  color: '#ddd',
-                  fontSize: '12px',
-                }}
-              >
-                시작 위치 (ms)
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={testStartInput}
-                onChange={(e) => setTestStartInput(e.target.value)}
-                style={{
-                  padding: '6px 8px',
-                  borderRadius: '4px',
-                  border: '1px solid #555',
-                  backgroundColor: '#1f1f1f',
-                  color: '#fff',
-                }}
-              />
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <button
-                  onClick={handleTestStartFromCurrent}
-                  style={{
-                    flex: 1,
-                    padding: '6px 8px',
-                    fontSize: '11px',
-                    backgroundColor: '#424242',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  현재 시간 적용
-                </button>
-                <button
-                  onClick={handleResetTestStart}
-                  style={{
-                    flex: 1,
-                    padding: '6px 8px',
-                    fontSize: '11px',
-                    backgroundColor: '#555',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  처음부터
-                </button>
-              </div>
-              <button
-                onClick={handleTestRun}
-                disabled={!onTest}
-                style={{
-                  padding: '8px 10px',
-                  fontSize: '13px',
-                  fontWeight: 'bold',
-                  backgroundColor: onTest ? '#4CAF50' : '#616161',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: onTest ? 'pointer' : 'not-allowed',
-                }}
-              >
-                🎮 테스트 실행
-              </button>
-              {!onTest && (
-                <div style={{ color: '#888', fontSize: '11px', lineHeight: 1.4 }}>
-                  테스트 기능을 사용할 수 없습니다.
-                </div>
-              )}
-            </div>
-          </div>
-
         </div>
 
         {/* 에디터 캔버스 */}
@@ -2099,16 +1970,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                   const startY = getNoteY(note);
                   const isHold = note.duration > 0;
                   const endY = isHold ? timeToY(note.endTime) : startY;
-                  const holdTopEdge = isHold
-                    ? Math.min(startY, endY) - TAP_NOTE_HEIGHT / 2
-                    : startY;
-                  const holdBottomEdge = isHold
-                    ? Math.max(startY, endY) + TAP_NOTE_HEIGHT / 2
-                    : startY;
                   const noteHeight = isHold
-                    ? Math.max(TAP_NOTE_HEIGHT, holdBottomEdge - holdTopEdge)
+                    ? Math.max(30, Math.abs(endY - startY))
                     : TAP_NOTE_HEIGHT;
-                  const topPosition = isHold ? holdTopEdge : startY;
+                  const topPosition = isHold ? Math.min(startY, endY) : startY;
                   const isOddLane = note.lane === 0 || note.lane === 2;
                   const baseColor = isOddLane ? '#FF6B6B' : '#4ECDC4';
                   const borderColor = isOddLane ? '#EE5A52' : '#45B7B8';
@@ -2198,9 +2063,162 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
             )}
           </div>
         </div>
+
+        {/* 오른쪽 사이드바 - 롱노트 & 테스트 */}
+        <div
+          style={{
+            width: '180px',
+            backgroundColor: '#1f1f1f',
+            padding: '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px',
+          }}
+        >
+          <div>
+            <div style={{ color: '#fff', marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>
+              롱노트
+            </div>
+            <button
+              onClick={() => setIsLongNoteMode((prev) => !prev)}
+              style={{
+                padding: '8px 12px',
+                fontSize: '12px',
+                backgroundColor: isLongNoteMode ? '#FF7043' : '#424242',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                width: '100%',
+              }}
+            >
+              {isLongNoteMode ? '롱노트 해제' : '롱노트 활성화'}
+            </button>
+            {isLongNoteMode && (
+              <div
+                style={{
+                  marginTop: '8px',
+                  padding: '8px',
+                  backgroundColor: '#2a2a2a',
+                  borderRadius: '6px',
+                  color: '#ddd',
+                  fontSize: '11px',
+                  lineHeight: 1.4,
+                }}
+              >
+                {pendingLongNote
+                  ? `${LANE_KEY_LABELS[pendingLongNote.lane]} 시작됨. 종료 위치에서 동일 키 재입력.`
+                  : '키를 두 번 눌러 시작/종료 지정'}
+                {pendingLongNote && (
+                  <button
+                    onClick={() => setPendingLongNote(null)}
+                    style={{
+                      marginTop: '6px',
+                      padding: '4px 8px',
+                      fontSize: '10px',
+                      backgroundColor: '#616161',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      width: '100%',
+                    }}
+                  >
+                    취소
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <div style={{ color: '#fff', marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>
+              테스트
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                backgroundColor: '#2a2a2a',
+                padding: '12px',
+                borderRadius: '6px',
+              }}
+            >
+              <label
+                style={{
+                  color: '#ddd',
+                  fontSize: '11px',
+                }}
+              >
+                시작 위치 (ms)
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={testStartInput}
+                onChange={(e) => setTestStartInput(e.target.value)}
+                style={{
+                  padding: '6px 8px',
+                  borderRadius: '4px',
+                  border: '1px solid #555',
+                  backgroundColor: '#1f1f1f',
+                  color: '#fff',
+                  fontSize: '12px',
+                }}
+              />
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <button
+                  onClick={handleTestStartFromCurrent}
+                  style={{
+                    flex: 1,
+                    padding: '6px 4px',
+                    fontSize: '10px',
+                    backgroundColor: '#424242',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  현재
+                </button>
+                <button
+                  onClick={handleResetTestStart}
+                  style={{
+                    flex: 1,
+                    padding: '6px 4px',
+                    fontSize: '10px',
+                    backgroundColor: '#555',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  처음
+                </button>
+              </div>
+              <button
+                onClick={handleTestRun}
+                disabled={!onTest}
+                style={{
+                  padding: '10px 12px',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  backgroundColor: onTest ? '#4CAF50' : '#616161',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: onTest ? 'pointer' : 'not-allowed',
+                }}
+              >
+                🎮 테스트 실행
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 };
-
-

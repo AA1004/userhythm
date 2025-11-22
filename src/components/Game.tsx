@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { GameState, Note, Lane, JudgeType } from '../types/game';
+import { GameState, Note, Lane, JudgeType, Score } from '../types/game';
 import { Note as NoteComponent } from './Note';
 import { KeyLane } from './KeyLane';
 import { JudgeLine } from './JudgeLine';
@@ -26,13 +26,13 @@ const LANE_KEYS = [
   ['K'],
 ];
 
-// 키 레인을 딱 붙이도록 배치: 각 레인 100px 너비, 4개 = 400px
-// 양쪽 여백을 3분의 1로 줄임: (700 - 400) / 2 / 3 = 50px
-// 첫 레인 중앙: 50 + 50 = 100px, 이후 100px씩 간격
-// 판정선: 50px ~ 450px (키 레인 영역만)
+// 4개 레인을 더 붙이도록 배치: 각 레인 100px 너비, 4개 = 400px
+// 좌우 여백을 3분의 1로 줄임: (700 - 400) / 2 / 3 = 50px
+// 각 레인 중앙: 50 + 50 = 100px, 이후 100px씩 간격
+// 판정선: 50px ~ 450px (4개 레인 영역)
 const LANE_POSITIONS = [100, 200, 300, 400];
 const JUDGE_LINE_LEFT = 50; // 판정선 시작 위치 (첫 레인 왼쪽)
-const JUDGE_LINE_WIDTH = 400; // 판정선 너비 (키 레인 영역)
+const JUDGE_LINE_WIDTH = 400; // 판정선 너비 (4개 레인 영역)
 const JUDGE_LINE_Y = 640;
 
 const GAME_DURATION = 30000; // 30초
@@ -69,6 +69,7 @@ export const Game: React.FC = () => {
   }));
 
   const [pressedKeys, setPressedKeys] = useState<Set<Lane>>(new Set());
+  const [holdingNotes, setHoldingNotes] = useState<Map<number, Note>>(new Map()); // 현재 누르고 있는 롱노트들 (노트 ID -> 노트)
   const [judgeFeedbacks, setJudgeFeedbacks] = useState<Array<{
     id: number;
     judge: JudgeType;
@@ -106,7 +107,7 @@ export const Game: React.FC = () => {
     localStorage.setItem('rhythmGameSpeed', speed.toString());
   }, [speed]);
 
-  // gameState를 ref로 저장하여 최신 값을 항상 참조
+  // gameState를 ref로 유지하여 최신 값을 항상 참조
   const gameStateRef = useRef(gameState);
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -118,30 +119,30 @@ export const Game: React.FC = () => {
       
       if (!currentState.gameStarted || currentState.gameEnded) return;
 
-      // 키 눌림 상태 업데이트 - 눌렀을 때만 잠깐 노란색으로 변함
+      // 키 프레스 상태 업데이트 - 키를 눌렀을 때만 눌린 상태로 변경
       setPressedKeys((prev) => {
-        if (prev.has(lane)) return prev; // 이미 눌린 키는 업데이트 생략
+        if (prev.has(lane)) return prev; // 이미 누른 키는 업데이트 스킵
         const next = new Set(prev);
         next.add(lane);
         
-        // 키를 눌렀을 때만 짧은 시간 후 파란색으로 돌아감
+        // 키를 뗄 때만 짧게 시간 동안 떼어놓음
         setTimeout(() => {
           setPressedKeys((prev) => {
             const next = new Set(prev);
             next.delete(lane);
             return next;
           });
-        }, 100); // 100ms 후 파란색으로 돌아감
+        }, 100); // 100ms 후에 키 떼기
         
         return next;
       });
 
-      // 해당 레인의 가장 가까운 노트 찾기
+      // 해당 레인에서 가장 가까운 노트 찾기
       const laneNotes = currentState.notes.filter(
         (note) => note.lane === lane && !note.hit
       );
 
-      // 노트가 없으면 아무것도 하지 않음 (허공에 누르는 건 처리 안 함)
+      // 노트가 없으면 아무것도 하지 않음 (성공/실패 판단을 처리 안 함)
       if (laneNotes.length === 0) {
         return;
       }
@@ -159,9 +160,10 @@ export const Game: React.FC = () => {
       }
 
       if (bestNote) {
+        const isHoldNote = (bestNote.type === 'hold' || bestNote.duration > 0);
         const judge = judgeTiming(bestNote.time - currentTime);
         
-        // 상태 업데이트를 하나로 합침
+        // 상태 업데이트를 하나로 묶침
         setGameState((prev) => {
           const newScore = { ...prev.score };
           
@@ -188,9 +190,12 @@ export const Game: React.FC = () => {
             newScore.maxCombo = newScore.combo;
           }
 
-          const updatedNotes = prev.notes.map((note) =>
-            note.id === bestNote!.id ? { ...note, hit: true } : note
-          );
+          // 롱노트가 아닌 경우에만 hit: true로 설정
+          const updatedNotes = isHoldNote
+            ? prev.notes
+            : prev.notes.map((note) =>
+                note.id === bestNote!.id ? { ...note, hit: true } : note
+              );
 
           return {
             ...prev,
@@ -199,14 +204,23 @@ export const Game: React.FC = () => {
           };
         });
 
-        // 새로운 판정 피드백 추가 - 이전 판정들은 제거
+        // 롱노트인 경우 holdingNotes에 추가
+        if (isHoldNote) {
+          setHoldingNotes((prev) => {
+            const next = new Map(prev);
+            next.set(bestNote.id, bestNote);
+            return next;
+          });
+        }
+
+        // 새로운 판정 피드백 추가 - 이전 판정은 제거
         const feedbackId = feedbackIdRef.current++;
         setJudgeFeedbacks([{ id: feedbackId, judge }]);
         
-        // 판정선에서 이펙트 추가 (miss가 아닐 때만) - 노트가 닿는 판정선 위치에서
+        // 판정선에 이펙트 추가 (miss가 아닐 때만) - 노트가 있는 판정선 위치에서
         if (judge !== 'miss') {
           const effectId = keyEffectIdRef.current++;
-          // 노트가 판정선에 닿는 위치 (판정선 y 좌표: 640px)
+          // 노트가 판정선에 있는 위치 (판정선 y 좌표: 640px)
           const effectX = LANE_POSITIONS[lane];
           const effectY = 640; // 판정선 위치
           setKeyEffects((prev) => [...prev, { id: effectId, lane, x: effectX, y: effectY }]);
@@ -219,7 +233,7 @@ export const Game: React.FC = () => {
             }, 800);
           });
         } else {
-          // miss일 때는 이펙트 없이 피드백만 제거
+          // miss인 경우 이펙트 없이 피드백만 제거
           requestAnimationFrame(() => {
             setTimeout(() => {
               setJudgeFeedbacks((prev) => prev.filter(f => f.id !== feedbackId));
@@ -228,16 +242,103 @@ export const Game: React.FC = () => {
         }
       }
       // bestNote가 null이고 laneNotes가 있으면 타이밍이 안 맞는 경우
-      // 이 경우에도 Miss 처리하지 않음 (허공에 누르는 건이 아니지만 처리 안 함)
+      // 이 경우에도 Miss 처리를 하지 않음 (성공/실패가 구별이 안 되면 처리 안 함)
     },
-    [] // 의존성 제거하여 함수 재생성 방지
+    [] // 기존 코드 제거하여 함수 생성을 방지
   );
 
   const handleKeyRelease = useCallback(
     (lane: Lane) => {
+      const currentState = gameStateRef.current;
+      
       setPressedKeys((prev) => {
         const next = new Set(prev);
         next.delete(lane);
+        return next;
+      });
+
+      // 해당 레인의 holdingNotes에서 롱노트 찾기
+      setHoldingNotes((prev) => {
+        const next = new Map(prev);
+        const laneHoldNotes = Array.from(prev.values()).filter(
+          (note) => note.lane === lane && !note.hit
+        );
+
+        for (const holdNote of laneHoldNotes) {
+          const currentTime = currentState.currentTime;
+          const endTime = typeof holdNote.endTime === 'number' ? holdNote.endTime : holdNote.time + (holdNote.duration || 0);
+          const timeDiff = Math.abs(endTime - currentTime);
+          
+          if (timeDiff <= 150) {
+            // 롱노트 끝 판정
+            const judge = judgeTiming(endTime - currentTime);
+            
+            setGameState((prevState) => {
+              const newScore = { ...prevState.score };
+              
+              switch (judge) {
+                case 'perfect':
+                  newScore.perfect++;
+                  newScore.combo++;
+                  break;
+                case 'great':
+                  newScore.great++;
+                  newScore.combo++;
+                  break;
+                case 'good':
+                  newScore.good++;
+                  newScore.combo++;
+                  break;
+                case 'miss':
+                  newScore.miss++;
+                  newScore.combo = 0;
+                  break;
+              }
+
+              if (newScore.combo > newScore.maxCombo) {
+                newScore.maxCombo = newScore.combo;
+              }
+
+              const updatedNotes = prevState.notes.map((note) =>
+                note.id === holdNote.id ? { ...note, hit: true } : note
+              );
+
+              return {
+                ...prevState,
+                notes: updatedNotes,
+                score: newScore,
+              };
+            });
+
+            // 판정 피드백 추가
+            const feedbackId = feedbackIdRef.current++;
+            setJudgeFeedbacks([{ id: feedbackId, judge }]);
+            
+            if (judge !== 'miss') {
+              const effectId = keyEffectIdRef.current++;
+              const effectX = LANE_POSITIONS[lane];
+              const effectY = 640;
+              setKeyEffects((prevEffects) => [...prevEffects, { id: effectId, lane, x: effectX, y: effectY }]);
+              
+              requestAnimationFrame(() => {
+                setTimeout(() => {
+                  setJudgeFeedbacks((prev) => prev.filter(f => f.id !== feedbackId));
+                  setKeyEffects((prev) => prev.filter(e => e.id !== effectId));
+                }, 800);
+              });
+            } else {
+              requestAnimationFrame(() => {
+                setTimeout(() => {
+                  setJudgeFeedbacks((prev) => prev.filter(f => f.id !== feedbackId));
+                }, 800);
+              });
+            }
+
+            // holdingNotes에서 제거
+            next.delete(holdNote.id);
+          }
+        }
+
         return next;
       });
     },
@@ -282,7 +383,7 @@ export const Game: React.FC = () => {
     ) {
       setGameState((prev) => ({ ...prev, gameEnded: true }));
       
-      // 게임 종료 시 YouTube 플레이어 일시정지
+      // 게임 종료 시 YouTube 플레이어 정지/해제
       if (isTestMode && testYoutubePlayer && testYoutubePlayerReadyRef.current) {
         try {
           testYoutubePlayer.pauseVideo?.();
@@ -296,8 +397,9 @@ export const Game: React.FC = () => {
   const startGame = () => {
     setIsTestMode(false);
     testPreparedNotesRef.current = [];
-    processedMissNotes.current.clear(); // Miss 처리된 노트 추적 초기화
+    processedMissNotes.current.clear(); // Miss 처리 노트 추적 초기화
     setPressedKeys(new Set());
+    setHoldingNotes(new Map()); // 롱노트 상태 초기화
     setGameState((prev) => ({
       ...prev,
       gameStarted: true,
@@ -311,8 +413,9 @@ export const Game: React.FC = () => {
   const resetGame = () => {
     setIsTestMode(false);
     testPreparedNotesRef.current = [];
-    processedMissNotes.current.clear(); // Miss 처리된 노트 추적 초기화
+    processedMissNotes.current.clear(); // Miss 처리 노트 추적 초기화
     setPressedKeys(new Set());
+    setHoldingNotes(new Map()); // 롱노트 상태 초기화
     setGameState((prev) => ({
       ...prev,
       gameStarted: false,
@@ -328,6 +431,7 @@ export const Game: React.FC = () => {
       if (!preparedNotes.length) return;
       processedMissNotes.current.clear();
       setPressedKeys(new Set());
+      setHoldingNotes(new Map()); // 롱노트 상태 초기화
       setGameState((prev) => ({
         ...prev,
         gameStarted: true,
@@ -371,11 +475,12 @@ export const Game: React.FC = () => {
             time: relativeStart,
             duration: trimmedDuration,
             endTime: relativeEnd,
+            type: trimmedDuration > 0 ? 'hold' : 'tap',
             y: 0,
             hit: false,
           };
         })
-        .filter((note): note is Note => note !== null && (note.duration > 0 || note.time >= 0))
+        .filter((note): note is Note => note !== null)
         .sort((a, b) => a.time - b.time)
         .map((note, index) => ({ ...note, id: index + 1 }));
 
@@ -384,7 +489,7 @@ export const Game: React.FC = () => {
         return;
       }
 
-      // YouTube 오디오 설정 저장
+      // YouTube 오디오 설정 전달
       testAudioSettingsRef.current = {
         youtubeVideoId: payload.youtubeVideoId,
         youtubeUrl: payload.youtubeUrl,
@@ -418,7 +523,7 @@ export const Game: React.FC = () => {
       try {
         testYoutubePlayer.destroy();
       } catch (e) {
-        console.warn('테스트 플레이어 제거 실패:', e);
+        console.warn('테스트 플레이어 정리 실패:', e);
       }
     }
     setTestYoutubePlayer(null);
@@ -467,7 +572,7 @@ export const Game: React.FC = () => {
       if (isCancelled) return;
 
       if (!window.YT || !window.YT.Player) {
-        console.error('YouTube IFrame API를 로드할 수 없습니다.');
+        console.error('YouTube IFrame API를 로드하지 못했습니다.');
         return;
       }
 
@@ -540,12 +645,12 @@ export const Game: React.FC = () => {
         ((testAudioSettingsRef.current?.startTimeMs || 0) + currentGameTime) / 1000;
       const currentSeconds = testYoutubePlayer.getCurrentTime?.() ?? 0;
 
-      // 오차가 0.3초 이상일 때만 동기화
+      // 차이가 0.3초 이상일 때만 시키기
       if (Math.abs(currentSeconds - desiredSeconds) > 0.3) {
         try {
           testYoutubePlayer.seekTo(desiredSeconds, true);
         } catch (e) {
-          console.warn('YouTube 시간 동기화 실패:', e);
+          console.warn('YouTube 시간 시키기 실패:', e);
         }
       }
 
@@ -616,16 +721,16 @@ export const Game: React.FC = () => {
     >
       <div
         style={{
-          width: '500px', // 양쪽 여백을 3분의 1로 줄임: 700px - 400px = 300px -> 100px
+          width: '500px', // 좌우 여백을 3분의 1로 줄임: 700px - 400px = 300px -> 100px
           height: '800px',
-          backgroundColor: '#1f1f1f', // 여백 색상 (더 어두운 색)
+          backgroundColor: '#1f1f1f', // 회백색 배경 (가장 어두운색)
           position: 'relative',
           overflow: 'hidden',
           borderRadius: '12px',
           boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
         }}
       >
-        {/* 키 레인 영역 배경 */}
+        {/* 4개 레인 영역 배경 */}
         <div
           style={{
             position: 'absolute',
@@ -633,11 +738,11 @@ export const Game: React.FC = () => {
             top: '0',
             width: '400px',
             height: '100%',
-            backgroundColor: '#2a2a2a', // 키 레인 영역 색상 (더 밝은 색)
+            backgroundColor: '#2a2a2a', // 4개 레인 영역 배경 (좀 밝은 색)
           }}
         />
         
-        {/* 배경 레인 구분선 - 레인 사이 경계와 양쪽 끝 */}
+        {/* 배경 라인 구분선 - 레인 사이 경계와 양쪽 끝 */}
         {[50, 150, 250, 350, 450].map((x) => (
           <div
             key={x}
@@ -665,12 +770,12 @@ export const Game: React.FC = () => {
           />
         ))}
 
-        {/* 판정선 - 게임 중에만 표시 (키 레인 영역에만) */}
+        {/* 판정선 - 게임 중에만 표시 (4개 레인 영역에만) */}
         {gameState.gameStarted && (
           <JudgeLine left={JUDGE_LINE_LEFT} width={JUDGE_LINE_WIDTH} />
         )}
 
-        {/* 키 레인 - 게임 중에만 표시 */}
+        {/* 4개 레인 - 게임 중에만 표시 */}
         {gameState.gameStarted &&
           LANE_POSITIONS.map((x, index) => (
             <KeyLane
@@ -681,7 +786,7 @@ export const Game: React.FC = () => {
             />
           ))}
 
-        {/* 판정선에서 나오는 이펙트 - 노트가 닿는 위치에서 (게임 중에만 표시) */}
+        {/* 판정선에 나오는 이펙트 - 노트가 있는 위치에서 (게임 중에만 표시) */}
         {gameState.gameStarted &&
           keyEffects.map((effect) => (
             <div
@@ -726,13 +831,13 @@ export const Game: React.FC = () => {
                   boxShadow: '0 0 15px rgba(255, 255, 255, 0.5)',
                 }}
               />
-              {/* 상단으로 올라가는 파티클 */}
+              {/* 사방으로 날아가는 파티클 */}
               {[...Array(8)].map((_, i) => {
                 const angle = (i * 360) / 8;
                 const radians = (angle * Math.PI) / 180;
                 const distance = 40;
                 const x = Math.cos(radians) * distance;
-                const y = Math.sin(radians) * distance - 40; // 위로 더 올라가도록
+                const y = Math.sin(radians) * distance - 40; // 위로 좀 날아가도록
                 
                 return (
                   <div
@@ -758,7 +863,7 @@ export const Game: React.FC = () => {
             </div>
           ))}
 
-        {/* 판정 피드백 - 키 레인 영역 중앙에 통합 표시 (개별 애니메이션) */}
+        {/* 판정 피드백 - 4개 레인 영역 중앙에 통합 표시 (개별 애니메이션) */}
         {judgeFeedbacks.map((feedback) => 
           feedback.judge ? (
             <div
@@ -806,7 +911,7 @@ export const Game: React.FC = () => {
               maxWidth: '600px',
             }}
           >
-            {/* 플랫폼 타이틀 */}
+            {/* 첫 화면 표시 */}
             <h1 
               style={{ 
                 fontSize: '50px', 
@@ -828,7 +933,7 @@ export const Game: React.FC = () => {
               UserRhythm
             </h1>
             <p style={{ fontSize: '18px', marginBottom: '48px', color: '#aaa' }}>
-              나만의 리듬게임 채보를 만들고 공유하세요
+              누구나 리듬게임 채보를 만들고 공유하세요
             </p>
 
             {/* 메인 메뉴 */}
@@ -865,7 +970,7 @@ export const Game: React.FC = () => {
                   e.currentTarget.style.boxShadow = '0 4px 12px rgba(76, 175, 80, 0.3)';
                 }}
               >
-                🎵 데모 플레이
+                🎮 데모 플레이
               </button>
 
               <button
@@ -896,7 +1001,7 @@ export const Game: React.FC = () => {
                   alert('채보 선택 기능은 준비 중입니다.');
                 }}
               >
-                📚 채보 선택하기
+                📂 채보 선택하기
               </button>
 
               <button
@@ -994,7 +1099,7 @@ export const Game: React.FC = () => {
               </div>
 
               <div style={{ fontSize: '14px', color: '#aaa', marginTop: '16px' }}>
-                💡 조작법: D, F, J, K 키를 사용하세요
+                키 조작키: D, F, J, K 키를 사용하세요
               </div>
             </div>
           </div>
@@ -1130,4 +1235,7 @@ export const Game: React.FC = () => {
     </div>
   );
 };
+
+
+
 
