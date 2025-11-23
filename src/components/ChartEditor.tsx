@@ -16,6 +16,7 @@ interface ChartTestPayload {
   youtubeVideoId: string | null;
   youtubeUrl: string;
   playbackSpeed: number;
+  audioOffsetMs?: number;
 }
 
 interface TimeSignatureEvent {

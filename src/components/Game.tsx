@@ -20,6 +20,7 @@ interface EditorTestPayload {
   youtubeVideoId: string | null;
   youtubeUrl: string;
   playbackSpeed: number;
+  audioOffsetMs?: number;
 }
 
 const LANE_KEYS = [
@@ -39,7 +40,7 @@ const JUDGE_LINE_WIDTH = 400; // 판정선 너비 (4개 레인 영역)
 const JUDGE_LINE_Y = 640;
 
 const GAME_DURATION = 30000; // 30초
-const START_DELAY_MS = 2000; // 게임 시작 전 딜레이
+const START_DELAY_MS = 4000;
 
 export const Game: React.FC = () => {
   const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
@@ -58,7 +59,9 @@ export const Game: React.FC = () => {
     youtubeUrl: string;
     startTimeMs: number;
     playbackSpeed: number;
+    audioOffsetMs?: number;
   } | null>(null);
+  const audioHasStartedRef = useRef(false);
   const [gameState, setGameState] = useState<GameState>(() => ({
     notes: generateNotes(GAME_DURATION),
     score: {
@@ -88,6 +91,19 @@ export const Game: React.FC = () => {
     y: number;
   }>>([]);
   const keyEffectIdRef = useRef(0);
+
+  const getAudioBaseSeconds = () => {
+    if (!testAudioSettingsRef.current) return 0;
+    const { startTimeMs, audioOffsetMs = 0 } = testAudioSettingsRef.current;
+    return Math.max(0, (startTimeMs + audioOffsetMs) / 1000);
+  };
+
+  const getAudioPositionSeconds = (gameTimeMs: number) => {
+    if (!testAudioSettingsRef.current) return 0;
+    const { startTimeMs, audioOffsetMs = 0 } = testAudioSettingsRef.current;
+    const effectiveTime = Math.max(0, gameTimeMs);
+    return Math.max(0, (startTimeMs + audioOffsetMs + effectiveTime) / 1000);
+  };
   const processedMissNotes = useRef<Set<number>>(new Set()); // 이미 Miss 처리된 노트 ID 추적
   const buildInitialScore = useCallback(
     () => ({
@@ -429,6 +445,7 @@ export const Game: React.FC = () => {
 
   const resetGame = () => {
     setIsTestMode(false);
+    audioHasStartedRef.current = false;
     testPreparedNotesRef.current = [];
     processedMissNotes.current.clear(); // Miss 처리 노트 추적 초기화
     setPressedKeys(new Set());
@@ -446,6 +463,7 @@ export const Game: React.FC = () => {
   const startTestSession = useCallback(
     (preparedNotes: Note[]) => {
       if (!preparedNotes.length) return;
+      audioHasStartedRef.current = false;
       processedMissNotes.current.clear();
       setPressedKeys(new Set());
       setHoldingNotes(new Map()); // 롱노트 상태 초기화
@@ -512,6 +530,7 @@ export const Game: React.FC = () => {
         youtubeUrl: payload.youtubeUrl,
         startTimeMs: startMs,
         playbackSpeed: payload.playbackSpeed || 1,
+        audioOffsetMs: payload.audioOffsetMs ?? 0,
       };
 
       testPreparedNotesRef.current = preparedNotes.map((note) => ({ ...note }));
@@ -540,6 +559,7 @@ export const Game: React.FC = () => {
   const handleReturnToEditor = useCallback(() => {
     setIsEditorOpen(true);
     setIsTestMode(false);
+    audioHasStartedRef.current = false;
     testPreparedNotesRef.current = [];
     testAudioSettingsRef.current = null;
     setTestYoutubeVideoId(null);
@@ -650,8 +670,8 @@ export const Game: React.FC = () => {
               setTimeout(() => {
                 if (!isCancelled && player && testAudioSettingsRef.current) {
                   try {
-                    const { startTimeMs, playbackSpeed } = testAudioSettingsRef.current;
-                    const startTimeSec = startTimeMs / 1000;
+                    const { playbackSpeed } = testAudioSettingsRef.current;
+                    const startTimeSec = getAudioBaseSeconds();
                     
                     // 재생 속도 설정
                     player.setPlaybackRate?.(playbackSpeed);
@@ -681,77 +701,56 @@ export const Game: React.FC = () => {
     };
   }, [isTestMode, testYoutubeVideoId]);
 
-  // 테스트 모드 YouTube 오디오 동기화
+  // Test mode YouTube audio sync
   useEffect(() => {
     if (!isTestMode || !gameState.gameStarted) return;
     if (!testYoutubePlayer || !testYoutubePlayerReadyRef.current) return;
     if (!testAudioSettingsRef.current) return;
 
-    // 게임 시작 시 즉시 재생 시도
-    const initialPlayAttempt = setTimeout(() => {
-      if (testYoutubePlayer && testYoutubePlayerReadyRef.current && testAudioSettingsRef.current) {
-        try {
-          const { startTimeMs, playbackSpeed } = testAudioSettingsRef.current;
-          const startTimeSec = startTimeMs / 1000;
-          
-          // 재생 속도 설정
-          testYoutubePlayer.setPlaybackRate?.(playbackSpeed);
-          
-          // 시작 위치로 이동
-          testYoutubePlayer.seekTo(startTimeSec, true);
-          
-          // 재생 시작
-          testYoutubePlayer.playVideo?.();
-          
-          console.log(`🎵 YouTube 플레이어 재생 시작 (게임 시작, ${startTimeSec}초, ${playbackSpeed}x)`);
-        } catch (e) {
-          console.warn('YouTube 재생 실패:', e);
-        }
+    const { playbackSpeed } = testAudioSettingsRef.current;
+
+    try {
+      testYoutubePlayer.setPlaybackRate?.(playbackSpeed);
+    } catch (e) {
+      console.warn("YouTube playback speed update failed:", e);
+    }
+
+    const cueSeconds = getAudioBaseSeconds();
+
+    if (gameState.currentTime < 0) {
+      audioHasStartedRef.current = false;
+      try {
+        testYoutubePlayer.pauseVideo?.();
+        testYoutubePlayer.seekTo(cueSeconds, true);
+      } catch (e) {
+        console.warn("YouTube cueing failed:", e);
       }
-    }, 500); // 게임 시작 후 0.5초 후에 재생 시도
+      return;
+    }
 
-    const syncInterval = setInterval(() => {
-      if (!testYoutubePlayer || !testYoutubePlayerReadyRef.current) return;
-
-      const currentGameTime = gameState.currentTime;
-      
-      // 재생 상태 확인 - 항상 재생 중이어야 함
-      const playerState = testYoutubePlayer.getPlayerState?.();
-      if (
-        typeof window !== 'undefined' &&
-        window.YT &&
-        playerState !== window.YT.PlayerState.PLAYING
-      ) {
-        try {
-          testYoutubePlayer.playVideo?.();
-          console.log('🎵 YouTube 플레이어 재생 시작 (동기화)');
-        } catch (e) {
-          console.warn('YouTube 재생 실패:', e);
-        }
+    if (!audioHasStartedRef.current) {
+      try {
+        testYoutubePlayer.seekTo(cueSeconds, true);
+        testYoutubePlayer.playVideo?.();
+        audioHasStartedRef.current = true;
+        console.log(`YouTube test playback start (${cueSeconds.toFixed(2)}s)`);
+      } catch (e) {
+        console.warn("YouTube initial playback failed:", e);
       }
+      return;
+    }
 
-      // 시간 동기화는 currentTime >= 0일 때만 수행 (게임이 실제로 시작된 후)
-      if (currentGameTime >= 0) {
-        const desiredSeconds =
-          ((testAudioSettingsRef.current?.startTimeMs || 0) + currentGameTime) / 1000;
-        const currentSeconds = testYoutubePlayer.getCurrentTime?.() ?? 0;
+    const desiredSeconds = getAudioPositionSeconds(gameState.currentTime);
+    const currentSeconds = testYoutubePlayer.getCurrentTime?.() ?? 0;
 
-        // 차이가 0.3초 이상일 때만 시키기
-        if (Math.abs(currentSeconds - desiredSeconds) > 0.3) {
-          try {
-            testYoutubePlayer.seekTo(desiredSeconds, true);
-            console.log(`⏱️ YouTube 시간 동기화: ${desiredSeconds.toFixed(2)}초`);
-          } catch (e) {
-            console.warn('YouTube 시간 시키기 실패:', e);
-          }
-        }
+    if (Math.abs(currentSeconds - desiredSeconds) > 0.15) {
+      try {
+        testYoutubePlayer.seekTo(desiredSeconds, true);
+        console.log(`YouTube resync: ${desiredSeconds.toFixed(2)}s`);
+      } catch (e) {
+        console.warn("YouTube resync failed:", e);
       }
-    }, 100);
-
-    return () => {
-      clearTimeout(initialPlayAttempt);
-      clearInterval(syncInterval);
-    };
+    }
   }, [isTestMode, gameState.gameStarted, gameState.currentTime, testYoutubePlayer]);
 
   const total = gameState.score.perfect + gameState.score.great + 
@@ -863,6 +862,7 @@ export const Game: React.FC = () => {
       youtubeVideoId: chartData.youtubeVideoId || null,
       youtubeUrl: chartData.youtubeUrl || '',
       playbackSpeed: 1,
+      audioOffsetMs: 0,
     });
   }, [handleEditorTest]);
 

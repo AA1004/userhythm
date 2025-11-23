@@ -37,3 +37,4 @@ export function getJudgeScore(judge: JudgeType): number {
   const score = judgeConfig.scores[judge];
   return typeof score === 'number' ? score : 0;
 }
+
