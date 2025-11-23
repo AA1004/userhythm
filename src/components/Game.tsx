@@ -9,7 +9,8 @@ import { ChartSelect } from './ChartSelect';
 import { ChartAdmin } from './ChartAdmin';
 import { useKeyboard } from '../hooks/useKeyboard';
 import { useGameLoop } from '../hooks/useGameLoop';
-import { judgeTiming } from '../utils/judge';
+import { judgeTiming, judgeHoldReleaseTiming } from '../utils/judge';
+import { judgeConfig } from '../config/judgeConfig';
 import { generateNotes } from '../utils/noteGenerator';
 import { waitForYouTubeAPI } from '../utils/youtube';
 
@@ -273,11 +274,13 @@ export const Game: React.FC = () => {
           const currentTime = currentState.currentTime;
           const endTime = typeof holdNote.endTime === 'number' ? holdNote.endTime : holdNote.time + (holdNote.duration || 0);
           const timeDiff = Math.abs(endTime - currentTime);
-          const isBeforeEnd = currentTime < endTime - 150;
+          // 롱노트 판정 윈도우 사용 (일반 판정보다 여유로움)
+          const holdReleaseWindow = judgeConfig.holdReleaseWindows.good;
+          const isBeforeEnd = currentTime < endTime - holdReleaseWindow;
           
-          if (timeDiff <= 150) {
-            // 롱노트 끝 판정
-            const judge = judgeTiming(endTime - currentTime);
+          if (timeDiff <= holdReleaseWindow) {
+            // 롱노트 끝 판정 (롱노트 전용 판정 함수 사용)
+            const judge = judgeHoldReleaseTiming(endTime - currentTime);
             
             setGameState((prevState) => {
               const newScore = { ...prevState.score };
@@ -530,6 +533,14 @@ export const Game: React.FC = () => {
       testPreparedNotesRef.current = preparedNotes.map((note) => ({ ...note }));
       setIsTestMode(true);
       setIsEditorOpen(false);
+      
+      // YouTube 플레이어 초기화를 위해 videoId 설정
+      if (payload.youtubeVideoId) {
+        setTestYoutubeVideoId(payload.youtubeVideoId);
+      } else {
+        setTestYoutubeVideoId(null);
+      }
+      
       startTestSession(preparedNotes);
     },
     [startTestSession]
@@ -567,6 +578,20 @@ export const Game: React.FC = () => {
       currentTime: 0,
     }));
   }, [testYoutubePlayer]);
+
+  // ESC 키로 테스트 모드 나가기
+  useEffect(() => {
+    if (!isTestMode || !gameState.gameStarted || gameState.gameEnded) return;
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleReturnToEditor();
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isTestMode, gameState.gameStarted, gameState.gameEnded, handleReturnToEditor]);
 
   // 테스트 모드 YouTube 플레이어 초기화
   useEffect(() => {
@@ -637,17 +662,22 @@ export const Game: React.FC = () => {
 
               console.log('✅ 테스트 YouTube 플레이어 준비 완료');
               
-              // 플레이어가 준비되면 즉시 재생 시작 (게임 시작 대기)
-              // currentTime이 0 이상이 될 때까지 대기하지 않고 바로 재생
+              // 플레이어가 준비되면 설정만 하고, 실제 재생은 게임 시작 후에 수행
               setTimeout(() => {
-                if (!isCancelled && player) {
+                if (!isCancelled && player && testAudioSettingsRef.current) {
                   try {
-                    // 0초부터 시작
-                    player.seekTo(0, true);
-                    player.playVideo?.();
-                    console.log('🎵 YouTube 플레이어 재생 시작');
+                    const { startTimeMs, playbackSpeed } = testAudioSettingsRef.current;
+                    const startTimeSec = startTimeMs / 1000;
+                    
+                    // 재생 속도 설정
+                    player.setPlaybackRate?.(playbackSpeed);
+                    
+                    // 시작 위치로 이동 (미리 이동)
+                    player.seekTo(startTimeSec, true);
+                    
+                    console.log(`🎵 YouTube 플레이어 준비 완료 (${startTimeSec}초, ${playbackSpeed}x) - 게임 시작 후 재생`);
                   } catch (e) {
-                    console.warn('YouTube 자동 재생 실패:', e);
+                    console.warn('YouTube 플레이어 설정 실패:', e);
                   }
                 }
               }, 100);
@@ -672,6 +702,29 @@ export const Game: React.FC = () => {
     if (!isTestMode || !gameState.gameStarted) return;
     if (!testYoutubePlayer || !testYoutubePlayerReadyRef.current) return;
     if (!testAudioSettingsRef.current) return;
+
+    // 게임 시작 시 즉시 재생 시도
+    const initialPlayAttempt = setTimeout(() => {
+      if (testYoutubePlayer && testYoutubePlayerReadyRef.current && testAudioSettingsRef.current) {
+        try {
+          const { startTimeMs, playbackSpeed } = testAudioSettingsRef.current;
+          const startTimeSec = startTimeMs / 1000;
+          
+          // 재생 속도 설정
+          testYoutubePlayer.setPlaybackRate?.(playbackSpeed);
+          
+          // 시작 위치로 이동
+          testYoutubePlayer.seekTo(startTimeSec, true);
+          
+          // 재생 시작
+          testYoutubePlayer.playVideo?.();
+          
+          console.log(`🎵 YouTube 플레이어 재생 시작 (게임 시작, ${startTimeSec}초, ${playbackSpeed}x)`);
+        } catch (e) {
+          console.warn('YouTube 재생 실패:', e);
+        }
+      }
+    }, 500); // 게임 시작 후 0.5초 후에 재생 시도
 
     const syncInterval = setInterval(() => {
       if (!testYoutubePlayer || !testYoutubePlayerReadyRef.current) return;
@@ -711,7 +764,10 @@ export const Game: React.FC = () => {
       }
     }, 100);
 
-    return () => clearInterval(syncInterval);
+    return () => {
+      clearTimeout(initialPlayAttempt);
+      clearInterval(syncInterval);
+    };
   }, [isTestMode, gameState.gameStarted, gameState.currentTime, testYoutubePlayer]);
 
   const total = gameState.score.perfect + gameState.score.great + 
@@ -1032,6 +1088,39 @@ export const Game: React.FC = () => {
         {/* 점수 - 게임 중에만 표시 */}
         {gameState.gameStarted && <ScoreComponent score={gameState.score} />}
 
+        {/* 테스트 모드 중 나가기 버튼 */}
+        {gameState.gameStarted && !gameState.gameEnded && isTestMode && (
+          <button
+            onClick={handleReturnToEditor}
+            style={{
+              position: 'absolute',
+              top: '16px',
+              right: '16px',
+              padding: '8px 16px',
+              fontSize: '14px',
+              backgroundColor: 'rgba(255, 68, 68, 0.9)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              zIndex: 1000,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 1)';
+              e.currentTarget.style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 0.9)';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            ✕ 나가기
+          </button>
+        )}
+
         {/* 게임 시작/종료 UI */}
         {!gameState.gameStarted && (
           <div
@@ -1065,7 +1154,7 @@ export const Game: React.FC = () => {
                 lineHeight: '1.1',
               }}
             >
-              UserRhythm
+               UseRhythm
             </h1>
             <p style={{ fontSize: '18px', marginBottom: '48px', color: '#aaa' }}>
               누구나 리듬게임 채보를 만들고 공유하세요

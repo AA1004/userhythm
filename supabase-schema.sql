@@ -75,3 +75,6 @@ CREATE POLICY "Public can view chart reviews"
 -- Note: Admin operations (approve/reject) should be done with service role key
 -- or through a secure backend endpoint with proper authentication
 
+
+
+

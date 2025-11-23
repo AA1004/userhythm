@@ -104,3 +104,4 @@ export function useGameLoop(
     };
   }, [gameState.gameStarted, setGameState, onNoteMiss, speed]);
 }
+

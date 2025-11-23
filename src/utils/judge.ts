@@ -1,17 +1,33 @@
+import { judgeConfig } from '../config/judgeConfig';
 import { JudgeType } from '../types/game';
 
-const PERFECT_THRESHOLD = 50; // ±50ms
-const GREAT_THRESHOLD = 100; // ±100ms
-const GOOD_THRESHOLD = 150; // ±150ms
-
 export function judgeTiming(timeDiff: number): JudgeType {
+  const { windows } = judgeConfig;
   const absDiff = Math.abs(timeDiff);
   
-  if (absDiff <= PERFECT_THRESHOLD) {
+  if (absDiff <= windows.perfect) {
     return 'perfect';
-  } else if (absDiff <= GREAT_THRESHOLD) {
+  } else if (absDiff <= windows.great) {
     return 'great';
-  } else if (absDiff <= GOOD_THRESHOLD) {
+  } else if (absDiff <= windows.good) {
+    return 'good';
+  } else {
+    return 'miss';
+  }
+}
+
+/**
+ * 롱노트를 떼는 타이밍 판정 (일반 판정보다 여유로움)
+ */
+export function judgeHoldReleaseTiming(timeDiff: number): JudgeType {
+  const { holdReleaseWindows } = judgeConfig;
+  const absDiff = Math.abs(timeDiff);
+  
+  if (absDiff <= holdReleaseWindows.perfect) {
+    return 'perfect';
+  } else if (absDiff <= holdReleaseWindows.great) {
+    return 'great';
+  } else if (absDiff <= holdReleaseWindows.good) {
     return 'good';
   } else {
     return 'miss';
@@ -19,17 +35,7 @@ export function judgeTiming(timeDiff: number): JudgeType {
 }
 
 export function getJudgeScore(judge: JudgeType): number {
-  switch (judge) {
-    case 'perfect':
-      return 100;
-    case 'great':
-      return 80;
-    case 'good':
-      return 50;
-    case 'miss':
-      return 0;
-    default:
-      return 0;
-  }
+  const score = judgeConfig.scores[judge];
+  return typeof score === 'number' ? score : 0;
 }
 

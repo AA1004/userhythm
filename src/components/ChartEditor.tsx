@@ -82,6 +82,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
   const [isLongNoteMode, setIsLongNoteMode] = useState<boolean>(false);
   const [pendingLongNote, setPendingLongNote] = useState<{ lane: Lane; startTime: number } | null>(null);
   const [testStartInput, setTestStartInput] = useState<string>('0');
+  const [volume, setVolume] = useState<number>(100); // 0~100 편집기 음량
   
   // 공유 관련 상태
   const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
@@ -406,6 +407,17 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
     },
     [addNote, currentTime, isLongNoteMode, snapToGrid]
   );
+
+  // YouTube 플레이어 볼륨 동기화
+  useEffect(() => {
+    if (youtubePlayer && youtubePlayerReadyRef.current) {
+      try {
+        youtubePlayer.setVolume?.(volume);
+      } catch (error) {
+        console.warn('볼륨 설정 실패:', error);
+      }
+    }
+  }, [volume, youtubePlayer]);
 
   // 키보드 이벤트 핸들러
   useEffect(() => {
@@ -779,6 +791,17 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
     }
   }, [playbackSpeed, youtubePlayer]);
 
+  // YouTube 플레이어 볼륨 설정
+  useEffect(() => {
+    if (youtubePlayer && youtubePlayerReadyRef.current) {
+      try {
+        youtubePlayer.setVolume?.(volume);
+      } catch (error) {
+        console.warn('볼륨 설정 실패:', error);
+      }
+    }
+  }, [volume, youtubePlayer]);
+
   // YouTube 재생 시간 동기화 (좀 더 부드럽게 업데이트)
   useEffect(() => {
     if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
@@ -1009,6 +1032,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
       timeSignatureOffset: timeSignatureOffset,
       youtubeVideoId: youtubeVideoId,
       youtubeUrl: youtubeUrl,
+      volume: volume,
       createdAt: new Date().toISOString(),
     };
     
@@ -1022,7 +1046,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
       alert(`채보 "${chartName}"이(가) 저장되었습니다!`);
       onSave(notes);
     }
-  }, [notes, bpm, timeSignatures, timeSignatureOffset, youtubeVideoId, youtubeUrl, onSave]);
+  }, [notes, bpm, timeSignatures, timeSignatureOffset, youtubeVideoId, youtubeUrl, volume, onSave]);
 
   // 온라인 공유
   const handleShareChart = useCallback(async () => {
@@ -1203,6 +1227,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
       } else {
         setYoutubeVideoId(null);
         setYoutubeUrl('');
+      }
+      
+      // 음량 복원
+      if (typeof chartData.volume === 'number') {
+        setVolume(Math.max(0, Math.min(100, chartData.volume)));
+      } else {
+        setVolume(100); // 기본값
       }
       
       alert(`채보 "${chartName}"이(가) 로드되었습니다!`);
@@ -1659,6 +1690,29 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
               {PLAYBACK_SPEED_OPTIONS.map((speed) => (
                 <span key={`speed-label-${speed}`}>{speed}x</span>
               ))}
+            </div>
+          </div>
+
+          <div>
+            <div style={{ color: '#fff', marginBottom: '10px', fontWeight: 'bold' }}>
+              음량 
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={volume}
+              onChange={(e) => {
+                setVolume(parseInt(e.target.value, 10));
+              }}
+              style={{
+                width: '100%',
+                cursor: 'pointer',
+              }}
+            />
+            <div style={{ color: '#aaa', fontSize: '12px', marginTop: '4px' }}>
+              현재: {volume}%
             </div>
           </div>
 
