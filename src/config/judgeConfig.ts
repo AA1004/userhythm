@@ -49,5 +49,3 @@ export const judgeConfig: JudgeConfig = {
     miss: 0,
   },
 };
-
-

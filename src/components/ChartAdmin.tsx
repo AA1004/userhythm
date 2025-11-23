@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { chartAPI, Chart } from '../lib/supabaseClient';
+import { extractYouTubeVideoId } from '../utils/youtube';
 
 interface ChartAdminProps {
   onClose: () => void;
@@ -83,12 +84,20 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
   const handleTestChart = (chart: Chart) => {
     try {
       const chartData = JSON.parse(chart.data_json);
+
+      const youtubeUrl: string = chartData.youtubeUrl || chart.youtube_url || '';
+      let youtubeVideoId: string | null = chartData.youtubeVideoId || null;
+
+      if (!youtubeVideoId && youtubeUrl) {
+        youtubeVideoId = extractYouTubeVideoId(youtubeUrl);
+      }
+
       if (onTestChart) {
         onTestChart({
           notes: chartData.notes || [],
           startTimeMs: 0,
-          youtubeVideoId: chartData.youtubeVideoId || null,
-          youtubeUrl: chartData.youtubeUrl || '',
+          youtubeVideoId,
+          youtubeUrl,
           playbackSpeed: chartData.playbackSpeed || 1,
         });
       }

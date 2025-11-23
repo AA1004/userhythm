@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { chartAPI, Chart, isSupabaseConfigured } from '../lib/supabaseClient';
+import { extractYouTubeVideoId } from '../utils/youtube';
 
 interface ChartSelectProps {
   onSelect: (chartData: any) => void;
@@ -55,13 +56,23 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
   const handleSelectChart = (chart: Chart) => {
     try {
       const chartData = JSON.parse(chart.data_json);
+
+      // YouTube 정보 정규화
+      const youtubeUrl: string = chartData.youtubeUrl || chart.youtube_url || '';
+      let youtubeVideoId: string | null = chartData.youtubeVideoId || null;
+
+      // 예전 채보처럼 videoId가 없고 URL만 있는 경우, URL에서 ID를 추출
+      if (!youtubeVideoId && youtubeUrl) {
+        youtubeVideoId = extractYouTubeVideoId(youtubeUrl);
+      }
+
       onSelect({
         notes: chartData.notes || [],
         bpm: chart.bpm,
         timeSignatures: chartData.timeSignatures || [{ id: 0, beatIndex: 0, beatsPerMeasure: 4 }],
         timeSignatureOffset: chartData.timeSignatureOffset || 0,
-        youtubeVideoId: chartData.youtubeVideoId || null,
-        youtubeUrl: chartData.youtubeUrl || chart.youtube_url || '',
+        youtubeVideoId,
+        youtubeUrl,
         playbackSpeed: chartData.playbackSpeed || 1,
         chartId: chart.id,
         chartTitle: chart.title,

@@ -427,22 +427,6 @@ export const Game: React.FC = () => {
     }
   }, [gameState.currentTime, gameState.gameStarted, gameState.gameEnded, isTestMode, testYoutubePlayer]);
 
-  const startGame = () => {
-    setIsTestMode(false);
-    testPreparedNotesRef.current = [];
-    processedMissNotes.current.clear(); // Miss 처리 노트 추적 초기화
-    setPressedKeys(new Set());
-    setHoldingNotes(new Map()); // 롱노트 상태 초기화
-    setGameState((prev) => ({
-      ...prev,
-      gameStarted: true,
-      notes: generateNotes(GAME_DURATION),
-      score: buildInitialScore(),
-      currentTime: -START_DELAY_MS,
-      gameEnded: false,
-    }));
-  };
-
   const resetGame = () => {
     setIsTestMode(false);
     testPreparedNotesRef.current = [];
@@ -1170,34 +1154,6 @@ export const Game: React.FC = () => {
               }}
             >
               <button
-                onClick={startGame}
-                style={{
-                  padding: '20px 40px',
-                  fontSize: '22px',
-                  backgroundColor: '#4CAF50',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '12px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  transition: 'all 0.2s',
-                  boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#45a049';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(76, 175, 80, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#4CAF50';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(76, 175, 80, 0.3)';
-                }}
-              >
-                🎮 데모 플레이
-              </button>
-
-              <button
                 style={{
                   padding: '20px 40px',
                   fontSize: '22px',
@@ -1224,7 +1180,7 @@ export const Game: React.FC = () => {
                   setIsChartSelectOpen(true);
                 }}
               >
-                📂 채보 선택하기
+                ▶️ 플레이
               </button>
 
               <button

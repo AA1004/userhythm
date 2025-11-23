@@ -35,6 +35,7 @@ const MIN_TIMELINE_DURATION_MS = 120000;
 const PLAYBACK_SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 const MIN_PLAYBACK_SPEED = 0.5;
 const MAX_PLAYBACK_SPEED = 2;
+const AUTO_SAVE_KEY = 'chartEditorLastChart';
 
 export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTest }) => {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -92,7 +93,149 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
   const [shareDescription, setShareDescription] = useState<string>('');
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadStatus, setUploadStatus] = useState<string>('');
+  
+  // 초기 로드 완료 플래그 (복원이 완료되기 전에는 자동 저장을 스킵)
+  const hasRestoredRef = useRef(false);
+  
+  // 마지막 작업 채보 자동 복원
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(AUTO_SAVE_KEY);
+      if (!raw) {
+        hasRestoredRef.current = true;
+        return;
+      }
 
+      const chartData = JSON.parse(raw);
+      if (!chartData || typeof chartData !== 'object') {
+        hasRestoredRef.current = true;
+        return;
+      }
+
+      // 노트 데이터 로드 (handleLoad와 거의 동일)
+      if (chartData.notes && Array.isArray(chartData.notes)) {
+        noteIdRef.current = 0;
+
+        const loadedNotes: Note[] = chartData.notes
+          .map((noteData: any) => {
+            if (typeof noteData.lane !== 'number' || typeof noteData.time !== 'number') {
+              console.warn('유효하지 않은 자동 복원 노트 데이터:', noteData);
+              return null;
+            }
+
+            const startTime = Number(noteData.time) || 0;
+            const rawDuration =
+              typeof noteData.duration === 'number'
+                ? Number(noteData.duration)
+                : typeof noteData.endTime === 'number'
+                ? Number(noteData.endTime) - startTime
+                : 0;
+            const duration =
+              Number.isFinite(rawDuration) && rawDuration > 0 ? rawDuration : 0;
+            const endTime =
+              typeof noteData.endTime === 'number'
+                ? Number(noteData.endTime)
+                : startTime + duration;
+
+            return {
+              id: noteIdRef.current++,
+              lane: noteData.lane as Lane,
+              time: startTime,
+              duration,
+              endTime,
+              type: duration > 0 ? 'hold' : 'tap',
+              y: 0,
+              hit: false,
+            };
+          })
+          .filter((note: Note | null): note is Note => note !== null);
+
+        setNotes(loadedNotes);
+      } else {
+        setNotes([]);
+      }
+
+      // 재생 상태 초기화
+      setIsPlaying(false);
+      setCurrentTime(0);
+
+      // BPM, 박자, 오프셋 복원
+      if (chartData.bpm && typeof chartData.bpm === 'number') {
+        setBpm(chartData.bpm);
+      }
+      if (chartData.timeSignatures && Array.isArray(chartData.timeSignatures)) {
+        setTimeSignatures(chartData.timeSignatures);
+      }
+      if (typeof chartData.timeSignatureOffset === 'number') {
+        setTimeSignatureOffset(chartData.timeSignatureOffset);
+      } else {
+        setTimeSignatureOffset(0);
+      }
+
+      // YouTube 정보 복원
+      if (chartData.youtubeVideoId) {
+        setYoutubeVideoId(chartData.youtubeVideoId);
+        if (chartData.youtubeUrl) {
+          setYoutubeUrl(chartData.youtubeUrl);
+        } else {
+          setYoutubeUrl('');
+        }
+      } else {
+        setYoutubeVideoId(null);
+        setYoutubeUrl('');
+      }
+
+      // 음량 복원
+      if (typeof chartData.volume === 'number') {
+        setVolume(Math.max(0, Math.min(100, chartData.volume)));
+      } else {
+        setVolume(100);
+      }
+      
+      // 복원 완료 표시
+      hasRestoredRef.current = true;
+      console.log('✅ 자동 채보 복원 완료');
+    } catch (error) {
+      console.warn('자동 채보 복원 실패:', error);
+      hasRestoredRef.current = true;
+    }
+  }, []);
+
+  // 편집 중 채보 자동 저장
+  useEffect(() => {
+    // 복원이 완료되기 전에는 자동 저장을 스킵 (복원 중 빈 상태가 저장되는 것을 방지)
+    if (!hasRestoredRef.current) return;
+    
+    try {
+      // 완전히 빈 상태면 자동 저장 제거
+      if (!notes.length && !youtubeUrl) {
+        localStorage.removeItem(AUTO_SAVE_KEY);
+        return;
+      }
+
+      const autoSaveData = {
+        notes: notes.map(({ id, lane, time, duration, endTime, type }) => ({
+          id,
+          lane,
+          time,
+          duration,
+          endTime,
+          type,
+        })),
+        bpm,
+        timeSignatures,
+        timeSignatureOffset,
+        youtubeVideoId,
+        youtubeUrl,
+        volume,
+      };
+
+      localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(autoSaveData));
+    } catch (e) {
+      console.warn('자동 저장 실패:', e);
+    }
+  }, [notes, bpm, timeSignatures, timeSignatureOffset, youtubeVideoId, youtubeUrl, volume]);
+  
   const maxNoteTime = useMemo(() => {
     if (!notes.length) return 0;
     return Math.max(
