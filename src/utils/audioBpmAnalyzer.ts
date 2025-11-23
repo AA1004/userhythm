@@ -3,7 +3,7 @@
 
 import { analyze } from 'web-audio-beat-detector';
 import { BPMAnalysisResult, isValidBPM } from './bpmAnalyzer';
-import { analyzeBPMHybrid, BPMResult as HybridBPMResult } from './bpmAlgorithms';
+import { analyzeBPMHybrid } from './bpmAlgorithms';
 
 export interface AudioBPMResult extends BPMAnalysisResult {
   method: 'analyzed';
@@ -39,8 +39,12 @@ export async function analyzeAudioBPM(
     // 방법 1: web-audio-beat-detector (먼저 시도, 빠르고 안정적)
     try {
       console.log('--- web-audio-beat-detector 시도 ---');
-      const tempo = await analyze(audioBuffer);
+      const tempoResult = await analyze(audioBuffer);
       onProgress?.(0.4);
+      // web-audio-beat-detector는 { tempo: number, confidence?: number } 객체를 반환
+      const tempo = typeof tempoResult === 'object' && tempoResult !== null && 'tempo' in tempoResult
+        ? tempoResult as { tempo: number; confidence?: number }
+        : null;
       if (tempo && isValidBPM(tempo.tempo)) {
         results.push({
           bpm: Math.round(tempo.tempo),
@@ -50,7 +54,7 @@ export async function analyzeAudioBPM(
         });
         console.log('✅ web-audio-beat-detector 성공:', tempo);
       } else {
-        console.warn('❌ web-audio-beat-detector 실패:', tempo);
+        console.warn('❌ web-audio-beat-detector 실패:', tempoResult);
       }
     } catch (error) {
       console.error('❌ web-audio-beat-detector 예외:', error);
@@ -138,7 +142,7 @@ export async function analyzeAudioBPM(
             
             correctedOptions.push({
               bpm: correctedBpm,
-              confidence: Math.min(0.95, bestResult.confidence * 0.85 + confidenceBonus),
+              confidence: Math.min(0.95, (bestResult.confidence || 0) * 0.85 + confidenceBonus),
               multiplier: multiplier,
               priority: priority,
             });
@@ -207,7 +211,7 @@ export async function analyzeAudioBPM(
       
       if (allSimilar && allResults.length >= 2) {
         // 일치하는 알고리즘이 많을수록 신뢰도 증가
-        const avgConfidence = allResults.reduce((sum, r) => sum + r.confidence, 0) / allResults.length;
+        const avgConfidence = allResults.reduce((sum, r) => sum + (r.confidence || 0), 0) / allResults.length;
         const consensusBonus = (allResults.length / results.length) * 0.15;
         
         console.log(`✅ 여러 알고리즘 일치: 평균 BPM ${avgBpm}`);

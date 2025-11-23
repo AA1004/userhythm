@@ -33,9 +33,7 @@ export function judgeHoldReleaseTiming(timeDiff: number): JudgeType {
     return 'miss';
   }
 }
-
 export function getJudgeScore(judge: JudgeType): number {
   const score = judgeConfig.scores[judge];
   return typeof score === 'number' ? score : 0;
 }
-
