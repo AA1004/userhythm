@@ -36,6 +36,12 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
         limit: chartsPerPage,
         offset: (currentPage - 1) * chartsPerPage,
       });
+      // 디버깅: preview_image 확인
+      console.log('로드된 채보:', loadedCharts.map(chart => ({
+        id: chart.id,
+        title: chart.title,
+        preview_image: chart.preview_image
+      })));
       setCharts(loadedCharts);
       setTotalCount(total);
     } catch (error: any) {
@@ -324,6 +330,56 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
                     }
                   }}
                 >
+                  {chart.preview_image ? (
+                    <div
+                      style={{
+                        width: '100%',
+                        height: '180px',
+                        marginBottom: '12px',
+                        borderRadius: '6px',
+                        overflow: 'hidden',
+                        backgroundColor: '#1f1f1f',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <img
+                        src={chart.preview_image}
+                        alt={chart.title}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                        }}
+                        onError={(e) => {
+                          console.error('이미지 로드 실패:', chart.preview_image);
+                          // 이미지 로드 실패 시 숨김
+                          e.currentTarget.style.display = 'none';
+                        }}
+                        onLoad={() => {
+                          console.log('이미지 로드 성공:', chart.preview_image);
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        width: '100%',
+                        height: '180px',
+                        marginBottom: '12px',
+                        borderRadius: '6px',
+                        backgroundColor: '#1f1f1f',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#666',
+                        fontSize: '12px',
+                      }}
+                    >
+                      이미지 없음
+                    </div>
+                  )}
                   <div style={{ color: '#fff', fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>
                     {chart.title}
                   </div>
@@ -452,6 +508,32 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
             <h2 style={{ color: '#fff', fontSize: '20px', marginBottom: '20px' }}>
               {selectedChart.title}
             </h2>
+
+            {selectedChart.preview_image && (
+              <div
+                style={{
+                  width: '100%',
+                  marginBottom: '20px',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                  backgroundColor: '#1f1f1f',
+                }}
+              >
+                <img
+                  src={selectedChart.preview_image}
+                  alt={selectedChart.title}
+                  style={{
+                    width: '100%',
+                    height: 'auto',
+                    display: 'block',
+                  }}
+                  onError={(e) => {
+                    // 이미지 로드 실패 시 숨김
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              </div>
+            )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px' }}>
               <div>

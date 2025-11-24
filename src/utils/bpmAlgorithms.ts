@@ -13,7 +13,6 @@ export interface BPMResult {
 function getMonoChannelData(audioBuffer: AudioBuffer): Float32Array {
   const numberOfChannels = audioBuffer.numberOfChannels;
   const length = audioBuffer.length;
-  const sampleRate = audioBuffer.sampleRate;
   
   // 첫 번째 채널 또는 모든 채널의 평균
   if (numberOfChannels === 1) {
@@ -325,24 +324,6 @@ export function analyzeBPMBySpectralFlux(audioBuffer: AudioBuffer): BPMResult | 
     if (sampleRate > 8000) {
       audioData = downsample(audioData, 8000, sampleRate);
     }
-    
-    const fftSize = 2048;
-    const hopSize = 512;
-    const audioContext = new OfflineAudioContext(1, audioData.length, 8000);
-    const source = audioContext.createBufferSource();
-    const buffer = audioContext.createBuffer(1, audioData.length, 8000);
-    buffer.copyToChannel(audioData, 0);
-    source.buffer = buffer;
-    
-    const analyser = audioContext.createAnalyser();
-    analyser.fftSize = fftSize;
-    source.connect(analyser);
-    
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Float32Array(bufferLength);
-    const spectralFlux: number[] = [];
-    
-    source.start(0);
     
     // FFT 계산이 복잡하므로 간단한 에너지 기반 접근 사용
     // 실제로는 Web Audio API의 AnalyserNode를 사용해야 하지만

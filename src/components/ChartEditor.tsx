@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { Note, Lane } from '../types/game';
 import { extractYouTubeVideoId, waitForYouTubeAPI } from '../utils/youtube';
 import { TapBPMCalculator, bpmToBeatDuration, isValidBPM } from '../utils/bpmAnalyzer';
-import { chartAPI, isSupabaseConfigured } from '../lib/supabaseClient';
+import { chartAPI, isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 
 interface ChartEditorProps {
   onSave: (notes: Note[]) => void;
@@ -94,6 +94,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
   const [shareDescription, setShareDescription] = useState<string>('');
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadStatus, setUploadStatus] = useState<string>('');
+  const [user, setUser] = useState<any>(null);
+  const [previewImageFile, setPreviewImageFile] = useState<File | null>(null);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   
   // 초기 로드 완료 플래그 (복원이 완료되기 전에는 자동 저장을 스킵)
   const hasRestoredRef = useRef(false);
@@ -236,6 +239,46 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
       console.warn('자동 저장 실패:', e);
     }
   }, [notes, bpm, timeSignatures, timeSignatureOffset, youtubeVideoId, youtubeUrl, volume]);
+  
+  // 사용자 인증 상태 확인
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    
+    // 현재 세션 확인
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+    
+    // 인증 상태 변경 감지
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+  
+  // Google 로그인 함수
+  const signInWithGoogle = useCallback(async () => {
+    if (!isSupabaseConfigured) {
+      alert('Supabase 환경 변수가 설정되지 않아 로그인 기능을 사용할 수 없습니다.');
+      return;
+    }
+    
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('로그인 오류:', error);
+      alert('로그인에 실패했습니다: ' + (error.message || '알 수 없는 오류'));
+    }
+  }, []);
   
   const maxNoteTime = useMemo(() => {
     if (!notes.length) return 0;
@@ -1230,6 +1273,38 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
         playbackSpeed,
       };
       
+      // 이미지가 있으면 먼저 업로드
+      let previewImageUrl: string | undefined = undefined;
+      console.log('업로드 시작, previewImageFile:', previewImageFile);
+      if (previewImageFile) {
+        try {
+          setUploadStatus('이미지 업로드 중...');
+          console.log('이미지 업로드 시작:', previewImageFile.name, previewImageFile.size);
+          // 임시 ID로 이미지 업로드 (실제 채보 ID는 나중에 업데이트)
+          const tempId = `temp-${Date.now()}`;
+          previewImageUrl = await chartAPI.uploadPreviewImage(tempId, previewImageFile);
+          console.log('이미지 업로드 성공, URL:', previewImageUrl);
+        } catch (imageError: any) {
+          console.error('이미지 업로드 실패:', imageError);
+          console.error('에러 상세:', {
+            message: imageError.message,
+            statusCode: imageError.statusCode,
+            error: imageError.error,
+            fullError: imageError
+          });
+          const errorMsg = imageError?.message || '알 수 없는 오류';
+          const continueWithoutImage = confirm(`이미지 업로드에 실패했습니다.\n\n에러: ${errorMsg}\n\n이미지 없이 계속하시겠습니까?`);
+          if (!continueWithoutImage) {
+            setIsUploading(false);
+            setUploadStatus('');
+            return;
+          }
+        }
+      } else {
+        console.log('previewImageFile이 없어서 이미지 업로드 건너뜀');
+      }
+      
+      // 채보 업로드 (이미지 URL 포함)
       await chartAPI.uploadChart({
         title: shareTitle.trim(),
         author: shareAuthor.trim(),
@@ -1238,8 +1313,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
         description: shareDescription.trim() || undefined,
         data_json: JSON.stringify(chartData),
         youtube_url: youtubeUrl || undefined,
+        preview_image: previewImageUrl,
       });
       
+      console.log('채보 업로드 성공, preview_image:', previewImageUrl);
       setUploadStatus('업로드 완료! 관리자 승인 후 공개됩니다.');
       setIsShareModalOpen(false);
       
@@ -1248,6 +1325,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
       setShareAuthor('');
       setShareDescription('');
       setShareDifficulty('Normal');
+      setPreviewImageFile(null);
+      setPreviewImageUrl(null);
       
       setTimeout(() => {
         setUploadStatus('');
@@ -1258,7 +1337,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
     } finally {
       setIsUploading(false);
     }
-  }, [notes, bpm, timeSignatures, timeSignatureOffset, youtubeVideoId, youtubeUrl, playbackSpeed, shareTitle, shareAuthor, shareDifficulty, shareDescription]);
+  }, [notes, bpm, timeSignatures, timeSignatureOffset, youtubeVideoId, youtubeUrl, playbackSpeed, shareTitle, shareAuthor, shareDifficulty, shareDescription, previewImageFile]);
 
   // 채보 로드
   const handleLoad = useCallback(() => {
@@ -2645,6 +2724,76 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                 />
               </div>
 
+              <div>
+                <label style={{ color: '#ddd', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
+                  미리보기 이미지 (선택사항)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={isUploading}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    console.log('파일 선택됨:', file);
+                    if (file) {
+                      // 파일 크기 제한 (5MB)
+                      if (file.size > 5 * 1024 * 1024) {
+                        alert('이미지 크기는 5MB 이하여야 합니다.');
+                        e.target.value = '';
+                        return;
+                      }
+                      setPreviewImageFile(file);
+                      console.log('previewImageFile 상태 설정됨:', file.name);
+                      // 미리보기 URL 생성
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        setPreviewImageUrl(event.target?.result as string);
+                        console.log('미리보기 URL 생성됨');
+                      };
+                      reader.readAsDataURL(file);
+                    } else {
+                      setPreviewImageFile(null);
+                      setPreviewImageUrl(null);
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid #555',
+                    backgroundColor: '#1f1f1f',
+                    color: '#fff',
+                    fontSize: '14px',
+                  }}
+                />
+                {previewImageUrl && (
+                  <div
+                    style={{
+                      marginTop: '10px',
+                      borderRadius: '6px',
+                      overflow: 'hidden',
+                      backgroundColor: '#1f1f1f',
+                      maxHeight: '200px',
+                    }}
+                  >
+                    <img
+                      src={previewImageUrl}
+                      alt="미리보기"
+                      style={{
+                        width: '100%',
+                        height: 'auto',
+                        display: 'block',
+                        maxHeight: '200px',
+                        objectFit: 'contain',
+                      }}
+                    />
+                  </div>
+                )}
+                <div style={{ color: '#999', fontSize: '11px', marginTop: '5px' }}>
+                  권장 크기: 16:9 비율, 최대 5MB
+                </div>
+              </div>
+
               <div style={{ color: '#aaa', fontSize: '12px', padding: '10px', backgroundColor: '#1f1f1f', borderRadius: '6px' }}>
                 <strong>채보 정보:</strong><br />
                 노트 수: {notes.length}개<br />
@@ -2684,23 +2833,53 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                 >
                   취소
                 </button>
-                <button
-                  onClick={handleShareChart}
-                  disabled={isUploading || !shareTitle.trim() || !shareAuthor.trim()}
-                  style={{
-                    flex: 1,
-                    padding: '12px',
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    backgroundColor: (isUploading || !shareTitle.trim() || !shareAuthor.trim()) ? '#424242' : '#2196F3',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: (isUploading || !shareTitle.trim() || !shareAuthor.trim()) ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {isUploading ? '업로드 중...' : '공유하기'}
-                </button>
+                {!user ? (
+                  <button
+                    onClick={signInWithGoogle}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      backgroundColor: '#4285f4',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 48 48" style={{ display: 'block' }}>
+                      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                      <path fill="none" d="M0 0h48v48H0z"/>
+                    </svg>
+                    로그인 후 공유
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleShareChart}
+                    disabled={isUploading || !shareTitle.trim() || !shareAuthor.trim()}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      backgroundColor: (isUploading || !shareTitle.trim() || !shareAuthor.trim()) ? '#424242' : '#2196F3',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: (isUploading || !shareTitle.trim() || !shareAuthor.trim()) ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {isUploading ? '업로드 중...' : '공유하기'}
+                  </button>
+                )}
               </div>
             </div>
           </div>

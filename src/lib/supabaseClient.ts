@@ -59,10 +59,9 @@ export interface ChartReview {
 // Chart API functions
 export const chartAPI = {
   // Upload a new chart
-  // RLS INSERT 정책만 통과하면 되도록, INSERT 후 행을 다시 SELECT 하지 않습니다.
-  // (Supabase v2에서는 .select()를 호출하지 않으면 최소 반환 모드로 동작합니다.)
   async uploadChart(chartData: Omit<Chart, 'id' | 'created_at' | 'updated_at' | 'status' | 'play_count'>) {
     ensureConfigured();
+    // INSERT만 수행 (SELECT는 RLS 정책 때문에 pending 상태를 볼 수 없음)
     const { error } = await supabase
       .from('charts')
       .insert({
@@ -72,7 +71,9 @@ export const chartAPI = {
       });
 
     if (error) throw error;
-    // 현재 호출 측에서는 반환값을 사용하지 않으므로 따로 data를 리턴하지 않습니다.
+    
+    // INSERT 성공 시 true 반환 (실제 데이터는 SELECT 정책 때문에 반환할 수 없음)
+    return true;
   },
 
   // Get approved charts with pagination and filters

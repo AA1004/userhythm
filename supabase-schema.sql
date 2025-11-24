@@ -53,10 +53,26 @@ CREATE POLICY "Public can view approved charts"
   ON charts FOR SELECT
   USING (status = 'approved');
 
+-- Policy: Admin can view pending/rejected charts (for management)
+-- Note: Currently allows all users to view pending charts
+-- In the future, this can be restricted to authenticated admin users
+CREATE POLICY "Admin can view pending charts"
+  ON charts FOR SELECT
+  USING (status IN ('pending', 'rejected'));
+
 -- Policy: Anyone can insert charts (as pending)
+-- Allow both authenticated and anonymous users to upload
 CREATE POLICY "Anyone can upload charts"
   ON charts FOR INSERT
   WITH CHECK (status = 'pending');
+
+-- Ensure the policy allows anonymous inserts
+-- If the above doesn't work, try this more permissive policy:
+-- DROP POLICY IF EXISTS "Anyone can upload charts" ON charts;
+-- CREATE POLICY "Anyone can upload charts"
+--   ON charts FOR INSERT
+--   TO public
+--   WITH CHECK (status = 'pending');
 
 -- Policy: Only allow reading own pending/rejected charts (optional, for future user auth)
 -- This can be expanded when user authentication is added
@@ -66,6 +82,19 @@ CREATE POLICY "Public can view chart reviews"
   ON chart_reviews FOR SELECT
   USING (true);
 
+-- Policy: Admin can update chart status (for approval/rejection)
+CREATE POLICY "Admin can update chart status"
+  ON charts FOR UPDATE
+  TO public
+  USING (true)
+  WITH CHECK (true);
+
+-- Policy: Admin can insert chart reviews
+CREATE POLICY "Admin can insert chart reviews"
+  ON chart_reviews FOR INSERT
+  TO public
+  WITH CHECK (true);
+
 -- Storage bucket for preview images
 -- Run this in Supabase Dashboard > Storage:
 -- 1. Create a new bucket named 'chart-images'
@@ -74,6 +103,8 @@ CREATE POLICY "Public can view chart reviews"
 
 -- Note: Admin operations (approve/reject) should be done with service role key
 -- or through a secure backend endpoint with proper authentication
+
+
 
 
 
