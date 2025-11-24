@@ -10,7 +10,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "server:start": "cd server && npm start",
-    "server:stop": "echo Server stopped"
+    "server:stop": "echo Server stopped",
+    "deploy": "npm run build && npm run preview"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.84.0",
