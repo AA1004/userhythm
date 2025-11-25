@@ -70,7 +70,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
   const [isBpmInputOpen, setIsBpmInputOpen] = useState<boolean>(false);
   const tapBpmCalculatorRef = useRef(new TapBPMCalculator());
   const [tapBpmResult, setTapBpmResult] = useState<{ bpm: number; confidence: number } | null>(null);
-  const [bpmChanges, setBpmChanges] = useState<BPMChange[]>([]);
 
   // 메뉴 열림/닫힘 상태
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
@@ -1113,73 +1112,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
   }, [youtubePlayer, youtubeVideoId]);
 
   // BPM 탭 계산
-  // 蹂??異붽?
-  const handleAddBpmChange = useCallback(() => {
-    const beatIndexInput = prompt('蹂?띿씠 ?쒖옉?섎뒗 鍮꾪듃 ?몃뜳?ㅻ? ?낅젰?섏꽭??', '0');
-    if (beatIndexInput === null) return;
-    
-    const beatIndex = parseFloat(beatIndexInput);
-    if (isNaN(beatIndex) || beatIndex < 0) {
-      alert('?좏슚??鍮꾪듃 ?몃뜳?ㅻ? ?낅젰?댁＜?몄슂.');
-      return;
-    }
-
-    const bpmInput = prompt('?덈줈??BPM???낅젰?섏꽭??', Math.round(bpm).toString());
-    if (bpmInput === null) return;
-    
-    const newBpm = parseFloat(bpmInput);
-    if (isNaN(newBpm) || !isValidBPM(newBpm)) {
-      alert('?좏슚??BPM???낅젰?댁＜?몄슂. (30-300)');
-      return;
-    }
-
-    const newChange: BPMChange = {
-      id: Date.now(),
-      beatIndex: Math.round(beatIndex),
-      bpm: newBpm,
-    };
-
-    setBpmChanges(prev => [...prev, newChange].sort((a, b) => a.beatIndex - b.beatIndex));
-  }, [bpm]);
-
-  // 蹂???섏젙
-  const handleEditBpmChange = useCallback((change: BPMChange) => {
-    const beatIndexInput = prompt('蹂?띿씠 ?쒖옉?섎뒗 鍮꾪듃 ?몃뜳?ㅻ? ?낅젰?섏꽭??', change.beatIndex.toString());
-    if (beatIndexInput === null) return;
-    
-    const beatIndex = parseFloat(beatIndexInput);
-    if (isNaN(beatIndex) || beatIndex < 0) {
-      alert('?좏슚??鍮꾪듃 ?몃뜳?ㅻ? ?낅젰?댁＜?몄슂.');
-      return;
-    }
-
-    const bpmInput = prompt('?덈줈??BPM???낅젰?섏꽭??', Math.round(change.bpm).toString());
-    if (bpmInput === null) return;
-    
-    const newBpm = parseFloat(bpmInput);
-    if (isNaN(newBpm) || !isValidBPM(newBpm)) {
-      alert('?좏슚??BPM???낅젰?댁＜?몄슂. (30-300)');
-      return;
-    }
-
-    setBpmChanges(prev => 
-      prev.map(c => c.id === change.id ? { ...c, beatIndex: Math.round(beatIndex), bpm: newBpm } : c)
-        .sort((a, b) => a.beatIndex - b.beatIndex)
-    );
-  }, []);
-
-  // 蹂????젣
-  const handleDeleteBpmChange = useCallback((changeId: number) => {
-    if (confirm('??蹂?띿쓣 ??젣?섏떆寃좎뒿?덇퉴?')) {
-      setBpmChanges(prev => prev.filter(c => c.id !== changeId));
-    }
-  }, []);
-
-  // ?뺣젹??蹂??紐⑸줉
-  const sortedBpmChanges = useMemo(() => {
-    return [...bpmChanges].sort((a, b) => a.beatIndex - b.beatIndex);
-  }, [bpmChanges]);
-
   const handleBpmTap = useCallback(() => {
     const result = tapBpmCalculatorRef.current.tap();
     if (result && result.confidence !== undefined) {
