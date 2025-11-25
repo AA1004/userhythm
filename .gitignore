@@ -1,6 +1,6 @@
 # Dependencies
 node_modules/
-package-lock.json
+# package-lock.json은 Git에 커밋해야 합니다 (일관된 의존성 버전 관리)
 
 # Environment variables
 .env
