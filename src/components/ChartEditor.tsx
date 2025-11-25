@@ -2486,6 +2486,125 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
             )}
           </div>
 
+          {/* BPM 蹂???ㅼ젙 */}
+          <div>
+            <div style={{ color: '#fff', marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>
+              BPM 蹂??            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button
+                onClick={() => handleAddBpmChange()}
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  backgroundColor: '#9C27B0',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  width: '100%',
+                }}
+              >
+                ??蹂??異붽?
+              </button>
+              <button
+                onClick={() => {
+                  const bpmInput = prompt('?덈줈??BPM???낅젰?섏꽭??', Math.round(bpm).toString());
+                  if (bpmInput === null) return;
+                  const newBpm = parseFloat(bpmInput);
+                  if (isNaN(newBpm) || !isValidBPM(newBpm)) {
+                    alert('?좏슚??BPM???낅젰?댁＜?몄슂. (30-300)');
+                    return;
+                  }
+                  const newChange: BPMChange = {
+                    id: Date.now(),
+                    beatIndex: currentBeatIndex,
+                    bpm: newBpm,
+                  };
+                  setBpmChanges(prev => [...prev, newChange].sort((a, b) => a.beatIndex - b.beatIndex));
+                }}
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  backgroundColor: '#E91E63',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  width: '100%',
+                }}
+                title={\?꾩옱 ?꾩튂 (\鍮꾪듃)?먯꽌 蹂??異붽?\}
+              >
+                ?뱧 ?꾩옱 ?꾩튂??異붽?
+              </button>
+            </div>
+            {sortedBpmChanges.length > 0 && (
+              <div
+                style={{
+                  marginTop: '10px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  maxHeight: '150px',
+                  overflowY: 'auto',
+                }}
+              >
+                {sortedBpmChanges.map((change) => {
+                  const { measure, beat } = beatToMeasureAndBeat(change.beatIndex, timeSignatures[0]?.beatsPerMeasure || 4);
+                  return (
+                    <div
+                      key={change.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '6px 8px',
+                        backgroundColor: '#2a2a2a',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                      }}
+                    >
+                      <div style={{ color: '#ddd' }}>
+                        <span style={{ color: '#4FC3F7' }}>{measure}留덈뵒</span>
+                        <span style={{ color: '#888', margin: '0 4px' }}>??/span>
+                        <span style={{ color: '#FFD700' }}>{Math.round(change.bpm)}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button
+                          onClick={() => handleEditBpmChange(change)}
+                          style={{
+                            padding: '2px 6px',
+                            fontSize: '10px',
+                            backgroundColor: '#2196F3',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '3px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          ?륅툘
+                        </button>
+                        <button
+                          onClick={() => handleDeleteBpmChange(change.id)}
+                          style={{
+                            padding: '2px 6px',
+                            fontSize: '10px',
+                            backgroundColor: '#f44336',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '3px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          ?뿊截?                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+
           <div>
             <div style={{ color: '#fff', marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>
               테스트
