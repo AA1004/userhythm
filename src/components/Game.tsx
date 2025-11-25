@@ -860,14 +860,14 @@ export const Game: React.FC = () => {
     setIsAdminOpen(false);
     // 상태 업데이트가 완료된 후 테스트 시작 (다음 틱에서 실행)
     setTimeout(() => {
-      handleEditorTest({
-        notes: chartData.notes || [],
-        startTimeMs: 0,
-        youtubeVideoId: chartData.youtubeVideoId || null,
-        youtubeUrl: chartData.youtubeUrl || '',
-        playbackSpeed: 1,
-        audioOffsetMs: 0,
-      });
+    handleEditorTest({
+      notes: chartData.notes || [],
+      startTimeMs: 0,
+      youtubeVideoId: chartData.youtubeVideoId || null,
+      youtubeUrl: chartData.youtubeUrl || '',
+      playbackSpeed: 1,
+      audioOffsetMs: 0,
+    });
     }, 0);
   }, [handleEditorTest]);
 
