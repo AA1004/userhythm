@@ -7,6 +7,11 @@ import react from '@vitejs/plugin-react'
 // 환경 변수로도 설정 가능: VITE_BASE_PATH
 const base = process.env.VITE_BASE_PATH || (process.env.NODE_ENV === 'production' ? '/userhythm/' : '/')
 
+// 디버깅: base 경로 확인
+if (process.env.NODE_ENV === 'production') {
+  console.log('Production build - base path:', base)
+}
+
 export default defineConfig({
   base,
   plugins: [react()],

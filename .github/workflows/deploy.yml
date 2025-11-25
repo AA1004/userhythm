@@ -40,6 +40,34 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_ADMIN_TOKEN: ${{ secrets.VITE_ADMIN_TOKEN }}
 
+      - name: Verify build output
+        run: |
+          echo "=== Build Verification ==="
+          echo "Checking dist/index.html..."
+          if [ -f dist/index.html ]; then
+            cat dist/index.html
+            echo ""
+            echo "Checking if /src/main.tsx is still referenced..."
+            if grep -q "/src/main.tsx" dist/index.html; then
+              echo "❌ ERROR: dist/index.html still references /src/main.tsx!"
+              exit 1
+            else
+              echo "✅ dist/index.html correctly transformed"
+            fi
+          else
+            echo "❌ ERROR: dist/index.html not found!"
+            exit 1
+          fi
+          echo ""
+          echo "Checking if assets exist..."
+          if [ -d dist/assets ]; then
+            ls -la dist/assets/
+            echo "✅ Assets directory found"
+          else
+            echo "❌ ERROR: Assets directory not found!"
+            exit 1
+          fi
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
