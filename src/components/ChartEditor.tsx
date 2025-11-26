@@ -1,13 +1,24 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+﻿import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Note, Lane } from '../types/game';
 import { extractYouTubeVideoId, waitForYouTubeAPI } from '../utils/youtube';
 import { TapBPMCalculator, bpmToBeatDuration, isValidBPM } from '../utils/bpmAnalyzer';
 import { chartAPI, isSupabaseConfigured, supabase } from '../lib/supabaseClient';
 
+// Subtitle editor chart data type
+interface SubtitleEditorChartData {
+  chartId: string;
+  notes: Note[];
+  bpm: number;
+  youtubeVideoId?: string | null;
+  youtubeUrl?: string;
+  title?: string;
+}
+
 interface ChartEditorProps {
   onSave: (notes: Note[]) => void;
   onCancel: () => void;
   onTest?: (payload: ChartTestPayload) => void;
+  onOpenSubtitleEditor?: (chartData: SubtitleEditorChartData) => void;
 }
 
 interface ChartTestPayload {
@@ -38,7 +49,7 @@ const MIN_PLAYBACK_SPEED = 0.5;
 const MAX_PLAYBACK_SPEED = 2;
 const AUTO_SAVE_KEY = 'chartEditorLastChart';
 
-export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTest }) => {
+export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTest, onOpenSubtitleEditor }) => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -1620,6 +1631,33 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
               >
                 💾 저장
               </button>
+              {onOpenSubtitleEditor && (
+                <button
+                  onClick={() => {
+                    const chartId = `local-${Date.now()}`;
+                    onOpenSubtitleEditor({
+                      chartId,
+                      notes,
+                      bpm,
+                      youtubeVideoId: extractYouTubeVideoId(youtubeUrl),
+                      youtubeUrl,
+                      title: 'Untitled',
+                    });
+                  }}
+                  style={{
+                    padding: '10px 20px',
+                    fontSize: '16px',
+                    backgroundColor: '#E91E63',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
+                  title="Subtitle Editor"
+                >
+                  Subtitle
+                </button>
+              )}
               <button
                 onClick={onCancel}
                 style={{
