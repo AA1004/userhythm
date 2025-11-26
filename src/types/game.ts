@@ -32,3 +32,11 @@ export interface GameState {
   gameEnded: boolean;
 }
 
+
+
+// BPM change type
+export interface BPMChange {
+  id: number;
+  beatIndex: number;
+  bpm: number;
+}
