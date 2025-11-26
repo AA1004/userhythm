@@ -30,16 +30,16 @@ const LANE_KEYS = [
   ['K'],
 ];
 
-// 4�??�인????붙이?�록 배치: �??�인 100px ?�비, 4�?= 400px
-// 좌우 ?�백??3분의 1�?줄임: (700 - 400) / 2 / 3 = 50px
-// �??�인 중앙: 50 + 50 = 100px, ?�후 100px??간격
-// ?�정?? 50px ~ 450px (4�??�인 ?�역)
+// 4개 레인을 더 붙이도록 배치: 각 레인 100px 너비, 4개 = 400px
+// 좌우 여백을 3분의 1로 줄임: (700 - 400) / 2 / 3 = 50px
+// 각 레인 중앙: 50 + 50 = 100px, 이후 100px씩 간격
+// 판정선: 50px ~ 450px (4개 레인 영역)
 const LANE_POSITIONS = [100, 200, 300, 400];
-const JUDGE_LINE_LEFT = 50; // ?�정???�작 ?�치 (�??�인 ?�쪽)
-const JUDGE_LINE_WIDTH = 400; // ?�정???�비 (4�??�인 ?�역)
+const JUDGE_LINE_LEFT = 50; // 판정선 시작 위치 (첫 레인 왼쪽)
+const JUDGE_LINE_WIDTH = 400; // 판정선 너비 (4개 레인 영역)
 const JUDGE_LINE_Y = 640;
 
-const GAME_DURATION = 30000; // 30�?
+const GAME_DURATION = 30000; // 30초
 const START_DELAY_MS = 4000;
 
 export const Game: React.FC = () => {
@@ -49,7 +49,7 @@ export const Game: React.FC = () => {
   const [isTestMode, setIsTestMode] = useState<boolean>(false);
   const testPreparedNotesRef = useRef<Note[]>([]);
   
-  // ?�스??모드 YouTube ?�레?�어 ?�태
+  // 테스트 모드 YouTube 플레이어 상태
   const [testYoutubePlayer, setTestYoutubePlayer] = useState<any>(null);
   const testYoutubePlayerRef = useRef<HTMLDivElement>(null);
   const testYoutubePlayerReadyRef = useRef(false);
@@ -78,7 +78,7 @@ export const Game: React.FC = () => {
   }));
 
   const [pressedKeys, setPressedKeys] = useState<Set<Lane>>(new Set());
-  const [holdingNotes, setHoldingNotes] = useState<Map<number, Note>>(new Map()); // ?�재 ?�르�??�는 롱노?�들 (?�트 ID -> ?�트)
+  const [holdingNotes, setHoldingNotes] = useState<Map<number, Note>>(new Map()); // 현재 누르고 있는 롱노트들 (노트 ID -> 노트)
   const [judgeFeedbacks, setJudgeFeedbacks] = useState<Array<{
     id: number;
     judge: JudgeType;
@@ -104,7 +104,7 @@ export const Game: React.FC = () => {
     const effectiveTime = Math.max(0, gameTimeMs);
     return Math.max(0, (startTimeMs + audioOffsetMs + effectiveTime) / 1000);
   };
-  const processedMissNotes = useRef<Set<number>>(new Set()); // ?��? Miss 처리???�트 ID 추적
+  const processedMissNotes = useRef<Set<number>>(new Set()); // 이미 Miss 처리된 노트 ID 추적
   const buildInitialScore = useCallback(
     () => ({
       perfect: 0,
@@ -117,19 +117,19 @@ export const Game: React.FC = () => {
     []
   );
   
-  // localStorage?�서 ?�도 불러?�기
+  // localStorage에서 속도 불러오기
   const [speed, setSpeed] = useState<number>(() => {
     const savedSpeed = localStorage.getItem('rhythmGameSpeed');
     return savedSpeed ? parseFloat(savedSpeed) : 1.0;
   });
 
 
-  // ?�도가 변경될 ?�마??localStorage???�??
+  // 속도가 변경될 때마다 localStorage에 저장
   useEffect(() => {
     localStorage.setItem('rhythmGameSpeed', speed.toString());
   }, [speed]);
 
-  // gameState�?ref�??��??�여 최신 값을 ??�� 참조
+  // gameState를 ref로 유지하여 최신 값을 항상 참조
   const gameStateRef = useRef(gameState);
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -141,30 +141,30 @@ export const Game: React.FC = () => {
       
       if (!currentState.gameStarted || currentState.gameEnded) return;
 
-      // ???�레???�태 ?�데?�트 - ?��? ?��????�만 ?�린 ?�태�?변�?
+      // 키 프레스 상태 업데이트 - 키를 눌렀을 때만 눌린 상태로 변경
       setPressedKeys((prev) => {
-        if (prev.has(lane)) return prev; // ?��? ?�른 ?�는 ?�데?�트 ?�킵
+        if (prev.has(lane)) return prev; // 이미 누른 키는 업데이트 스킵
         const next = new Set(prev);
         next.add(lane);
         
-        // ?��? ???�만 짧게 ?�간 ?�안 ?�어?�음
+        // 키를 뗄 때만 짧게 시간 동안 떼어놓음
         setTimeout(() => {
           setPressedKeys((prev) => {
             const next = new Set(prev);
             next.delete(lane);
             return next;
           });
-        }, 100); // 100ms ?�에 ???�기
+        }, 100); // 100ms 후에 키 떼기
         
         return next;
       });
 
-      // ?�당 ?�인?�서 가??가까운 ?�트 찾기
+      // 해당 레인에서 가장 가까운 노트 찾기
       const laneNotes = currentState.notes.filter(
         (note) => note.lane === lane && !note.hit
       );
 
-      // ?�트가 ?�으�??�무것도 ?��? ?�음 (?�공/?�패 ?�단??처리 ????
+      // 노트가 없으면 아무것도 하지 않음 (성공/실패 판단을 처리 안 함)
       if (laneNotes.length === 0) {
         return;
       }
@@ -185,7 +185,7 @@ export const Game: React.FC = () => {
         const isHoldNote = (bestNote.type === 'hold' || bestNote.duration > 0);
         const judge = judgeTiming(bestNote.time - currentTime);
         
-        // ?�태 ?�데?�트�??�나�?묶침
+        // 상태 업데이트를 하나로 묶침
         setGameState((prev) => {
           const newScore = { ...prev.score };
           
@@ -212,7 +212,7 @@ export const Game: React.FC = () => {
             newScore.maxCombo = newScore.combo;
           }
 
-          // 롱노?��? ?�닌 경우?�만 hit: true�??�정
+          // 롱노트가 아닌 경우에만 hit: true로 설정
           const updatedNotes = isHoldNote
             ? prev.notes
             : prev.notes.map((note) =>
@@ -226,7 +226,7 @@ export const Game: React.FC = () => {
           };
         });
 
-        // 롱노?�인 경우 holdingNotes??추�?
+        // 롱노트인 경우 holdingNotes에 추가
         if (isHoldNote) {
           setHoldingNotes((prev) => {
             const next = new Map(prev);
@@ -235,19 +235,19 @@ export const Game: React.FC = () => {
           });
         }
 
-        // ?�로???�정 ?�드�?추�? - ?�전 ?�정?� ?�거
+        // 새로운 판정 피드백 추가 - 이전 판정은 제거
         const feedbackId = feedbackIdRef.current++;
         setJudgeFeedbacks([{ id: feedbackId, judge }]);
         
-        // ?�정?�에 ?�펙??추�? (miss가 ?�닐 ?�만) - ?�트가 ?�는 ?�정???�치?�서
+        // 판정선에 이펙트 추가 (miss가 아닐 때만) - 노트가 있는 판정선 위치에서
         if (judge !== 'miss') {
           const effectId = keyEffectIdRef.current++;
-          // ?�트가 ?�정?�에 ?�는 ?�치 (?�정??y 좌표: 640px)
+          // 노트가 판정선에 있는 위치 (판정선 y 좌표: 640px)
           const effectX = LANE_POSITIONS[lane];
-          const effectY = 640; // ?�정???�치
+          const effectY = 640; // 판정선 위치
           setKeyEffects((prev) => [...prev, { id: effectId, lane, x: effectX, y: effectY }]);
           
-          // ?�드�??�거?� ?�펙???�거�?requestAnimationFrame?�로 처리?�여 ?�더�?최적??
+          // 피드백 제거와 이펙트 제거를 requestAnimationFrame으로 처리하여 렌더링 최적화
           requestAnimationFrame(() => {
             setTimeout(() => {
               setJudgeFeedbacks((prev) => prev.filter(f => f.id !== feedbackId));
@@ -255,7 +255,7 @@ export const Game: React.FC = () => {
             }, 800);
           });
         } else {
-          // miss??경우 ?�펙???�이 ?�드백만 ?�거
+          // miss인 경우 이펙트 없이 피드백만 제거
           requestAnimationFrame(() => {
             setTimeout(() => {
               setJudgeFeedbacks((prev) => prev.filter(f => f.id !== feedbackId));
@@ -263,10 +263,10 @@ export const Game: React.FC = () => {
           });
         }
       }
-      // bestNote가 null?�고 laneNotes가 ?�으�??�?�밍????맞는 경우
-      // ??경우?�도 Miss 처리�??��? ?�음 (?�공/?�패가 구별?????�면 처리 ????
+      // bestNote가 null이고 laneNotes가 있으면 타이밍이 안 맞는 경우
+      // 이 경우에도 Miss 처리를 하지 않음 (성공/실패가 구별이 안 되면 처리 안 함)
     },
-    [] // 기존 코드 ?�거?�여 ?�수 ?�성??방�?
+    [] // 기존 코드 제거하여 함수 생성을 방지
   );
 
   const handleKeyRelease = useCallback(
@@ -279,7 +279,7 @@ export const Game: React.FC = () => {
         return next;
       });
 
-      // ?�당 ?�인??holdingNotes?�서 롱노??찾기
+      // 해당 레인의 holdingNotes에서 롱노트 찾기
       setHoldingNotes((prev) => {
         const next = new Map(prev);
         const laneHoldNotes = Array.from(prev.values()).filter(
@@ -290,12 +290,12 @@ export const Game: React.FC = () => {
           const currentTime = currentState.currentTime;
           const endTime = typeof holdNote.endTime === 'number' ? holdNote.endTime : holdNote.time + (holdNote.duration || 0);
           const timeDiff = Math.abs(endTime - currentTime);
-          // 롱노???�정 ?�도???�용 (?�반 ?�정보다 ?�유로�?)
+          // 롱노트 판정 윈도우 사용 (일반 판정보다 여유로움)
           const holdReleaseWindow = judgeConfig.holdReleaseWindows.good;
           const isBeforeEnd = currentTime < endTime - holdReleaseWindow;
           
           if (timeDiff <= holdReleaseWindow) {
-            // 롱노?????�정 (롱노???�용 ?�정 ?�수 ?�용)
+            // 롱노트 끝 판정 (롱노트 전용 판정 함수 사용)
             const judge = judgeHoldReleaseTiming(endTime - currentTime);
             
             setGameState((prevState) => {
@@ -335,7 +335,7 @@ export const Game: React.FC = () => {
               };
             });
 
-            // ?�정 ?�드�?추�?
+            // 판정 피드백 추가
             const feedbackId = feedbackIdRef.current++;
             setJudgeFeedbacks([{ id: feedbackId, judge }]);
             
@@ -359,10 +359,10 @@ export const Game: React.FC = () => {
               });
             }
 
-            // holdingNotes?�서 ?�거
+            // holdingNotes에서 제거
             next.delete(holdNote.id);
           } else if (isBeforeEnd) {
-            // 롱노?��? 충분???��??�기 ?�에 ?�을 ?� 경우 Miss 처리
+            // 롱노트를 충분히 유지하기 전에 손을 뗀 경우 Miss 처리
             processedMissNotes.current.add(holdNote.id);
 
             setGameState((prevState) => {
@@ -432,12 +432,12 @@ export const Game: React.FC = () => {
     ) {
       setGameState((prev) => ({ ...prev, gameEnded: true }));
       
-      // 게임 종료 ??YouTube ?�레?�어 ?��?/?�제
+      // 게임 종료 시 YouTube 플레이어 정지/해제
       if (isTestMode && testYoutubePlayer && testYoutubePlayerReadyRef.current) {
         try {
           testYoutubePlayer.pauseVideo?.();
         } catch (e) {
-          console.warn('YouTube ?�시?��? ?�패:', e);
+          console.warn('YouTube 일시정지 실패:', e);
         }
       }
     }
@@ -447,9 +447,9 @@ export const Game: React.FC = () => {
     setIsTestMode(false);
     audioHasStartedRef.current = false;
     testPreparedNotesRef.current = [];
-    processedMissNotes.current.clear(); // Miss 처리 ?�트 추적 초기??
+    processedMissNotes.current.clear(); // Miss 처리 노트 추적 초기화
     setPressedKeys(new Set());
-    setHoldingNotes(new Map()); // 롱노???�태 초기??
+    setHoldingNotes(new Map()); // 롱노트 상태 초기화
     setGameState((prev) => ({
       ...prev,
       gameStarted: false,
@@ -466,7 +466,7 @@ export const Game: React.FC = () => {
       audioHasStartedRef.current = false;
       processedMissNotes.current.clear();
       setPressedKeys(new Set());
-      setHoldingNotes(new Map()); // 롱노???�태 초기??
+      setHoldingNotes(new Map()); // 롱노트 상태 초기화
       setGameState((prev) => ({
         ...prev,
         gameStarted: true,
@@ -520,11 +520,11 @@ export const Game: React.FC = () => {
         .map((note, index) => ({ ...note, id: index + 1 }));
 
       if (!preparedNotes.length) {
-        alert('?�택???�작 ?�치 ?�후???�트가 ?�습?�다. ?�작 ?�치�?조정?�주?�요.');
+        alert('선택한 시작 위치 이후에 노트가 없습니다. 시작 위치를 조정해주세요.');
         return;
       }
 
-      // YouTube ?�디???�정 ?�달
+      // YouTube 오디오 설정 전달
       testAudioSettingsRef.current = {
         youtubeVideoId: payload.youtubeVideoId,
         youtubeUrl: payload.youtubeUrl,
@@ -537,7 +537,7 @@ export const Game: React.FC = () => {
       setIsTestMode(true);
       setIsEditorOpen(false);
       
-      // YouTube ?�레?�어 초기?��? ?�해 videoId ?�정
+      // YouTube 플레이어 초기화를 위해 videoId 설정
       if (payload.youtubeVideoId) {
         setTestYoutubeVideoId(payload.youtubeVideoId);
       } else {
@@ -564,12 +564,12 @@ export const Game: React.FC = () => {
     testAudioSettingsRef.current = null;
     setTestYoutubeVideoId(null);
     
-    // YouTube ?�레?�어 ?�리
+    // YouTube 플레이어 정리
     if (testYoutubePlayer) {
       try {
         testYoutubePlayer.destroy();
       } catch (e) {
-        console.warn('?�스???�레?�어 ?�리 ?�패:', e);
+        console.warn('테스트 플레이어 정리 실패:', e);
       }
     }
     setTestYoutubePlayer(null);
@@ -583,7 +583,7 @@ export const Game: React.FC = () => {
     }));
   }, [testYoutubePlayer]);
 
-  // ESC ?�로 ?�스??모드 ?��?�?
+  // ESC 키로 테스트 모드 나가기
   useEffect(() => {
     if (!isTestMode || !gameState.gameStarted || gameState.gameEnded) return;
 
@@ -597,7 +597,7 @@ export const Game: React.FC = () => {
     return () => window.removeEventListener('keydown', handleEscape);
   }, [isTestMode, gameState.gameStarted, gameState.gameEnded, handleReturnToEditor]);
 
-  // ?�스??모드 YouTube ?�레?�어 초기??
+  // 테스트 모드 YouTube 플레이어 초기화
   useEffect(() => {
     if (!isTestMode || !testYoutubeVideoId) return;
     if (!testYoutubePlayerRef.current) return;
@@ -612,14 +612,14 @@ export const Game: React.FC = () => {
             player.destroy();
           }
         } catch (e) {
-          console.warn('?�스???�레?�어 ?�리 ?�패:', e);
+          console.warn('테스트 플레이어 정리 실패:', e);
         }
       }
       setTestYoutubePlayer(null);
       testYoutubePlayerReadyRef.current = false;
     };
 
-    // 기존 ?�레?�어 ?�리
+    // 기존 플레이어 정리
     setTestYoutubePlayer((currentPlayer: any) => {
       if (currentPlayer) {
         cleanup(currentPlayer);
@@ -632,7 +632,7 @@ export const Game: React.FC = () => {
       if (isCancelled) return;
 
       if (!window.YT || !window.YT.Player) {
-        console.error('YouTube IFrame API�?로드?��? 못했?�니??');
+        console.error('YouTube IFrame API를 로드하지 못했습니다.');
         return;
       }
 
@@ -664,24 +664,24 @@ export const Game: React.FC = () => {
               setTestYoutubePlayer(player);
               playerInstance = player;
 
-              console.log('???�스??YouTube ?�레?�어 준�??�료');
+              console.log('✅ 테스트 YouTube 플레이어 준비 완료');
               
-              // ?�레?�어가 준비되�??�정�??�고, ?�제 ?�생?� 게임 ?�작 ?�에 ?�행
+              // 플레이어가 준비되면 설정만 하고, 실제 재생은 게임 시작 후에 수행
               setTimeout(() => {
                 if (!isCancelled && player && testAudioSettingsRef.current) {
                   try {
                     const { playbackSpeed } = testAudioSettingsRef.current;
                     const startTimeSec = getAudioBaseSeconds();
                     
-                    // ?�생 ?�도 ?�정
+                    // 재생 속도 설정
                     player.setPlaybackRate?.(playbackSpeed);
                     
-                    // ?�작 ?�치�??�동 (미리 ?�동)
+                    // 시작 위치로 이동 (미리 이동)
                     player.seekTo(startTimeSec, true);
                     
-                    console.log(`?�� YouTube ?�레?�어 준�??�료 (${startTimeSec}�? ${playbackSpeed}x) - 게임 ?�작 ???�생`);
+                    console.log(`🎵 YouTube 플레이어 준비 완료 (${startTimeSec}초, ${playbackSpeed}x) - 게임 시작 후 재생`);
                   } catch (e) {
-                    console.warn('YouTube ?�레?�어 ?�정 ?�패:', e);
+                    console.warn('YouTube 플레이어 설정 실패:', e);
                   }
                 }
               }, 100);
@@ -689,7 +689,7 @@ export const Game: React.FC = () => {
           },
         });
       } catch (e) {
-        console.error('?�스???�레?�어 ?�성 ?�패:', e);
+        console.error('테스트 플레이어 생성 실패:', e);
       }
     });
 
@@ -764,7 +764,7 @@ export const Game: React.FC = () => {
         100
       : 0;
 
-  // 채보 ?�???�들??
+  // 채보 저장 핸들러
   const handleChartSave = useCallback((notes: Note[]) => {
     setIsTestMode(false);
     testPreparedNotesRef.current = [];
@@ -775,42 +775,42 @@ export const Game: React.FC = () => {
     setIsEditorOpen(false);
   }, []);
 
-  // ?�디???�기 ?�들??
+  // 에디터 닫기 핸들러
   const handleEditorCancel = useCallback(() => {
     setIsTestMode(false);
     testPreparedNotesRef.current = [];
     setIsEditorOpen(false);
   }, []);
 
-  // 채보 ?�택 ?�들??
+  // 채보 선택 핸들러
   const handleChartSelect = useCallback((chartData: any) => {
     try {
       if (!chartData) {
         console.error('Chart data is missing');
-        alert('채보 ?�이?��? ?�습?�다.');
+        alert('채보 데이터가 없습니다.');
         return;
       }
 
       if (!chartData.notes || !Array.isArray(chartData.notes)) {
         console.error('Invalid chart data: notes array missing');
-        alert('?�효?��? ?��? 채보 ?�이?�입?�다.');
+        alert('유효하지 않은 채보 데이터입니다.');
         return;
       }
 
       setIsChartSelectOpen(false);
       
-      // 기존 ?�스??모드 ?�레?�어 ?�리
+      // 기존 테스트 모드 플레이어 정리
       if (testYoutubePlayer) {
         try {
           testYoutubePlayer.destroy?.();
         } catch (e) {
-          console.warn('기존 ?�레?�어 ?�리 ?�패:', e);
+          console.warn('기존 플레이어 정리 실패:', e);
         }
       }
       setTestYoutubePlayer(null);
       testYoutubePlayerReadyRef.current = false;
       
-      // YouTube ?�레?�어 ?�정 (?�요?? - 먼�? ?�정?�야 useEffect가 ?�바르게 ?�동??
+      // YouTube 플레이어 설정 (필요시) - 먼저 설정해야 useEffect가 올바르게 작동함
       if (chartData.youtubeVideoId) {
         testAudioSettingsRef.current = {
           youtubeVideoId: chartData.youtubeVideoId,
@@ -818,7 +818,7 @@ export const Game: React.FC = () => {
           startTimeMs: 0,
           playbackSpeed: 1,
         };
-        setTestYoutubeVideoId(chartData.youtubeVideoId); // state�??�정?�여 useEffect가 감�??�도�?
+        setTestYoutubeVideoId(chartData.youtubeVideoId); // state로 설정하여 useEffect가 감지하도록
         setIsTestMode(true);
       } else {
         setIsTestMode(false);
@@ -826,7 +826,7 @@ export const Game: React.FC = () => {
         testAudioSettingsRef.current = null;
       }
       
-      // ?�택??채보 ?�이?�로 게임 ?�태 초기??
+      // 선택된 채보 데이터로 게임 상태 초기화
       const preparedNotes = chartData.notes.map((note: Note) => ({
         ...note,
         y: 0,
@@ -834,7 +834,7 @@ export const Game: React.FC = () => {
       }));
       
       if (preparedNotes.length === 0) {
-        alert('??채보?�는 ?�트가 ?�습?�다.');
+        alert('이 채보에는 노트가 없습니다.');
         return;
       }
       
@@ -850,15 +850,15 @@ export const Game: React.FC = () => {
       processedMissNotes.current = new Set();
     } catch (error) {
       console.error('Failed to load chart:', error);
-      alert('채보�?불러?�는???�패?�습?�다. ?�시 ?�도?�주?�요.');
+      alert('채보를 불러오는데 실패했습니다. 다시 시도해주세요.');
     }
   }, [buildInitialScore]);
 
-  // 관리자 ?�스???�들??
+  // 관리자 테스트 핸들러
   const handleAdminTest = useCallback((chartData: any) => {
-    // 관리자 ?�면??먼�? ?�고, ?�음 ?�더�??�이?�에???�스???�작
+    // 관리자 화면을 먼저 닫고, 다음 렌더링 사이클에서 테스트 시작
     setIsAdminOpen(false);
-    // ?�태 ?�데?�트가 ?�료?????�스???�작 (?�음 ?�에???�행)
+    // 상태 업데이트가 완료된 후 테스트 시작 (다음 틱에서 실행)
     setTimeout(() => {
     handleEditorTest({
       notes: chartData.notes || [],
@@ -871,17 +871,17 @@ export const Game: React.FC = () => {
     }, 0);
   }, [handleEditorTest]);
 
-  // ?�디?��? ?�려?�으�??�디?�만 ?�시
+  // 에디터가 열려있으면 에디터만 표시
   if (isEditorOpen) {
     return <ChartEditor onSave={handleChartSave} onCancel={handleEditorCancel} onTest={handleEditorTest} />;
   }
 
-  // 채보 ?�택 ?�면
+  // 채보 선택 화면
   if (isChartSelectOpen) {
     return <ChartSelect onSelect={handleChartSelect} onClose={() => setIsChartSelectOpen(false)} />;
   }
 
-  // 관리자 ?�면
+  // 관리자 화면
   if (isAdminOpen) {
     return <ChartAdmin onClose={() => setIsAdminOpen(false)} onTestChart={handleAdminTest} />;
   }
@@ -900,16 +900,16 @@ export const Game: React.FC = () => {
     >
       <div
         style={{
-          width: '500px', // 좌우 ?�백??3분의 1�?줄임: 700px - 400px = 300px -> 100px
+          width: '500px', // 좌우 여백을 3분의 1로 줄임: 700px - 400px = 300px -> 100px
           height: '800px',
-          backgroundColor: '#1f1f1f', // ?�백??배경 (가???�두?�색)
+          backgroundColor: '#1f1f1f', // 회백색 배경 (가장 어두운색)
           position: 'relative',
           overflow: 'hidden',
           borderRadius: '12px',
           boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
         }}
       >
-        {/* 4�??�인 ?�역 배경 */}
+        {/* 4개 레인 영역 배경 */}
         <div
           style={{
             position: 'absolute',
@@ -917,11 +917,11 @@ export const Game: React.FC = () => {
             top: '0',
             width: '400px',
             height: '100%',
-            backgroundColor: '#2a2a2a', // 4�??�인 ?�역 배경 (좀 밝�? ??
+            backgroundColor: '#2a2a2a', // 4개 레인 영역 배경 (좀 밝은 색)
           }}
         />
         
-        {/* 배경 ?�인 구분??- ?�인 ?�이 경계?� ?�쪽 ??*/}
+        {/* 배경 라인 구분선 - 레인 사이 경계와 양쪽 끝 */}
         {[50, 150, 250, 350, 450].map((x) => (
           <div
             key={x}
@@ -937,7 +937,7 @@ export const Game: React.FC = () => {
           />
         ))}
 
-        {/* ?�트 ?�더�?*/}
+        {/* 노트 렌더링 */}
         {gameState.notes.map((note) => (
           <NoteComponent
             key={note.id}
@@ -950,12 +950,12 @@ export const Game: React.FC = () => {
           />
         ))}
 
-        {/* ?�정??- 게임 중에�??�시 (4�??�인 ?�역?�만) */}
+        {/* 판정선 - 게임 중에만 표시 (4개 레인 영역에만) */}
         {gameState.gameStarted && (
           <JudgeLine left={JUDGE_LINE_LEFT} width={JUDGE_LINE_WIDTH} />
         )}
 
-        {/* 4�??�인 - 게임 중에�??�시 */}
+        {/* 4개 레인 - 게임 중에만 표시 */}
         {gameState.gameStarted &&
           LANE_POSITIONS.map((x, index) => (
             <KeyLane
@@ -966,7 +966,7 @@ export const Game: React.FC = () => {
             />
           ))}
 
-        {/* ?�정?�에 ?�오???�펙??- ?�트가 ?�는 ?�치?�서 (게임 중에�??�시) */}
+        {/* 판정선에 나오는 이펙트 - 노트가 있는 위치에서 (게임 중에만 표시) */}
         {gameState.gameStarted &&
           keyEffects.map((effect) => (
             <div
@@ -982,7 +982,7 @@ export const Game: React.FC = () => {
                 zIndex: 500,
               }}
             >
-              {/* ?�티???�펙??*/}
+              {/* 파티클 이펙트 */}
               <div
                 style={{
                   position: 'absolute',
@@ -1011,13 +1011,13 @@ export const Game: React.FC = () => {
                   boxShadow: '0 0 15px rgba(255, 255, 255, 0.5)',
                 }}
               />
-              {/* ?�방?�로 ?�아가???�티??*/}
+              {/* 사방으로 날아가는 파티클 */}
               {[...Array(8)].map((_, i) => {
                 const angle = (i * 360) / 8;
                 const radians = (angle * Math.PI) / 180;
                 const distance = 40;
                 const x = Math.cos(radians) * distance;
-                const y = Math.sin(radians) * distance - 40; // ?�로 좀 ?�아가?�록
+                const y = Math.sin(radians) * distance - 40; // 위로 좀 날아가도록
                 
                 return (
                   <div
@@ -1043,7 +1043,7 @@ export const Game: React.FC = () => {
             </div>
           ))}
 
-        {/* ?�정 ?�드�?- 4�??�인 ?�역 중앙???�합 ?�시 (개별 ?�니메이?? */}
+        {/* 판정 피드백 - 4개 레인 영역 중앙에 통합 표시 (개별 애니메이션) */}
         {judgeFeedbacks.map((feedback) => 
           feedback.judge ? (
             <div
@@ -1074,10 +1074,10 @@ export const Game: React.FC = () => {
           ) : null
         )}
 
-        {/* ?�수 - 게임 중에�??�시 */}
+        {/* 점수 - 게임 중에만 표시 */}
         {gameState.gameStarted && <ScoreComponent score={gameState.score} />}
 
-        {/* ?�스??모드 �??��?�?버튼 */}
+        {/* 테스트 모드 중 나가기 버튼 */}
         {gameState.gameStarted && !gameState.gameEnded && isTestMode && (
           <button
             onClick={handleReturnToEditor}
@@ -1106,11 +1106,11 @@ export const Game: React.FC = () => {
               e.currentTarget.style.transform = 'scale(1)';
             }}
           >
-            ???��?�?
+            ✕ 나가기
           </button>
         )}
 
-        {/* 게임 ?�작/종료 UI */}
+        {/* 게임 시작/종료 UI */}
         {!gameState.gameStarted && (
           <div
             style={{
@@ -1124,7 +1124,7 @@ export const Game: React.FC = () => {
               maxWidth: '600px',
             }}
           >
-            {/* �??�면 ?�시 */}
+            {/* 첫 화면 표시 */}
             <h1 
               style={{ 
                 fontSize: '50px', 
@@ -1146,7 +1146,7 @@ export const Game: React.FC = () => {
                UseRhythm
             </h1>
             <p style={{ fontSize: '18px', marginBottom: '48px', color: '#aaa' }}>
-              ?�구??리듬게임 채보�?만들�?공유?�세??
+              누구나 리듬게임 채보를 만들고 공유하세요
             </p>
 
             {/* 메인 메뉴 */}
@@ -1185,7 +1185,7 @@ export const Game: React.FC = () => {
                   setIsChartSelectOpen(true);
                 }}
               >
-                ?�️ ?�레??
+                ▶️ 플레이
               </button>
 
               <button
@@ -1215,7 +1215,7 @@ export const Game: React.FC = () => {
                   setIsEditorOpen(true);
                 }}
               >
-                ?�️ 채보 만들�?
+                ✏️ 채보 만들기
               </button>
 
               <button
@@ -1245,12 +1245,12 @@ export const Game: React.FC = () => {
                   setIsAdminOpen(true);
                 }}
               >
-                ?�� 관리자
+                🔐 관리자
               </button>
             </div>
 
 
-            {/* ?�정 */}
+            {/* 설정 */}
             <div
               style={{
                 backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -1260,10 +1260,10 @@ export const Game: React.FC = () => {
               }}
             >
               <h3 style={{ fontSize: '20px', marginBottom: '20px', fontWeight: 'bold' }}>
-                ?�️ 게임 ?�정
+                ⚙️ 게임 설정
               </h3>
               
-              {/* ?�도 조절 ?�라?�더 */}
+              {/* 속도 조절 슬라이더 */}
               <div
                 style={{
                   marginBottom: '16px',
@@ -1278,7 +1278,7 @@ export const Game: React.FC = () => {
                     fontWeight: '500',
                   }}
                 >
-                  ?�트 ?�도: {speed.toFixed(1)}x
+                  노트 속도: {speed.toFixed(1)}x
                 </label>
                 <input
                   type="range"
@@ -1313,7 +1313,7 @@ export const Game: React.FC = () => {
               </div>
 
               <div style={{ fontSize: '14px', color: '#aaa', marginTop: '16px' }}>
-                ??조작?? D, F, J, K ?��? ?�용?�세??
+                키 조작키: D, F, J, K 키를 사용하세요
               </div>
             </div>
           </div>
@@ -1335,10 +1335,10 @@ export const Game: React.FC = () => {
                 minWidth: '360px',
               }}
             >
-              <h1 style={{ fontSize: '40px', marginBottom: '20px' }}>?�스??종료</h1>
+              <h1 style={{ fontSize: '40px', marginBottom: '20px' }}>테스트 종료</h1>
               <div style={{ fontSize: '20px', marginBottom: '28px' }}>
-                <div>?�확?? {accuracy.toFixed(2)}%</div>
-                <div>최�? 콤보: {gameState.score.maxCombo}</div>
+                <div>정확도: {accuracy.toFixed(2)}%</div>
+                <div>최대 콤보: {gameState.score.maxCombo}</div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <button
@@ -1354,7 +1354,7 @@ export const Game: React.FC = () => {
                     fontWeight: 'bold',
                   }}
                 >
-                  ?�� ?�시 ?�스??
+                  🔁 다시 테스트
                 </button>
                 <button
                   onClick={handleReturnToEditor}
@@ -1369,7 +1369,7 @@ export const Game: React.FC = () => {
                     fontWeight: 'bold',
                   }}
                 >
-                  ?�️ ?�디?�로 ?�아가�?
+                  ✏️ 에디터로 돌아가기
                 </button>
                 <button
                   onClick={resetGame}
@@ -1384,7 +1384,7 @@ export const Game: React.FC = () => {
                     fontWeight: 'bold',
                   }}
                 >
-                  ?�� 메인 메뉴
+                  🏠 메인 메뉴
                 </button>
               </div>
             </div>
@@ -1406,8 +1406,8 @@ export const Game: React.FC = () => {
                 게임 종료
               </h1>
               <div style={{ fontSize: '24px', marginBottom: '32px' }}>
-                <div>최�? 콤보: {gameState.score.maxCombo}</div>
-                <div>?�확?? {accuracy.toFixed(2)}%</div>
+                <div>최대 콤보: {gameState.score.maxCombo}</div>
+                <div>정확도: {accuracy.toFixed(2)}%</div>
               </div>
               <button
                 onClick={resetGame}
@@ -1422,13 +1422,13 @@ export const Game: React.FC = () => {
                   fontWeight: 'bold',
                 }}
               >
-                ?�시 ?�작
+                다시 시작
               </button>
             </div>
           )
         )}
         
-        {/* ?�스??모드 YouTube ?�레?�어 (?��? - ?�디?�만 ?�생) */}
+        {/* 테스트 모드 YouTube 플레이어 (숨김 - 오디오만 재생) */}
         {isTestMode && testYoutubeVideoId && (
           <div
             ref={testYoutubePlayerRef}
@@ -1449,4 +1449,3 @@ export const Game: React.FC = () => {
     </div>
   );
 };
-
