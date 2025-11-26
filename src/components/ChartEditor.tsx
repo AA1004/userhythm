@@ -1078,14 +1078,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
 
   // BPM add
   const handleAddBpmChange = useCallback(() => {
-    const beatIndexInput = prompt('Beat index:', '0');
+    const beatIndexInput = prompt("Beat index:", "0");
     if (beatIndexInput === null) return;
     const beatIndex = parseFloat(beatIndexInput);
-    if (isNaN(beatIndex) || beatIndex < 0) { alert('Invalid beat index'); return; }
-    const bpmInput = prompt('New BPM:', String(bpm));
+    if (isNaN(beatIndex) || beatIndex < 0) { alert("Invalid beat index"); return; }
+    const bpmInput = prompt("New BPM:", String(bpm));
     if (bpmInput === null) return;
     const newBpm = parseFloat(bpmInput);
-    if (isNaN(newBpm) || newBpm <= 0) { alert('Invalid BPM'); return; }
+    if (isNaN(newBpm) || newBpm <= 0) { alert("Invalid BPM"); return; }
     const newChange: BPMChange = { id: Date.now(), beatIndex, bpm: newBpm };
     setBpmChanges(prev => [...prev, newChange]);
   }, [bpm]);
@@ -1094,37 +1094,37 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
   const handleEditBpmChange = useCallback((id: number) => {
     const change = bpmChanges.find(c => c.id === id);
     if (!change) return;
-    const beatIndexInput = prompt('Beat index:', String(change.beatIndex));
+    const beatIndexInput = prompt("Beat index:", String(change.beatIndex));
     if (beatIndexInput === null) return;
     const beatIndex = parseFloat(beatIndexInput);
-    if (isNaN(beatIndex) || beatIndex < 0) { alert('Invalid beat index'); return; }
-    const bpmInput = prompt('BPM:', String(change.bpm));
+    if (isNaN(beatIndex) || beatIndex < 0) { alert("Invalid beat index"); return; }
+    const bpmInput = prompt("BPM:", String(change.bpm));
     if (bpmInput === null) return;
     const newBpm = parseFloat(bpmInput);
-    if (isNaN(newBpm) || newBpm <= 0) { alert('Invalid BPM'); return; }
+    if (isNaN(newBpm) || newBpm <= 0) { alert("Invalid BPM"); return; }
     setBpmChanges(prev => prev.map(c => c.id === id ? { ...c, beatIndex, bpm: newBpm } : c));
   }, [bpmChanges]);
 
   // BPM delete
   const handleDeleteBpmChange = useCallback((id: number) => {
-    if (confirm('Delete this BPM change?')) {
+    if (confirm("Delete this BPM change?")) {
       setBpmChanges(prev => prev.filter(c => c.id !== id));
     }
   }, []);
 
-  // Sorted BPM changes
+  // Sorted
   const sortedBpmChanges = useMemo(() => {
     return [...bpmChanges].sort((a, b) => a.beatIndex - b.beatIndex);
   }, [bpmChanges]);
 
-  // Add at current position
+  // Add at position
   const handleAddBpmChangeAtCurrentPosition = useCallback(() => {
     const beatDuration = bpmToBeatDuration(bpm);
     const currentBeat = currentTime / beatDuration;
-    const bpmInput = prompt('Add BPM at beat ' + currentBeat.toFixed(2) + ':', String(bpm));
+    const bpmInput = prompt("Add BPM at beat " + currentBeat.toFixed(2) + ":", String(bpm));
     if (bpmInput === null) return;
     const newBpm = parseFloat(bpmInput);
-    if (isNaN(newBpm) || newBpm <= 0) { alert('Invalid BPM'); return; }
+    if (isNaN(newBpm) || newBpm <= 0) { alert("Invalid BPM"); return; }
     const newChange: BPMChange = { id: Date.now(), beatIndex: Math.round(currentBeat * 100) / 100, bpm: newBpm };
     setBpmChanges(prev => [...prev, newChange]);
   }, [bpm, currentTime]);
@@ -2540,21 +2540,64 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
             )}
           </div>
 
+
           {/* BPM */}
           <div>
-            <div style={{ color: '#fff', marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>BPM</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <button onClick={() => handleAddBpmChange()} style={{ padding: '6px 12px', fontSize: '12px', backgroundColor: '#9C27B0', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>+Add</button>
-              <button onClick={() => handleAddBpmChangeAtCurrentPosition()} style={{ padding: '6px 12px', fontSize: '11px', backgroundColor: '#7B1FA2', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>@Pos</button>
+            <div style={{ color: "#fff", marginBottom: "10px", fontWeight: "bold", fontSize: "14px" }}>
+              BPM
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <button
+                onClick={() => handleAddBpmChange()}
+                style={{
+                  padding: "8px 12px",
+                  fontSize: "12px",
+                  backgroundColor: "#9C27B0",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontWeight: "bold"
+                }}
+                title="BPM"
+              >
+                + Add BPM Change
+              </button>
+              <button
+                onClick={() => handleAddBpmChangeAtCurrentPosition()}
+                style={{
+                  padding: "8px 12px",
+                  fontSize: "11px",
+                  backgroundColor: "#7B1FA2",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                }}
+                title="Add at Position"
+              >
+                @ Add at Current Position
+              </button>
             </div>
             {sortedBpmChanges.length > 0 && (
-              <div style={{ marginTop: '10px', maxHeight: '150px', overflowY: 'auto', backgroundColor: '#2a2a2a', borderRadius: '4px', padding: '8px' }}>
-                {sortedBpmChanges.map((c) => (
-                  <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.1)', fontSize: '11px', color: '#ddd' }}>
-                    <span>{c.beatIndex}:{c.bpm}</span>
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                      <button onClick={() => handleEditBpmChange(c.id)} style={{ padding: '2px 6px', fontSize: '10px', backgroundColor: '#616161', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>E</button>
-                      <button onClick={() => handleDeleteBpmChange(c.id)} style={{ padding: '2px 6px', fontSize: '10px', backgroundColor: '#f44336', color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer' }}>X</button>
+              <div style={{ marginTop: "10px", maxHeight: "150px", overflowY: "auto", backgroundColor: "#2a2a2a", borderRadius: "4px", padding: "8px" }}>
+                {sortedBpmChanges.map((change) => (
+                  <div key={change.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 8px", marginBottom: "4px", backgroundColor: "#353535", borderRadius: "4px", borderLeft: "3px solid #9C27B0" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: "11px", color: "#ddd", marginBottom: "2px" }}>
+                        <span style={{ fontWeight: "bold", color: "#fff" }}>Beat {change.beatIndex}</span>
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#FFD700", fontWeight: "bold" }}>
+                        {change.bpm} BPM
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: "4px" }}>
+                      <button onClick={() => handleEditBpmChange(change.id)} style={{ padding: "4px 8px", fontSize: "10px", backgroundColor: "#616161", color: "#fff", border: "none", borderRadius: "3px", cursor: "pointer" }} title="Edit">
+                        Edit
+                      </button>
+                      <button onClick={() => handleDeleteBpmChange(change.id)} style={{ padding: "4px 8px", fontSize: "10px", backgroundColor: "#f44336", color: "#fff", border: "none", borderRadius: "3px", cursor: "pointer" }} title="Delete">
+                        Delete
+                      </button>
                     </div>
                   </div>
                 ))}
