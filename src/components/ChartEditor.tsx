@@ -21,15 +21,15 @@ interface ChartTestPayload {
 
 interface TimeSignatureEvent {
   id: number;
-  beatIndex: number; // 곡 전체 기준 비트 인덱스
-  beatsPerMeasure: number; // 예: 4(4/4), 3(3/4)
+  beatIndex: number; // �??�체 기�? 비트 ?�덱??
+  beatsPerMeasure: number; // ?? 4(4/4), 3(3/4)
 }
 
 const LANE_POSITIONS = [100, 200, 300, 400];
 const LANE_KEY_LABELS = ['D', 'F', 'J', 'K'];
 const TAP_NOTE_HEIGHT = 60;
 const JUDGE_LINE_Y = 640;
-const PIXELS_PER_SECOND = 200; // 타임라인 확대 비율
+const PIXELS_PER_SECOND = 200; // ?�?�라???��? 비율
 const TIMELINE_TOP_PADDING = 600;
 const TIMELINE_BOTTOM_PADDING = JUDGE_LINE_Y;
 const MIN_TIMELINE_DURATION_MS = 120000;
@@ -58,35 +58,35 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
   const playheadDragCleanupRef = useRef<(() => void) | null>(null);
   const isDraggingPlayheadRef = useRef(false);
   
-  // YouTube 관련 상태
+  // YouTube 관???�태
   const [youtubeUrl, setYoutubeUrl] = useState<string>('');
   const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
   const [youtubePlayer, setYoutubePlayer] = useState<any>(null);
   const youtubePlayerRef = useRef<HTMLDivElement>(null);
   const youtubePlayerReadyRef = useRef(false);
   
-  // BPM 관련 상태
+  // BPM 관???�태
   const [bpm, setBpm] = useState<number>(120);
   const [isBpmInputOpen, setIsBpmInputOpen] = useState<boolean>(false);
   const tapBpmCalculatorRef = useRef(new TapBPMCalculator());
   const [tapBpmResult, setTapBpmResult] = useState<{ bpm: number; confidence: number } | null>(null);
 
-  // 메뉴 열림/닫힘 상태
+  // 메뉴 ?�림/?�힘 ?�태
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
-  const [gridDivision, setGridDivision] = useState<number>(1); // 1=기본, 2=2분할, 3=셋잇단 등
+  const [gridDivision, setGridDivision] = useState<number>(1); // 1=기본, 2=2분할, 3=?�잇????
   const [timeSignatures, setTimeSignatures] = useState<TimeSignatureEvent[]>([
     { id: 0, beatIndex: 0, beatsPerMeasure: 4 },
   ]);
-  // 마디 오프셋 (박자 단위): 늦게 시작하는 곡을 위해 마디 시작선을 앞/뒤로 이동
+  // 마디 ?�프??(박자 ?�위): ??�� ?�작?�는 곡을 ?�해 마디 ?�작?�을 ???�로 ?�동
   const [timeSignatureOffset, setTimeSignatureOffset] = useState<number>(0);
-  // true일 때: 재생선에 맞춰 자동 스크롤 + 사용자가 스크롤로 위치를 바꾸지 못하도록 고정
+  // true???? ?�생?�에 맞춰 ?�동 ?�크�?+ ?�용?��? ?�크롤로 ?�치�?바꾸지 못하?�록 고정
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState<boolean>(true);
   const [isLongNoteMode, setIsLongNoteMode] = useState<boolean>(false);
   const [pendingLongNote, setPendingLongNote] = useState<{ lane: Lane; startTime: number } | null>(null);
   const [testStartInput, setTestStartInput] = useState<string>('0');
-  const [volume, setVolume] = useState<number>(100); // 0~100 편집기 음량
+  const [volume, setVolume] = useState<number>(100); // 0~100 ?�집�??�량
   
-  // 공유 관련 상태
+  // 공유 관???�태
   const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
   const [shareTitle, setShareTitle] = useState<string>('');
   const [shareAuthor, setShareAuthor] = useState<string>('');
@@ -98,10 +98,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
   const [previewImageFile, setPreviewImageFile] = useState<File | null>(null);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   
-  // 초기 로드 완료 플래그 (복원이 완료되기 전에는 자동 저장을 스킵)
+  // 초기 로드 ?�료 ?�래�?(복원???�료?�기 ?�에???�동 ?�?�을 ?�킵)
   const hasRestoredRef = useRef(false);
   
-  // 마지막 작업 채보 자동 복원
+  // 마�?�??�업 채보 ?�동 복원
   useEffect(() => {
     try {
       const raw = localStorage.getItem(AUTO_SAVE_KEY);
@@ -116,14 +116,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
         return;
       }
 
-      // 노트 데이터 로드 (handleLoad와 거의 동일)
+      // ?�트 ?�이??로드 (handleLoad?� 거의 ?�일)
       if (chartData.notes && Array.isArray(chartData.notes)) {
         noteIdRef.current = 0;
 
         const loadedNotes: Note[] = chartData.notes
           .map((noteData: any) => {
             if (typeof noteData.lane !== 'number' || typeof noteData.time !== 'number') {
-              console.warn('유효하지 않은 자동 복원 노트 데이터:', noteData);
+              console.warn('?�효?��? ?��? ?�동 복원 ?�트 ?�이??', noteData);
               return null;
             }
 
@@ -159,11 +159,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
         setNotes([]);
       }
 
-      // 재생 상태 초기화
+      // ?�생 ?�태 초기??
       setIsPlaying(false);
       setCurrentTime(0);
 
-      // BPM, 박자, 오프셋 복원
+      // BPM, 박자, ?�프??복원
       if (chartData.bpm && typeof chartData.bpm === 'number') {
         setBpm(chartData.bpm);
       }
@@ -176,7 +176,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
         setTimeSignatureOffset(0);
       }
 
-      // YouTube 정보 복원
+      // YouTube ?�보 복원
       if (chartData.youtubeVideoId) {
         setYoutubeVideoId(chartData.youtubeVideoId);
         if (chartData.youtubeUrl) {
@@ -189,29 +189,29 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
         setYoutubeUrl('');
       }
 
-      // 음량 복원
+      // ?�량 복원
       if (typeof chartData.volume === 'number') {
         setVolume(Math.max(0, Math.min(100, chartData.volume)));
       } else {
         setVolume(100);
       }
       
-      // 복원 완료 표시
+      // 복원 ?�료 ?�시
       hasRestoredRef.current = true;
-      console.log('✅ 자동 채보 복원 완료');
+      console.log('???�동 채보 복원 ?�료');
     } catch (error) {
-      console.warn('자동 채보 복원 실패:', error);
+      console.warn('?�동 채보 복원 ?�패:', error);
       hasRestoredRef.current = true;
     }
   }, []);
 
-  // 편집 중 채보 자동 저장
+  // ?�집 �?채보 ?�동 ?�??
   useEffect(() => {
-    // 복원이 완료되기 전에는 자동 저장을 스킵 (복원 중 빈 상태가 저장되는 것을 방지)
+    // 복원???�료?�기 ?�에???�동 ?�?�을 ?�킵 (복원 �?�??�태가 ?�?�되??것을 방�?)
     if (!hasRestoredRef.current) return;
     
     try {
-      // 완전히 빈 상태면 자동 저장 제거
+      // ?�전??�??�태�??�동 ?�???�거
       if (!notes.length && !youtubeUrl) {
         localStorage.removeItem(AUTO_SAVE_KEY);
         return;
@@ -236,20 +236,20 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
 
       localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(autoSaveData));
     } catch (e) {
-      console.warn('자동 저장 실패:', e);
+      console.warn('?�동 ?�???�패:', e);
     }
   }, [notes, bpm, timeSignatures, timeSignatureOffset, youtubeVideoId, youtubeUrl, volume]);
   
-  // 사용자 인증 상태 확인
+  // ?�용???�증 ?�태 ?�인
   useEffect(() => {
     if (!isSupabaseConfigured) return;
     
-    // 현재 세션 확인
+    // ?�재 ?�션 ?�인
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
     
-    // 인증 상태 변경 감지
+    // ?�증 ?�태 변�?감�?
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
@@ -259,10 +259,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
     };
   }, []);
   
-  // Google 로그인 함수
+  // Google 로그???�수
   const signInWithGoogle = useCallback(async () => {
     if (!isSupabaseConfigured) {
-      alert('Supabase 환경 변수가 설정되지 않아 로그인 기능을 사용할 수 없습니다.');
+      alert('Supabase ?�경 변?��? ?�정?��? ?�아 로그??기능???�용?????�습?�다.');
       return;
     }
     
@@ -275,8 +275,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
       });
       if (error) throw error;
     } catch (error: any) {
-      console.error('로그인 오류:', error);
-      alert('로그인에 실패했습니다: ' + (error.message || '알 수 없는 오류'));
+      console.error('로그???�류:', error);
+      alert('로그?�에 ?�패?�습?�다: ' + (error.message || '?????�는 ?�류'));
     }
   }, []);
   
@@ -385,7 +385,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
       );
 
       setTimeSignatures((prev) => {
-        // 동일 위치 이벤트가 있으면 업데이트
+        // ?�일 ?�치 ?�벤?��? ?�으�??�데?�트
         const existingIndex = prev.findIndex(
           (ts) => ts.beatIndex === beatIndex
         );
@@ -443,15 +443,15 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
     setTestStartInput('0');
   }, []);
 
-  // 초기 스크롤 위치 설정: 재생선을 화면 중앙에 맞춤
+  // 초기 ?�크�??�치 ?�정: ?�생?�을 ?�면 중앙??맞춤
   useEffect(() => {
     if (hasScrolledToBottomRef.current) return;
     const container = timelineScrollRef.current;
-    // originY가 준비되었는지 확인 (초기 currentTime = 0일 때 재생선 위치)
+    // originY가 준비되?�는지 ?�인 (초기 currentTime = 0?????�생???�치)
     if (!container || !originY || originY === 0) return;
     hasScrolledToBottomRef.current = true;
     
-    // 재생선이 타임라인 뷰의 세로 중앙에 오도록 스크롤 위치 계산
+    // ?�생?�이 ?�?�라??뷰의 ?�로 중앙???�도�??�크�??�치 계산
     requestAnimationFrame(() => {
       const centerOffset = container.clientHeight / 2;
       const rawTarget = originY - centerOffset;
@@ -461,7 +461,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
     });
   }, [originY]);
 
-  // 롱노트 모드 해제 시 진행 중이던 시작 지점 초기화
+  // 롱노??모드 ?�제 ??진행 중이???�작 지??초기??
   useEffect(() => {
     if (!isLongNoteMode && pendingLongNote) {
       setPendingLongNote(null);
@@ -481,7 +481,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
     };
   }, []);
 
-  // 기존 데이터에 duration/endTime/type 필드가 없을 때 보정
+  // 기존 ?�이?�에 duration/endTime/type ?�드가 ?�을 ??보정
   useEffect(() => {
     setNotes((prev) => {
       if (!prev.length) return prev;
@@ -510,7 +510,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
     });
   }, []);
 
-  // 시간을 가장 가까운 그리드 위치로 스냅
+  // ?�간??가??가까운 그리???�치�??�냅
   const snapToGrid = useCallback(
     (timeMs: number): number => {
       if (!beatDuration || beatDuration <= 0) {
@@ -527,7 +527,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
     [beatDuration, gridDivision]
   );
 
-  // 노트 추가
+  // ?�트 추�?
   const addNote = useCallback(
     (lane: Lane, time: number, endTime?: number) => {
       const snappedStart = snapToGrid(time);
@@ -545,7 +545,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
       const duration = Math.max(0, resolvedEnd - snappedStart);
 
       setNotes((prev) => {
-        // 같은 위치에 노트가 있는지 확인 (중복 방지)
+        // 같�? ?�치???�트가 ?�는지 ?�인 (중복 방�?)
         const hasNote = prev.some(
           (note) => note.lane === lane && Math.abs(note.time - snappedStart) < 1
         );
@@ -567,12 +567,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
     [snapToGrid, beatDuration, gridDivision]
   );
 
-  // 노트 삭제
+  // ?�트 ??��
   const deleteNote = useCallback((noteId: number) => {
     setNotes((prev) => prev.filter((note) => note.id !== noteId));
   }, []);
 
-  // 레인 클릭 핸들러 (키보드 이벤트에서도 사용)
+  // ?�인 ?�릭 ?�들??(?�보???�벤?�에?�도 ?�용)
   const handleLaneClick = useCallback(
     (lane: Lane) => {
       if (!isLongNoteMode) {
@@ -595,27 +595,27 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
     [addNote, currentTime, isLongNoteMode, snapToGrid]
   );
 
-  // YouTube 플레이어 볼륨 동기화
+  // YouTube ?�레?�어 볼륨 ?�기??
   useEffect(() => {
     if (youtubePlayer && youtubePlayerReadyRef.current) {
       try {
         youtubePlayer.setVolume?.(volume);
       } catch (error) {
-        console.warn('볼륨 설정 실패:', error);
+        console.warn('볼륨 ?�정 ?�패:', error);
       }
     }
   }, [volume, youtubePlayer]);
 
-  // 키보드 이벤트 핸들러
+  // ?�보???�벤???�들??
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
-      // 입력 필드에 포커스가 있으면 무시
+      // ?�력 ?�드???�커?��? ?�으�?무시
       const target = event.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
         return;
       }
 
-      // D, F, J, K 키로 각 레인에 노트 추가
+      // D, F, J, K ?�로 �??�인???�트 추�?
       switch (event.key.toUpperCase()) {
         case 'D':
           event.preventDefault();
@@ -650,7 +650,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
         try {
           youtubePlayer.seekTo(clampedTime / 1000, true);
         } catch (error) {
-          console.error('YouTube 플레이어 위치 이동 실패:', error);
+          console.error('YouTube ?�레?�어 ?�치 ?�동 ?�패:', error);
         }
       }
       return clampedTime;
@@ -675,7 +675,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
       try {
         youtubePlayer.pauseVideo();
       } catch (error) {
-        console.error('YouTube 플레이어 일시정지 실패:', error);
+        console.error('YouTube ?�레?�어 ?�시?��? ?�패:', error);
       }
     }
 
@@ -701,7 +701,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
           setCurrentTime(targetTime);
           setIsPlaying(true);
         } catch (error) {
-          console.error('YouTube 플레이어 재생 실패:', error);
+          console.error('YouTube ?�레?�어 ?�생 ?�패:', error);
         }
         return;
       }
@@ -726,7 +726,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
     [currentTime, playbackSpeed, youtubePlayer]
   );
 
-  // 타임라인 클릭 핸들러
+  // ?�?�라???�릭 ?�들??
   const handleTimelineClick = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       event.preventDefault();
@@ -766,7 +766,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
         });
         if (draggedTime !== null) {
           lastDraggedPlayheadTimeRef.current = draggedTime;
-          // applySeek가 이미 호출되어 currentTime이 업데이트됨
+          // applySeek가 ?��? ?�출?�어 currentTime???�데?�트??
         }
       };
 
@@ -774,19 +774,19 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
         upEvent.preventDefault();
         const resumeTime = lastDraggedPlayheadTimeRef.current ?? currentTime;
         
-        // cleanup 먼저 실행 (드래그 상태 해제는 나중에)
+        // cleanup 먼�? ?�행 (?�래�??�태 ?�제???�중??
         document.body.style.userSelect = '';
         document.body.style.cursor = '';
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
         playheadDragCleanupRef.current = null;
         
-        // YouTube 플레이어를 seek하고 currentTime 업데이트
+        // YouTube ?�레?�어�?seek?�고 currentTime ?�데?�트
         if (resumeTime !== null) {
           applySeek(resumeTime);
           
-          // 약간의 지연 후에 드래그 플래그를 해제하여 YouTube 동기화가 다시 시작되도록 함
-          // 이렇게 하면 YouTube 플레이어 seek가 먼저 완료됩니다
+          // ?�간??지???�에 ?�래�??�래그�? ?�제?�여 YouTube ?�기?��? ?�시 ?�작?�도�???
+          // ?�렇�??�면 YouTube ?�레?�어 seek가 먼�? ?�료?�니??
           setTimeout(() => {
             isDraggingPlayheadRef.current = false;
             if (wasPlaying) {
@@ -814,31 +814,31 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
     [applySeek, currentTime, isPlaying, pausePlayback, startPlayback, updateCurrentTimeFromPointer]
   );
 
-  // YouTube 플레이어 초기화
+  // YouTube ?�레?�어 초기??
   useEffect(() => {
     if (!youtubeVideoId || !youtubePlayerRef.current) return;
 
     let playerInstance: any = null;
     let isCancelled = false;
 
-    // 기존 플레이어 정리 (안전한 버전)
+    // 기존 ?�레?�어 ?�리 (?�전??버전)
     const cleanup = (player: any) => {
       if (player) {
         try {
-          console.log('🧹 플레이어 정리 중...');
-          // 플레이어가 유효한지 확인
+          console.log('?�� ?�레?�어 ?�리 �?..');
+          // ?�레?�어가 ?�효?��? ?�인
           if (typeof player.destroy === 'function') {
             player.destroy();
           }
         } catch (e) {
-          console.warn('플레이어 제거 실패 (무시):', e);
+          console.warn('?�레?�어 ?�거 ?�패 (무시):', e);
         }
       }
       setYoutubePlayer(null);
       youtubePlayerReadyRef.current = false;
     };
 
-    // 현재 플레이어 정리
+    // ?�재 ?�레?�어 ?�리
     setYoutubePlayer((currentPlayer: any) => {
       if (currentPlayer) {
         cleanup(currentPlayer);
@@ -848,39 +848,39 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
     youtubePlayerReadyRef.current = false;
 
     waitForYouTubeAPI().then(() => {
-      // cleanup이 실행되었는지 확인
+      // cleanup???�행?�었?��? ?�인
       if (isCancelled) return;
       
       if (!window.YT || !window.YT.Player) {
-        console.error('YouTube IFrame API를 로드할 수 없습니다.');
+        console.error('YouTube IFrame API�?로드?????�습?�다.');
         return;
       }
 
       const playerElement = youtubePlayerRef.current;
       if (!playerElement || isCancelled) return;
       
-      // div 요소에 id 추가 (YouTube API가 필요로 함)
+      // div ?�소??id 추�? (YouTube API가 ?�요�???
       const playerId = `youtube-player-${youtubeVideoId}`;
       
-      // 기존 요소가 있으면 안전하게 제거
+      // 기존 ?�소가 ?�으�??�전?�게 ?�거
       const existingPlayer = document.getElementById(playerId);
       if (existingPlayer && existingPlayer !== playerElement) {
         try {
-          // 부모 노드가 있는지 확인
+          // 부�??�드가 ?�는지 ?�인
           if (existingPlayer.parentNode) {
             existingPlayer.parentNode.removeChild(existingPlayer);
           }
         } catch (e) {
-          console.warn('기존 플레이어 요소 제거 실패 (무시):', e);
+          console.warn('기존 ?�레?�어 ?�소 ?�거 ?�패 (무시):', e);
         }
       }
       
-      // 플레이어 요소 초기화
+      // ?�레?�어 ?�소 초기??
       if (playerElement.id !== playerId) {
         playerElement.id = playerId;
       }
       
-      // 기존 iframe이 있으면 제거
+      // 기존 iframe???�으�??�거
       const existingIframe = playerElement.querySelector('iframe');
       if (existingIframe) {
         try {
@@ -888,13 +888,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
             existingIframe.parentNode.removeChild(existingIframe);
           }
         } catch (e) {
-          console.warn('기존 iframe 제거 실패 (무시):', e);
+          console.warn('기존 iframe ?�거 ?�패 (무시):', e);
         }
       }
       
       if (isCancelled) return;
       
-      console.log(`🎬 새 플레이어 초기화 시작: ${youtubeVideoId}`);
+      console.log(`?�� ???�레?�어 초기???�작: ${youtubeVideoId}`);
       
       try {
         playerInstance = new window.YT.Player(playerElement.id, {
@@ -908,19 +908,19 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
             onReady: async (event: any) => {
               if (isCancelled) return;
               
-              console.log('✅ YouTube 플레이어 준비 시작:', youtubeVideoId);
+              console.log('??YouTube ?�레?�어 준�??�작:', youtubeVideoId);
               
-              // 플레이어가 이 비디오 ID와 일치하는지 확인
+              // ?�레?�어가 ??비디??ID?� ?�치?�는지 ?�인
               const player = event.target;
               try {
                 const currentVideoId = player.getVideoData?.()?.video_id;
                 
                 if (currentVideoId !== youtubeVideoId) {
-                  console.warn('⚠️ 플레이어 비디오 ID 불일치:', currentVideoId, 'vs', youtubeVideoId);
-                  return; // 다른 비디오의 플레이어이면 무시
+                  console.warn('?�️ ?�레?�어 비디??ID 불일�?', currentVideoId, 'vs', youtubeVideoId);
+                  return; // ?�른 비디?�의 ?�레?�어?�면 무시
                 }
               } catch (e) {
-                console.warn('비디오 ID 확인 실패:', e);
+                console.warn('비디??ID ?�인 ?�패:', e);
               }
               
               if (isCancelled) return;
@@ -928,7 +928,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
               youtubePlayerReadyRef.current = true;
               setYoutubePlayer(player);
               playerInstance = player;
-              console.log('✅ YouTube 플레이어 준비 완료');
+              console.log('??YouTube ?�레?�어 준�??�료');
             },
             onStateChange: (event: any) => {
               if (isCancelled) return;
@@ -945,13 +945,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
           },
         });
       } catch (e) {
-        console.error('플레이어 생성 실패:', e);
+        console.error('?�레?�어 ?�성 ?�패:', e);
       }
     });
 
-    // cleanup 함수 반환 (컴포넌트 언마운트 또는 youtubeVideoId 변경 시)
+    // cleanup ?�수 반환 (컴포?�트 ?�마?�트 ?�는 youtubeVideoId 변�???
     return () => {
-      console.log('🧹 useEffect cleanup: 플레이어 정리');
+      console.log('?�� useEffect cleanup: ?�레?�어 ?�리');
       isCancelled = true;
       if (playerInstance) {
         cleanup(playerInstance);
@@ -973,57 +973,57 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
           youtubePlayer.setPlaybackRate?.(availableRates[0]);
         }
       } catch (error) {
-        console.warn('재생 속도 설정 실패:', error);
+        console.warn('?�생 ?�도 ?�정 ?�패:', error);
       }
     }
   }, [playbackSpeed, youtubePlayer]);
 
-  // YouTube 플레이어 볼륨 설정
+  // YouTube ?�레?�어 볼륨 ?�정
   useEffect(() => {
     if (youtubePlayer && youtubePlayerReadyRef.current) {
       try {
         youtubePlayer.setVolume?.(volume);
       } catch (error) {
-        console.warn('볼륨 설정 실패:', error);
+        console.warn('볼륨 ?�정 ?�패:', error);
       }
     }
   }, [volume, youtubePlayer]);
 
-  // YouTube 재생 시간 동기화 (좀 더 부드럽게 업데이트)
+  // YouTube ?�생 ?�간 ?�기??(좀 ??부?�럽�??�데?�트)
   useEffect(() => {
     if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
-    // 재생 중이 아닐 때는 동기화하지 않음
+    // ?�생 중이 ?�닐 ?�는 ?�기?�하지 ?�음
     if (!isPlaying) return;
 
     const syncInterval = setInterval(() => {
-      // 드래그 중일 때는 YouTube 동기화를 건너뜀
+      // ?�래�?중일 ?�는 YouTube ?�기?��? 건너?�
       if (isDraggingPlayheadRef.current) return;
       
       try {
         const currentTime = youtubePlayer.getCurrentTime() * 1000;
         setCurrentTime(currentTime);
       } catch (e) {
-        console.error('YouTube 플레이어 시간 동기화 실패:', e);
+        console.error('YouTube ?�레?�어 ?�간 ?�기???�패:', e);
       }
-    }, 33); // 약 30fps
+    }, 33); // ??30fps
 
     return () => clearInterval(syncInterval);
   }, [youtubePlayer, isPlaying]);
 
-  // 재생선 자동 스크롤: 재생 중 재생선을 화면 중앙에 고정
+  // ?�생???�동 ?�크�? ?�생 �??�생?�을 ?�면 중앙??고정
   useEffect(() => {
     if (!isPlaying || !isAutoScrollEnabled || isDraggingPlayheadRef.current) return;
 
     const container = timelineScrollRef.current;
     if (!container || !playheadY || playheadY === 0) return;
 
-    // 재생선을 화면 중앙에 맞추기
+    // ?�생?�을 ?�면 중앙??맞추�?
     const centerOffset = container.clientHeight / 2;
     const targetScrollTop = playheadY - centerOffset;
     const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
     const clampedScrollTop = Math.max(0, Math.min(maxScrollTop, targetScrollTop));
 
-    // requestAnimationFrame으로 부드럽게 업데이트
+    // requestAnimationFrame?�로 부?�럽�??�데?�트
     requestAnimationFrame(() => {
       if (!isDraggingPlayheadRef.current && container) {
         container.scrollTop = clampedScrollTop;
@@ -1034,48 +1034,48 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
   // YouTube URL 처리
   const handleYouTubeUrlSubmit = useCallback(() => {
     if (!youtubeUrl.trim()) {
-      alert('YouTube URL을 입력해주세요.');
+      alert('YouTube URL???�력?�주?�요.');
       return;
     }
 
     const videoId = extractYouTubeVideoId(youtubeUrl);
     if (!videoId) {
-      alert('유효한 YouTube URL이 아닙니다.');
+      alert('?�효??YouTube URL???�닙?�다.');
       return;
     }
 
-    console.log('📺 YouTube URL 로드 요청:', videoId);
+    console.log('?�� YouTube URL 로드 ?�청:', videoId);
 
-    // 기존 플레이어 제거
+    // 기존 ?�레?�어 ?�거
     if (youtubePlayer) {
       try {
-        console.log('🧹 기존 플레이어 제거 중...');
+        console.log('?�� 기존 ?�레?�어 ?�거 �?..');
         youtubePlayer.destroy();
       } catch (e) {
-        console.warn('기존 플레이어 제거 실패 (무시):', e);
+        console.warn('기존 ?�레?�어 ?�거 ?�패 (무시):', e);
       }
     }
 
-    // 상태 초기화
+    // ?�태 초기??
     setYoutubePlayer(null);
     youtubePlayerReadyRef.current = false;
     
-    // 같은 비디오를 다시 로드하는 경우를 위해, 먼저 null로 설정한 다음 videoId 설정
-    // 이렇게 하면 useEffect가 항상 트리거됨
+    // 같�? 비디?��? ?�시 로드?�는 경우�??�해, 먼�? null�??�정???�음 videoId ?�정
+    // ?�렇�??�면 useEffect가 ??�� ?�리거됨
     if (youtubeVideoId === videoId) {
-      console.log('🔄 같은 비디오 재로드, 강제로 플레이어 초기화');
+      console.log('?�� 같�? 비디???�로?? 강제�??�레?�어 초기??);
       setYoutubeVideoId(null);
-      // 다음 틱에서 videoId 설정
+      // ?�음 ?�에??videoId ?�정
       setTimeout(() => {
         setYoutubeVideoId(videoId);
       }, 0);
     } else {
-      // 새 비디오 ID 설정 (이렇게 하면 useEffect가 트리거되어 새 플레이어 초기화)
+      // ??비디??ID ?�정 (?�렇�??�면 useEffect가 ?�리거되?????�레?�어 초기??
       setYoutubeVideoId(videoId);
     }
   }, [youtubeUrl, youtubePlayer, youtubeVideoId]);
 
-  // 클립보드에서 YouTube URL 붙여넣기 및 자동 로드
+  // ?�립보드?�서 YouTube URL 붙여?�기 �??�동 로드
   const handlePasteFromClipboard = useCallback(async () => {
     try {
       const text = await navigator.clipboard.readText();
@@ -1083,15 +1083,15 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
         const trimmedText = text.trim();
         setYoutubeUrl(trimmedText);
         
-        // 유효한 YouTube URL이면 자동으로 로드
+        // ?�효??YouTube URL?�면 ?�동?�로 로드
         const videoId = extractYouTubeVideoId(trimmedText);
         if (videoId) {
-          // 기존 플레이어 제거
+          // 기존 ?�레?�어 ?�거
           if (youtubePlayer) {
             try {
               youtubePlayer.destroy();
             } catch (e) {
-              console.error('기존 플레이어 제거 실패:', e);
+              console.error('기존 ?�레?�어 ?�거 ?�패:', e);
             }
           }
 
@@ -1099,19 +1099,19 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
           setYoutubePlayer(null);
           youtubePlayerReadyRef.current = false;
         } else {
-          // 유효하지 않은 URL인 경우 알림
-          alert('유효한 YouTube URL이 아닙니다. URL을 확인해주세요.');
+          // ?�효?��? ?��? URL??경우 ?�림
+          alert('?�효??YouTube URL???�닙?�다. URL???�인?�주?�요.');
         }
       } else {
-        alert('클립보드가 비어있습니다.');
+        alert('?�립보드가 비어?�습?�다.');
       }
     } catch (error) {
-      console.error('클립보드 읽기 실패:', error);
-      alert('클립보드를 읽을 수 없습니다. 수동으로 붙여넣어주세요.');
+      console.error('?�립보드 ?�기 ?�패:', error);
+      alert('?�립보드�??�을 ???�습?�다. ?�동?�로 붙여?�어주세??');
     }
   }, [youtubePlayer, youtubeVideoId]);
 
-  // BPM 탭 계산
+  // BPM ??계산
   const handleBpmTap = useCallback(() => {
     const result = tapBpmCalculatorRef.current.tap();
     if (result && result.confidence !== undefined) {
@@ -1125,18 +1125,18 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
     }
   }, []);
 
-  // BPM 수동 입력
+  // BPM ?�동 ?�력
   const handleBpmInput = useCallback((value: string) => {
     const numValue = parseFloat(value);
     if (!isNaN(numValue) && isValidBPM(numValue)) {
       setBpm(numValue);
       setIsBpmInputOpen(false);
     } else {
-      alert('유효한 BPM을 입력해주세요. (30-300)');
+      alert('?�효??BPM???�력?�주?�요. (30-300)');
     }
   }, []);
 
-  // 재생/일시정지
+  // ?�생/?�시?��?
   const togglePlayback = useCallback(() => {
     if (isPlaying) {
       pausePlayback();
@@ -1145,20 +1145,20 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
     }
   }, [isPlaying, pausePlayback, startPlayback]);
 
-  // 처음으로 돌아가기
+  // 처음?�로 ?�아가�?
   const handleRewind = useCallback(() => {
     pausePlayback();
     applySeek(0);
   }, [applySeek, pausePlayback]);
 
-  // 재생 중지
+  // ?�생 중�?
   const stopPlayback = useCallback(() => {
     pausePlayback();
     if (youtubePlayer && youtubePlayerReadyRef.current) {
       try {
         youtubePlayer.stopVideo();
       } catch (error) {
-        console.error('YouTube 플레이어 중지 실패:', error);
+        console.error('YouTube ?�레?�어 중�? ?�패:', error);
       }
     }
     applySeek(0);
@@ -1166,11 +1166,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
 
   const handleTestRun = useCallback(() => {
     if (!onTest) {
-      alert('테스트 기능을 사용할 수 없습니다.');
+      alert('?�스??기능???�용?????�습?�다.');
       return;
     }
     if (!notes.length) {
-      alert('노트가 없습니다. 노트를 추가한 뒤 테스트하세요.');
+      alert('?�트가 ?�습?�다. ?�트�?추�??????�스?�하?�요.');
       return;
     }
 
@@ -1182,7 +1182,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
     });
 
     if (!hasAvailableNotes) {
-      alert('선택한 시작 위치 이후에 노트가 없습니다.');
+      alert('?�택???�작 ?�치 ?�후???�트가 ?�습?�다.');
       return;
     }
 
@@ -1197,14 +1197,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
     });
   }, [getClampedTestStart, notes, onTest, pausePlayback, playbackSpeed, youtubeUrl, youtubeVideoId]);
 
-  // 저장
+  // ?�??
   const handleSave = useCallback(() => {
     if (notes.length === 0) {
-      alert('노트가 없습니다. 노트를 추가한 후 저장해주세요.');
+      alert('?�트가 ?�습?�다. ?�트�?추�??????�?�해주세??');
       return;
     }
     
-    // 채보 데이터 준비
+    // 채보 ?�이??준�?
     const chartData = {
       notes: notes.map(({ id, lane, time, duration, endTime, type }) => ({
         id,
@@ -1223,37 +1223,37 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
       createdAt: new Date().toISOString(),
     };
     
-    // localStorage에 저장
-    const chartName = prompt('채보 이름을 입력하세요:', `Chart_${Date.now()}`);
+    // localStorage???�??
+    const chartName = prompt('채보 ?�름???�력?�세??', `Chart_${Date.now()}`);
     if (chartName) {
       const savedCharts = JSON.parse(localStorage.getItem('savedCharts') || '{}');
       savedCharts[chartName] = chartData;
       localStorage.setItem('savedCharts', JSON.stringify(savedCharts));
       
-      alert(`채보 "${chartName}"이(가) 저장되었습니다!`);
+      alert(`채보 "${chartName}"??가) ?�?�되?�습?�다!`);
       onSave(notes);
     }
   }, [notes, bpm, timeSignatures, timeSignatureOffset, youtubeVideoId, youtubeUrl, volume, onSave]);
 
-  // 온라인 공유
+  // ?�라??공유
   const handleShareChart = useCallback(async () => {
     if (!isSupabaseConfigured) {
-      alert('Supabase ?섍꼍 蹂?섍? ?ㅼ젙?섏? ?딆븘 怨듭쑀 湲곕뒫???ъ슜?????놁뒿?덈떎. 猷⑦듃 ?붾젆?곕━??CHART_SHARING_SETUP.md瑜?李멸퀬???섍꼍 蹂?섎? ?ㅼ젙?????ㅼ떆 ?쒕룄?댁＜?몄슂.');
-      setUploadStatus('Supabase ?섍꼍 蹂?섍? ?놁뼱 怨듭쑀?????놁뒿?덈떎.');
+      alert('Supabase ??�꼍 蹂??? ??�젙??? ??�븘 ?�듭?� 湲곕????????????�뒿??�떎. ?�⑦???붾젆?곕━??CHART_SHARING_SETUP.md??李멸?????�꼍 蹂??? ??�젙??????�떆 ??�룄??�＜?몄슂.');
+      setUploadStatus('Supabase ??�꼍 蹂??? ??�뼱 ?�듭?�??????�뒿??�떎.');
       return;
     }
     if (notes.length === 0) {
-      alert('노트가 없습니다. 노트를 추가한 후 공유해주세요.');
+      alert('?�트가 ?�습?�다. ?�트�?추�?????공유?�주?�요.');
       return;
     }
     
     if (!shareTitle.trim() || !shareAuthor.trim()) {
-      alert('제목과 작성자를 입력해주세요.');
+      alert('?�목�??�성?��? ?�력?�주?�요.');
       return;
     }
     
     setIsUploading(true);
-    setUploadStatus('업로드 중...');
+    setUploadStatus('?�로??�?..');
     
     try {
       const chartData = {
@@ -1273,27 +1273,27 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
         playbackSpeed,
       };
       
-      // 이미지가 있으면 먼저 업로드
+      // ?��?지가 ?�으�?먼�? ?�로??
       let previewImageUrl: string | undefined = undefined;
-      console.log('업로드 시작, previewImageFile:', previewImageFile);
+      console.log('?�로???�작, previewImageFile:', previewImageFile);
       if (previewImageFile) {
         try {
-          setUploadStatus('이미지 업로드 중...');
-          console.log('이미지 업로드 시작:', previewImageFile.name, previewImageFile.size);
-          // 임시 ID로 이미지 업로드 (실제 채보 ID는 나중에 업데이트)
+          setUploadStatus('?��?지 ?�로??�?..');
+          console.log('?��?지 ?�로???�작:', previewImageFile.name, previewImageFile.size);
+          // ?�시 ID�??��?지 ?�로??(?�제 채보 ID???�중???�데?�트)
           const tempId = `temp-${Date.now()}`;
           previewImageUrl = await chartAPI.uploadPreviewImage(tempId, previewImageFile);
-          console.log('이미지 업로드 성공, URL:', previewImageUrl);
+          console.log('?��?지 ?�로???�공, URL:', previewImageUrl);
         } catch (imageError: any) {
-          console.error('이미지 업로드 실패:', imageError);
-          console.error('에러 상세:', {
+          console.error('?��?지 ?�로???�패:', imageError);
+          console.error('?�러 ?�세:', {
             message: imageError.message,
             statusCode: imageError.statusCode,
             error: imageError.error,
             fullError: imageError
           });
-          const errorMsg = imageError?.message || '알 수 없는 오류';
-          const continueWithoutImage = confirm(`이미지 업로드에 실패했습니다.\n\n에러: ${errorMsg}\n\n이미지 없이 계속하시겠습니까?`);
+          const errorMsg = imageError?.message || '?????�는 ?�류';
+          const continueWithoutImage = confirm(`?��?지 ?�로?�에 ?�패?�습?�다.\n\n?�러: ${errorMsg}\n\n?��?지 ?�이 계속?�시겠습?�까?`);
           if (!continueWithoutImage) {
             setIsUploading(false);
             setUploadStatus('');
@@ -1301,10 +1301,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
           }
         }
       } else {
-        console.log('previewImageFile이 없어서 이미지 업로드 건너뜀');
+        console.log('previewImageFile???�어???��?지 ?�로??건너?�');
       }
       
-      // 채보 업로드 (이미지 URL 포함)
+      // 채보 ?�로??(?��?지 URL ?�함)
       await chartAPI.uploadChart({
         title: shareTitle.trim(),
         author: shareAuthor.trim(),
@@ -1316,11 +1316,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
         preview_image: previewImageUrl,
       });
       
-      console.log('채보 업로드 성공, preview_image:', previewImageUrl);
-      setUploadStatus('업로드 완료! 관리자 승인 후 공개됩니다.');
+      console.log('채보 ?�로???�공, preview_image:', previewImageUrl);
+      setUploadStatus('?�로???�료! 관리자 ?�인 ??공개?�니??');
       setIsShareModalOpen(false);
       
-      // 폼 초기화
+      // ??초기??
       setShareTitle('');
       setShareAuthor('');
       setShareDescription('');
@@ -1332,8 +1332,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
         setUploadStatus('');
       }, 3000);
     } catch (error: any) {
-      console.error('채보 업로드 실패:', error);
-      setUploadStatus(`업로드 실패: ${error.message || '알 수 없는 오류'}`);
+      console.error('채보 ?�로???�패:', error);
+      setUploadStatus(`?�로???�패: ${error.message || '?????�는 ?�류'}`);
     } finally {
       setIsUploading(false);
     }
@@ -1346,12 +1346,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
       const chartNames = Object.keys(savedCharts);
       
       if (chartNames.length === 0) {
-        alert('저장된 채보가 없습니다.');
+        alert('?�?�된 채보가 ?�습?�다.');
         return;
       }
       
       const chartName = prompt(
-        `로드할 채보를 선택하세요:\n${chartNames.join(', ')}`,
+        `로드??채보�??�택?�세??\n${chartNames.join(', ')}`,
         chartNames[0]
       );
       
@@ -1361,16 +1361,16 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
       
       const chartData = savedCharts[chartName];
       
-      // 노트 데이터 검증 및 로드
+      // ?�트 ?�이??검�?�?로드
       if (chartData.notes && Array.isArray(chartData.notes)) {
-        // noteIdRef 초기화
+        // noteIdRef 초기??
         noteIdRef.current = 0;
         
         const loadedNotes: Note[] = chartData.notes
           .map((noteData: any) => {
-            // 필수 필드 검증
+            // ?�수 ?�드 검�?
             if (typeof noteData.lane !== 'number' || typeof noteData.time !== 'number') {
-              console.warn('유효하지 않은 노트 데이터:', noteData);
+              console.warn('?�효?��? ?��? ?�트 ?�이??', noteData);
               return null;
             }
 
@@ -1405,16 +1405,16 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
         setNotes([]);
       }
       
-      // 재생 상태 초기화
+      // ?�생 ?�태 초기??
       setIsPlaying(false);
       setCurrentTime(0);
       
-      // 기존 플레이어 정리
+      // 기존 ?�레?�어 ?�리
       if (youtubePlayer) {
         try {
           youtubePlayer.destroy();
         } catch (e) {
-          console.warn('기존 플레이어 제거 실패:', e);
+          console.warn('기존 ?�레?�어 ?�거 ?�패:', e);
         }
       }
       setYoutubePlayer(null);
@@ -1425,21 +1425,21 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
         setBpm(chartData.bpm);
       }
 
-      // 박자 전환 정보 복원
+      // 박자 ?�환 ?�보 복원
       if (chartData.timeSignatures && Array.isArray(chartData.timeSignatures)) {
         setTimeSignatures(chartData.timeSignatures);
       }
 
-      // 마디 오프셋 복원
+      // 마디 ?�프??복원
       if (
         typeof chartData.timeSignatureOffset === 'number'
       ) {
         setTimeSignatureOffset(chartData.timeSignatureOffset);
       } else {
-        setTimeSignatureOffset(0); // 기본값
+        setTimeSignatureOffset(0); // 기본�?
       }
       
-      // YouTube 정보 복원 (플레이어는 useEffect에서 자동 초기화됨)
+      // YouTube ?�보 복원 (?�레?�어??useEffect?�서 ?�동 초기?�됨)
       if (chartData.youtubeVideoId) {
         setYoutubeVideoId(chartData.youtubeVideoId);
         if (chartData.youtubeUrl) {
@@ -1452,21 +1452,21 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
         setYoutubeUrl('');
       }
       
-      // 음량 복원
+      // ?�량 복원
       if (typeof chartData.volume === 'number') {
         setVolume(Math.max(0, Math.min(100, chartData.volume)));
       } else {
-        setVolume(100); // 기본값
+        setVolume(100); // 기본�?
       }
       
-      alert(`채보 "${chartName}"이(가) 로드되었습니다!`);
+      alert(`채보 "${chartName}"??가) 로드?�었?�니??`);
     } catch (error) {
-      console.error('채보 로드 오류:', error);
-      alert('채보를 로드하는 중 오류가 발생했습니다. 콘솔을 확인하세요.');
+      console.error('채보 로드 ?�류:', error);
+      alert('채보�?로드?�는 �??�류가 발생?�습?�다. 콘솔???�인?�세??');
     }
   }, [youtubePlayer]);
 
-  // 노트의 y 좌표 계산
+  // ?�트??y 좌표 계산
   const getNoteY = useCallback((note: Note) => timeToY(note.time), [timeToY]);
 
   return (
@@ -1483,14 +1483,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
         zIndex: 2000,
       }}
     >
-      {/* 헤더 */}
+      {/* ?�더 */}
       <div
         style={{
           backgroundColor: '#2a2a2a',
           borderBottom: '2px solid #444',
         }}
       >
-        {/* 메뉴 토글 버튼 */}
+        {/* 메뉴 ?��? 버튼 */}
         <div
           style={{
             padding: '12px 20px',
@@ -1511,7 +1511,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
               }}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
-              채보 에디터
+              채보 ?�디??
             </h2>
             <span 
               style={{ 
@@ -1524,9 +1524,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
               }}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
-              ▼
+              ??
             </span>
-            {/* 플레이어 컨트롤 버튼들 */}
+            {/* ?�레?�어 컨트�?버튼??*/}
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginLeft: '20px' }} onClick={(e) => e.stopPropagation()}>
               <button
                 onClick={handleRewind}
@@ -1546,9 +1546,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = '#607D8B';
                 }}
-                title="처음으로 돌아가기 (0초)"
+                title="처음?�로 ?�아가�?(0�?"
               >
-                ⏮ 처음으로
+                ??처음?�로
               </button>
               <button
                 onClick={togglePlayback}
@@ -1562,7 +1562,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                   cursor: 'pointer',
                 }}
               >
-                {isPlaying ? '⏸ 일시정지' : '▶ 재생'}
+                {isPlaying ? '???�시?��?' : '???�생'}
               </button>
               <button
                 onClick={stopPlayback}
@@ -1576,7 +1576,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                   cursor: 'pointer',
                 }}
               >
-                ⏹ 중지
+                ??중�?
               </button>
               <button
                 onClick={() => setIsAutoScrollEnabled((prev) => !prev)}
@@ -1590,7 +1590,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                   cursor: 'pointer',
                 }}
               >
-                {isAutoScrollEnabled ? '📌 고정' : '📌 해제'}
+                {isAutoScrollEnabled ? '?�� 고정' : '?�� ?�제'}
               </button>
               <button
                 onClick={handleLoad}
@@ -1604,7 +1604,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                   cursor: 'pointer',
                 }}
               >
-                📂 로드
+                ?�� 로드
               </button>
               <button
                 onClick={handleSave}
@@ -1618,7 +1618,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                   cursor: 'pointer',
                 }}
               >
-                💾 저장
+                ?�� ?�??
               </button>
               <button
                 onClick={onCancel}
@@ -1632,7 +1632,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                   cursor: 'pointer',
                 }}
               >
-                ✖ 나가기
+                ???��?�?
               </button>
             </div>
           </div>
@@ -1643,7 +1643,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
           </div>
         </div>
 
-        {/* 접을 수 있는 메뉴 내용 */}
+        {/* ?�을 ???�는 메뉴 ?�용 */}
         {isMenuOpen && (
           <div
             style={{
@@ -1653,11 +1653,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
               gap: '15px',
             }}
           >
-            {/* YouTube URL 입력 */}
+            {/* YouTube URL ?�력 */}
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
               <input
                 type="text"
-                placeholder="YouTube URL 입력..."
+                placeholder="YouTube URL ?�력..."
                 value={youtubeUrl}
                 onChange={(e) => setYoutubeUrl(e.target.value)}
                 onKeyPress={(e) => {
@@ -1697,9 +1697,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = '#757575';
                 }}
-                title="클립보드에서 붙여넣기"
+                title="?�립보드?�서 붙여?�기"
               >
-                📋 붙여넣기
+                ?�� 붙여?�기
               </button>
               <button
                 onClick={(e) => {
@@ -1716,11 +1716,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                   cursor: 'pointer',
                 }}
               >
-                ▶ 로드
+                ??로드
               </button>
             </div>
             
-            {/* BPM 설정 */}
+            {/* BPM ?�정 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ color: '#fff', fontSize: '14px' }}>BPM:</span>
@@ -1740,7 +1740,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                     cursor: 'pointer',
                   }}
                 >
-                  입력
+                  ?�력
                 </button>
                 <button
                   onClick={(e) => {
@@ -1757,11 +1757,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                     cursor: 'pointer',
                   }}
                 >
-                  탭 ({tapBpmCalculatorRef.current.getTapCount()})
+                  ??({tapBpmCalculatorRef.current.getTapCount()})
                 </button>
                 {tapBpmResult && (
                   <span style={{ color: '#aaa', fontSize: '12px' }}>
-                    (신뢰도: {(tapBpmResult.confidence * 100).toFixed(0)}%)
+                    (?�뢰?? {(tapBpmResult.confidence * 100).toFixed(0)}%)
                   </span>
                 )}
               </div>
@@ -1771,7 +1771,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                 type="number"
                 min="30"
                 max="300"
-                placeholder="BPM 입력"
+                placeholder="BPM ?�력"
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
                     handleBpmInput(e.currentTarget.value);
@@ -1794,9 +1794,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
         )}
       </div>
 
-      {/* 메인 에디터 영역 */}
+      {/* 메인 ?�디???�역 */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* 왼쪽 사이드바 - 기본 정보 */}
+        {/* ?�쪽 ?�이?�바 - 기본 ?�보 */}
         <div
           style={{
             width: '150px',
@@ -1809,7 +1809,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
         >
           <div>
             <div style={{ color: '#fff', marginBottom: '10px', fontWeight: 'bold' }}>
-              현재 시간
+              ?�재 ?�간
             </div>
             <div style={{ color: '#aaa', fontSize: '14px' }}>
               {currentTime.toFixed(0)}ms
@@ -1821,14 +1821,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
 
           <div>
             <div style={{ color: '#fff', marginBottom: '10px', fontWeight: 'bold' }}>
-              노트 개수
+              ?�트 개수
             </div>
-            <div style={{ color: '#aaa', fontSize: '14px' }}>{notes.length}개</div>
+            <div style={{ color: '#aaa', fontSize: '14px' }}>{notes.length}�?/div>
           </div>
 
           <div>
             <div style={{ color: '#fff', marginBottom: '10px', fontWeight: 'bold' }}>
-              줌
+              �?
             </div>
             <input
               type="range"
@@ -1845,17 +1845,17 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                 const clickX = e.clientX - rect.left;
                 const ratio = Math.max(0, Math.min(1, clickX / rect.width));
                 
-                // 클릭한 위치의 줌 값 계산 및 즉시 적용
+                // ?�릭???�치??�?�?계산 �?즉시 ?�용
                 const clickZoom = 0.5 + ratio * (3 - 0.5);
                 setZoom(clickZoom);
                 
-                // 드래그 시작 설정
+                // ?�래�??�작 ?�정
                 slider.style.cursor = 'grabbing';
                 document.body.style.cursor = 'grabbing';
                 document.body.style.userSelect = 'none';
                 
                 const startX = e.clientX;
-                const startZoom = clickZoom; // 클릭한 위치의 줌 값에서 시작
+                const startZoom = clickZoom; // ?�릭???�치??�?값에???�작
                 
                 const handleMouseMove = (moveEvent: MouseEvent) => {
                   moveEvent.preventDefault();
@@ -1888,7 +1888,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
 
           <div>
             <div style={{ color: '#fff', marginBottom: '10px', fontWeight: 'bold' }}>
-              재생 속도
+              ?�생 ?�도
             </div>
             <input
               type="range"
@@ -1907,7 +1907,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
               }}
             />
             <div style={{ color: '#aaa', fontSize: '12px', marginTop: '4px' }}>
-              현재: {playbackSpeed}x
+              ?�재: {playbackSpeed}x
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', color: '#777', fontSize: '10px', marginTop: '2px' }}>
               {PLAYBACK_SPEED_OPTIONS.map((speed) => (
@@ -1918,7 +1918,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
 
           <div>
             <div style={{ color: '#fff', marginBottom: '10px', fontWeight: 'bold' }}>
-              음량 
+              ?�량 
             </div>
             <input
               type="range"
@@ -1935,7 +1935,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
               }}
             />
             <div style={{ color: '#aaa', fontSize: '12px', marginTop: '4px' }}>
-              현재: {volume}%
+              ?�재: {volume}%
             </div>
           </div>
 
@@ -1944,7 +1944,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
               박자 / 격자
             </div>
             <div style={{ color: '#aaa', fontSize: '13px', marginBottom: '6px' }}>
-              현재 박자: {activeTimeSignature.beatsPerMeasure}/4
+              ?�재 박자: {activeTimeSignature.beatsPerMeasure}/4
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -1961,7 +1961,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                     cursor: 'pointer',
                   }}
                 >
-                  4/4로 설정
+                  4/4�??�정
                 </button>
                 <button
                   onClick={() => handleAddTimeSignatureChange(3)}
@@ -1976,11 +1976,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                     cursor: 'pointer',
                   }}
                 >
-                  3/4로 설정
+                  3/4�??�정
                 </button>
               </div>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                <span style={{ color: '#aaa', fontSize: '12px' }}>세분화:</span>
+                <span style={{ color: '#aaa', fontSize: '12px' }}>?�분??</span>
                 <button
                   onClick={() => setGridDivision(1)}
                   style={{
@@ -2021,7 +2021,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                     cursor: 'pointer',
                   }}
                 >
-                  셋잇단
+                  ?�잇??
                 </button>
               </div>
               <div
@@ -2038,7 +2038,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                     fontSize: '12px',
                   }}
                 >
-                  마디 오프셋
+                  마디 ?�프??
                 </span>
                 <div
                   style={{
@@ -2059,9 +2059,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                       borderRadius: '4px',
                       cursor: 'pointer',
                     }}
-                    title="마디 시작선을 한 칸 앞으로 이동"
+                    title="마디 ?�작?�을 ??�??�으�??�동"
                   >
-                    ◀
+                    ?�
                   </button>
                   <span
                     style={{
@@ -2086,9 +2086,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                       borderRadius: '4px',
                       cursor: 'pointer',
                     }}
-                    title="마디 시작선을 한 칸 뒤로 이동"
+                    title="마디 ?�작?�을 ??�??�로 ?�동"
                   >
-                    ▶
+                    ??
                   </button>
                 </div>
                 {timeSignatureOffset !== 0 && (
@@ -2104,9 +2104,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                       borderRadius: '4px',
                       cursor: 'pointer',
                     }}
-                    title="마디 오프셋 초기화"
+                    title="마디 ?�프??초기??
                   >
-                    초기화
+                    초기??
                   </button>
                 )}
               </div>
@@ -2115,7 +2115,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
 
         </div>
 
-        {/* 에디터 캔버스 */}
+        {/* ?�디??캔버??*/}
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
           <div
             style={{
@@ -2126,7 +2126,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
               backgroundColor: '#1f1f1f',
             }}
           >
-            {/* 키 레인 영역 배경 */}
+            {/* ???�인 ?�역 배경 */}
             <div
               style={{
                 position: 'absolute',
@@ -2138,7 +2138,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
               }}
             />
 
-            {/* 레인 구분선 */}
+            {/* ?�인 구분??*/}
             {[50, 150, 250, 350, 450].map((x) => (
               <div
                 key={x}
@@ -2154,7 +2154,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
               />
             ))}
 
-            {/* 타임라인 스크롤 영역 */}
+            {/* ?�?�라???�크�??�역 */}
             <div
               style={{
                 position: 'absolute',
@@ -2162,14 +2162,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                 left: 0,
                 right: 0,
                 bottom: 0,
-                // 고정 모드일 때는 사용자가 스크롤로 위치를 바꾸지 못하도록 overflow를 숨김
+                // 고정 모드???�는 ?�용?��? ?�크롤로 ?�치�?바꾸지 못하?�록 overflow�??��?
                 overflowY: isAutoScrollEnabled ? 'hidden' : 'auto',
                 cursor: 'default',
               }}
               onClick={handleTimelineClick}
               ref={timelineScrollRef}
             >
-              {/* 시간 격자 */}
+              {/* ?�간 격자 */}
               <div
                 style={{
                   position: 'relative',
@@ -2187,7 +2187,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                       : { id: -1, beatIndex: 0, beatsPerMeasure: 4 };
 
                   return Array.from({ length: totalBeats }).map((_, i) => {
-                    // 현재 비트에 해당하는 박자 정보 찾기
+                    // ?�재 비트???�당?�는 박자 ?�보 찾기
                     while (
                       tsIndex + 1 < sortedTimeSignatures.length &&
                       sortedTimeSignatures[tsIndex + 1].beatIndex <= i
@@ -2202,7 +2202,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                     if (y < 0) {
                       return null;
                     }
-                    // 마디 오프셋 적용: 늦게 시작하는 곡을 위해 마디 시작선 조정
+                    // 마디 ?�프???�용: ??�� ?�작?�는 곡을 ?�해 마디 ?�작??조정
                     const adjustedBeatIndex = i - currentTS.beatIndex - timeSignatureOffset;
                     const isMeasureStart =
                       adjustedBeatIndex % beatsPerMeasure === 0;
@@ -2222,7 +2222,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                             pointerEvents: 'none',
                           }}
                         />
-                        {/* 셋잇단 등 세분화 격자 */}
+                        {/* ?�잇?????�분??격자 */}
                         {gridDivision > 1 &&
                           Array.from({ length: gridDivision - 1 }).map((__, subIdx) => {
                             const subTimeMs =
@@ -2252,7 +2252,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                   });
                 })()}
                 
-                {/* 기본 시간 격자 (1초 간격) */}
+                {/* 기본 ?�간 격자 (1�?간격) */}
                 {(() => {
                   const totalSeconds = Math.ceil(timelineDurationMs / 1000);
                   return Array.from({ length: totalSeconds + 8 }).map((_, i) => {
@@ -2278,7 +2278,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                   });
                 })()}
 
-                {/* 재생선 (Playhead) */}
+                {/* ?�생??(Playhead) */}
                 <div
                   style={{
                     position: 'absolute',
@@ -2294,7 +2294,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                 >
                   <div
                     onMouseDown={handlePlayheadMouseDown}
-                    title="재생선 드래그"
+                    title="?�생???�래�?
                     style={{
                       position: 'absolute',
                       right: '-32px',
@@ -2316,11 +2316,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                       userSelect: 'none',
                     }}
                   >
-                    ≡
+                    ??
                   </div>
                 </div>
 
-                {/* 노트 렌더링 */}
+                {/* ?�트 ?�더�?*/}
                 {notes.map((note) => {
                   const startY = getNoteY(note);
                   const isHold = note.duration > 0;
@@ -2361,8 +2361,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                       }}
                       title={
                         isHold
-                          ? `롱노트: ${note.time.toFixed(0)}ms ~ ${note.endTime.toFixed(0)}ms`
-                          : `클릭하여 삭제 (${note.time.toFixed(0)}ms)`
+                          ? `롱노?? ${note.time.toFixed(0)}ms ~ ${note.endTime.toFixed(0)}ms`
+                          : `?�릭?�여 ??�� (${note.time.toFixed(0)}ms)`
                       }
                     >
                       {isHold && (
@@ -2399,7 +2399,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
               </div>
             </div>
 
-            {/* YouTube 플레이어 (숨김 - 오디오만 재생) */}
+            {/* YouTube ?�레?�어 (?��? - ?�디?�만 ?�생) */}
             {youtubeVideoId && (
               <div
                 ref={youtubePlayerRef}
@@ -2419,7 +2419,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
           </div>
         </div>
 
-        {/* 오른쪽 사이드바 - 롱노트 & 테스트 */}
+        {/* ?�른�??�이?�바 - 롱노??& ?�스??*/}
         <div
           style={{
             width: '180px',
@@ -2432,7 +2432,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
         >
           <div>
             <div style={{ color: '#fff', marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>
-              롱노트
+              롱노??
             </div>
             <button
               onClick={() => setIsLongNoteMode((prev) => !prev)}
@@ -2447,7 +2447,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                 width: '100%',
               }}
             >
-              {isLongNoteMode ? '롱노트 해제' : '롱노트 활성화'}
+              {isLongNoteMode ? '롱노???�제' : '롱노???�성??}
             </button>
             {isLongNoteMode && (
               <div
@@ -2462,8 +2462,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                 }}
               >
                 {pendingLongNote
-                  ? `${LANE_KEY_LABELS[pendingLongNote.lane]} 시작됨. 종료 위치에서 동일 키 재입력.`
-                  : '키를 두 번 눌러 시작/종료 지정'}
+                  ? `${LANE_KEY_LABELS[pendingLongNote.lane]} ?�작?? 종료 ?�치?�서 ?�일 ???�입??`
+                  : '?��? ??�??�러 ?�작/종료 지??}
                 {pendingLongNote && (
                   <button
                     onClick={() => setPendingLongNote(null)}
@@ -2488,7 +2488,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
 
           <div>
             <div style={{ color: '#fff', marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>
-              테스트
+              ?�스??
             </div>
             <div
               style={{
@@ -2506,7 +2506,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                   fontSize: '11px',
                 }}
               >
-                시작 위치 (ms)
+                ?�작 ?�치 (ms)
               </label>
               <input
                 type="number"
@@ -2536,7 +2536,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                     cursor: 'pointer',
                   }}
                 >
-                  현재
+                  ?�재
                 </button>
                 <button
                   onClick={handleResetTestStart}
@@ -2568,15 +2568,15 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                   cursor: onTest ? 'pointer' : 'not-allowed',
                 }}
               >
-                🎮 테스트 실행
+                ?�� ?�스???�행
               </button>
             </div>
           </div>
 
-          {/* 온라인 공유 */}
+          {/* ?�라??공유 */}
           <div>
             <div style={{ color: '#fff', marginBottom: '10px', fontWeight: 'bold', fontSize: '14px' }}>
-              온라인 공유
+              ?�라??공유
             </div>
             <button
               onClick={() => setIsShareModalOpen(true)}
@@ -2592,7 +2592,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                 width: '100%',
               }}
             >
-              🌐 채보 공유하기
+              ?�� 채보 공유?�기
             </button>
           </div>
         </div>
@@ -2628,19 +2628,19 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
             onClick={(e) => e.stopPropagation()}
           >
             <h2 style={{ color: '#fff', marginBottom: '20px', fontSize: '20px' }}>
-              채보 공유하기
+              채보 공유?�기
             </h2>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <div>
                 <label style={{ color: '#ddd', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
-                  제목 *
+                  ?�목 *
                 </label>
                 <input
                   type="text"
                   value={shareTitle}
                   onChange={(e) => setShareTitle(e.target.value)}
-                  placeholder="채보 제목을 입력하세요"
+                  placeholder="채보 ?�목???�력?�세??
                   disabled={isUploading}
                   style={{
                     width: '100%',
@@ -2656,13 +2656,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
 
               <div>
                 <label style={{ color: '#ddd', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
-                  작성자 *
+                  ?�성??*
                 </label>
                 <input
                   type="text"
                   value={shareAuthor}
                   onChange={(e) => setShareAuthor(e.target.value)}
-                  placeholder="작성자 이름을 입력하세요"
+                  placeholder="?�성???�름???�력?�세??
                   disabled={isUploading}
                   style={{
                     width: '100%',
@@ -2678,7 +2678,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
 
               <div>
                 <label style={{ color: '#ddd', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
-                  난이도
+                  ?�이??
                 </label>
                 <select
                   value={shareDifficulty}
@@ -2703,12 +2703,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
 
               <div>
                 <label style={{ color: '#ddd', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
-                  설명
+                  ?�명
                 </label>
                 <textarea
                   value={shareDescription}
                   onChange={(e) => setShareDescription(e.target.value)}
-                  placeholder="채보에 대한 설명을 입력하세요 (선택사항)"
+                  placeholder="채보???�???�명???�력?�세??(?�택?�항)"
                   disabled={isUploading}
                   rows={3}
                   style={{
@@ -2726,7 +2726,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
 
               <div>
                 <label style={{ color: '#ddd', fontSize: '13px', marginBottom: '6px', display: 'block' }}>
-                  미리보기 이미지 (선택사항)
+                  미리보기 ?��?지 (?�택?�항)
                 </label>
                 <input
                   type="file"
@@ -2734,21 +2734,21 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                   disabled={isUploading}
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    console.log('파일 선택됨:', file);
+                    console.log('?�일 ?�택??', file);
                     if (file) {
-                      // 파일 크기 제한 (5MB)
+                      // ?�일 ?�기 ?�한 (5MB)
                       if (file.size > 5 * 1024 * 1024) {
-                        alert('이미지 크기는 5MB 이하여야 합니다.');
+                        alert('?��?지 ?�기??5MB ?�하?�야 ?�니??');
                         e.target.value = '';
                         return;
                       }
                       setPreviewImageFile(file);
-                      console.log('previewImageFile 상태 설정됨:', file.name);
-                      // 미리보기 URL 생성
+                      console.log('previewImageFile ?�태 ?�정??', file.name);
+                      // 미리보기 URL ?�성
                       const reader = new FileReader();
                       reader.onload = (event) => {
                         setPreviewImageUrl(event.target?.result as string);
-                        console.log('미리보기 URL 생성됨');
+                        console.log('미리보기 URL ?�성??);
                       };
                       reader.readAsDataURL(file);
                     } else {
@@ -2790,13 +2790,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                   </div>
                 )}
                 <div style={{ color: '#999', fontSize: '11px', marginTop: '5px' }}>
-                  권장 크기: 16:9 비율, 최대 5MB
+                  권장 ?�기: 16:9 비율, 최�? 5MB
                 </div>
               </div>
 
               <div style={{ color: '#aaa', fontSize: '12px', padding: '10px', backgroundColor: '#1f1f1f', borderRadius: '6px' }}>
-                <strong>채보 정보:</strong><br />
-                노트 수: {notes.length}개<br />
+                <strong>채보 ?�보:</strong><br />
+                ?�트 ?? {notes.length}�?br />
                 BPM: {bpm}<br />
                 {youtubeUrl && `YouTube: ${youtubeUrl}`}
               </div>
@@ -2806,7 +2806,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                   style={{
                     padding: '12px',
                     borderRadius: '6px',
-                    backgroundColor: uploadStatus.includes('완료') ? '#4CAF50' : uploadStatus.includes('실패') ? '#f44336' : '#2196F3',
+                    backgroundColor: uploadStatus.includes('?�료') ? '#4CAF50' : uploadStatus.includes('?�패') ? '#f44336' : '#2196F3',
                     color: '#fff',
                     fontSize: '13px',
                     textAlign: 'center',
@@ -2859,7 +2859,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                       <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
                       <path fill="none" d="M0 0h48v48H0z"/>
                     </svg>
-                    로그인 후 공유
+                    로그????공유
                   </button>
                 ) : (
                   <button
@@ -2877,7 +2877,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
                       cursor: (isUploading || !shareTitle.trim() || !shareAuthor.trim()) ? 'not-allowed' : 'pointer',
                     }}
                   >
-                    {isUploading ? '업로드 중...' : '공유하기'}
+                    {isUploading ? '?�로??�?..' : '공유?�기'}
                   </button>
                 )}
               </div>
@@ -2888,3 +2888,4 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTe
     </div>
   );
 };
+
