@@ -100,18 +100,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     isDraggingPlayhead: isDraggingPlayheadRef.current,
   });
 
-  const {
-    timeToY,
-    yToTime,
-    getNoteY,
-    playheadY,
-  } = useChartTimeline({
-    zoom,
-    currentTime,
-    TIMELINE_TOP_PADDING,
-    PIXELS_PER_SECOND,
-  });
-
   // --- 계산된 값들 ---
   const beatDuration = useMemo(() => (60000 / bpm), [bpm]);
   
@@ -134,6 +122,20 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const timelineContentHeight = useMemo(() => {
     return TIMELINE_TOP_PADDING + TIMELINE_BOTTOM_PADDING + (timelineDurationMs / 1000) * PIXELS_PER_SECOND * zoom;
   }, [timelineDurationMs, zoom]);
+
+  const {
+    timeToY,
+    yToTime,
+    getNoteY,
+    playheadY,
+  } = useChartTimeline({
+    zoom,
+    currentTime,
+    TIMELINE_TOP_PADDING,
+    TIMELINE_BOTTOM_PADDING,
+    PIXELS_PER_SECOND,
+    timelineContentHeight,
+  });
 
   const songInfo = useMemo(() => {
     const durationSeconds = timelineDurationMs / 1000;

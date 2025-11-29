@@ -129,12 +129,12 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
           />
         ))}
 
-        {/* 판정선 */}
+        {/* 판정선 (타임라인 하단에 고정) */}
         <div
           style={{
             position: 'absolute',
             left: LANE_POSITIONS[0] - 50,
-            top: `${TIMELINE_BOTTOM_PADDING}px`,
+            top: `${timelineContentHeight - TIMELINE_BOTTOM_PADDING}px`,
             width: `${LANE_POSITIONS[3] - LANE_POSITIONS[0] + 100}px`,
             height: '3px',
             background:
