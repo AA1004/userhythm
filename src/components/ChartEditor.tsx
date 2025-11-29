@@ -268,6 +268,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
   // 재생선 드래그
   const handlePlayheadMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault(); // 기본 드래그 동작 방지 (텍스트 선택 등)
     e.stopPropagation();
     isDraggingPlayheadRef.current = true;
     setIsPlaying(false); // 드래그 시 일시정지
