@@ -100,16 +100,11 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-<<<<<<< HEAD
-=======
           VITE_ADMIN_TOKEN: ${{ secrets.VITE_ADMIN_TOKEN }}
->>>>>>> 3fd4119591065306316a17aa46653447590ade12
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-<<<<<<< HEAD
-=======
       - name: List dist contents
         run: |
           echo "=== Dist folder structure ==="
@@ -151,8 +146,6 @@ jobs:
             echo "✅ JavaScript files found:"
             echo "$JS_FILES"
           fi
-
->>>>>>> 3fd4119591065306316a17aa46653447590ade12
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
