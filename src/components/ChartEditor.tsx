@@ -62,6 +62,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const noteIdRef = useRef(0);
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const timelineContentRef = useRef<HTMLDivElement>(null);
+  const timelineContentRef = useRef<HTMLDivElement>(null);
   const tapBpmCalculatorRef = useRef(new TapBPMCalculator());
   const [tapBpmResult, setTapBpmResult] = useState<{ bpm: number; confidence: number } | null>(null);
   const [tapCount, setTapCount] = useState(0);
@@ -157,6 +158,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     };
   }, [timelineDurationMs, bpm, sortedBpmChanges, timeSignatures]);
 
+  const clampTime = useCallback(
+    (time: number) => Math.max(0, Math.min(time, timelineDurationMs)),
+    [timelineDurationMs]
+  );
+
   // --- 자동 저장 ---
   const autoSaveData = useMemo(() => ({
     notes,
@@ -246,7 +252,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     });
 
     if (clickedLane !== null) {
-      const time = yToTime(clickY);
+      const time = clampTime(yToTime(clickY));
       
       // 롱노트 모드 처리
       if (isLongNoteMode) {
@@ -274,7 +280,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         addNote(clickedLane, time);
       }
     }
-  }, [yToTime, isLongNoteMode, pendingLongNote, addNote, playheadY]);
+  }, [yToTime, isLongNoteMode, pendingLongNote, addNote, playheadY, clampTime]);
 
   // 재생선 드래그
   const handlePlayheadMouseDown = useCallback((e: React.MouseEvent) => {
@@ -288,7 +294,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         const rect = timelineScrollRef.current.getBoundingClientRect();
         // 스크롤된 상태를 고려하여 Y 좌표 계산
         const relativeY = moveEvent.clientY - rect.top + timelineScrollRef.current.scrollTop;
-        const newTime = yToTime(relativeY);
+        const newTime = clampTime(yToTime(relativeY));
         setCurrentTime(newTime);
         
         // YouTube seek (드래그 중에는 부하 줄이기 위해 throttle 고려 가능하나 여기선 직접 호출)
@@ -307,7 +313,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       if (timelineScrollRef.current) {
         const rect = timelineScrollRef.current.getBoundingClientRect();
         const relativeY = upEvent.clientY - rect.top + timelineScrollRef.current.scrollTop;
-        const newTime = yToTime(relativeY);
+        const newTime = clampTime(yToTime(relativeY));
         seekTo(newTime);
         // seekTo 후에도 재생이 시작되지 않도록 명시적으로 일시정지 상태 유지
         setIsPlaying(false);
@@ -554,6 +560,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           onGridDivisionChange={setGridDivision}
           timeSignatureOffset={timeSignatureOffset}
           onTimeSignatureOffsetChange={setTimeSignatureOffset}
+          beatDuration={beatDuration}
           isLongNoteMode={isLongNoteMode}
           onToggleLongNoteMode={() => setIsLongNoteMode(prev => !prev)}
           testStartInput={testStartInput}

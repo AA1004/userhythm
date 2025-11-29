@@ -15,6 +15,7 @@ interface ChartEditorSidebarProps {
   onGridDivisionChange: (division: number) => void;
   timeSignatureOffset: number;
   onTimeSignatureOffsetChange: (offset: number) => void;
+  beatDuration: number;
   isLongNoteMode: boolean;
   onToggleLongNoteMode: () => void;
   testStartInput: string;
@@ -39,6 +40,7 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
   onGridDivisionChange,
   timeSignatureOffset,
   onTimeSignatureOffsetChange,
+  beatDuration,
   isLongNoteMode,
   onToggleLongNoteMode,
   testStartInput,
@@ -48,6 +50,15 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
   onTestChart,
   onShareClick,
 }) => {
+  const offsetStep = Math.max(1, Math.round(beatDuration / gridDivision));
+  const maxOffset = Math.max(offsetStep * gridDivision, beatDuration);
+
+  const handleOffsetAdjust = (direction: -1 | 1) => {
+    const next = timeSignatureOffset + direction * offsetStep;
+    const clamped = Math.max(-maxOffset, Math.min(next, maxOffset));
+    onTimeSignatureOffsetChange(clamped);
+  };
+
   return (
     <div
       style={{
@@ -175,7 +186,7 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
         />
       </div>
 
-      {/* 타임시그니처 */}
+      {/* 박자표 */}
       <div
         style={{
           marginBottom: '16px',
@@ -193,7 +204,7 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
             fontWeight: 500,
           }}
         >
-          타임시그니처: {beatsPerMeasure}/4
+          박자표: {beatsPerMeasure}/4
         </label>
         <select
           value={beatsPerMeasure}
@@ -255,7 +266,7 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
         </select>
       </div>
 
-      {/* 타임시그니처 오프셋 */}
+      {/* 격자 위치 조정 */}
       <div
         style={{
           marginBottom: '16px',
@@ -273,22 +284,67 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
             fontWeight: 500,
           }}
         >
-          타임시그니처 오프셋: {timeSignatureOffset}ms
+          격자 위치 조정
         </label>
-        <input
-          type="number"
-          value={timeSignatureOffset}
-          onChange={(e) => onTimeSignatureOffsetChange(parseInt(e.target.value) || 0)}
+        <div
           style={{
-            width: '100%',
-            padding: '6px 8px',
-            backgroundColor: '#020617',
-            color: CHART_EDITOR_THEME.textPrimary,
-            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-            borderRadius: CHART_EDITOR_THEME.radiusSm,
-            fontSize: '13px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
           }}
-        />
+        >
+          <button
+            onClick={() => handleOffsetAdjust(-1)}
+            style={{
+              flex: 1,
+              padding: '6px 8px',
+              backgroundColor: 'rgba(148,163,184,0.14)',
+              color: CHART_EDITOR_THEME.textPrimary,
+              border: 'none',
+              borderRadius: CHART_EDITOR_THEME.radiusSm,
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: 600,
+            }}
+          >
+            ◀ 한 칸
+          </button>
+          <div
+            style={{
+              minWidth: '80px',
+              textAlign: 'center',
+              fontSize: '13px',
+              color: CHART_EDITOR_THEME.textPrimary,
+            }}
+          >
+            {Math.round(timeSignatureOffset)}ms
+          </div>
+          <button
+            onClick={() => handleOffsetAdjust(1)}
+            style={{
+              flex: 1,
+              padding: '6px 8px',
+              backgroundColor: 'rgba(34,211,238,0.14)',
+              color: CHART_EDITOR_THEME.accentStrong,
+              border: 'none',
+              borderRadius: CHART_EDITOR_THEME.radiusSm,
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: 600,
+            }}
+          >
+            한 칸 ▶
+          </button>
+        </div>
+        <div
+          style={{
+            marginTop: '6px',
+            fontSize: '11px',
+            color: CHART_EDITOR_THEME.textSecondary,
+          }}
+        >
+          한 칸 = 한 격자 간격 (현재 1/{gridDivision})
+        </div>
       </div>
 
       {/* 롱노트 모드 */}
