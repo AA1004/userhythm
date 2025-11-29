@@ -62,7 +62,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const noteIdRef = useRef(0);
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const timelineContentRef = useRef<HTMLDivElement>(null);
-  const timelineContentRef = useRef<HTMLDivElement>(null);
   const tapBpmCalculatorRef = useRef(new TapBPMCalculator());
   const [tapBpmResult, setTapBpmResult] = useState<{ bpm: number; confidence: number } | null>(null);
   const [tapCount, setTapCount] = useState(0);
