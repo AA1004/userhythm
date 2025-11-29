@@ -167,33 +167,13 @@ export interface SubtitleTrack {
 
 export const DEFAULT_SUBTITLE_TRACKS: SubtitleTrack[] = [
   {
-    id: 'main-bottom',
-    name: '하단 가사',
+    id: 'track-1',
+    name: '트랙 1',
     positionPreset: 'bottom',
     defaultStyle: {
       position: { x: 0.5, y: 0.9 },
       align: { horizontal: 'center', vertical: 'bottom' },
-      trackId: 'main-bottom',
-    },
-  },
-  {
-    id: 'top-caption',
-    name: '상단 설명',
-    positionPreset: 'top',
-    defaultStyle: {
-      position: { x: 0.5, y: 0.12 },
-      align: { horizontal: 'center', vertical: 'top' },
-      trackId: 'top-caption',
-    },
-  },
-  {
-    id: 'effect',
-    name: '효과 자막',
-    positionPreset: 'middle',
-    defaultStyle: {
-      position: { x: 0.5, y: 0.5 },
-      align: { horizontal: 'center', vertical: 'middle' },
-      trackId: 'effect',
+      trackId: 'track-1',
     },
   },
 ];

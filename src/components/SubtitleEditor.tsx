@@ -28,10 +28,13 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   chartData,
   onClose,
 }) => {
-  const [tracks] = useState<SubtitleTrack[]>(DEFAULT_SUBTITLE_TRACKS);
+  const [tracks, setTracks] = useState<SubtitleTrack[]>(DEFAULT_SUBTITLE_TRACKS);
   const [subtitles, setSubtitles] = useState<SubtitleCue[]>([]);
   const [selectedSubtitleId, setSelectedSubtitleId] = useState<string | null>(null);
   const [currentTimeMs, setCurrentTimeMs] = useState<number>(0);
+  const [selectedTrackId, setSelectedTrackId] = useState<string>(
+    () => DEFAULT_SUBTITLE_TRACKS[0]?.id ?? 'track-1'
+  );
 
   const durationMs = useMemo(() => {
     if (!chartData.notes.length) return 60000;
@@ -40,7 +43,8 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   }, [chartData.notes]);
 
   const handleAddSubtitle = useCallback(() => {
-    const baseTrack = tracks[0] ?? DEFAULT_SUBTITLE_TRACKS[0];
+    const baseTrack =
+      tracks.find((t) => t.id === selectedTrackId) ?? tracks[0] ?? DEFAULT_SUBTITLE_TRACKS[0];
     const start = currentTimeMs;
     const end = Math.min(currentTimeMs + 2000, durationMs);
 
@@ -54,6 +58,7 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
       style: {
         ...DEFAULT_SUBTITLE_STYLE,
         ...(baseTrack.defaultStyle ?? {}),
+        trackId: baseTrack.id,
       },
     };
     setSubtitles((prev) => [...prev, next]);
@@ -97,6 +102,50 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   const selectedCue = useMemo(
     () => subtitles.find((c) => c.id === selectedSubtitleId) ?? null,
     [subtitles, selectedSubtitleId]
+  );
+
+  const handleAddTrack = useCallback(() => {
+    const index = tracks.length + 1;
+    const id = `track-${Date.now()}`;
+    const newTrack: SubtitleTrack = {
+      id,
+      name: `트랙 ${index}`,
+      positionPreset: 'bottom',
+      defaultStyle: {
+        position: { x: 0.5, y: 0.9 },
+        align: { horizontal: 'center', vertical: 'bottom' },
+        trackId: id,
+      },
+    };
+    setTracks((prev) => [...prev, newTrack]);
+    setSelectedTrackId(id);
+  }, [tracks.length]);
+
+  const handleRemoveTrack = useCallback(
+    (id: string) => {
+      if (tracks.length <= 1) {
+        alert('최소 한 개의 트랙은 필요합니다.');
+        return;
+      }
+
+      const hasCues = subtitles.some((cue) => {
+        const trackId = cue.trackId ?? cue.style.trackId ?? 'default';
+        return trackId === id;
+      });
+
+      if (hasCues) {
+        alert('트랙에 자막이 남아 있어 삭제할 수 없습니다.');
+        return;
+      }
+
+      const nextTracks = tracks.filter((t) => t.id !== id);
+      setTracks(nextTracks);
+
+      if (selectedTrackId === id && nextTracks.length > 0) {
+        setSelectedTrackId(nextTracks[0].id);
+      }
+    },
+    [tracks, subtitles, selectedTrackId]
   );
 
   return (
@@ -184,7 +233,7 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
           minHeight: 0,
         }}
       >
-        {/* 좌측: 속성 패널 */}
+        {/* 좌측: 트랙 리스트 + 속성 패널 */}
         <div
           style={{
             width: 320,
@@ -192,10 +241,114 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
             backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
             border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
             boxShadow: CHART_EDITOR_THEME.shadowSoft,
-            overflow: 'auto',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
-          <SubtitleInspector selectedCue={selectedCue} onChangeCue={handleChangeCue} />
+          {/* 트랙 관리 */}
+          <div
+            style={{
+              padding: '10px 12px',
+              borderBottom: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+              backgroundColor: '#020617',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 8,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: CHART_EDITOR_THEME.textSecondary,
+                  letterSpacing: '0.06em',
+                }}
+              >
+                트랙
+              </span>
+              <button
+                onClick={handleAddTrack}
+                style={{
+                  padding: '2px 8px',
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  border: 'none',
+                  backgroundColor: 'rgba(34,197,94,0.18)',
+                  color: '#4ade80',
+                  fontSize: 11,
+                  cursor: 'pointer',
+                }}
+              >
+                + 추가
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {tracks.map((track) => {
+                const isActive = track.id === selectedTrackId;
+                return (
+                  <div
+                    key={track.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                    }}
+                  >
+                    <button
+                      onClick={() => setSelectedTrackId(track.id)}
+                      style={{
+                        flex: 1,
+                        padding: '4px 8px',
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                        border: isActive
+                          ? `1px solid ${CHART_EDITOR_THEME.accentStrong}`
+                          : `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                        backgroundColor: isActive
+                          ? 'rgba(56,189,248,0.16)'
+                          : 'rgba(15,23,42,0.9)',
+                        color: CHART_EDITOR_THEME.textPrimary,
+                        fontSize: 12,
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {track.name}
+                    </button>
+                    <button
+                      onClick={() => handleRemoveTrack(track.id)}
+                      title="트랙 삭제"
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: '9999px',
+                        border: 'none',
+                        backgroundColor: 'rgba(239,68,68,0.15)',
+                        color: '#fca5a5',
+                        fontSize: 11,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div
+            style={{
+              flex: 1,
+              overflow: 'auto',
+            }}
+          >
+            <SubtitleInspector selectedCue={selectedCue} onChangeCue={handleChangeCue} />
+          </div>
         </div>
 
         {/* 우측: 프리뷰 + 타임라인 */}
@@ -223,7 +376,17 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
             durationMs={durationMs}
             currentTimeMs={currentTimeMs}
             onChangeCurrentTime={setCurrentTimeMs}
-            onSelectSubtitle={setSelectedSubtitleId}
+            onSelectSubtitle={(id) => {
+              setSelectedSubtitleId(id);
+              if (id) {
+                const cue = subtitles.find((c) => c.id === id);
+                if (cue) {
+                  const trackId =
+                    cue.trackId ?? cue.style.trackId ?? tracks[0]?.id ?? 'track-1';
+                  setSelectedTrackId(trackId);
+                }
+              }
+            }}
             onChangeSubtitleTime={handleChangeSubtitleTime}
           />
         </div>
