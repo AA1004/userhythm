@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { Note, TimeSignatureEvent } from '../../types/game';
 import { LANE_POSITIONS, TAP_NOTE_HEIGHT, TIMELINE_BOTTOM_PADDING } from './constants';
 
@@ -53,6 +53,14 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
 
     return lines;
   }, [timelineDurationMs, beatDuration, gridDivision, timeSignatureOffset, sortedTimeSignatures, timeToY]);
+
+  // 초기 스크롤을 하단(판정선 위치)으로 설정
+  useEffect(() => {
+    if (!timelineScrollRef.current) return;
+    const container = timelineScrollRef.current;
+    // 스크롤을 최하단으로 이동 (판정선이 보이도록)
+    container.scrollTop = container.scrollHeight;
+  }, [timelineContentHeight, timelineScrollRef]);
 
   return (
     <div
