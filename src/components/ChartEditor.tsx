@@ -20,16 +20,6 @@ import {
   PLAYBACK_SPEED_OPTIONS,
 } from './ChartEditor/constants';
 
-// Subtitle editor chart data type
-interface SubtitleEditorChartData {
-  chartId: string;
-  notes: Note[];
-  bpm: number;
-  youtubeVideoId?: string | null;
-  youtubeUrl?: string;
-  title?: string;
-}
-
 interface ChartEditorProps {
   onSave: (notes: Note[]) => void;
   onCancel: () => void;
