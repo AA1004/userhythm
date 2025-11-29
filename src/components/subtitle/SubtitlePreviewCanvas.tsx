@@ -31,8 +31,6 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
     e.preventDefault();
     e.stopPropagation();
 
-    const rect = (e.currentTarget.parentElement as HTMLDivElement).getBoundingClientRect();
-
     const originX = e.clientX;
     const originY = e.clientY;
     const style = cue.style;
@@ -45,22 +43,17 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
       const dy = ev.clientY - originY;
 
       if (mode === 'move') {
-        const nextX = Math.min(
-          1,
-          Math.max(0, originPos.x + dx / rect.width)
-        );
-        const nextY = Math.min(
-          1,
-          Math.max(0, originPos.y + dy / rect.height)
-        );
+        const nextX = Math.min(1, Math.max(0, originPos.x + dx / width));
+        const nextY = Math.min(1, Math.max(0, originPos.y + dy / height));
 
         onChangeCueStyle(cue.id, {
           ...style,
           position: { x: nextX, y: nextY },
         });
       } else {
-        const centerX = rect.left + rect.width * (originPos.x - 0.5);
-        const centerY = rect.top + rect.height * (originPos.y - 0.5);
+        const parentRect = (e.currentTarget.parentElement as HTMLDivElement).getBoundingClientRect();
+        const centerX = parentRect.left + parentRect.width * originPos.x;
+        const centerY = parentRect.top + parentRect.height * originPos.y;
         const angleRad = Math.atan2(ev.clientY - centerY, ev.clientX - centerX);
         const angleDeg = (angleRad * 180) / Math.PI;
         onChangeCueStyle(cue.id, {
