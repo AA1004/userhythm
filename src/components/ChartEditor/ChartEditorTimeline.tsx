@@ -2,13 +2,17 @@ import React, { useMemo, useEffect } from 'react';
 import { Note, TimeSignatureEvent } from '../../types/game';
 import {
   LANE_POSITIONS,
+  LANE_WIDTH,
   PIXELS_PER_SECOND,
   TAP_NOTE_HEIGHT,
   TIMELINE_BOTTOM_PADDING,
 } from './constants';
 
-const NOTE_WIDTH = 92;
+// 노트가 레인 경계선 안에 딱 맞게 들어가도록 레인 너비에서 약간의 여백만 남김
+const NOTE_WIDTH = LANE_WIDTH - 4;
 const NOTE_HALF = NOTE_WIDTH / 2;
+// 래퍼 전체 너비 (4개 레인 × 100px)
+const CONTENT_WIDTH = LANE_WIDTH * 4;
 
 interface ChartEditorTimelineProps {
   notes: Note[];
@@ -80,8 +84,6 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
     return Math.max(18, Math.min(candidate || fallback, maxHeight));
   }, [gridCellHeight]);
 
-  const gridCellHalf = gridCellHeight / 2;
-
   // 초기 스크롤을 하단(판정선 위치)으로 설정
   useEffect(() => {
     if (!timelineScrollRef.current) return;
@@ -120,7 +122,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
             top: 0,
             left: '50%',
             transform: 'translateX(-50%)',
-            width: '500px',
+            width: `${CONTENT_WIDTH}px`,
             height: '100%',
           }}
         >
@@ -130,32 +132,31 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
             key={index}
             style={{
               position: 'absolute',
-              left: `${x - 50}px`,
+              left: `${x - LANE_WIDTH / 2}px`,
               top: 0,
-              width: '100px',
+              width: `${LANE_WIDTH}px`,
               height: '100%',
               background:
                 index % 2 === 0
                   ? 'linear-gradient(180deg, #020617 0%, #020617 40%, #020617 100%)'
-                  : 'linear-gradient(180deg, #020617 0%, #020617 40%, #020617 100%)',
+                  : 'linear-gradient(180deg, #0a0f1a 0%, #0a0f1a 40%, #0a0f1a 100%)',
               boxShadow:
                 'inset 1px 0 0 rgba(15,23,42,0.9), inset -1px 0 0 rgba(15,23,42,0.9)',
             }}
           />
         ))}
 
-        {/* 레인 구분선 */}
-        {LANE_POSITIONS.map((x, index) => (
+        {/* 레인 경계선 (5개: 0, 100, 200, 300, 400) */}
+        {[0, 1, 2, 3, 4].map((i) => (
           <div
-            key={`divider-${index}`}
+            key={`divider-${i}`}
             style={{
               position: 'absolute',
-              left: `${x}px`,
+              left: `${i * LANE_WIDTH}px`,
               top: 0,
-              width: '2px',
+              width: '1px',
               height: '100%',
-              backgroundColor: 'rgba(148, 163, 184, 0.25)',
-              transform: 'translateX(-50%)',
+              backgroundColor: 'rgba(148, 163, 184, 0.35)',
             }}
           />
         ))}
@@ -166,9 +167,9 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
             key={`grid-${index}`}
             style={{
               position: 'absolute',
-              left: LANE_POSITIONS[0] - 50,
+              left: 0,
               top: `${line.y}px`,
-              width: `${LANE_POSITIONS[3] - LANE_POSITIONS[0] + 100}px`,
+              width: `${CONTENT_WIDTH}px`,
               height: '1px',
               backgroundColor: line.isMeasure
                 ? 'rgba(56, 189, 248, 0.55)'
@@ -181,9 +182,9 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
         <div
           style={{
             position: 'absolute',
-            left: LANE_POSITIONS[0] - 50,
+            left: 0,
             top: `${timelineContentHeight - TIMELINE_BOTTOM_PADDING}px`,
-            width: `${LANE_POSITIONS[3] - LANE_POSITIONS[0] + 100}px`,
+            width: `${CONTENT_WIDTH}px`,
             height: '3px',
             background:
               'linear-gradient(90deg, rgba(244, 244, 245, 0) 0%, #facc15 20%, #f97316 80%, rgba(244, 244, 245, 0) 100%)',
@@ -194,18 +195,19 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
         {/* 노트 렌더링 */}
         {notes.map((note) => {
           const effectiveTapHeight = tapNoteHeight || TAP_NOTE_HEIGHT;
-          const startCenterY = getNoteY(note.time) - gridCellHalf;
+          // 노트 중심이 그리드 가로선 위에 정확히 오도록 (gridCellHalf 오프셋 제거)
+          const noteY = getNoteY(note.time);
           const isHold = note.duration > 0 || note.type === 'hold';
-          const endCenterY = isHold
-            ? timeToY(note.endTime || note.time + note.duration) - gridCellHalf
-            : startCenterY;
+          const endY = isHold
+            ? timeToY(note.endTime || note.time + note.duration)
+            : noteY;
           const topPosition = isHold
-            ? Math.min(startCenterY, endCenterY) - effectiveTapHeight / 2
-            : startCenterY - effectiveTapHeight / 2;
+            ? Math.min(noteY, endY) - effectiveTapHeight / 2
+            : noteY - effectiveTapHeight / 2;
           const noteHeight = isHold
             ? Math.max(
                 effectiveTapHeight,
-                Math.abs(endCenterY - startCenterY) + effectiveTapHeight
+                Math.abs(endY - noteY) + effectiveTapHeight
               )
             : effectiveTapHeight;
           const isOddLane = note.lane === 0 || note.lane === 2;
@@ -268,9 +270,9 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
           onMouseDown={onPlayheadMouseDown}
           style={{
             position: 'absolute',
-            left: LANE_POSITIONS[0] - 50,
+            left: 0,
             top: `${playheadY - 10}px`, // 클릭 영역 확장을 위해 위로 올림
-            width: `${LANE_POSITIONS[3] - LANE_POSITIONS[0] + 100}px`,
+            width: `${CONTENT_WIDTH}px`,
             height: '20px', // 클릭 영역 높이 확장
             cursor: 'ns-resize',
             zIndex: 100,

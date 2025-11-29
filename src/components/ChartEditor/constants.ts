@@ -1,7 +1,9 @@
 // ChartEditor 상수 정의
 
 export const AUTO_SAVE_KEY = 'chartEditorLastChart';
-export const LANE_POSITIONS = [100, 200, 300, 400] as const;
+// 레인 중심 좌표 (래퍼 너비 400px 기준)
+export const LANE_WIDTH = 100;
+export const LANE_POSITIONS = [50, 150, 250, 350] as const;
 export const TAP_NOTE_HEIGHT = 42;
 export const PIXELS_PER_SECOND = 200;
 export const TIMELINE_TOP_PADDING = 60;
