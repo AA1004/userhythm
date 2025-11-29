@@ -229,6 +229,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     // X 좌표는 컨텐츠(레인) 기준, Y 좌표는 스크롤 컨테이너 기준
     const clickX = e.clientX - contentRect.left;
     const clickY = e.clientY - scrollRect.top + timelineScrollRef.current.scrollTop;
+    
+    // 재생선 영역(playheadY ± 10px)을 클릭했다면 무시 (재생선 클릭으로 인식)
+    if (Math.abs(clickY - playheadY) < 10) {
+      return;
+    }
 
     // 레인 판별
     let clickedLane: Lane | null = null;
@@ -269,7 +274,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         addNote(clickedLane, time);
       }
     }
-  }, [yToTime, isLongNoteMode, pendingLongNote, addNote]);
+  }, [yToTime, isLongNoteMode, pendingLongNote, addNote, playheadY]);
 
   // 재생선 드래그
   const handlePlayheadMouseDown = useCallback((e: React.MouseEvent) => {
@@ -292,6 +297,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     };
 
     const handleMouseUp = (upEvent: MouseEvent) => {
+      upEvent.preventDefault(); // 클릭 이벤트 전파 방지
+      upEvent.stopPropagation();
+      
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
       
@@ -301,6 +309,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         const relativeY = upEvent.clientY - rect.top + timelineScrollRef.current.scrollTop;
         const newTime = yToTime(relativeY);
         seekTo(newTime);
+        // seekTo 후에도 재생이 시작되지 않도록 명시적으로 일시정지 상태 유지
+        setIsPlaying(false);
       }
 
       // 클릭 이벤트가 발생하여 노트가 잘못 생성되는 것을 방지하기 위해
