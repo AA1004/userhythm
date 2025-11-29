@@ -12,7 +12,6 @@ import { calculateTotalBeatsWithChanges, formatSongLength } from '../utils/bpmUt
 import { chartAPI, supabase } from '../lib/supabaseClient';
 import {
   AUTO_SAVE_KEY,
-  LANE_POSITIONS,
   PIXELS_PER_SECOND,
   TIMELINE_TOP_PADDING,
   TIMELINE_BOTTOM_PADDING,
@@ -20,6 +19,15 @@ import {
   PLAYBACK_SPEED_OPTIONS,
   CHART_EDITOR_THEME,
 } from './ChartEditor/constants';
+
+const KEY_TO_LANE: Record<string, Lane> = {
+  a: 0,
+  s: 1,
+  d: 2,
+  f: 3,
+};
+
+const MIN_LONG_NOTE_DURATION = 50;
 
 interface ChartEditorProps {
   onSave: (notes: Note[]) => void;
@@ -221,65 +229,37 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setNotes((prev) => prev.filter((n) => n.id !== id));
   }, []);
 
-  // 타임라인 클릭 (노트 생성)
+  // 타임라인 클릭 (재생선 이동)
   const handleTimelineClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!timelineScrollRef.current || !timelineContentRef.current) return;
-    
-    // 재생선 드래그 중이면 무시
+    if (!timelineScrollRef.current) return;
     if (isDraggingPlayheadRef.current) return;
 
     const scrollRect = timelineScrollRef.current.getBoundingClientRect();
-    const contentRect = timelineContentRef.current.getBoundingClientRect();
-    
-    // X 좌표는 컨텐츠(레인) 기준, Y 좌표는 스크롤 컨테이너 기준
-    const clickX = e.clientX - contentRect.left;
     const clickY = e.clientY - scrollRect.top + timelineScrollRef.current.scrollTop;
-    
-    // 재생선 영역(playheadY ± 10px)을 클릭했다면 무시 (재생선 클릭으로 인식)
-    if (Math.abs(clickY - playheadY) < 10) {
-      return;
-    }
+    const time = clampTime(yToTime(clickY));
+    setIsPlaying(false);
+    setCurrentTime(time);
+    seekTo(time);
+  }, [clampTime, yToTime, seekTo]);
 
-    // 레인 판별
-    let clickedLane: Lane | null = null;
-    const laneWidth = 100;
-    LANE_POSITIONS.forEach((pos, index) => {
-      // pos는 레인 중심 좌표
-      if (Math.abs(clickX - pos) < laneWidth / 2) {
-        clickedLane = index as Lane;
-      }
-    });
-
-    if (clickedLane !== null) {
-      const time = clampTime(yToTime(clickY));
-      
-      // 롱노트 모드 처리
-      if (isLongNoteMode) {
-        if (pendingLongNote) {
-          // 롱노트 끝점 지정 -> 노트 생성
-          if (pendingLongNote.lane === clickedLane) {
-            const startTime = Math.min(pendingLongNote.startTime, time);
-            const endTime = Math.max(pendingLongNote.startTime, time);
-            const duration = endTime - startTime;
-            
-            if (duration > 50) { // 최소 길이 제한
-              addNote(clickedLane, startTime, 'hold', duration);
-            }
-            setPendingLongNote(null);
-          } else {
-            // 다른 레인 클릭 시 취소하고 새로 시작
-            setPendingLongNote({ lane: clickedLane, startTime: time });
-          }
-        } else {
-          // 롱노트 시작점 지정
-          setPendingLongNote({ lane: clickedLane, startTime: time });
+  const handleLaneInput = useCallback((lane: Lane) => {
+    const time = clampTime(currentTime);
+    if (isLongNoteMode) {
+      if (pendingLongNote && pendingLongNote.lane === lane) {
+        const startTime = Math.min(pendingLongNote.startTime, time);
+        const endTime = Math.max(pendingLongNote.startTime, time);
+        const duration = endTime - startTime;
+        if (duration > MIN_LONG_NOTE_DURATION) {
+          addNote(lane, startTime, 'hold', duration);
         }
+        setPendingLongNote(null);
       } else {
-        // 일반 탭 노트
-        addNote(clickedLane, time);
+        setPendingLongNote({ lane, startTime: time });
       }
+    } else {
+      addNote(lane, time);
     }
-  }, [yToTime, isLongNoteMode, pendingLongNote, addNote, playheadY, clampTime]);
+  }, [addNote, clampTime, currentTime, isLongNoteMode, pendingLongNote, setPendingLongNote]);
 
   // 재생선 드래그
   const handlePlayheadMouseDown = useCallback((e: React.MouseEvent) => {
@@ -460,6 +440,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         return;
       }
       
+      const key = e.key.toLowerCase();
+      if (KEY_TO_LANE[key as keyof typeof KEY_TO_LANE] !== undefined) {
+        e.preventDefault();
+        const lane = KEY_TO_LANE[key as keyof typeof KEY_TO_LANE];
+        handleLaneInput(lane);
+        return;
+      }
+
       if (e.code === 'Space') {
         e.preventDefault();
         setIsPlaying(prev => !prev);
@@ -468,7 +456,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [handleLaneInput]);
 
   return (
     <div
@@ -595,6 +583,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                 timelineContentHeight={timelineContentHeight}
                 timelineScrollRef={timelineScrollRef}
                 timelineContentRef={timelineContentRef}
+                zoom={zoom}
                 onTimelineClick={handleTimelineClick}
                 onPlayheadMouseDown={handlePlayheadMouseDown}
                 onNoteClick={deleteNote}

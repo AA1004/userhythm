@@ -1,8 +1,13 @@
 import React, { useMemo, useEffect } from 'react';
 import { Note, TimeSignatureEvent } from '../../types/game';
-import { LANE_POSITIONS, TAP_NOTE_HEIGHT, TIMELINE_BOTTOM_PADDING } from './constants';
+import {
+  LANE_POSITIONS,
+  PIXELS_PER_SECOND,
+  TAP_NOTE_HEIGHT,
+  TIMELINE_BOTTOM_PADDING,
+} from './constants';
 
-const NOTE_WIDTH = 90;
+const NOTE_WIDTH = 92;
 const NOTE_HALF = NOTE_WIDTH / 2;
 
 interface ChartEditorTimelineProps {
@@ -17,6 +22,7 @@ interface ChartEditorTimelineProps {
   timelineContentHeight: number;
   timelineScrollRef: React.RefObject<HTMLDivElement>;
   timelineContentRef: React.RefObject<HTMLDivElement>;
+  zoom: number;
   onTimelineClick: (e: React.MouseEvent<HTMLDivElement>) => void;
   onPlayheadMouseDown: (e: React.MouseEvent) => void;
   onNoteClick: (noteId: number) => void;
@@ -35,6 +41,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   timelineContentHeight,
   timelineScrollRef,
   timelineContentRef,
+  zoom,
   onTimelineClick,
   onPlayheadMouseDown,
   onNoteClick,
@@ -58,6 +65,22 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
 
     return lines;
   }, [timelineDurationMs, beatDuration, gridDivision, timeSignatureOffset, sortedTimeSignatures, timeToY]);
+
+  const gridCellHeight = useMemo(() => {
+    const cellDurationMs = beatDuration / Math.max(1, gridDivision);
+    const rawHeight =
+      (cellDurationMs / 1000) * PIXELS_PER_SECOND * Math.max(0.2, zoom);
+    return Math.max(12, rawHeight);
+  }, [beatDuration, gridDivision, zoom]);
+
+  const tapNoteHeight = useMemo(() => {
+    const candidate = gridCellHeight - 8;
+    const maxHeight = NOTE_WIDTH * 0.8;
+    const fallback = TAP_NOTE_HEIGHT;
+    return Math.max(18, Math.min(candidate || fallback, maxHeight));
+  }, [gridCellHeight]);
+
+  const gridCellHalf = gridCellHeight / 2;
 
   // 초기 스크롤을 하단(판정선 위치)으로 설정
   useEffect(() => {
@@ -170,13 +193,21 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
 
         {/* 노트 렌더링 */}
         {notes.map((note) => {
-          const startY = getNoteY(note.time);
+          const effectiveTapHeight = tapNoteHeight || TAP_NOTE_HEIGHT;
+          const startCenterY = getNoteY(note.time) - gridCellHalf;
           const isHold = note.duration > 0 || note.type === 'hold';
-          const endY = isHold ? timeToY(note.endTime || note.time + note.duration) : startY;
+          const endCenterY = isHold
+            ? timeToY(note.endTime || note.time + note.duration) - gridCellHalf
+            : startCenterY;
+          const topPosition = isHold
+            ? Math.min(startCenterY, endCenterY) - effectiveTapHeight / 2
+            : startCenterY - effectiveTapHeight / 2;
           const noteHeight = isHold
-            ? Math.max(30, Math.abs(endY - startY))
-            : TAP_NOTE_HEIGHT;
-          const topPosition = isHold ? Math.min(startY, endY) : startY - TAP_NOTE_HEIGHT / 2;
+            ? Math.max(
+                effectiveTapHeight,
+                Math.abs(endCenterY - startCenterY) + effectiveTapHeight
+              )
+            : effectiveTapHeight;
           const isOddLane = note.lane === 0 || note.lane === 2;
           const tapGradient = isOddLane
             ? 'linear-gradient(180deg, #FF6B6B 0%, #FF9A8B 100%)'

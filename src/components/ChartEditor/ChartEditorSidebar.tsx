@@ -50,11 +50,19 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
   onTestChart,
   onShareClick,
 }) => {
-  const offsetStep = Math.max(1, Math.round(beatDuration / gridDivision));
-  const maxOffset = Math.max(offsetStep * gridDivision, beatDuration);
+  const gridCellMs = beatDuration / Math.max(1, gridDivision);
+  const maxOffset = beatDuration;
+  const offsetInCells = timeSignatureOffset / gridCellMs;
+  const displayOffset =
+    offsetInCells === 0
+      ? '0'
+      : `${offsetInCells > 0 ? '+' : ''}${offsetInCells
+          .toFixed(2)
+          .replace(/\\.0+$/, '')
+          .replace(/(\\.\\d*?)0+$/, '$1')}`;
 
   const handleOffsetAdjust = (direction: -1 | 1) => {
-    const next = timeSignatureOffset + direction * offsetStep;
+    const next = timeSignatureOffset + direction * gridCellMs;
     const clamped = Math.max(-maxOffset, Math.min(next, maxOffset));
     onTimeSignatureOffsetChange(clamped);
   };
@@ -297,7 +305,7 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
             onClick={() => handleOffsetAdjust(-1)}
             style={{
               flex: 1,
-              padding: '6px 8px',
+              padding: '8px',
               backgroundColor: 'rgba(148,163,184,0.14)',
               color: CHART_EDITOR_THEME.textPrimary,
               border: 'none',
@@ -307,23 +315,24 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
               fontWeight: 600,
             }}
           >
-            ◀ 한 칸
+            당기기
           </button>
           <div
             style={{
-              minWidth: '80px',
+              minWidth: '90px',
               textAlign: 'center',
               fontSize: '13px',
               color: CHART_EDITOR_THEME.textPrimary,
+              fontWeight: 600,
             }}
           >
-            {Math.round(timeSignatureOffset)}ms
+            {displayOffset}칸
           </div>
           <button
             onClick={() => handleOffsetAdjust(1)}
             style={{
               flex: 1,
-              padding: '6px 8px',
+              padding: '8px',
               backgroundColor: 'rgba(34,211,238,0.14)',
               color: CHART_EDITOR_THEME.accentStrong,
               border: 'none',
@@ -333,17 +342,8 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
               fontWeight: 600,
             }}
           >
-            한 칸 ▶
+            밀기
           </button>
-        </div>
-        <div
-          style={{
-            marginTop: '6px',
-            fontSize: '11px',
-            color: CHART_EDITOR_THEME.textSecondary,
-          }}
-        >
-          한 칸 = 한 격자 간격 (현재 1/{gridDivision})
         </div>
       </div>
 
@@ -357,22 +357,27 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
           border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
         }}
       >
-        <label
+        <button
+          onClick={onToggleLongNoteMode}
           style={{
-            display: 'flex',
-            alignItems: 'center',
+            width: '100%',
+            padding: '10px 12px',
+            borderRadius: CHART_EDITOR_THEME.radiusMd,
+            border: `1px solid ${
+              isLongNoteMode ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.borderSubtle
+            }`,
+            background: isLongNoteMode
+              ? 'linear-gradient(135deg, rgba(56,189,248,0.2), rgba(56,189,248,0.05))'
+              : 'transparent',
+            color: isLongNoteMode ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.textPrimary,
             fontSize: '13px',
+            fontWeight: 600,
             cursor: 'pointer',
-            gap: '8px',
+            transition: 'all 0.2s ease',
           }}
         >
-          <input
-            type="checkbox"
-            checked={isLongNoteMode}
-            onChange={onToggleLongNoteMode}
-          />
           롱노트 모드
-        </label>
+        </button>
       </div>
 
       {/* 테스트 시작 위치 */}
