@@ -248,11 +248,21 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
     const scrollRect = timelineScrollRef.current.getBoundingClientRect();
     const clickY = e.clientY - scrollRect.top + timelineScrollRef.current.scrollTop;
+    
+    // 재생선 영역(playheadY ± 10px)을 클릭했다면 무시 (재생선 클릭으로 인식)
+    if (Math.abs(clickY - playheadY) < 10) {
+      return;
+    }
+    
     const time = clampTime(yToTime(clickY));
     setIsPlaying(false);
     setCurrentTime(time);
     seekTo(time);
-  }, [clampTime, yToTime, seekTo]);
+    // seekTo 후 재생이 시작되지 않도록 추가 보호
+    setTimeout(() => {
+      setIsPlaying(false);
+    }, 50);
+  }, [clampTime, yToTime, seekTo, playheadY]);
 
   const handleLaneInput = useCallback((lane: Lane) => {
     // 현재 시간을 그리드에 스냅해서 노트가 가로선에 맞게 설치되도록 함
