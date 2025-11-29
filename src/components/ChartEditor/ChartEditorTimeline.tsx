@@ -13,6 +13,7 @@ interface ChartEditorTimelineProps {
   isAutoScrollEnabled: boolean;
   timelineContentHeight: number;
   timelineScrollRef: React.RefObject<HTMLDivElement>;
+  timelineContentRef: React.RefObject<HTMLDivElement>;
   onTimelineClick: (e: React.MouseEvent<HTMLDivElement>) => void;
   onPlayheadMouseDown: (e: React.MouseEvent) => void;
   onNoteClick: (noteId: number) => void;
@@ -30,6 +31,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   playheadY,
   timelineContentHeight,
   timelineScrollRef,
+  timelineContentRef,
   onTimelineClick,
   onPlayheadMouseDown,
   onNoteClick,
@@ -84,6 +86,18 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
           minHeight: '100%',
         }}
       >
+        {/* 중앙 정렬된 컨텐츠 래퍼 */}
+        <div
+          ref={timelineContentRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '500px',
+            height: '100%',
+          }}
+        >
         {/* 레인 배경 */}
         {LANE_POSITIONS.map((x, index) => (
           <div
@@ -217,31 +231,26 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
           style={{
             position: 'absolute',
             left: LANE_POSITIONS[0] - 50,
-            top: `${playheadY}px`,
+            top: `${playheadY - 10}px`, // 클릭 영역 확장을 위해 위로 올림
             width: `${LANE_POSITIONS[3] - LANE_POSITIONS[0] + 100}px`,
-            height: '2px',
-            backgroundColor: '#FF0000',
+            height: '20px', // 클릭 영역 높이 확장
             cursor: 'ns-resize',
             zIndex: 100,
-            boxShadow: '0 0 10px rgba(255, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center', // 내부 선 중앙 정렬
           }}
         >
-          {/* 재생선 핸들 */}
+          {/* 시각적인 재생선 (빨간 선) */}
           <div
             style={{
-              position: 'absolute',
-              left: '50%',
-              top: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: '12px',
-              height: '12px',
+              width: '100%',
+              height: '2px',
               backgroundColor: '#FF0000',
-              borderRadius: '50%',
-              border: '2px solid #fff',
-              boxShadow: '0 0 8px rgba(255, 0, 0, 0.8)',
+              boxShadow: '0 0 10px rgba(255, 0, 0, 0.5)',
             }}
           />
         </div>
+      </div>
       </div>
     </div>
   );

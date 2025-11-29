@@ -61,6 +61,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   // --- Refs & 기타 ---
   const noteIdRef = useRef(0);
   const timelineScrollRef = useRef<HTMLDivElement>(null);
+  const timelineContentRef = useRef<HTMLDivElement>(null);
   const tapBpmCalculatorRef = useRef(new TapBPMCalculator());
   const [tapBpmResult, setTapBpmResult] = useState<{ bpm: number; confidence: number } | null>(null);
   const [tapCount, setTapCount] = useState(0);
@@ -217,19 +218,23 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
   // 타임라인 클릭 (노트 생성)
   const handleTimelineClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!timelineScrollRef.current) return;
+    if (!timelineScrollRef.current || !timelineContentRef.current) return;
     
     // 재생선 드래그 중이면 무시
     if (isDraggingPlayheadRef.current) return;
 
-    const rect = timelineScrollRef.current.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top + timelineScrollRef.current.scrollTop;
+    const scrollRect = timelineScrollRef.current.getBoundingClientRect();
+    const contentRect = timelineContentRef.current.getBoundingClientRect();
+    
+    // X 좌표는 컨텐츠(레인) 기준, Y 좌표는 스크롤 컨테이너 기준
+    const clickX = e.clientX - contentRect.left;
+    const clickY = e.clientY - scrollRect.top + timelineScrollRef.current.scrollTop;
 
     // 레인 판별
     let clickedLane: Lane | null = null;
     const laneWidth = 100;
     LANE_POSITIONS.forEach((pos, index) => {
+      // pos는 레인 중심 좌표
       if (Math.abs(clickX - pos) < laneWidth / 2) {
         clickedLane = index as Lane;
       }
@@ -428,16 +433,22 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     container.scrollTop = targetScrollTop;
   }, [isPlaying, isAutoScrollEnabled, playheadY]);
 
-  // 키보드 핸들러 (스페이스바 재생 등) - useKeyboard 훅 대신 직접 구현 (복잡성 때문)
+  // 키보드 핸들러 (스페이스바 재생 등)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      // 입력 필드나 버튼에 포커스가 있을 때는 스페이스바 동작 방지 (중복 실행 방지)
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLButtonElement
+      ) {
+        return;
+      }
       
       if (e.code === 'Space') {
         e.preventDefault();
         setIsPlaying(prev => !prev);
       }
-      // 기타 단축키 (Delete 등) 추가 가능
     };
     
     window.addEventListener('keydown', handleKeyDown);
@@ -567,6 +578,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                 isAutoScrollEnabled={isAutoScrollEnabled}
                 timelineContentHeight={timelineContentHeight}
                 timelineScrollRef={timelineScrollRef}
+                timelineContentRef={timelineContentRef}
                 onTimelineClick={handleTimelineClick}
                 onPlayheadMouseDown={handlePlayheadMouseDown}
                 onNoteClick={deleteNote}
