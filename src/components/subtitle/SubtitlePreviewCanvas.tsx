@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { SubtitleCue, SubtitleStyle } from '../../types/subtitle';
 import { CHART_EDITOR_THEME } from '../ChartEditor/constants';
 
@@ -19,6 +19,8 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
   selectedCueId,
   onChangeCueStyle,
 }) => {
+  const previewRef = useRef<HTMLDivElement | null>(null);
+
   const activeCues = cues.filter(
     (c) => currentTimeMs >= c.startTimeMs && currentTimeMs <= c.endTimeMs
   );
@@ -39,21 +41,23 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
     const originRot = style.rotationDeg ?? 0;
 
     const handleMove = (ev: MouseEvent) => {
+      const rect = previewRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
       const dx = ev.clientX - originX;
       const dy = ev.clientY - originY;
 
       if (mode === 'move') {
-        const nextX = Math.min(1, Math.max(0, originPos.x + dx / width));
-        const nextY = Math.min(1, Math.max(0, originPos.y + dy / height));
+        const nextX = Math.min(1, Math.max(0, originPos.x + dx / rect.width));
+        const nextY = Math.min(1, Math.max(0, originPos.y + dy / rect.height));
 
         onChangeCueStyle(cue.id, {
           ...style,
           position: { x: nextX, y: nextY },
         });
       } else {
-        const parentRect = (e.currentTarget.parentElement as HTMLDivElement).getBoundingClientRect();
-        const centerX = parentRect.left + parentRect.width * originPos.x;
-        const centerY = parentRect.top + parentRect.height * originPos.y;
+        const centerX = rect.left + rect.width * originPos.x;
+        const centerY = rect.top + rect.height * originPos.y;
         const angleRad = Math.atan2(ev.clientY - centerY, ev.clientX - centerX);
         const angleDeg = (angleRad * 180) / Math.PI;
         onChangeCueStyle(cue.id, {
@@ -77,8 +81,8 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
       const style = cue.style;
       const pos = style.position ?? { x: 0.5, y: 0.9 };
 
-      const left = pos.x * width;
-      const top = pos.y * height;
+      const left = `${pos.x * 100}%`;
+      const top = `${pos.y * 100}%`;
 
       const transform: string[] = [];
 
@@ -162,42 +166,58 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
   return (
     <div
       style={{
-        flex: 1,
-        minHeight: 260,
+        flex: '0 0 auto',
         borderRadius: CHART_EDITOR_THEME.radiusLg,
         border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-        background:
-          'radial-gradient(circle at top, #020617 0%, #020617 40%, #020617 100%)',
-        position: 'relative',
-        overflow: 'hidden',
+        backgroundColor: 'transparent',
+        padding: 8,
+        boxSizing: 'border-box',
       }}
     >
       <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: CHART_EDITOR_THEME.textSecondary,
-          fontSize: 12,
-          pointerEvents: 'none',
-        }}
-      >
-        프리뷰 (실제 게임 화면 비율과 유사)\n현재 시간: {(currentTimeMs / 1000).toFixed(2)}s
-      </div>
-
-      {/* 실제 자막 렌더링 레이어 */}
-      <div
+        ref={previewRef}
         style={{
           position: 'relative',
-          width,
-          height,
+          width: '100%',
+          maxWidth: `${width}px`,
           margin: '0 auto',
-          pointerEvents: 'none',
+          aspectRatio: `${width} / ${height}`,
+          borderRadius: CHART_EDITOR_THEME.radiusLg,
+          overflow: 'hidden',
+          background:
+            'radial-gradient(circle at top, #020617 0%, #020617 40%, #020617 100%)',
         }}
       >
-        {activeCues.map(renderCue)}
+        {/* 안내 텍스트 */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'flex-end',
+            padding: 8,
+            color: CHART_EDITOR_THEME.textSecondary,
+            fontSize: 11,
+            pointerEvents: 'none',
+            background:
+              'linear-gradient(180deg, rgba(15,23,42,0.4), transparent 40%)',
+          }}
+        >
+          현재 시간: {(currentTimeMs / 1000).toFixed(2)}s
+        </div>
+
+        {/* 실제 자막 렌더링 레이어 */}
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none',
+          }}
+        >
+          {activeCues.map(renderCue)}
+        </div>
       </div>
     </div>
   );
