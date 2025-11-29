@@ -32,3 +32,42 @@ export interface GameState {
   gameEnded: boolean;
 }
 
+// BPM 변속 관련 타입
+export interface BPMChange {
+  id: number;
+  beatIndex: number; // 변속이 시작되는 비트 인덱스
+  bpm: number; // 새로운 BPM
+}
+
+// 곡 정보 (변속 포함)
+export interface SongInfo {
+  baseBpm: number; // 기본 BPM
+  bpmChanges: BPMChange[]; // BPM 변속 목록 (비트 인덱스 기준 정렬)
+  durationSeconds: number; // 영상 길이 (초)
+  totalBeats: number; // 계산된 총 비트 수
+}
+
+export interface TimeSignatureEvent {
+  id: number;
+  beatIndex: number; // 곡 전체 기준 비트 인덱스
+  beatsPerMeasure: number; // 예: 4(4/4), 3(3/4)
+}
+
+export interface ChartTestPayload {
+  notes: Note[];
+  startTimeMs: number;
+  youtubeVideoId: string | null;
+  youtubeUrl: string;
+  playbackSpeed: number;
+  audioOffsetMs?: number;
+}
+
+export interface SubtitleEditorChartData {
+  chartId: string;
+  notes: Note[];
+  bpm: number;
+  youtubeVideoId?: string | null;
+  youtubeUrl?: string;
+  title?: string;
+}
+

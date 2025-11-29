@@ -37,6 +37,7 @@ declare global {
           events?: {
             onReady?: (event: any) => void;
             onStateChange?: (event: any) => void;
+            onError?: (event: any) => void;
           };
         }
       ) => {
@@ -87,5 +88,101 @@ export function waitForYouTubeAPI(): Promise<void> {
       }
     }, 5000);
   });
+}
+
+// YouTube 영상 길이 가져오기 (초 단위)
+export function getYouTubeVideoDuration(videoId: string): Promise<number | null> {
+  return new Promise((resolve) => {
+    waitForYouTubeAPI().then(() => {
+      if (!window.YT || !window.YT.Player) {
+        console.error('YouTube IFrame API를 사용할 수 없습니다.');
+        resolve(null);
+        return;
+      }
+
+      // 임시 플레이어 생성 (숨김)
+      const tempPlayerId = `temp-youtube-player-${Date.now()}`;
+      const tempDiv = document.createElement('div');
+      tempDiv.id = tempPlayerId;
+      tempDiv.style.display = 'none';
+      document.body.appendChild(tempDiv);
+
+      let player: any = null;
+
+      try {
+        player = new window.YT.Player(tempPlayerId, {
+          videoId: videoId,
+          playerVars: {
+            autoplay: 0,
+            controls: 0,
+            enablejsapi: 1,
+          },
+          events: {
+            onReady: (event: any) => {
+              try {
+                const duration = event.target.getDuration();
+                // 플레이어 정리
+                if (player) {
+                  player.destroy();
+                }
+                document.body.removeChild(tempDiv);
+                resolve(duration);
+              } catch (error) {
+                console.error('영상 길이 가져오기 실패:', error);
+                if (player) {
+                  player.destroy();
+                }
+                document.body.removeChild(tempDiv);
+                resolve(null);
+              }
+            },
+            onError: (event: any) => {
+              console.error('YouTube 플레이어 오류:', event);
+              if (player) {
+                player.destroy();
+              }
+              document.body.removeChild(tempDiv);
+              resolve(null);
+            },
+          },
+        });
+      } catch (error) {
+        console.error('YouTube 플레이어 생성 실패:', error);
+        document.body.removeChild(tempDiv);
+        resolve(null);
+      }
+
+      // 타임아웃 처리 (10초)
+      setTimeout(() => {
+        if (player) {
+          try {
+            const duration = player.getDuration();
+            if (duration && duration > 0) {
+              player.destroy();
+              document.body.removeChild(tempDiv);
+              resolve(duration);
+              return;
+            }
+          } catch (e) {
+            // 무시
+          }
+        }
+        if (player) {
+          player.destroy();
+        }
+        if (document.getElementById(tempPlayerId)) {
+          document.body.removeChild(tempDiv);
+        }
+        resolve(null);
+      }, 10000);
+    });
+  });
+}
+
+// 초를 분:초 형식으로 변환
+export function formatDuration(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
 }
 
