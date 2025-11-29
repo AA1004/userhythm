@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Note, TimeSignatureEvent } from '../../types/game';
-import { LANE_POSITIONS, TAP_NOTE_HEIGHT, TIMELINE_BOTTOM_PADDING, CHART_EDITOR_THEME } from './constants';
+import { LANE_POSITIONS, TAP_NOTE_HEIGHT, TIMELINE_BOTTOM_PADDING } from './constants';
 
 interface ChartEditorTimelineProps {
   notes: Note[];
