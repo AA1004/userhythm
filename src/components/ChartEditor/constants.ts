@@ -48,5 +48,12 @@ export const CHART_EDITOR_THEME = {
   // 그림자 프리셋
   shadowSoft: '0 12px 30px rgba(15, 23, 42, 0.85)',
   shadowStrong: '0 0 0 1px rgba(34, 211, 238, 0.9), 0 22px 50px rgba(15, 23, 42, 0.95)',
+  
+  // 메인 화면 전용
+  titleGradient: 'linear-gradient(135deg, #38bdf8 0%, #22d3ee 50%, #818cf8 100%)',
+  titleGlow: '0 0 40px rgba(56, 189, 248, 0.5)',
+  ctaButtonGradient: 'linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(34, 211, 238, 0.15))',
+  ctaButtonGradientHover: 'linear-gradient(135deg, rgba(56, 189, 248, 0.3), rgba(34, 211, 238, 0.25))',
+  backgroundGradient: 'radial-gradient(circle at top, #020617 0%, #0b1120 40%, #020617 100%)',
 } as const;
 

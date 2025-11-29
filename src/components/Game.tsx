@@ -17,6 +17,7 @@ import { waitForYouTubeAPI } from '../utils/youtube';
 import { SubtitleCue, SubtitleStyle } from '../types/subtitle';
 import { subtitleAPI, localSubtitleStorage } from '../lib/subtitleAPI';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
+import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 
 // Subtitle editor chart data
 interface SubtitleEditorChartData {
@@ -1033,7 +1034,7 @@ export const Game: React.FC = () => {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        backgroundColor: '#1a1a1a',
+        background: CHART_EDITOR_THEME.backgroundGradient,
         fontFamily: 'Arial, sans-serif',
       }}
     >
@@ -1041,11 +1042,12 @@ export const Game: React.FC = () => {
         style={{
           width: '500px', // 좌우 여백을 3분의 1로 줄임: 700px - 400px = 300px -> 100px
           height: '800px',
-          backgroundColor: '#1f1f1f', // 회백색 배경 (가장 어두운색)
+          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
           position: 'relative',
           overflow: 'hidden',
-          borderRadius: '12px',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          borderRadius: CHART_EDITOR_THEME.radiusLg,
+          boxShadow: CHART_EDITOR_THEME.shadowSoft,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
         }}
       >
         {/* 4개 레인 영역 배경 */}
@@ -1056,7 +1058,7 @@ export const Game: React.FC = () => {
             top: '0',
             width: '400px',
             height: '100%',
-            backgroundColor: '#2a2a2a', // 4개 레인 영역 배경 (좀 밝은 색)
+            backgroundColor: 'rgba(15, 23, 42, 0.6)', // 네온 톤의 남색 계열
           }}
         />
         
@@ -1287,22 +1289,22 @@ export const Game: React.FC = () => {
               right: '16px',
               padding: '8px 16px',
               fontSize: '14px',
-              backgroundColor: 'rgba(255, 68, 68, 0.9)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '8px',
+              backgroundColor: CHART_EDITOR_THEME.danger,
+              color: CHART_EDITOR_THEME.textPrimary,
+              border: `1px solid ${CHART_EDITOR_THEME.danger}`,
+              borderRadius: CHART_EDITOR_THEME.radiusMd,
               cursor: 'pointer',
               fontWeight: 'bold',
               zIndex: 1000,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+              boxShadow: CHART_EDITOR_THEME.shadowSoft,
               transition: 'all 0.2s',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 1)';
+              e.currentTarget.style.backgroundColor = '#ef4444';
               e.currentTarget.style.transform = 'scale(1.05)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 68, 68, 0.9)';
+              e.currentTarget.style.backgroundColor = CHART_EDITOR_THEME.danger;
               e.currentTarget.style.transform = 'scale(1)';
             }}
           >
@@ -1332,12 +1334,13 @@ export const Game: React.FC = () => {
                 marginTop: '-40px',
                 fontWeight: '900',
                 fontStyle: 'italic',
-                letterSpacing: '4px',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+                letterSpacing: '2px', // 4px에서 2px로 줄임
+                background: CHART_EDITOR_THEME.titleGradient,
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
-                textShadow: '0 0 40px rgba(102, 126, 234, 0.5)',
+                WebkitTextStroke: `3px ${CHART_EDITOR_THEME.rootBackground}`, // 텍스트 테두리
+                textShadow: CHART_EDITOR_THEME.titleGlow,
                 fontFamily: 'Arial Black, sans-serif',
                 textTransform: 'uppercase',
                 lineHeight: '1.1',
@@ -1345,7 +1348,7 @@ export const Game: React.FC = () => {
             >
                UseRhythm
             </h1>
-            <p style={{ fontSize: '18px', marginBottom: '48px', color: '#aaa' }}>
+            <p style={{ fontSize: '18px', marginBottom: '48px', color: CHART_EDITOR_THEME.textSecondary }}>
               누구나 리듬게임 채보를 만들고 공유하세요
             </p>
 
@@ -1362,24 +1365,24 @@ export const Game: React.FC = () => {
                 style={{
                   padding: '20px 40px',
                   fontSize: '22px',
-                  backgroundColor: '#2196F3',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '12px',
+                  background: CHART_EDITOR_THEME.ctaButtonGradient,
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
+                  borderRadius: CHART_EDITOR_THEME.radiusLg,
                   cursor: 'pointer',
                   fontWeight: 'bold',
                   transition: 'all 0.2s',
-                  boxShadow: '0 4px 12px rgba(33, 150, 243, 0.3)',
+                  boxShadow: `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`,
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#1976D2';
+                  e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
                   e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(33, 150, 243, 0.4)';
+                  e.currentTarget.style.boxShadow = `0 6px 16px ${CHART_EDITOR_THEME.accentSoft}`;
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#2196F3';
+                  e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradient;
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(33, 150, 243, 0.3)';
+                  e.currentTarget.style.boxShadow = `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`;
                 }}
                 onClick={() => {
                   setIsChartSelectOpen(true);
@@ -1392,24 +1395,24 @@ export const Game: React.FC = () => {
                 style={{
                   padding: '20px 40px',
                   fontSize: '22px',
-                  backgroundColor: '#FF9800',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '12px',
+                  background: CHART_EDITOR_THEME.ctaButtonGradient,
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
+                  borderRadius: CHART_EDITOR_THEME.radiusLg,
                   cursor: 'pointer',
                   fontWeight: 'bold',
                   transition: 'all 0.2s',
-                  boxShadow: '0 4px 12px rgba(255, 152, 0, 0.3)',
+                  boxShadow: `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`,
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#F57C00';
+                  e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
                   e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(255, 152, 0, 0.4)';
+                  e.currentTarget.style.boxShadow = `0 6px 16px ${CHART_EDITOR_THEME.accentSoft}`;
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#FF9800';
+                  e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradient;
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 152, 0, 0.3)';
+                  e.currentTarget.style.boxShadow = `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`;
                 }}
                 onClick={() => {
                   setIsEditorOpen(true);
@@ -1422,24 +1425,24 @@ export const Game: React.FC = () => {
                 style={{
                   padding: '12px 24px',
                   fontSize: '16px',
-                  backgroundColor: '#9C27B0',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '8px',
+                  background: CHART_EDITOR_THEME.ctaButtonGradient,
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                  borderRadius: CHART_EDITOR_THEME.radiusMd,
                   cursor: 'pointer',
                   fontWeight: 'bold',
                   transition: 'all 0.2s',
-                  boxShadow: '0 4px 12px rgba(156, 39, 176, 0.3)',
+                  boxShadow: `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`,
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#7B1FA2';
+                  e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
                   e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(156, 39, 176, 0.4)';
+                  e.currentTarget.style.boxShadow = `0 6px 16px ${CHART_EDITOR_THEME.accentSoft}`;
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#9C27B0';
+                  e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradient;
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(156, 39, 176, 0.3)';
+                  e.currentTarget.style.boxShadow = `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`;
                 }}
                 onClick={() => {
                   setIsAdminOpen(true);
@@ -1453,13 +1456,20 @@ export const Game: React.FC = () => {
             {/* 설정 */}
             <div
               style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                padding: '24px',
-                borderRadius: '12px',
+                backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+                padding: CHART_EDITOR_THEME.paddingLg,
+                borderRadius: CHART_EDITOR_THEME.radiusLg,
                 marginTop: '16px',
+                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                boxShadow: CHART_EDITOR_THEME.shadowSoft,
               }}
             >
-              <h3 style={{ fontSize: '20px', marginBottom: '20px', fontWeight: 'bold' }}>
+              <h3 style={{ 
+                fontSize: '20px', 
+                marginBottom: '20px', 
+                fontWeight: 'bold',
+                color: CHART_EDITOR_THEME.textPrimary,
+              }}>
                 ⚙️ 게임 설정
               </h3>
               
@@ -1467,7 +1477,7 @@ export const Game: React.FC = () => {
               <div
                 style={{
                   marginBottom: '16px',
-                  color: '#fff',
+                  color: CHART_EDITOR_THEME.textPrimary,
                 }}
               >
                 <label
@@ -1476,6 +1486,7 @@ export const Game: React.FC = () => {
                     fontSize: '16px',
                     marginBottom: '12px',
                     fontWeight: '500',
+                    color: CHART_EDITOR_THEME.textPrimary,
                   }}
                 >
                   노트 속도: {speed.toFixed(1)}x
@@ -1492,8 +1503,9 @@ export const Game: React.FC = () => {
                     height: '8px',
                     borderRadius: '4px',
                     outline: 'none',
-                    backgroundColor: '#555',
+                    backgroundColor: CHART_EDITOR_THEME.surface,
                     cursor: 'pointer',
+                    accentColor: CHART_EDITOR_THEME.accent,
                   }}
                 />
                 <div
@@ -1502,7 +1514,7 @@ export const Game: React.FC = () => {
                     justifyContent: 'space-between',
                     fontSize: '12px',
                     marginTop: '8px',
-                    color: '#aaa',
+                    color: CHART_EDITOR_THEME.textSecondary,
                   }}
                 >
                   <span>0.5x</span>
@@ -1512,7 +1524,11 @@ export const Game: React.FC = () => {
                 </div>
               </div>
 
-              <div style={{ fontSize: '14px', color: '#aaa', marginTop: '16px' }}>
+              <div style={{ 
+                fontSize: '14px', 
+                color: CHART_EDITOR_THEME.textSecondary, 
+                marginTop: '16px' 
+              }}>
                 키 조작키: D, F, J, K 키를 사용하세요
               </div>
             </div>
@@ -1528,15 +1544,27 @@ export const Game: React.FC = () => {
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
                 textAlign: 'center',
-                color: '#fff',
-                backgroundColor: 'rgba(0,0,0,0.85)',
+                color: CHART_EDITOR_THEME.textPrimary,
+                backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
                 padding: '32px',
-                borderRadius: '12px',
+                borderRadius: CHART_EDITOR_THEME.radiusLg,
                 minWidth: '360px',
+                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                boxShadow: CHART_EDITOR_THEME.shadowSoft,
               }}
             >
-              <h1 style={{ fontSize: '40px', marginBottom: '20px' }}>테스트 종료</h1>
-              <div style={{ fontSize: '20px', marginBottom: '28px' }}>
+              <h1 style={{ 
+                fontSize: '40px', 
+                marginBottom: '20px',
+                color: CHART_EDITOR_THEME.textPrimary,
+              }}>
+                테스트 종료
+              </h1>
+              <div style={{ 
+                fontSize: '20px', 
+                marginBottom: '28px',
+                color: CHART_EDITOR_THEME.textSecondary,
+              }}>
                 <div>정확도: {accuracy.toFixed(2)}%</div>
                 <div>최대 콤보: {gameState.score.maxCombo}</div>
               </div>
@@ -1546,12 +1574,21 @@ export const Game: React.FC = () => {
                   style={{
                     padding: '14px 24px',
                     fontSize: '18px',
-                    backgroundColor: '#4CAF50',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '8px',
+                    background: CHART_EDITOR_THEME.ctaButtonGradient,
+                    color: CHART_EDITOR_THEME.textPrimary,
+                    border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
+                    borderRadius: CHART_EDITOR_THEME.radiusMd,
                     cursor: 'pointer',
                     fontWeight: 'bold',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradient;
+                    e.currentTarget.style.transform = 'translateY(0)';
                   }}
                 >
                   🔁 다시 테스트
@@ -1561,12 +1598,21 @@ export const Game: React.FC = () => {
                   style={{
                     padding: '14px 24px',
                     fontSize: '18px',
-                    backgroundColor: '#FF9800',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '8px',
+                    background: CHART_EDITOR_THEME.ctaButtonGradient,
+                    color: CHART_EDITOR_THEME.textPrimary,
+                    border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
+                    borderRadius: CHART_EDITOR_THEME.radiusMd,
                     cursor: 'pointer',
                     fontWeight: 'bold',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradient;
+                    e.currentTarget.style.transform = 'translateY(0)';
                   }}
                 >
                   ✏️ 에디터로 돌아가기
@@ -1576,12 +1622,21 @@ export const Game: React.FC = () => {
                   style={{
                     padding: '14px 24px',
                     fontSize: '18px',
-                    backgroundColor: '#616161',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '8px',
+                    background: 'transparent',
+                    color: CHART_EDITOR_THEME.textPrimary,
+                    border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                    borderRadius: CHART_EDITOR_THEME.radiusMd,
                     cursor: 'pointer',
                     fontWeight: 'bold',
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = CHART_EDITOR_THEME.surface;
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.transform = 'translateY(0)';
                   }}
                 >
                   🏠 메인 메뉴
@@ -1596,16 +1651,26 @@ export const Game: React.FC = () => {
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
                 textAlign: 'center',
-                color: '#fff',
-                backgroundColor: 'rgba(0,0,0,0.8)',
+                color: CHART_EDITOR_THEME.textPrimary,
+                backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
                 padding: '32px',
-                borderRadius: '12px',
+                borderRadius: CHART_EDITOR_THEME.radiusLg,
+                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                boxShadow: CHART_EDITOR_THEME.shadowSoft,
               }}
             >
-              <h1 style={{ fontSize: '48px', marginBottom: '32px' }}>
+              <h1 style={{ 
+                fontSize: '48px', 
+                marginBottom: '32px',
+                color: CHART_EDITOR_THEME.textPrimary,
+              }}>
                 게임 종료
               </h1>
-              <div style={{ fontSize: '24px', marginBottom: '32px' }}>
+              <div style={{ 
+                fontSize: '24px', 
+                marginBottom: '32px',
+                color: CHART_EDITOR_THEME.textSecondary,
+              }}>
                 <div>최대 콤보: {gameState.score.maxCombo}</div>
                 <div>정확도: {accuracy.toFixed(2)}%</div>
               </div>
@@ -1614,12 +1679,21 @@ export const Game: React.FC = () => {
                 style={{
                   padding: '16px 32px',
                   fontSize: '24px',
-                  backgroundColor: '#2196F3',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '8px',
+                  background: CHART_EDITOR_THEME.ctaButtonGradient,
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
+                  borderRadius: CHART_EDITOR_THEME.radiusMd,
                   cursor: 'pointer',
                   fontWeight: 'bold',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradient;
+                  e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
                 다시 시작

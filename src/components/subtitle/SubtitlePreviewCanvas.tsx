@@ -220,17 +220,17 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
             pointerEvents: 'none',
           }}
         >
-          {/* 게임 화면 느낌을 위한 레인 + 판정선 가이드 */}
-          {/* 레인 영역: 좌우 10% 여백, 4레인 */}
+          {/* 게임 화면 느낌을 위한 레인 + 판정선 가이드 (Game.tsx의 세로형 레인 비율에 가깝게 축소) */}
+          {/* 레인 영역: 가운데에 세로로 긴 4레인 박스 (가로보다 세로가 훨씬 긴 형태) */}
           <div
             style={{
               position: 'absolute',
-              left: '10%',
-              top: 0,
-              width: '80%',
-              height: '100%',
-              background: 'rgba(15,23,42,0.6)',
-              boxShadow: 'inset 0 0 0 1px rgba(148,163,184,0.25)',
+              left: '40%',   // 전체 폭의 가운데 20%만 사용
+              top: '8%',
+              width: '20%',
+              height: '84%', // 세로를 훨씬 길게
+              background: 'rgba(15,23,42,0.45)',
+              boxShadow: 'inset 0 0 0 1px rgba(148,163,184,0.18)',
             }}
           />
           {[0, 1, 2, 3, 4].map((i) => (
@@ -238,22 +238,23 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
               key={`lane-line-${i}`}
               style={{
                 position: 'absolute',
-                left: `${10 + i * 20}%`,
-                top: 0,
+                // 레인 경계선: 40% ~ 60% 사이를 4개 레인으로 분할
+                left: `${40 + i * 5}%`,
+                top: '8%',
                 width: 1,
-                height: '100%',
-                backgroundColor: 'rgba(148,163,184,0.35)',
+                height: '84%',
+                backgroundColor: 'rgba(148,163,184,0.26)',
                 transform: 'translateX(-0.5px)',
               }}
             />
           ))}
-          {/* 판정선: 게임 화면과 비슷하게 하단 80% 지점 */}
+          {/* 판정선: 레인 박스 안의 하단 쪽 (실제 게임 비율보다 조금 줄인 느낌) */}
           <div
             style={{
               position: 'absolute',
-              left: '10%',
-              width: '80%',
-              top: '80%',
+              left: '40%',
+              width: '20%',
+              top: '78%',
               height: 2,
               background:
                 'linear-gradient(90deg, rgba(248,250,252,0.6), rgba(251,113,133,0.95))',

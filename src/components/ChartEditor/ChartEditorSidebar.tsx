@@ -340,7 +340,7 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
               cursor: 'pointer',
               fontSize: '12px',
               fontWeight: 600,
-            }}
+          }}
           >
             밀기
           </button>

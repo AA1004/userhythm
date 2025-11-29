@@ -407,8 +407,8 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
           }}
         >
           <SubtitlePreviewCanvas
-            width={720}
-            height={405}
+            width={480}
+            height={270}
             currentTimeMs={currentTimeMs}
             cues={subtitles}
             selectedCueId={selectedSubtitleId}
