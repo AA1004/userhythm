@@ -28,8 +28,7 @@ interface ChartEditorHeaderProps {
   onTogglePlayback: () => void;
   onStop: () => void;
   onToggleAutoScroll: () => void;
-  onLoad: () => void;
-  onSave: () => void;
+  onReset?: () => void;
   onSubtitleClick?: () => void;
   onExit: () => void;
   onYoutubePasteButton: () => void;
@@ -40,6 +39,8 @@ interface ChartEditorHeaderProps {
   onAddBpmChangeAtCurrent: () => void;
   onEditBpmChange: (change: BPMChange) => void;
   onDeleteBpmChange: (id: number) => void;
+  onExportJson?: () => void;
+  onImportJson?: () => void;
 }
 
 export const ChartEditorHeader: React.FC<ChartEditorHeaderProps> = ({
@@ -58,21 +59,27 @@ export const ChartEditorHeader: React.FC<ChartEditorHeaderProps> = ({
   onTogglePlayback,
   onStop,
   onToggleAutoScroll,
-  onLoad,
-  onSave,
+  onReset,
   onSubtitleClick,
   onExit,
   onYoutubePasteButton,
   onToggleBpmInput,
   onBpmInput,
   onTapBpm,
+  onAddBpmChange,
+  onAddBpmChangeAtCurrent,
+  onEditBpmChange,
+  onDeleteBpmChange,
+  onExportJson,
+  onImportJson,
 }) => {
   const measures = Math.max(1, Math.round(songInfo.totalBeats / beatsPerMeasure));
   const beatsRounded = Math.round(songInfo.totalBeats);
 
   const actionButtons = [
-    { label: '불러오기', onClick: onLoad },
-    { label: '저장', onClick: onSave },
+    ...(onImportJson ? [{ label: 'JSON 불러오기', onClick: onImportJson }] : []),
+    ...(onExportJson ? [{ label: 'JSON 저장', onClick: onExportJson }] : []),
+    ...(onReset ? [{ label: '초기화', onClick: onReset, variant: 'danger' as const }] : []),
     ...(onSubtitleClick ? [{ label: '자막', onClick: onSubtitleClick }] : []),
     { label: '종료', onClick: onExit, variant: 'danger' as const },
   ];

@@ -114,8 +114,14 @@ export function useYoutubeAudio({
 
     try {
       if (isPlaying) {
-        // 재생 버튼을 눌렀을 때는 항상 타임라인 위치에서 재생 시작
-        player.seekTo(currentTimeMs / 1000, true);
+        // 재생 버튼을 눌렀을 때는 타임라인 위치에서 재생 시작
+        // 단, 플레이어 시간과 차이가 크지 않으면 seekTo 생략
+        const playerTime = (player.getCurrentTime?.() ?? 0) * 1000;
+        const timeDiff = Math.abs(playerTime - currentTimeMs);
+        if (timeDiff > 200) {
+          // 차이가 200ms 이상일 때만 시크
+          player.seekTo(currentTimeMs / 1000, true);
+        }
         player.playVideo?.();
       } else {
         player.pauseVideo?.();
@@ -132,6 +138,7 @@ export function useYoutubeAudio({
     const id = window.setInterval(() => {
       const player = playerRef.current;
       if (!player || !readyRef.current) return;
+      if (!isPlaying) return; // 재생 중이 아니면 동기화 중단
 
       try {
         const t = player.getCurrentTime?.() ?? 0;
@@ -139,14 +146,14 @@ export function useYoutubeAudio({
       } catch {
         // ignore
       }
-    }, 100);
+    }, 200); // 200ms마다 동기화 (주기 완화)
 
     return () => {
       window.clearInterval(id);
     };
   }, [isPlaying, setCurrentTimeMs]);
 
-  // 타임라인에서 시간 변경 시 플레이어에 시크
+  // 타임라인에서 시간 변경 시 플레이어에 시크 (재생 중이 아닐 때만)
   useEffect(() => {
     const player = playerRef.current;
     if (!player || !readyRef.current) return;
@@ -155,7 +162,8 @@ export function useYoutubeAudio({
     try {
       const playerTime = (player.getCurrentTime?.() ?? 0) * 1000;
       const diff = Math.abs(playerTime - currentTimeMs);
-      if (diff > 80) {
+      if (diff > 200) {
+        // 차이가 200ms 이상일 때만 시크 (허용 오차 완화)
         player.seekTo(currentTimeMs / 1000, true);
       }
     } catch {

@@ -34,6 +34,8 @@ export function useChartYoutubePlayer({
   const youtubePlayerRef = useRef<HTMLDivElement>(null);
   const youtubePlayerReadyRef = useRef(false);
   const lastSyncTimeRef = useRef(0);
+  const wasPlayingRef = useRef(false);
+  const latestTimeRef = useRef(0);
 
   // YouTube URL에서 Video ID 추출
   useEffect(() => {
@@ -57,13 +59,44 @@ export function useChartYoutubePlayer({
     setIsLoadingDuration(true);
     getYouTubeVideoDuration(youtubeVideoId)
       .then((duration) => {
-        setVideoDurationSeconds(duration);
+        // 플레이어가 준비되어 있으면 플레이어에서도 길이 확인
+        if (youtubePlayer && youtubePlayerReadyRef.current) {
+          try {
+            const playerDuration = youtubePlayer.getDuration?.();
+            if (playerDuration && playerDuration > 0) {
+              // 플레이어 길이와 API 길이 중 더 큰 값 사용
+              setVideoDurationSeconds(Math.max(duration || 0, playerDuration));
+            } else {
+              setVideoDurationSeconds(duration);
+            }
+          } catch (e) {
+            setVideoDurationSeconds(duration);
+          }
+        } else {
+          setVideoDurationSeconds(duration);
+        }
         setIsLoadingDuration(false);
       })
       .catch(() => {
         setIsLoadingDuration(false);
       });
-  }, [youtubeVideoId]);
+  }, [youtubeVideoId, youtubePlayer]);
+
+  // 플레이어가 준비된 후 길이 재확인
+  useEffect(() => {
+    if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
+    if (videoDurationSeconds !== null && videoDurationSeconds > 0) return; // 이미 유효한 길이가 있으면 스킵
+
+    // 플레이어에서 길이 가져오기 시도
+    try {
+      const playerDuration = youtubePlayer.getDuration?.();
+      if (playerDuration && playerDuration > 0) {
+        setVideoDurationSeconds(playerDuration);
+      }
+    } catch (e) {
+      // 무시
+    }
+  }, [youtubePlayer, videoDurationSeconds]);
 
   // YouTube 플레이어 초기화
   useEffect(() => {
@@ -184,20 +217,53 @@ export function useChartYoutubePlayer({
     };
   }, [youtubeVideoId, setIsPlaying, setCurrentTime, volume]);
 
-  // 재생/일시정지 제어
+  // latest currentTime snapshot (재생 시작 시점에서 사용)
+  useEffect(() => {
+    latestTimeRef.current = currentTime;
+  }, [currentTime]);
+
+  // 재생/일시정지 제어 (YouTube 쪽만 제어, 타임라인은 별도 동기화)
   useEffect(() => {
     if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
 
+    const ensurePlaying = () => {
+      try {
+        const playerState = youtubePlayer.getPlayerState?.();
+        if (
+          typeof window !== 'undefined' &&
+          window.YT &&
+          playerState !== window.YT.PlayerState.PLAYING
+        ) {
+          youtubePlayer.playVideo?.();
+        }
+      } catch (e) {
+        console.warn('재생 상태 확인 실패:', e);
+      }
+    };
+
     try {
       if (isPlaying) {
-        youtubePlayer.playVideo?.();
+        if (!wasPlayingRef.current) {
+          const timeSeconds = latestTimeRef.current / 1000;
+          youtubePlayer.seekTo(timeSeconds, false);
+          youtubePlayer.playVideo?.();
+        } else {
+          ensurePlaying();
+        }
       } else {
         youtubePlayer.pauseVideo?.();
       }
     } catch (e) {
       console.warn('재생 제어 실패:', e);
     }
+
+    wasPlayingRef.current = isPlaying;
   }, [isPlaying, youtubePlayer]);
+
+  // 플레이어가 새로 생성되면 재생 상태 초기화
+  useEffect(() => {
+    wasPlayingRef.current = false;
+  }, [youtubePlayer]);
 
   // 재생 속도 제어
   useEffect(() => {
@@ -221,45 +287,24 @@ export function useChartYoutubePlayer({
     }
   }, [volume, youtubePlayer]);
 
-  // 현재 시간 동기화 (재생 중이고 드래그 중이 아닐 때만)
-  useEffect(() => {
-    if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
-    if (!isPlaying) return; // 일시정지 상태에서는 에디터의 currentTime을 신뢰
-    if (isDraggingPlayhead) return;
-
-    const syncInterval = setInterval(() => {
-      if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
-      if (isDraggingPlayhead) return;
-
-      try {
-        const playerTime = youtubePlayer.getCurrentTime?.() ?? 0;
-        const playerTimeMs = playerTime * 1000;
-
-        // 차이가 100ms 이상이면 동기화
-        if (Math.abs(playerTimeMs - currentTime) > 100) {
-          setCurrentTime(playerTimeMs);
-          lastSyncTimeRef.current = playerTimeMs;
-        } else {
-          // 작은 차이는 플레이어 시간을 따라감
-          setCurrentTime(playerTimeMs);
-        }
-      } catch (e) {
-        console.warn('시간 동기화 실패:', e);
-      }
-    }, 100); // 100ms마다 동기화
-
-    return () => clearInterval(syncInterval);
-  }, [youtubePlayer, currentTime, isDraggingPlayhead, isPlaying, setCurrentTime]);
+  // 현재 시간 동기화 제거: 에디터 타이머가 단일 시간 소스가 되도록 유지
 
   // 시크 함수
   const seekTo = useCallback(
-    (timeMs: number, shouldPause: boolean = false) => {
+    (timeMs: number, options?: { shouldPause?: boolean; snapOnly?: boolean }) => {
       if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
+
+      const { shouldPause = false, snapOnly = false } = options || {};
 
       try {
         const timeSeconds = timeMs / 1000;
-        // allowSeekAhead를 false로 설정하여 재생이 자동으로 시작되지 않도록 함
-        youtubePlayer.seekTo(timeSeconds, false);
+        
+        // snapOnly 모드: 플레이어에는 시크하지 않고 에디터 시간만 업데이트
+        if (!snapOnly) {
+          // allowSeekAhead를 false로 설정하여 재생이 자동으로 시작되지 않도록 함
+          youtubePlayer.seekTo(timeSeconds, false);
+        }
+        
         setCurrentTime(timeMs);
         lastSyncTimeRef.current = timeMs;
         

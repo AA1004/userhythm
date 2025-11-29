@@ -1031,7 +1031,7 @@ export const Game: React.FC = () => {
 
   // 에디터가 열려있으면 에디터만 표시
   if (isEditorOpen) {
-    return <ChartEditor onSave={handleChartSave} onCancel={handleEditorCancel} onTest={handleEditorTest} onOpenSubtitleEditor={handleOpenSubtitleEditor} />;
+    return <ChartEditor onCancel={handleEditorCancel} onTest={handleEditorTest} onOpenSubtitleEditor={handleOpenSubtitleEditor} />;
   }
 
   // 채보 선택 화면

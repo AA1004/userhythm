@@ -160,8 +160,11 @@ export function useTestAudioController({
           // 음악을 노트 낙하 시간만큼 늦게 시작
           const startTimeSec = Math.max(0, (startTimeMs - BASE_FALL_DURATION) / 1000);
 
-          // 재생 속도 설정
-          youtubePlayer.setPlaybackRate?.(playbackSpeed);
+          // 재생 속도 설정 (값이 실제로 바뀔 때만 업데이트)
+          const currentRate = youtubePlayer.getPlaybackRate?.() ?? 1;
+          if (Math.abs(currentRate - playbackSpeed) > 0.01) {
+            youtubePlayer.setPlaybackRate?.(playbackSpeed);
+          }
 
           // 시작 위치로 이동
           youtubePlayer.seekTo(startTimeSec, true);
@@ -174,7 +177,7 @@ export function useTestAudioController({
           console.warn('YouTube 재생 실패:', e);
         }
       }
-    }, 50); // 게임 시작 후 50ms 후에 재생 시도
+    }, 100); // 게임 시작 후 100ms 후에 재생 시도 (지연 증가)
 
     const syncInterval = setInterval(() => {
       if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
@@ -184,7 +187,8 @@ export function useTestAudioController({
       if (
         typeof window !== 'undefined' &&
         window.YT &&
-        playerState !== window.YT.PlayerState.PLAYING
+        playerState !== window.YT.PlayerState.PLAYING &&
+        playerState !== window.YT.PlayerState.BUFFERING // 버퍼링 중이면 재생 시도하지 않음
       ) {
         try {
           youtubePlayer.playVideo?.();
@@ -203,8 +207,8 @@ export function useTestAudioController({
         );
         const currentSeconds = youtubePlayer.getCurrentTime?.() ?? 0;
 
-        // 차이가 0.1초 이상일 때만 시키기
-        if (Math.abs(currentSeconds - desiredSeconds) > 0.1) {
+        // 차이가 0.2초 이상일 때만 시키기 (허용 오차 완화)
+        if (Math.abs(currentSeconds - desiredSeconds) > 0.2) {
           try {
             youtubePlayer.seekTo(desiredSeconds, true);
             console.log(`⏱️ YouTube 시간 동기화: ${desiredSeconds.toFixed(2)}초`);
@@ -213,7 +217,7 @@ export function useTestAudioController({
           }
         }
       }
-    }, 50); // 50ms마다 동기화
+    }, 200); // 200ms마다 동기화 (주기 완화)
 
     return () => {
       clearTimeout(initialPlayAttempt);

@@ -74,6 +74,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [tapCount, setTapCount] = useState(0);
   const isDraggingPlayheadRef = useRef(false); // 훅으로 전달하기 위해 ref 사용
   const [pendingLongNote, setPendingLongNote] = useState<{ lane: Lane; startTime: number } | null>(null);
+  const playheadRafIdRef = useRef<number | null>(null);
+  const lastTickTimestampRef = useRef<number | null>(null);
 
   // --- 공유 모달 상태 ---
   const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
@@ -108,6 +110,41 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     volume,
     isDraggingPlayhead: isDraggingPlayheadRef.current,
   });
+
+  // --- 에디터 전용 타이머(재생선 시간 소스) ---
+  useEffect(() => {
+    if (!isPlaying) {
+      if (playheadRafIdRef.current !== null) {
+        cancelAnimationFrame(playheadRafIdRef.current);
+        playheadRafIdRef.current = null;
+      }
+      lastTickTimestampRef.current = null;
+      return;
+    }
+
+    const tick = (timestamp: number) => {
+      if (!isPlaying) return;
+
+      if (lastTickTimestampRef.current === null) {
+        lastTickTimestampRef.current = timestamp;
+      }
+      const deltaMs = (timestamp - lastTickTimestampRef.current) * playbackSpeed;
+      lastTickTimestampRef.current = timestamp;
+
+      setCurrentTime((prev) => Math.max(0, prev + deltaMs));
+      playheadRafIdRef.current = requestAnimationFrame(tick);
+    };
+
+    playheadRafIdRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (playheadRafIdRef.current !== null) {
+        cancelAnimationFrame(playheadRafIdRef.current);
+        playheadRafIdRef.current = null;
+      }
+      lastTickTimestampRef.current = null;
+    };
+  }, [isPlaying, playbackSpeed, setCurrentTime]);
 
   // --- 계산된 값들 ---
   const beatDuration = useMemo(() => (60000 / bpm), [bpm]);

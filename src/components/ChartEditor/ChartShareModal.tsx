@@ -80,7 +80,7 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
 
         {!user && (
           <div style={{ marginBottom: '20px', padding: '12px', backgroundColor: '#2a2a2a', borderRadius: '8px' }}>
-            <p style={{ margin: '0 0 12px 0' }}>로그인이 필요합니다.</p>
+            <p style={{ margin: '0 0 12px 0' }}>Google 계정으로 로그인해야 업로드할 수 있습니다.</p>
             <button
               onClick={onLogin}
               style={{
@@ -92,7 +92,7 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
                 cursor: 'pointer',
               }}
             >
-              로그인
+              Google 로그인
             </button>
           </div>
         )}
