@@ -3,7 +3,6 @@ import { useMemo } from 'react';
 interface UseChartTimelineOptions {
   zoom: number;
   currentTime: number;
-  TIMELINE_TOP_PADDING: number;
   TIMELINE_BOTTOM_PADDING: number;
   PIXELS_PER_SECOND: number;
   timelineContentHeight: number;
@@ -17,7 +16,6 @@ interface UseChartTimelineOptions {
 export function useChartTimeline({
   zoom,
   currentTime,
-  TIMELINE_TOP_PADDING,
   TIMELINE_BOTTOM_PADDING,
   PIXELS_PER_SECOND,
   timelineContentHeight,

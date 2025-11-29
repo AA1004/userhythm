@@ -131,7 +131,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   } = useChartTimeline({
     zoom,
     currentTime,
-    TIMELINE_TOP_PADDING,
     TIMELINE_BOTTOM_PADDING,
     PIXELS_PER_SECOND,
     timelineContentHeight,
