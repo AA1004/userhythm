@@ -196,7 +196,7 @@ pip install yt-dlp
 ## 📁 프로젝트 구조
 
 ```
-userythm/
+userhythm/
 ├── src/
 │   ├── components/      # React 컴포넌트
 │   │   ├── Game.tsx     # 메인 게임 컴포넌트

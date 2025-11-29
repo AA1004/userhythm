@@ -4,11 +4,11 @@
 
 1. **GitHub 저장소 생성**
    - GitHub에 새 저장소를 생성하거나 기존 저장소를 사용하세요
-   - 저장소 이름을 기억해두세요 (예: `userythm`)
+   - 저장소 이름을 기억해두세요 (예: `userhythm`)
 
 2. **vite.config.ts 수정**
    - `vite.config.ts` 파일의 `base` 경로를 저장소 이름에 맞게 수정하세요
-   - 예: 저장소 이름이 `userythm`이면 `/userythm/`로 설정
+   - 예: 저장소 이름이 `userhythm`이면 `/userhythm/`로 설정
 
 ## GitHub Pages 설정
 
