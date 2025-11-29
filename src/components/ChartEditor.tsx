@@ -9,7 +9,7 @@ import { useChartTimeline } from '../hooks/useChartTimeline';
 import { useChartAutosave } from '../hooks/useChartAutosave';
 import { TapBPMCalculator, isValidBPM } from '../utils/bpmAnalyzer';
 import { calculateTotalBeatsWithChanges, formatSongLength } from '../utils/bpmUtils';
-import { chartAPI, supabase } from '../lib/supabaseClient';
+import { chartAPI, supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import {
   AUTO_SAVE_KEY,
   PIXELS_PER_SECOND,
@@ -30,14 +30,12 @@ const KEY_TO_LANE: Record<string, Lane> = {
 const MIN_LONG_NOTE_DURATION = 50;
 
 interface ChartEditorProps {
-  onSave: (notes: Note[]) => void;
   onCancel: () => void;
   onTest?: (payload: ChartTestPayload) => void;
   onOpenSubtitleEditor?: (chartData: SubtitleEditorChartData) => void;
 }
 
 export const ChartEditor: React.FC<ChartEditorProps> = ({
-  onSave,
   onCancel,
   onTest,
   onOpenSubtitleEditor,
@@ -88,6 +86,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [previewImageFile, setPreviewImageFile] = useState<File | null>(null);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   // --- Hooks 호출 ---
   const {
@@ -126,7 +125,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       ? Math.max(...notes.map(n => n.endTime || n.time)) 
       : 0;
     const videoDurationMs = (videoDurationSeconds || 0) * 1000;
-    return Math.max(lastNoteTime + 5000, videoDurationMs, MIN_TIMELINE_DURATION_MS);
+    // videoDurationSeconds가 0이거나 NaN이면 최소 길이 사용
+    const validVideoDuration = (videoDurationSeconds && videoDurationSeconds > 0) 
+      ? videoDurationMs 
+      : MIN_TIMELINE_DURATION_MS;
+    return Math.max(lastNoteTime + 5000, validVideoDuration, MIN_TIMELINE_DURATION_MS);
   }, [notes, videoDurationSeconds]);
 
   const timelineContentHeight = useMemo(() => {
@@ -197,6 +200,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       speedChanges,
       chartTitle: shareTitle,
       chartAuthor: shareAuthor,
+      gridDivision,
+      isLongNoteMode,
+      testStartInput,
+      playbackSpeed,
+      volume,
+      currentTime,
+      isAutoScrollEnabled,
+      zoom,
     }),
     [
       notes,
@@ -209,41 +220,128 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       speedChanges,
       shareTitle,
       shareAuthor,
+      gridDivision,
+      isLongNoteMode,
+      testStartInput,
+      playbackSpeed,
+      volume,
+      currentTime,
+      isAutoScrollEnabled,
+      zoom,
     ]
   );
 
   const handleRestore = useCallback((data: any) => {
-    if (data.notes) {
+    if (!data || typeof data !== 'object') {
+      console.warn('Invalid chart data provided to restore:', data);
+      return;
+    }
+
+    if (Array.isArray(data.notes)) {
       setNotes(data.notes);
-      // ID Ref 복구
-      const maxId = Math.max(0, ...data.notes.map((n: Note) => n.id));
+      const maxId = data.notes.reduce((max: number, note: Note) => {
+        const noteId = typeof note.id === 'number' ? note.id : 0;
+        return Math.max(max, noteId);
+      }, 0);
       noteIdRef.current = maxId + 1;
     }
-    if (data.bpm) setBpm(data.bpm);
-    if (data.youtubeUrl) setYoutubeUrl(data.youtubeUrl);
-    // videoId는 url submit시 자동 설정됨, 하지만 여기서도 설정 가능
-    if (data.timeSignatures) setTimeSignatures(data.timeSignatures);
-    if (data.timeSignatureOffset) setTimeSignatureOffset(data.timeSignatureOffset);
-    if (data.bpmChanges) setBpmChanges(data.bpmChanges);
-    if (data.speedChanges) {
+
+    if (typeof data.bpm === 'number') setBpm(data.bpm);
+    if (typeof data.youtubeUrl === 'string') setYoutubeUrl(data.youtubeUrl);
+    if (Array.isArray(data.timeSignatures)) setTimeSignatures(data.timeSignatures);
+    if (data.timeSignatureOffset !== undefined) setTimeSignatureOffset(data.timeSignatureOffset);
+    if (Array.isArray(data.bpmChanges)) setBpmChanges(data.bpmChanges);
+    if (Array.isArray(data.speedChanges)) {
       setSpeedChanges(data.speedChanges);
       const maxId =
         data.speedChanges.length > 0
-          ? Math.max(0, ...data.speedChanges.map((s: SpeedChange) => s.id))
+          ? Math.max(
+              0,
+              ...data.speedChanges.map((s: SpeedChange) =>
+                typeof s.id === 'number' ? s.id : 0
+              )
+            )
           : 0;
       speedChangeIdRef.current = maxId + 1;
     }
-    if (data.chartTitle) setShareTitle(data.chartTitle);
-    if (data.chartAuthor) setShareAuthor(data.chartAuthor);
-    
-    // URL이 있으면 로드 시도
-    if (data.youtubeUrl) {
-        // handleYouTubeUrlSubmit 호출은 훅 내부 함수라 여기서 직접 호출하기 애매함 (비동기라)
-        // useEffect로 youtubeUrl 변경 시 자동 처리되거나, 사용자가 버튼 누르게 둠
+    if (typeof data.chartTitle === 'string') setShareTitle(data.chartTitle);
+    if (typeof data.chartAuthor === 'string') setShareAuthor(data.chartAuthor);
+    if (typeof data.gridDivision === 'number') setGridDivision(data.gridDivision);
+    if (typeof data.isLongNoteMode === 'boolean') setIsLongNoteMode(data.isLongNoteMode);
+    if (data.testStartInput !== undefined) setTestStartInput(String(data.testStartInput));
+    if (typeof data.playbackSpeed === 'number') setPlaybackSpeed(data.playbackSpeed);
+    if (typeof data.volume === 'number') setVolume(data.volume);
+    if (typeof data.zoom === 'number') setZoom(data.zoom);
+    if (typeof data.isAutoScrollEnabled === 'boolean') {
+      setIsAutoScrollEnabled(data.isAutoScrollEnabled);
     }
-  }, [setYoutubeUrl]);
+    if (typeof data.currentTime === 'number') {
+      setCurrentTime(Math.max(0, data.currentTime));
+    } else {
+      setCurrentTime(0);
+    }
+
+    setIsPlaying(false);
+    setPendingLongNote(null);
+    isDraggingPlayheadRef.current = false;
+    // 스크롤을 맨 아래로 이동 (렌더링 후 실행)
+    setTimeout(() => {
+      if (timelineScrollRef.current) {
+        const container = timelineScrollRef.current;
+        container.scrollTop = container.scrollHeight - container.clientHeight;
+      }
+    }, 0);
+  }, []);
 
   useChartAutosave(AUTO_SAVE_KEY, autoSaveData, handleRestore);
+
+  // 초기화 핸들러
+  const handleReset = useCallback(() => {
+    if (!confirm('모든 채보 데이터를 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+      return;
+    }
+
+    setNotes([]);
+    setCurrentTime(0);
+    setIsPlaying(false);
+    setPlaybackSpeed(1);
+    setZoom(1);
+    setVolume(100);
+    setBpm(120);
+    setBpmChanges([]);
+    setTimeSignatures([{ id: 0, beatIndex: 0, beatsPerMeasure: 4 }]);
+    setTimeSignatureOffset(0);
+    setGridDivision(1);
+    setSpeedChanges([]);
+    setIsBpmInputOpen(false);
+    setIsAutoScrollEnabled(true);
+    setIsLongNoteMode(false);
+    setTestStartInput('0');
+    setShareTitle('');
+    setShareAuthor('');
+    setShareDifficulty('Normal');
+    setShareDescription('');
+    setPreviewImageFile(null);
+    setPreviewImageUrl(null);
+    setYoutubeUrl('');
+    noteIdRef.current = 0;
+    speedChangeIdRef.current = 0;
+    isDraggingPlayheadRef.current = false;
+    setPendingLongNote(null);
+
+    // 스크롤을 맨 위로 이동
+    if (timelineScrollRef.current) {
+      timelineScrollRef.current.scrollTop = 0;
+    }
+
+    // localStorage도 초기화
+    try {
+      localStorage.removeItem(AUTO_SAVE_KEY);
+    } catch (e) {
+      console.warn('Failed to clear localStorage:', e);
+    }
+  }, []);
+
   // --- 변속(SpeedChange) 핸들러 ---
   const handleAddSpeedChangeAtCurrent = useCallback(() => {
     const start = clampTime(currentTime);
@@ -307,12 +405,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     const time = clampTime(yToTime(clickY));
     setIsPlaying(false);
     setCurrentTime(time);
-    seekTo(time, true); // shouldPause: true로 전달하여 재생 방지
-    // seekTo 후 재생이 시작되지 않도록 추가 보호
-    setTimeout(() => {
-      setIsPlaying(false);
-    }, 50);
-  }, [clampTime, yToTime, seekTo, playheadY]);
+    seekTo(time, { shouldPause: true }); // shouldPause: true로 전달하여 재생 방지
+  }, [clampTime, yToTime, seekTo]);
 
   const handleLaneInput = useCallback((lane: Lane) => {
     // 현재 시간을 그리드에 스냅해서 노트가 가로선에 맞게 설치되도록 함
@@ -417,8 +511,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         const rect = timelineScrollRef.current.getBoundingClientRect();
         const relativeY = upEvent.clientY - rect.top + timelineScrollRef.current.scrollTop;
         const newTime = clampTime(yToTime(relativeY));
-        seekTo(newTime, true); // shouldPause: true로 전달하여 재생 방지
-        // seekTo 후에도 재생이 시작되지 않도록 명시적으로 일시정지 상태 유지
+        seekTo(newTime, { shouldPause: true }); // shouldPause: true로 전달하여 재생 방지
         setIsPlaying(false);
       }
 
@@ -498,6 +591,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
   // 공유/업로드
   const handleShare = useCallback(async () => {
+    if (!user) {
+      alert('채보를 업로드하려면 먼저 Google 계정으로 로그인해주세요.');
+      return;
+    }
+
     if (!shareTitle || !shareAuthor) {
       alert('제목과 제작자를 입력해주세요.');
       return;
@@ -509,11 +607,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     try {
       // 이미지 업로드
       let imageUrl = previewImageUrl;
-      if (previewImageFile) {
+        if (previewImageFile) {
         // chartAPI.uploadImage 구현 필요 (생략된 경우 대비)
         // 여기서는 기존 로직이 있다고 가정하고 호출
         // imageUrl = await chartAPI.uploadImage(previewImageFile);
-      }
+        }
 
       await chartAPI.uploadChart({
         title: shareTitle,
@@ -537,7 +635,107 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     } finally {
       setIsUploading(false);
     }
-  }, [shareTitle, shareAuthor, shareDifficulty, shareDescription, bpm, youtubeUrl, previewImageUrl, previewImageFile, autoSaveData]);
+  }, [shareTitle, shareAuthor, shareDifficulty, shareDescription, bpm, youtubeUrl, previewImageUrl, previewImageFile, autoSaveData, user]);
+
+  const handleExportJson = useCallback(() => {
+    try {
+      const payload = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        chart: autoSaveData,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const safeTitle = (shareTitle || 'userhythm-chart').replace(/[\\/:*?"<>|]/g, '_');
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${safeTitle}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('JSON 내보내기 실패:', error);
+      alert('JSON 내보내기 중 오류가 발생했습니다.');
+    }
+  }, [autoSaveData, shareTitle]);
+
+  const handleImportJsonClick = useCallback(() => {
+    importInputRef.current?.click();
+  }, []);
+
+  const handleImportJsonFile = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        const chartData = parsed.chart ?? parsed;
+        if (!chartData || typeof chartData !== 'object') {
+          throw new Error('올바르지 않은 JSON 구조입니다.');
+        }
+        if (!Array.isArray(chartData.notes)) {
+          throw new Error('notes 배열이 포함되지 않은 JSON 파일입니다.');
+        }
+        handleRestore(chartData);
+        alert(`JSON 파일을 불러왔습니다. (노트 ${chartData.notes.length}개)`);
+      } catch (error) {
+        console.error('JSON 불러오기 실패:', error);
+        alert('JSON 파일을 불러오지 못했습니다. 파일 형식을 확인해 주세요.');
+      } finally {
+        event.target.value = '';
+      }
+    },
+    [handleRestore]
+  );
+
+  // Supabase Auth 상태 구독
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    let isMounted = true;
+    const syncSession = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (!error && isMounted) {
+        setUser(data.session?.user ?? null);
+      }
+    };
+
+    syncSession();
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (isMounted) {
+        setUser(session?.user ?? null);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      authListener?.subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleLoginWithGoogle = useCallback(async () => {
+    if (!isSupabaseConfigured) {
+      alert('Supabase 환경 변수가 설정되지 않았습니다. Google 로그인을 사용할 수 없습니다.');
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (error) {
+        throw error;
+      }
+    } catch (error: any) {
+      console.error('Google 로그인 실패:', error);
+      alert(error?.message || 'Google 로그인에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    }
+  }, []);
 
   // 자동 스크롤
   useEffect(() => {
@@ -606,22 +804,17 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         songInfo={songInfo}
         onRewind={() => {
           setIsPlaying(false);
-          seekTo(0, true);
+          seekTo(0, { shouldPause: true });
         }}
-        onTogglePlayback={() => setIsPlaying(prev => !prev)}
+        onTogglePlayback={() => {
+          setIsPlaying(prev => !prev);
+        }}
         onStop={() => {
           setIsPlaying(false);
-          seekTo(0, true);
+          seekTo(0, { shouldPause: true });
         }}
         onToggleAutoScroll={() => setIsAutoScrollEnabled(prev => !prev)}
-        onLoad={() => {
-            // 로드 기능: 실제로는 파일 업로드나 목록에서 선택 등 구현 필요
-            // 여기서는 간단히 localStorage 복원 트리거 (새로고침 등)
-            if (confirm('저장된 데이터를 불러오시겠습니까? (현재 작업 내용은 덮어씌워집니다)')) {
-                window.location.reload();
-            }
-        }}
-        onSave={onSave ? () => onSave(notes) : () => {}} // 상위 props 호출
+        onReset={handleReset}
         onSubtitleClick={onOpenSubtitleEditor ? () => onOpenSubtitleEditor({
             chartId: `local-${Date.now()}`,
             notes,
@@ -639,6 +832,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         onAddBpmChangeAtCurrent={handleAddBpmChangeAtCurrentPosition}
         onEditBpmChange={handleEditBpmChange}
         onDeleteBpmChange={handleDeleteBpmChange}
+        onExportJson={handleExportJson}
+        onImportJson={handleImportJsonClick}
       />
 
       <div
@@ -766,16 +961,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         uploadStatus={uploadStatus}
         onUpload={handleShare}
         user={user}
-        onLogin={async () => {
-            // 간단한 로그인 처리 (실제로는 별도 Auth 흐름 필요)
-            const email = prompt('Email:');
-            const password = prompt('Password:');
-            if (email && password) {
-                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-                if (error) alert(error.message);
-                else setUser(data.user);
-            }
-        }}
+        onLogin={handleLoginWithGoogle}
+      />
+      <input
+        type="file"
+        accept="application/json,.json"
+        ref={importInputRef}
+        style={{ display: 'none' }}
+        onChange={handleImportJsonFile}
       />
     </div>
   );
