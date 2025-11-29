@@ -60,7 +60,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [gridDivision, setGridDivision] = useState<number>(1);
   
   // --- UI 상태 ---
-  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isBpmInputOpen, setIsBpmInputOpen] = useState<boolean>(false);
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState<boolean>(true);
   const [isLongNoteMode, setIsLongNoteMode] = useState<boolean>(false);
@@ -93,10 +92,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     youtubeUrl,
     setYoutubeUrl,
     youtubeVideoId,
+    youtubeVideoTitle,
     videoDurationSeconds,
     isLoadingDuration,
     handleYouTubeUrlSubmit,
-    handleYouTubeUrlPaste,
     seekTo,
     youtubePlayerRef,
   } = useChartYoutubePlayer({
@@ -145,6 +144,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     timelineContentHeight,
   });
 
+  const beatsPerMeasure = timeSignatures[0]?.beatsPerMeasure || 4;
+
   const songInfo = useMemo(() => {
     const durationSeconds = timelineDurationMs / 1000;
     const totalBeats = calculateTotalBeatsWithChanges(
@@ -152,7 +153,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       bpm,
       sortedBpmChanges
     );
-    const beatsPerMeasure = timeSignatures[0]?.beatsPerMeasure || 4;
     
     return {
       durationFormatted: formatSongLength(durationSeconds, bpm, sortedBpmChanges, beatsPerMeasure),
@@ -163,7 +163,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       baseBpm: bpm,
       bpmChanges: sortedBpmChanges
     };
-  }, [timelineDurationMs, bpm, sortedBpmChanges, timeSignatures]);
+  }, [timelineDurationMs, bpm, sortedBpmChanges, beatsPerMeasure]);
 
   const clampTime = useCallback(
     (time: number) => Math.max(0, Math.min(time, timelineDurationMs)),
@@ -300,6 +300,30 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       addNote(lane, time);
     }
   }, [addNote, snapToGrid, currentTime, isLongNoteMode, pendingLongNote, setPendingLongNote, notes]);
+
+  const handleYoutubePasteButton = useCallback(async () => {
+    let clipboardText = '';
+
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.readText) {
+      try {
+        clipboardText = await navigator.clipboard.readText();
+      } catch (error) {
+        console.warn('클립보드 접근 실패:', error);
+      }
+    }
+
+    if (!clipboardText) {
+      clipboardText =
+        (typeof window !== 'undefined'
+          ? window.prompt('YouTube URL을 입력하거나 붙여넣어 주세요.', youtubeUrl || '')
+          : '') || '';
+    }
+
+    const trimmed = clipboardText.trim();
+    if (!trimmed) return;
+
+    handleYouTubeUrlSubmit(trimmed);
+  }, [handleYouTubeUrlSubmit, youtubeUrl]);
 
   // 재생선 드래그
   const handlePlayheadMouseDown = useCallback((e: React.MouseEvent) => {
@@ -515,18 +539,16 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       {/* Header */}
       <ChartEditorHeader
         bpm={bpm}
-        isMenuOpen={isMenuOpen}
         isPlaying={isPlaying}
         isAutoScrollEnabled={isAutoScrollEnabled}
         isBpmInputOpen={isBpmInputOpen}
-        youtubeUrl={youtubeUrl}
         isLoadingYoutubeMeta={isLoadingDuration}
+        youtubeVideoTitle={youtubeVideoTitle}
         tapCount={tapCount}
         tapConfidence={tapBpmResult?.confidence}
         bpmChanges={sortedBpmChanges}
-        beatsPerMeasure={timeSignatures[0]?.beatsPerMeasure || 4}
+        beatsPerMeasure={beatsPerMeasure}
         songInfo={songInfo}
-        onToggleMenu={() => setIsMenuOpen(prev => !prev)}
         onRewind={() => seekTo(0)}
         onTogglePlayback={() => setIsPlaying(prev => !prev)}
         onStop={() => { setIsPlaying(false); seekTo(0); }}
@@ -548,9 +570,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
             title: shareTitle || 'Untitled'
         }) : undefined}
         onExit={onCancel}
-        onYoutubeUrlChange={setYoutubeUrl}
-        onYoutubeSubmit={handleYouTubeUrlSubmit}
-        onYoutubePaste={handleYouTubeUrlPaste}
+        onYoutubePasteButton={handleYoutubePasteButton}
         onToggleBpmInput={() => setIsBpmInputOpen(prev => !prev)}
         onBpmInput={(val) => { setBpm(parseFloat(val)); setIsBpmInputOpen(false); }}
         onTapBpm={handleTapBpm}
@@ -581,7 +601,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           onPlaybackSpeedChange={setPlaybackSpeed}
           volume={volume}
           onVolumeChange={setVolume}
-          beatsPerMeasure={timeSignatures[0]?.beatsPerMeasure || 4}
+          beatsPerMeasure={beatsPerMeasure}
           onTimeSignatureChange={(beats) => setTimeSignatures([{ id: 0, beatIndex: 0, beatsPerMeasure: beats }])}
           gridDivision={gridDivision}
           onGridDivisionChange={setGridDivision}

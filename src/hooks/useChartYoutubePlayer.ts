@@ -26,6 +26,7 @@ export function useChartYoutubePlayer({
 }: UseChartYoutubePlayerOptions) {
   const [youtubeUrl, setYoutubeUrl] = useState<string>('');
   const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
+  const [youtubeVideoTitle, setYoutubeVideoTitle] = useState<string>('');
   const [youtubePlayer, setYoutubePlayer] = useState<any>(null);
   const [videoDurationSeconds, setVideoDurationSeconds] = useState<number | null>(null);
   const [isLoadingDuration, setIsLoadingDuration] = useState<boolean>(false);
@@ -38,6 +39,7 @@ export function useChartYoutubePlayer({
   useEffect(() => {
     if (!youtubeUrl) {
       setYoutubeVideoId(null);
+      setYoutubeVideoTitle('');
       return;
     }
 
@@ -140,6 +142,15 @@ export function useChartYoutubePlayer({
               youtubePlayerReadyRef.current = true;
               setYoutubePlayer(player);
               playerInstance = player;
+
+              try {
+                const videoData = player.getVideoData?.();
+                if (videoData?.title) {
+                  setYoutubeVideoTitle(videoData.title);
+                }
+              } catch (err) {
+                console.warn('YouTube 제목 정보를 불러오지 못했습니다.', err);
+              }
 
               // 초기 볼륨 설정
               try {
@@ -259,16 +270,19 @@ export function useChartYoutubePlayer({
   );
 
   // YouTube URL 제출 핸들러
-  const handleYouTubeUrlSubmit = useCallback(() => {
-    if (!youtubeUrl) return;
+  const handleYouTubeUrlSubmit = useCallback((customUrl?: string) => {
+    const targetUrl = customUrl ?? youtubeUrl;
+    if (!targetUrl) return;
 
-    const videoId = extractYouTubeVideoId(youtubeUrl);
+    const videoId = extractYouTubeVideoId(targetUrl);
     if (!videoId) {
       alert('유효한 YouTube URL을 입력해주세요.');
       return;
     }
 
+    setYoutubeUrl(targetUrl);
     setYoutubeVideoId(videoId);
+    setYoutubeVideoTitle('');
   }, [youtubeUrl]);
 
   // YouTube URL 붙여넣기 핸들러
@@ -286,6 +300,7 @@ export function useChartYoutubePlayer({
     youtubeUrl,
     setYoutubeUrl,
     youtubeVideoId,
+    youtubeVideoTitle,
     youtubePlayer,
     videoDurationSeconds,
     isLoadingDuration,
