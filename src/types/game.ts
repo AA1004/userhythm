@@ -32,6 +32,7 @@ export interface GameState {
   gameEnded: boolean;
 }
 
+<<<<<<< HEAD
 // BPM 변속 관련 타입
 export interface BPMChange {
   id: number;
@@ -71,3 +72,13 @@ export interface SubtitleEditorChartData {
   title?: string;
 }
 
+=======
+
+
+// BPM change type
+export interface BPMChange {
+  id: number;
+  beatIndex: number;
+  bpm: number;
+}
+>>>>>>> 3fd4119591065306316a17aa46653447590ade12

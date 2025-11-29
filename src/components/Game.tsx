@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+﻿import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { GameState, Note, Lane, JudgeType } from '../types/game';
 import { Note as NoteComponent } from './Note';
 import { KeyLane } from './KeyLane';
@@ -7,12 +7,23 @@ import { Score as ScoreComponent } from './Score';
 import { ChartEditor } from './ChartEditor';
 import { ChartSelect } from './ChartSelect';
 import { ChartAdmin } from './ChartAdmin';
+import { SubtitleEditor } from './SubtitleEditor';
 import { useKeyboard } from '../hooks/useKeyboard';
 import { useGameLoop } from '../hooks/useGameLoop';
 import { judgeTiming, judgeHoldReleaseTiming } from '../utils/judge';
 import { judgeConfig } from '../config/judgeConfig';
 import { generateNotes } from '../utils/noteGenerator';
 import { waitForYouTubeAPI } from '../utils/youtube';
+
+// Subtitle editor chart data
+interface SubtitleEditorChartData {
+  chartId: string;
+  notes: Note[];
+  bpm: number;
+  youtubeVideoId?: string | null;
+  youtubeUrl?: string;
+  title?: string;
+}
 
 interface EditorTestPayload {
   notes: Note[];
@@ -46,6 +57,8 @@ export const Game: React.FC = () => {
   const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
   const [isChartSelectOpen, setIsChartSelectOpen] = useState<boolean>(false);
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
+  const [isSubtitleEditorOpen, setIsSubtitleEditorOpen] = useState<boolean>(false);
+  const [subtitleEditorData, setSubtitleEditorData] = useState<SubtitleEditorChartData | null>(null);
   const [isTestMode, setIsTestMode] = useState<boolean>(false);
   const testPreparedNotesRef = useRef<Note[]>([]);
   
@@ -871,9 +884,34 @@ export const Game: React.FC = () => {
     }, 0);
   }, [handleEditorTest]);
 
+  // Subtitle editor open handler
+  const handleOpenSubtitleEditor = useCallback((chartData: SubtitleEditorChartData) => {
+    setSubtitleEditorData(chartData);
+    setIsSubtitleEditorOpen(true);
+    setIsEditorOpen(false);
+  }, []);
+
+  // Subtitle editor close handler
+  const handleCloseSubtitleEditor = useCallback(() => {
+    setIsSubtitleEditorOpen(false);
+    setSubtitleEditorData(null);
+    setIsEditorOpen(true);
+  }, []);
+
+  // Show subtitle editor if open
+  if (isSubtitleEditorOpen && subtitleEditorData) {
+    return (
+      <SubtitleEditor
+        chartId={subtitleEditorData.chartId}
+        chartData={subtitleEditorData}
+        onClose={handleCloseSubtitleEditor}
+      />
+    );
+  }
+
   // 에디터가 열려있으면 에디터만 표시
   if (isEditorOpen) {
-    return <ChartEditor onSave={handleChartSave} onCancel={handleEditorCancel} onTest={handleEditorTest} />;
+    return <ChartEditor onSave={handleChartSave} onCancel={handleEditorCancel} onTest={handleEditorTest} onOpenSubtitleEditor={handleOpenSubtitleEditor} />;
   }
 
   // 채보 선택 화면

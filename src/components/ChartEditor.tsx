@@ -1,4 +1,5 @@
 ﻿import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+<<<<<<< HEAD
 import { Note, BPMChange, TimeSignatureEvent, ChartTestPayload, SubtitleEditorChartData, Lane } from '../types/game';
 import { ChartEditorHeader } from './ChartEditor/ChartEditorHeader';
 import { ChartEditorSidebar } from './ChartEditor/ChartEditorSidebar';
@@ -19,6 +20,22 @@ import {
   MIN_TIMELINE_DURATION_MS,
   PLAYBACK_SPEED_OPTIONS,
 } from './ChartEditor/constants';
+=======
+import { Note, Lane } from '../types/game';
+import { extractYouTubeVideoId, waitForYouTubeAPI } from '../utils/youtube';
+import { TapBPMCalculator, bpmToBeatDuration, isValidBPM } from '../utils/bpmAnalyzer';
+import { chartAPI, isSupabaseConfigured, supabase } from '../lib/supabaseClient';
+>>>>>>> 3fd4119591065306316a17aa46653447590ade12
+
+// Subtitle editor chart data type
+interface SubtitleEditorChartData {
+  chartId: string;
+  notes: Note[];
+  bpm: number;
+  youtubeVideoId?: string | null;
+  youtubeUrl?: string;
+  title?: string;
+}
 
 interface ChartEditorProps {
   onSave: (notes: Note[]) => void;
@@ -27,6 +44,7 @@ interface ChartEditorProps {
   onOpenSubtitleEditor?: (chartData: SubtitleEditorChartData) => void;
 }
 
+<<<<<<< HEAD
 export const ChartEditor: React.FC<ChartEditorProps> = ({
   onSave,
   onCancel,
@@ -34,6 +52,37 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   onOpenSubtitleEditor,
 }) => {
   // --- 기본 상태 ---
+=======
+interface ChartTestPayload {
+  notes: Note[];
+  startTimeMs: number;
+  youtubeVideoId: string | null;
+  youtubeUrl: string;
+  playbackSpeed: number;
+  audioOffsetMs?: number;
+}
+
+interface TimeSignatureEvent {
+  id: number;
+  beatIndex: number; // 곡 전체 기준 비트 인덱스
+  beatsPerMeasure: number; // 예: 4(4/4), 3(3/4)
+}
+
+const LANE_POSITIONS = [100, 200, 300, 400];
+const LANE_KEY_LABELS = ['D', 'F', 'J', 'K'];
+const TAP_NOTE_HEIGHT = 60;
+const JUDGE_LINE_Y = 640;
+const PIXELS_PER_SECOND = 200; // 타임라인 확대 비율
+const TIMELINE_TOP_PADDING = 600;
+const TIMELINE_BOTTOM_PADDING = JUDGE_LINE_Y;
+const MIN_TIMELINE_DURATION_MS = 120000;
+const PLAYBACK_SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+const MIN_PLAYBACK_SPEED = 0.5;
+const MAX_PLAYBACK_SPEED = 2;
+const AUTO_SAVE_KEY = 'chartEditorLastChart';
+
+export const ChartEditor: React.FC<ChartEditorProps> = ({ onSave, onCancel, onTest, onOpenSubtitleEditor }) => {
+>>>>>>> 3fd4119591065306316a17aa46653447590ade12
   const [notes, setNotes] = useState<Note[]>([]);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -520,8 +569,181 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                 });
             }
           }}
+<<<<<<< HEAD
           onShareClick={() => setIsShareModalOpen(true)}
         />
+=======
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <h2 
+              style={{ 
+                color: '#fff', 
+                margin: 0, 
+                fontSize: '20px',
+                cursor: 'pointer',
+                userSelect: 'none',
+              }}
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              채보 에디터
+            </h2>
+            <span 
+              style={{ 
+                color: '#aaa', 
+                fontSize: '18px', 
+                transition: 'transform 0.3s', 
+                transform: isMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                cursor: 'pointer',
+                userSelect: 'none',
+              }}
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+            >
+              ▼
+            </span>
+            {/* 플레이어 컨트롤 버튼들 */}
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginLeft: '20px' }} onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={handleRewind}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: '16px',
+                  backgroundColor: '#607D8B',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#546E7A';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#607D8B';
+                }}
+                title="처음으로 돌아가기 (0초)"
+              >
+                ⏮ 처음으로
+              </button>
+              <button
+                onClick={togglePlayback}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: '16px',
+                  backgroundColor: isPlaying ? '#f44336' : '#4CAF50',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                }}
+              >
+                {isPlaying ? '⏸ 일시정지' : '▶ 재생'}
+              </button>
+              <button
+                onClick={stopPlayback}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: '16px',
+                  backgroundColor: '#757575',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                }}
+              >
+                ⏹ 중지
+              </button>
+              <button
+                onClick={() => setIsAutoScrollEnabled((prev) => !prev)}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: '16px',
+                  backgroundColor: isAutoScrollEnabled ? '#4CAF50' : '#757575',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                }}
+              >
+                {isAutoScrollEnabled ? '📌 고정' : '📌 해제'}
+              </button>
+              <button
+                onClick={handleLoad}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: '16px',
+                  backgroundColor: '#9C27B0',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                }}
+              >
+                📂 로드
+              </button>
+              <button
+                onClick={handleSave}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: '16px',
+                  backgroundColor: '#2196F3',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                }}
+              >
+                💾 저장
+              </button>
+              {onOpenSubtitleEditor && (
+                <button
+                  onClick={() => {
+                    const chartId = `local-${Date.now()}`;
+                    onOpenSubtitleEditor({
+                      chartId,
+                      notes,
+                      bpm,
+                      youtubeVideoId: extractYouTubeVideoId(youtubeUrl),
+                      youtubeUrl,
+                      title: 'Untitled',
+                    });
+                  }}
+                  style={{
+                    padding: '10px 20px',
+                    fontSize: '16px',
+                    backgroundColor: '#E91E63',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
+                  title="Subtitle Editor"
+                >
+                  Subtitle
+                </button>
+              )}
+              <button
+                onClick={onCancel}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: '16px',
+                  backgroundColor: '#f44336',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                }}
+              >
+                ✖ 나가기
+              </button>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <span style={{ color: '#FFD700', fontSize: '16px', fontWeight: 'bold' }}>
+              BPM: {Math.round(bpm)}
+            </span>
+          </div>
+        </div>
+>>>>>>> 3fd4119591065306316a17aa46653447590ade12
 
         {/* Main Timeline Canvas */}
         <div style={{ flex: 1, position: 'relative', backgroundColor: '#1f1f1f', overflow: 'hidden' }}>
