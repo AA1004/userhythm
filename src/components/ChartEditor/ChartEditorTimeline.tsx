@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect } from 'react';
-import { Note, TimeSignatureEvent } from '../../types/game';
+import { Note, TimeSignatureEvent, SpeedChange } from '../../types/game';
 import {
   LANE_POSITIONS,
   LANE_WIDTH,
@@ -21,6 +21,7 @@ interface ChartEditorTimelineProps {
   timelineDurationMs: number;
   gridDivision: number;
   timeSignatureOffset: number;
+  speedChanges?: SpeedChange[];
   playheadY: number;
   isAutoScrollEnabled: boolean;
   timelineContentHeight: number;
@@ -41,6 +42,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   timelineDurationMs,
   gridDivision,
   timeSignatureOffset,
+  speedChanges = [],
   playheadY,
   timelineContentHeight,
   timelineScrollRef,
@@ -177,6 +179,27 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
             }}
           />
         ))}
+
+        {/* 변속 마커 (SpeedChange) */}
+        {speedChanges.map((sc) => {
+          const y = timeToY(sc.startTimeMs);
+          return (
+            <div
+              key={`speed-start-${sc.id}`}
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: `${y}px`,
+                width: `${CONTENT_WIDTH}px`,
+                height: 2,
+                background:
+                  'linear-gradient(90deg, rgba(56,189,248,0.1), rgba(56,189,248,0.9), rgba(56,189,248,0.1))',
+                boxShadow: '0 0 10px rgba(56,189,248,0.6)',
+              }}
+              title={`Speed BPM ${sc.bpm}`}
+            />
+          );
+        })}
 
         {/* 판정선 (타임라인 하단에 고정) */}
         <div

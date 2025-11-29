@@ -1,5 +1,5 @@
 ﻿import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Note, BPMChange, TimeSignatureEvent, ChartTestPayload, SubtitleEditorChartData, Lane } from '../types/game';
+import { Note, BPMChange, TimeSignatureEvent, ChartTestPayload, SubtitleEditorChartData, Lane, SpeedChange } from '../types/game';
 import { ChartEditorHeader } from './ChartEditor/ChartEditorHeader';
 import { ChartEditorSidebar } from './ChartEditor/ChartEditorSidebar';
 import { ChartEditorTimeline } from './ChartEditor/ChartEditorTimeline';
@@ -58,6 +58,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   ]);
   const [timeSignatureOffset, setTimeSignatureOffset] = useState<number>(0);
   const [gridDivision, setGridDivision] = useState<number>(1);
+  const [speedChanges, setSpeedChanges] = useState<SpeedChange[]>([]);
   
   // --- UI 상태 ---
   const [isBpmInputOpen, setIsBpmInputOpen] = useState<boolean>(false);
@@ -67,6 +68,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   
   // --- Refs & 기타 ---
   const noteIdRef = useRef(0);
+  const speedChangeIdRef = useRef(0);
   const timelineScrollRef = useRef<HTMLDivElement>(null);
   const timelineContentRef = useRef<HTMLDivElement>(null);
   const tapBpmCalculatorRef = useRef(new TapBPMCalculator());
@@ -183,17 +185,32 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   );
 
   // --- 자동 저장 ---
-  const autoSaveData = useMemo(() => ({
-    notes,
-    bpm,
-    youtubeUrl,
-    youtubeVideoId,
-    timeSignatures,
-    timeSignatureOffset,
-    bpmChanges,
-    chartTitle: shareTitle,
-    chartAuthor: shareAuthor,
-  }), [notes, bpm, youtubeUrl, youtubeVideoId, timeSignatures, timeSignatureOffset, bpmChanges, shareTitle, shareAuthor]);
+  const autoSaveData = useMemo(
+    () => ({
+      notes,
+      bpm,
+      youtubeUrl,
+      youtubeVideoId,
+      timeSignatures,
+      timeSignatureOffset,
+      bpmChanges,
+      speedChanges,
+      chartTitle: shareTitle,
+      chartAuthor: shareAuthor,
+    }),
+    [
+      notes,
+      bpm,
+      youtubeUrl,
+      youtubeVideoId,
+      timeSignatures,
+      timeSignatureOffset,
+      bpmChanges,
+      speedChanges,
+      shareTitle,
+      shareAuthor,
+    ]
+  );
 
   const handleRestore = useCallback((data: any) => {
     if (data.notes) {
@@ -208,6 +225,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     if (data.timeSignatures) setTimeSignatures(data.timeSignatures);
     if (data.timeSignatureOffset) setTimeSignatureOffset(data.timeSignatureOffset);
     if (data.bpmChanges) setBpmChanges(data.bpmChanges);
+    if (data.speedChanges) {
+      setSpeedChanges(data.speedChanges);
+      const maxId =
+        data.speedChanges.length > 0
+          ? Math.max(0, ...data.speedChanges.map((s: SpeedChange) => s.id))
+          : 0;
+      speedChangeIdRef.current = maxId + 1;
+    }
     if (data.chartTitle) setShareTitle(data.chartTitle);
     if (data.chartAuthor) setShareAuthor(data.chartAuthor);
     
@@ -219,6 +244,36 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   }, [setYoutubeUrl]);
 
   useChartAutosave(AUTO_SAVE_KEY, autoSaveData, handleRestore);
+  // --- 변속(SpeedChange) 핸들러 ---
+  const handleAddSpeedChangeAtCurrent = useCallback(() => {
+    const start = clampTime(currentTime);
+    const newChange: SpeedChange = {
+      id: speedChangeIdRef.current++,
+      startTimeMs: start,
+      endTimeMs: null,
+      bpm,
+    };
+    setSpeedChanges((prev) =>
+      [...prev, newChange].sort((a, b) => a.startTimeMs - b.startTimeMs)
+    );
+  }, [bpm, clampTime, currentTime]);
+
+  const handleUpdateSpeedChange = useCallback(
+    (id: number, patch: Partial<SpeedChange>) => {
+      setSpeedChanges((prev) =>
+        prev
+          .map((c) => (c.id === id ? { ...c, ...patch } : c))
+          .sort((a, b) => a.startTimeMs - b.startTimeMs)
+      );
+    },
+    []
+  );
+
+  const handleDeleteSpeedChange = useCallback((id: number) => {
+    if (!confirm('이 변속 구간을 삭제할까요?')) return;
+    setSpeedChanges((prev) => prev.filter((c) => c.id !== id));
+  }, []);
+
 
   // --- 핸들러들 ---
 
@@ -621,17 +676,24 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           onSetTestStartToZero={() => setTestStartInput('0')}
           onTestChart={() => {
             if (onTest) {
-                onTest({
-                    notes,
-                    startTimeMs: parseInt(testStartInput) || 0,
-                    youtubeVideoId,
-                    youtubeUrl,
-                    playbackSpeed,
-                    audioOffsetMs: 0
-                });
+              onTest({
+                notes,
+                startTimeMs: parseInt(testStartInput) || 0,
+                youtubeVideoId,
+                youtubeUrl,
+                playbackSpeed,
+                audioOffsetMs: 0,
+                bpm,
+                speedChanges,
+              });
             }
           }}
           onShareClick={() => setIsShareModalOpen(true)}
+          currentTimeMs={currentTime}
+          speedChanges={speedChanges}
+          onAddSpeedChangeAtCurrent={handleAddSpeedChangeAtCurrent}
+          onUpdateSpeedChange={handleUpdateSpeedChange}
+          onDeleteSpeedChange={handleDeleteSpeedChange}
         />
 
         {/* Main Timeline Canvas */}
@@ -643,6 +705,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                 timelineDurationMs={timelineDurationMs}
                 gridDivision={gridDivision}
                 timeSignatureOffset={timeSignatureOffset}
+                speedChanges={speedChanges}
                 playheadY={playheadY}
                 isAutoScrollEnabled={isAutoScrollEnabled}
                 timelineContentHeight={timelineContentHeight}

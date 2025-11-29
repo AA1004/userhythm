@@ -99,6 +99,8 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
           youtubeVideoId,
           youtubeUrl,
           playbackSpeed: chartData.playbackSpeed || 1,
+          bpm: chart.bpm,
+          speedChanges: chartData.speedChanges || [],
         });
       }
     } catch (error) {

@@ -75,8 +75,12 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
       onSelect({
         notes: chartData.notes || [],
         bpm: chart.bpm,
-        timeSignatures: chartData.timeSignatures || [{ id: 0, beatIndex: 0, beatsPerMeasure: 4 }],
+        timeSignatures:
+          chartData.timeSignatures || [
+            { id: 0, beatIndex: 0, beatsPerMeasure: 4 },
+          ],
         timeSignatureOffset: chartData.timeSignatureOffset || 0,
+        speedChanges: chartData.speedChanges || [],
         youtubeVideoId,
         youtubeUrl,
         playbackSpeed: chartData.playbackSpeed || 1,

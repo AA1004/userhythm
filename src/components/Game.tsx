@@ -1,5 +1,5 @@
 ﻿import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { GameState, Note, Lane, JudgeType } from '../types/game';
+import { GameState, Note, Lane, JudgeType, SpeedChange } from '../types/game';
 import { Note as NoteComponent } from './Note';
 import { KeyLane } from './KeyLane';
 import { JudgeLine } from './JudgeLine';
@@ -18,6 +18,7 @@ import { SubtitleCue, SubtitleStyle } from '../types/subtitle';
 import { subtitleAPI, localSubtitleStorage } from '../lib/subtitleAPI';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
+import { getNoteFallDuration } from '../utils/speedChange';
 
 // Subtitle editor chart data
 interface SubtitleEditorChartData {
@@ -36,6 +37,8 @@ interface EditorTestPayload {
   youtubeUrl: string;
   playbackSpeed: number;
   audioOffsetMs?: number;
+   bpm?: number;
+   speedChanges?: SpeedChange[];
 }
 
 const LANE_KEYS = [
@@ -65,6 +68,7 @@ const SUBTITLE_AREA_TOP =
 
 const GAME_DURATION = 30000; // 30초
 const START_DELAY_MS = 4000;
+const BASE_FALL_DURATION = 2000; // 기본 노트 낙하 시간(ms)
 
 export const Game: React.FC = () => {
   const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
@@ -74,6 +78,8 @@ export const Game: React.FC = () => {
   const [subtitleEditorData, setSubtitleEditorData] = useState<SubtitleEditorChartData | null>(null);
   const [isTestMode, setIsTestMode] = useState<boolean>(false);
   const testPreparedNotesRef = useRef<Note[]>([]);
+  const [baseBpm, setBaseBpm] = useState<number>(120);
+  const [speedChanges, setSpeedChanges] = useState<SpeedChange[]>([]);
   
   // 테스트 모드 YouTube 플레이어 상태
   const [testYoutubePlayer, setTestYoutubePlayer] = useState<any>(null);
@@ -565,6 +571,8 @@ export const Game: React.FC = () => {
       notes: generateNotes(GAME_DURATION),
       score: buildInitialScore(),
     }));
+    setBaseBpm(120);
+    setSpeedChanges([]);
   };
 
   const startTestSession = useCallback(
@@ -643,6 +651,8 @@ export const Game: React.FC = () => {
       testPreparedNotesRef.current = preparedNotes.map((note) => ({ ...note }));
       setIsTestMode(true);
       setIsEditorOpen(false);
+      setBaseBpm(payload.bpm ?? 120);
+      setSpeedChanges(payload.speedChanges ?? []);
       
       // YouTube 플레이어 초기화를 위해 videoId 설정
       if (payload.youtubeVideoId) {
@@ -953,6 +963,12 @@ export const Game: React.FC = () => {
         gameStarted: true,
         gameEnded: false,
       });
+      if (typeof chartData.bpm === 'number') {
+        setBaseBpm(chartData.bpm);
+      } else {
+        setBaseBpm(120);
+      }
+      setSpeedChanges(chartData.speedChanges || []);
       
       setHoldingNotes(new Map());
       processedMissNotes.current = new Set();
@@ -982,6 +998,8 @@ export const Game: React.FC = () => {
       youtubeUrl: chartData.youtubeUrl || '',
       playbackSpeed: 1,
       audioOffsetMs: 0,
+      bpm: chartData.bpm,
+      speedChanges: chartData.speedChanges || [],
     });
     }, 0);
   }, [handleEditorTest]);
@@ -1079,17 +1097,28 @@ export const Game: React.FC = () => {
         ))}
 
         {/* 노트 렌더링 */}
-        {gameState.notes.map((note) => (
-          <NoteComponent
-            key={note.id}
-            note={note}
-            fallDuration={2000 / speed}
-            currentTime={gameState.currentTime}
-            judgeLineY={JUDGE_LINE_Y}
-            laneX={LANE_POSITIONS[note.lane]}
-            isHolding={holdingNotes.has(note.id)}
-          />
-        ))}
+        {gameState.notes.map((note) => {
+          const baseDuration = BASE_FALL_DURATION / speed;
+          const fallDuration = getNoteFallDuration(
+            note.time,
+            gameState.currentTime,
+            baseBpm,
+            speedChanges,
+            baseDuration
+          );
+
+          return (
+            <NoteComponent
+              key={note.id}
+              note={note}
+              fallDuration={fallDuration}
+              currentTime={gameState.currentTime}
+              judgeLineY={JUDGE_LINE_Y}
+              laneX={LANE_POSITIONS[note.lane]}
+              isHolding={holdingNotes.has(note.id)}
+            />
+          );
+        })}
 
         {/* 자막 렌더링 (16:9 영역, 노트 위 레이어) */}
         {activeSubtitles.map(({ cue, opacity }) => {

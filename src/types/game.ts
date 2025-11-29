@@ -32,7 +32,16 @@ export interface GameState {
   gameEnded: boolean;
 }
 
-// BPM 변속 관련 타입
+// 속도/변속 관련 타입
+// - SpeedChange: 시간(ms) 기준 절대 BPM
+// - BPMChange: 비트 인덱스 기준 BPM 변경(기존 ChartEditor용)
+export interface SpeedChange {
+  id: number;
+  startTimeMs: number; // 변속 시작 시간(ms)
+  endTimeMs: number | null; // 변속 종료 시간(ms) - null이면 곡 끝까지
+  bpm: number; // 이 구간에서 적용할 절대 BPM
+}
+
 export interface BPMChange {
   id: number;
   beatIndex: number; // 변속이 시작되는 비트 인덱스
@@ -60,6 +69,8 @@ export interface ChartTestPayload {
   youtubeUrl: string;
   playbackSpeed: number;
   audioOffsetMs?: number;
+  bpm?: number;
+  speedChanges?: SpeedChange[];
 }
 
 export interface SubtitleEditorChartData {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { CHART_EDITOR_THEME } from './constants';
+import { SpeedChange } from '../../types/game';
 
 interface ChartEditorSidebarProps {
   zoom: number;
@@ -24,6 +25,12 @@ interface ChartEditorSidebarProps {
   onSetTestStartToZero: () => void;
   onTestChart: () => void;
   onShareClick: () => void;
+  // 변속(SpeedChange)
+  currentTimeMs: number;
+  speedChanges: SpeedChange[];
+  onAddSpeedChangeAtCurrent: () => void;
+  onUpdateSpeedChange: (id: number, patch: Partial<SpeedChange>) => void;
+  onDeleteSpeedChange: (id: number) => void;
 }
 
 export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
@@ -49,6 +56,11 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
   onSetTestStartToZero,
   onTestChart,
   onShareClick,
+  currentTimeMs,
+  speedChanges,
+  onAddSpeedChangeAtCurrent,
+  onUpdateSpeedChange,
+  onDeleteSpeedChange,
 }) => {
   const gridCellMs = beatDuration / Math.max(1, gridDivision);
   const maxOffset = beatDuration;
@@ -378,6 +390,254 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
         >
           롱노트 모드
         </button>
+      </div>
+
+      {/* 변속 (Speed Changes) */}
+      <div
+        style={{
+          marginBottom: '18px',
+          padding: '12px',
+          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+          borderRadius: CHART_EDITOR_THEME.radiusMd,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '8px',
+          }}
+        >
+          <span
+            style={{
+              fontSize: '13px',
+              fontWeight: 600,
+            }}
+          >
+            변속 구간
+          </span>
+          <button
+            onClick={onAddSpeedChangeAtCurrent}
+            style={{
+              padding: '4px 8px',
+              fontSize: '11px',
+              borderRadius: CHART_EDITOR_THEME.radiusSm,
+              border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
+              backgroundColor: 'rgba(34,211,238,0.12)',
+              color: CHART_EDITOR_THEME.accentStrong,
+              cursor: 'pointer',
+            }}
+          >
+            + 현재 위치에 추가
+          </button>
+        </div>
+        <div
+          style={{
+            fontSize: '11px',
+            color: CHART_EDITOR_THEME.textSecondary,
+            marginBottom: '6px',
+          }}
+        >
+          기준 BPM은 상단 BPM 입력값이며, 변속 구간 BPM은 절대값입니다.
+        </div>
+        {speedChanges.length === 0 ? (
+          <div
+            style={{
+              fontSize: '12px',
+              color: CHART_EDITOR_THEME.textMuted,
+            }}
+          >
+            아직 변속 구간이 없습니다.
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              maxHeight: 180,
+              overflowY: 'auto',
+            }}
+          >
+            {speedChanges.map((sc) => {
+              const startSec = sc.startTimeMs / 1000;
+              const endSec =
+                sc.endTimeMs == null ? '' : (sc.endTimeMs / 1000).toFixed(2);
+              const isCurrent =
+                currentTimeMs >= sc.startTimeMs &&
+                (sc.endTimeMs == null || currentTimeMs < sc.endTimeMs);
+              return (
+                <div
+                  key={sc.id}
+                  style={{
+                    padding: '8px 8px',
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    border: `1px solid ${
+                      isCurrent
+                        ? CHART_EDITOR_THEME.accentStrong
+                        : CHART_EDITOR_THEME.borderSubtle
+                    }`,
+                    backgroundColor: isCurrent
+                      ? 'rgba(34,211,238,0.12)'
+                      : 'transparent',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '6px',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        color: CHART_EDITOR_THEME.textSecondary,
+                      }}
+                    >
+                      시작
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={startSec.toFixed(2)}
+                      onChange={(e) =>
+                        onUpdateSpeedChange(sc.id, {
+                          startTimeMs: Math.max(
+                            0,
+                            Math.round(parseFloat(e.target.value || '0') * 1000)
+                          ),
+                        })
+                      }
+                      style={{
+                        flex: 1,
+                        padding: '2px 4px',
+                        fontSize: '11px',
+                        backgroundColor: '#020617',
+                        color: CHART_EDITOR_THEME.textPrimary,
+                        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        color: CHART_EDITOR_THEME.textSecondary,
+                      }}
+                    >
+                      s
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '6px',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        color: CHART_EDITOR_THEME.textSecondary,
+                      }}
+                    >
+                      끝
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={endSec}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (!raw) {
+                          onUpdateSpeedChange(sc.id, { endTimeMs: null });
+                          return;
+                        }
+                        const value = Math.max(
+                          0,
+                          Math.round(parseFloat(raw) * 1000)
+                        );
+                        onUpdateSpeedChange(sc.id, { endTimeMs: value });
+                      }}
+                      placeholder="끝까지"
+                      style={{
+                        flex: 1,
+                        padding: '2px 4px',
+                        fontSize: '11px',
+                        backgroundColor: '#020617',
+                        color: CHART_EDITOR_THEME.textPrimary,
+                        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        color: CHART_EDITOR_THEME.textSecondary,
+                      }}
+                    >
+                      s
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '6px',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        color: CHART_EDITOR_THEME.textSecondary,
+                      }}
+                    >
+                      BPM
+                    </span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={sc.bpm}
+                      onChange={(e) =>
+                        onUpdateSpeedChange(sc.id, {
+                          bpm: Math.max(1, parseFloat(e.target.value || '1')),
+                        })
+                      }
+                      style={{
+                        flex: 1,
+                        padding: '2px 4px',
+                        fontSize: '11px',
+                        backgroundColor: '#020617',
+                        color: CHART_EDITOR_THEME.textPrimary,
+                        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      }}
+                    />
+                    <button
+                      onClick={() => onDeleteSpeedChange(sc.id)}
+                      style={{
+                        padding: '2px 6px',
+                        fontSize: '11px',
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                        border: 'none',
+                        backgroundColor: 'rgba(248,113,113,0.18)',
+                        color: '#fecaca',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      삭제
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* 테스트 시작 위치 */}
