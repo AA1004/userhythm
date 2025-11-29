@@ -257,13 +257,40 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const handleLaneInput = useCallback((lane: Lane) => {
     // 현재 시간을 그리드에 스냅해서 노트가 가로선에 맞게 설치되도록 함
     const time = snapToGrid(currentTime);
+    
+    // 같은 레인과 같은 시간에 노트가 이미 있는지 확인
+    const hasDuplicate = notes.some((note) => {
+      if (note.lane !== lane) return false;
+      // 스냅된 시간과 비교 (같은 그리드 셀 내면 중복으로 간주)
+      const noteSnappedTime = snapToGrid(note.time);
+      return Math.abs(noteSnappedTime - time) < 1; // 1ms 이내면 같은 위치로 간주
+    });
+    
+    if (hasDuplicate) {
+      return; // 중복이면 추가하지 않음
+    }
+    
     if (isLongNoteMode) {
       if (pendingLongNote && pendingLongNote.lane === lane) {
-        const startTime = Math.min(pendingLongNote.startTime, time);
-        const endTime = Math.max(pendingLongNote.startTime, time);
+        const startTime = snapToGrid(Math.min(pendingLongNote.startTime, time));
+        const endTime = snapToGrid(Math.max(pendingLongNote.startTime, time));
         const duration = endTime - startTime;
         if (duration > MIN_LONG_NOTE_DURATION) {
-          addNote(lane, startTime, 'hold', duration);
+          // 롱노트도 중복 체크 (같은 레인에서 시간이 겹치는 노트가 있는지)
+          const hasHoldDuplicate = notes.some((note) => {
+            if (note.lane !== lane) return false;
+            const noteStart = snapToGrid(note.time);
+            const noteEnd = note.endTime ? snapToGrid(note.endTime) : noteStart;
+            // 시간 범위가 겹치는지 확인
+            return (
+              (startTime >= noteStart && startTime <= noteEnd) ||
+              (endTime >= noteStart && endTime <= noteEnd) ||
+              (startTime <= noteStart && endTime >= noteEnd)
+            );
+          });
+          if (!hasHoldDuplicate) {
+            addNote(lane, startTime, 'hold', duration);
+          }
         }
         setPendingLongNote(null);
       } else {
@@ -272,7 +299,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     } else {
       addNote(lane, time);
     }
-  }, [addNote, snapToGrid, currentTime, isLongNoteMode, pendingLongNote, setPendingLongNote]);
+  }, [addNote, snapToGrid, currentTime, isLongNoteMode, pendingLongNote, setPendingLongNote, notes]);
 
   // 재생선 드래그
   const handlePlayheadMouseDown = useCallback((e: React.MouseEvent) => {
