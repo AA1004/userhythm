@@ -266,21 +266,23 @@ export const ChartEditorHeader: React.FC<ChartEditorHeaderProps> = ({
         <div
           style={{
             display: 'flex',
-            flexDirection: 'column',
-            gap: '6px',
+            alignItems: 'center',
+            gap: '12px',
             flex: 1,
             minWidth: '240px',
-            padding: '10px 12px',
+            padding: '8px 12px',
             borderRadius: CHART_EDITOR_THEME.radiusMd,
             border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
             backgroundColor: 'rgba(15,23,42,0.9)',
+            overflow: 'hidden',
           }}
         >
           <button
             onClick={onYoutubePasteButton}
             disabled={isLoadingYoutubeMeta}
             style={{
-              padding: '8px 12px',
+              flexShrink: 0,
+              padding: '8px 10px',
               borderRadius: CHART_EDITOR_THEME.radiusSm,
               border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
               backgroundColor: isLoadingYoutubeMeta
@@ -291,17 +293,30 @@ export const ChartEditorHeader: React.FC<ChartEditorHeaderProps> = ({
               fontSize: '12px',
               fontWeight: 600,
               opacity: isLoadingYoutubeMeta ? 0.6 : 1,
+              whiteSpace: 'nowrap',
             }}
           >
-            {isLoadingYoutubeMeta ? '불러오는 중...' : 'YouTube URL 붙여넣기'}
+            {isLoadingYoutubeMeta ? '로딩...' : 'YouTube 붙여넣기'}
           </button>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '2px',
+              flex: 1,
+              overflow: 'hidden',
+            }}
+          >
             <span
               style={{
                 color: CHART_EDITOR_THEME.textPrimary,
                 fontWeight: 600,
                 fontSize: '13px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
               }}
+              title={youtubeVideoTitle || ''}
             >
               {youtubeVideoTitle || '연결된 동영상이 없습니다'}
             </span>
@@ -309,9 +324,13 @@ export const ChartEditorHeader: React.FC<ChartEditorHeaderProps> = ({
               style={{
                 color: CHART_EDITOR_THEME.textSecondary,
                 fontSize: '12px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
               }}
             >
               {songInfo.durationFormatted} · 길이: {measures}마디 ({beatsRounded}비트)
+              {bpmChanges.length > 0 && ` · 변속 ${bpmChanges.length}개`}
             </span>
           </div>
         </div>
@@ -355,22 +374,7 @@ export const ChartEditorHeader: React.FC<ChartEditorHeaderProps> = ({
       </div>
 
       {/* 곡 정보 부가 표시 */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '10px',
-          alignItems: 'center',
-          fontSize: '11px',
-          color: CHART_EDITOR_THEME.textSecondary,
-          padding: '4px 8px',
-          borderRadius: CHART_EDITOR_THEME.radiusMd,
-          backgroundColor: 'rgba(15,23,42,0.85)',
-        }}
-      >
-        <span>길이: {songInfo.durationFormatted}</span>
-        <span>비트: {songInfo.totalBeats.toFixed(1)}</span>
-        {songInfo.hasBpmChanges && <span>BPM 변속: {bpmChanges.length}개</span>}
-      </div>
+      {/* 중복된 정보는 제거 */}
     </div>
   );
 };
