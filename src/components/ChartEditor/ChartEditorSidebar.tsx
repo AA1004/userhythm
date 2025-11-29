@@ -1,4 +1,5 @@
 import React from 'react';
+import { CHART_EDITOR_THEME } from './constants';
 
 interface ChartEditorSidebarProps {
   zoom: number;
@@ -50,18 +51,47 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
   return (
     <div
       style={{
-        width: '250px',
-        backgroundColor: '#1a1a1a',
-        padding: '16px',
+        width: '280px',
+        backgroundColor: CHART_EDITOR_THEME.sidebarBackground,
+        padding: '16px 14px',
         overflowY: 'auto',
-        borderLeft: '1px solid #333',
+        borderRight: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+        color: CHART_EDITOR_THEME.textPrimary,
       }}
     >
-      <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '18px' }}>설정</h3>
+      <h3
+        style={{
+          marginTop: 0,
+          marginBottom: '12px',
+          fontSize: '16px',
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: CHART_EDITOR_THEME.textSecondary,
+        }}
+      >
+        설정
+      </h3>
 
       {/* 줌 조절 */}
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>줌: {zoom.toFixed(2)}x</label>
+      <div
+        style={{
+          marginBottom: '16px',
+          padding: '10px 12px',
+          borderRadius: CHART_EDITOR_THEME.radiusMd,
+          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+        }}
+      >
+        <label
+          style={{
+            display: 'block',
+            marginBottom: '6px',
+            fontSize: '13px',
+            fontWeight: 500,
+          }}
+        >
+          줌: {zoom.toFixed(2)}x
+        </label>
         <input
           type="range"
           min="0.5"
@@ -74,18 +104,36 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
       </div>
 
       {/* 재생 속도 */}
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>재생 속도: {playbackSpeed}x</label>
+      <div
+        style={{
+          marginBottom: '16px',
+          padding: '10px 12px',
+          borderRadius: CHART_EDITOR_THEME.radiusMd,
+          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+        }}
+      >
+        <label
+          style={{
+            display: 'block',
+            marginBottom: '6px',
+            fontSize: '13px',
+            fontWeight: 500,
+          }}
+        >
+          재생 속도: {playbackSpeed}x
+        </label>
         <select
           value={playbackSpeed}
           onChange={(e) => onPlaybackSpeedChange(parseFloat(e.target.value))}
           style={{
             width: '100%',
-            padding: '6px',
-            backgroundColor: '#2a2a2a',
-            color: '#fff',
-            border: '1px solid #444',
-            borderRadius: '4px',
+            padding: '6px 8px',
+            backgroundColor: '#020617',
+            color: CHART_EDITOR_THEME.textPrimary,
+            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            borderRadius: CHART_EDITOR_THEME.radiusSm,
+            fontSize: '13px',
           }}
         >
           {playbackSpeedOptions.map((speed) => (
@@ -97,8 +145,25 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
       </div>
 
       {/* 볼륨 */}
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>볼륨: {volume}%</label>
+      <div
+        style={{
+          marginBottom: '16px',
+          padding: '10px 12px',
+          borderRadius: CHART_EDITOR_THEME.radiusMd,
+          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+        }}
+      >
+        <label
+          style={{
+            display: 'block',
+            marginBottom: '6px',
+            fontSize: '13px',
+            fontWeight: 500,
+          }}
+        >
+          볼륨: {volume}%
+        </label>
         <input
           type="range"
           min="0"
@@ -111,18 +176,36 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
       </div>
 
       {/* 타임시그니처 */}
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>타임시그니처: {beatsPerMeasure}/4</label>
+      <div
+        style={{
+          marginBottom: '16px',
+          padding: '10px 12px',
+          borderRadius: CHART_EDITOR_THEME.radiusMd,
+          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+        }}
+      >
+        <label
+          style={{
+            display: 'block',
+            marginBottom: '6px',
+            fontSize: '13px',
+            fontWeight: 500,
+          }}
+        >
+          타임시그니처: {beatsPerMeasure}/4
+        </label>
         <select
           value={beatsPerMeasure}
           onChange={(e) => onTimeSignatureChange(parseInt(e.target.value))}
           style={{
             width: '100%',
-            padding: '6px',
-            backgroundColor: '#2a2a2a',
-            color: '#fff',
-            border: '1px solid #444',
-            borderRadius: '4px',
+            padding: '6px 8px',
+            backgroundColor: '#020617',
+            color: CHART_EDITOR_THEME.textPrimary,
+            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            borderRadius: CHART_EDITOR_THEME.radiusSm,
+            fontSize: '13px',
           }}
         >
           <option value={3}>3/4</option>
@@ -132,18 +215,36 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
       </div>
 
       {/* 그리드 분할 */}
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>그리드 분할: 1/{gridDivision}</label>
+      <div
+        style={{
+          marginBottom: '16px',
+          padding: '10px 12px',
+          borderRadius: CHART_EDITOR_THEME.radiusMd,
+          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+        }}
+      >
+        <label
+          style={{
+            display: 'block',
+            marginBottom: '6px',
+            fontSize: '13px',
+            fontWeight: 500,
+          }}
+        >
+          그리드 분할: 1/{gridDivision}
+        </label>
         <select
           value={gridDivision}
           onChange={(e) => onGridDivisionChange(parseInt(e.target.value))}
           style={{
             width: '100%',
-            padding: '6px',
-            backgroundColor: '#2a2a2a',
-            color: '#fff',
-            border: '1px solid #444',
-            borderRadius: '4px',
+            padding: '6px 8px',
+            backgroundColor: '#020617',
+            color: CHART_EDITOR_THEME.textPrimary,
+            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            borderRadius: CHART_EDITOR_THEME.radiusSm,
+            fontSize: '13px',
           }}
         >
           <option value={1}>1/1</option>
@@ -155,39 +256,89 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
       </div>
 
       {/* 타임시그니처 오프셋 */}
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>타임시그니처 오프셋: {timeSignatureOffset}ms</label>
+      <div
+        style={{
+          marginBottom: '16px',
+          padding: '10px 12px',
+          borderRadius: CHART_EDITOR_THEME.radiusMd,
+          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+        }}
+      >
+        <label
+          style={{
+            display: 'block',
+            marginBottom: '6px',
+            fontSize: '13px',
+            fontWeight: 500,
+          }}
+        >
+          타임시그니처 오프셋: {timeSignatureOffset}ms
+        </label>
         <input
           type="number"
           value={timeSignatureOffset}
           onChange={(e) => onTimeSignatureOffsetChange(parseInt(e.target.value) || 0)}
           style={{
             width: '100%',
-            padding: '6px',
-            backgroundColor: '#2a2a2a',
-            color: '#fff',
-            border: '1px solid #444',
-            borderRadius: '4px',
+            padding: '6px 8px',
+            backgroundColor: '#020617',
+            color: CHART_EDITOR_THEME.textPrimary,
+            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            borderRadius: CHART_EDITOR_THEME.radiusSm,
+            fontSize: '13px',
           }}
         />
       </div>
 
       {/* 롱노트 모드 */}
-      <div style={{ marginBottom: '20px' }}>
-        <label style={{ display: 'flex', alignItems: 'center', fontSize: '14px', cursor: 'pointer' }}>
+      <div
+        style={{
+          marginBottom: '16px',
+          padding: '10px 12px',
+          borderRadius: CHART_EDITOR_THEME.radiusMd,
+          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+        }}
+      >
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            fontSize: '13px',
+            cursor: 'pointer',
+            gap: '8px',
+          }}
+        >
           <input
             type="checkbox"
             checked={isLongNoteMode}
             onChange={onToggleLongNoteMode}
-            style={{ marginRight: '8px' }}
           />
           롱노트 모드
         </label>
       </div>
 
       {/* 테스트 시작 위치 */}
-      <div style={{ marginBottom: '20px', padding: '12px', backgroundColor: '#2a2a2a', borderRadius: '6px' }}>
-        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>테스트 시작 위치</label>
+      <div
+        style={{
+          marginBottom: '18px',
+          padding: '12px',
+          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+          borderRadius: CHART_EDITOR_THEME.radiusMd,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+        }}
+      >
+        <label
+          style={{
+            display: 'block',
+            marginBottom: '6px',
+            fontSize: '13px',
+            fontWeight: 600,
+          }}
+        >
+          테스트 시작 위치
+        </label>
         <input
           type="text"
           value={testStartInput}
@@ -195,12 +346,13 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
           placeholder="ms"
           style={{
             width: '100%',
-            padding: '6px',
-            backgroundColor: '#1a1a1a',
-            color: '#fff',
-            border: '1px solid #444',
-            borderRadius: '4px',
+            padding: '6px 8px',
+            backgroundColor: '#020617',
+            color: CHART_EDITOR_THEME.textPrimary,
+            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            borderRadius: CHART_EDITOR_THEME.radiusSm,
             marginBottom: '8px',
+            fontSize: '13px',
           }}
         />
         <div style={{ display: 'flex', gap: '8px' }}>
@@ -209,10 +361,10 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
             style={{
               flex: 1,
               padding: '6px',
-              backgroundColor: '#444',
-              color: '#fff',
+              backgroundColor: 'rgba(34,211,238,0.14)',
+              color: CHART_EDITOR_THEME.accentStrong,
               border: 'none',
-              borderRadius: '4px',
+              borderRadius: CHART_EDITOR_THEME.radiusSm,
               cursor: 'pointer',
               fontSize: '12px',
             }}
@@ -224,10 +376,10 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
             style={{
               flex: 1,
               padding: '6px',
-              backgroundColor: '#444',
-              color: '#fff',
+              backgroundColor: 'rgba(148,163,184,0.14)',
+              color: CHART_EDITOR_THEME.textPrimary,
               border: 'none',
-              borderRadius: '4px',
+              borderRadius: CHART_EDITOR_THEME.radiusSm,
               cursor: 'pointer',
               fontSize: '12px',
             }}
@@ -240,13 +392,15 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
           style={{
             width: '100%',
             marginTop: '8px',
-            padding: '10px',
-            backgroundColor: '#4CAF50',
-            color: '#fff',
+            padding: '9px',
+            background:
+              'linear-gradient(135deg, #22c55e, #4ade80)',
+            color: '#022c22',
             border: 'none',
-            borderRadius: '6px',
+            borderRadius: CHART_EDITOR_THEME.radiusMd,
             cursor: 'pointer',
             fontWeight: 'bold',
+            fontSize: '13px',
           }}
         >
           테스트 실행
@@ -259,12 +413,14 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
         style={{
           width: '100%',
           padding: '10px',
-          backgroundColor: '#2196F3',
-          color: '#fff',
+          background:
+            'linear-gradient(135deg, #38bdf8, #818cf8)',
+          color: '#0b1120',
           border: 'none',
-          borderRadius: '6px',
+          borderRadius: CHART_EDITOR_THEME.radiusLg,
           cursor: 'pointer',
           fontWeight: 'bold',
+          fontSize: '13px',
         }}
       >
         공유

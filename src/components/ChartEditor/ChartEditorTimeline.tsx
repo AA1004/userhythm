@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Note, TimeSignatureEvent } from '../../types/game';
-import { LANE_POSITIONS, TAP_NOTE_HEIGHT, TIMELINE_BOTTOM_PADDING } from './constants';
+import { LANE_POSITIONS, TAP_NOTE_HEIGHT, TIMELINE_BOTTOM_PADDING, CHART_EDITOR_THEME } from './constants';
 
 interface ChartEditorTimelineProps {
   notes: Note[];
@@ -63,7 +63,8 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
         height: '100%',
         overflow: 'auto',
         position: 'relative',
-        backgroundColor: '#1f1f1f',
+        background:
+          'radial-gradient(circle at top, rgba(15,23,42,0.9), rgba(15,23,42,1))',
       }}
     >
       {/* 타임라인 컨텐츠 */}
@@ -85,7 +86,12 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
               top: 0,
               width: '100px',
               height: '100%',
-              backgroundColor: index % 2 === 0 ? '#252525' : '#2a2a2a',
+              background:
+                index % 2 === 0
+                  ? 'linear-gradient(180deg, #020617 0%, #020617 40%, #020617 100%)'
+                  : 'linear-gradient(180deg, #020617 0%, #020617 40%, #020617 100%)',
+              boxShadow:
+                'inset 1px 0 0 rgba(15,23,42,0.9), inset -1px 0 0 rgba(15,23,42,0.9)',
             }}
           />
         ))}
@@ -100,7 +106,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
               top: 0,
               width: '2px',
               height: '100%',
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              backgroundColor: 'rgba(148, 163, 184, 0.25)',
               transform: 'translateX(-50%)',
             }}
           />
@@ -116,7 +122,9 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
               top: `${line.y}px`,
               width: `${LANE_POSITIONS[3] - LANE_POSITIONS[0] + 100}px`,
               height: '1px',
-              backgroundColor: line.isMeasure ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.1)',
+              backgroundColor: line.isMeasure
+                ? 'rgba(56, 189, 248, 0.55)'
+                : 'rgba(148, 163, 184, 0.25)',
             }}
           />
         ))}
@@ -129,8 +137,9 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
             top: `${TIMELINE_BOTTOM_PADDING}px`,
             width: `${LANE_POSITIONS[3] - LANE_POSITIONS[0] + 100}px`,
             height: '3px',
-            backgroundColor: '#FFD700',
-            boxShadow: '0 0 10px rgba(255, 215, 0, 0.5)',
+            background:
+              'linear-gradient(90deg, rgba(244, 244, 245, 0) 0%, #facc15 20%, #f97316 80%, rgba(244, 244, 245, 0) 100%)',
+            boxShadow: '0 0 16px rgba(250, 204, 21, 0.55)',
           }}
         />
 
@@ -144,8 +153,8 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
             : TAP_NOTE_HEIGHT;
           const topPosition = isHold ? Math.min(startY, endY) : startY - TAP_NOTE_HEIGHT / 2;
           const isOddLane = note.lane === 0 || note.lane === 2;
-          const baseColor = isOddLane ? '#FF6B6B' : '#4ECDC4';
-          const borderColor = isOddLane ? '#EE5A52' : '#45B7B8';
+          const baseColor = isOddLane ? '#f97373' : '#22c3d6';
+          const borderColor = isOddLane ? '#fb7185' : '#22d3ee';
           const holdGradient = isOddLane
             ? 'linear-gradient(180deg, rgba(255,107,107,0.95) 0%, rgba(255,138,128,0.65) 100%)'
             : 'linear-gradient(180deg, rgba(78,205,196,0.95) 0%, rgba(94,234,212,0.65) 100%)';
@@ -174,8 +183,8 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
                     height: '100%',
                     background: holdGradient,
                     border: `2px solid ${borderColor}`,
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.3)',
+                  borderRadius: 10,
+                  boxShadow: '0 10px 20px rgba(15, 23, 42, 0.8)',
                   }}
                 />
               ) : (
@@ -185,8 +194,8 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
                     height: '100%',
                     background: `linear-gradient(180deg, ${baseColor} 0%, ${baseColor}dd 100%)`,
                     border: `3px solid ${borderColor}`,
-                    borderRadius: '14px',
-                    boxShadow: '0 6px 14px rgba(0, 0, 0, 0.45)',
+                  borderRadius: 14,
+                  boxShadow: '0 14px 28px rgba(15, 23, 42, 0.95)',
                   }}
                 />
               )}

@@ -18,6 +18,7 @@ import {
   TIMELINE_BOTTOM_PADDING,
   MIN_TIMELINE_DURATION_MS,
   PLAYBACK_SPEED_OPTIONS,
+  CHART_EDITOR_THEME,
 } from './ChartEditor/constants';
 
 interface ChartEditorProps {
@@ -437,7 +438,19 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   }, []);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', backgroundColor: '#121212', color: '#fff' }}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        overflow: 'hidden',
+        background: `radial-gradient(circle at top left, ${CHART_EDITOR_THEME.accentSoft}, ${CHART_EDITOR_THEME.rootBackground})`,
+        color: CHART_EDITOR_THEME.textPrimary,
+        padding: '12px 16px',
+        boxSizing: 'border-box',
+        gap: '10px',
+      }}
+    >
       {/* Header */}
       <ChartEditorHeader
         bpm={bpm}
@@ -486,7 +499,18 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         onDeleteBpmChange={handleDeleteBpmChange}
       />
 
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+      <div
+        style={{
+          flex: 1,
+          display: 'flex',
+          overflow: 'hidden',
+          position: 'relative',
+          borderRadius: CHART_EDITOR_THEME.radiusLg,
+          background: CHART_EDITOR_THEME.surfaceElevated,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+          boxShadow: CHART_EDITOR_THEME.shadowSoft,
+        }}
+      >
         {/* Sidebar */}
         <ChartEditorSidebar
           zoom={zoom}
