@@ -162,11 +162,9 @@ export function useChartYoutubePlayer({
             onStateChange: (event: any) => {
               if (isCancelled) return;
 
-              if (event.data === window.YT.PlayerState.PLAYING) {
-                setIsPlaying(true);
-              } else if (event.data === window.YT.PlayerState.PAUSED) {
-                setIsPlaying(false);
-              } else if (event.data === window.YT.PlayerState.ENDED) {
+              // 재생 버튼으로만 제어하므로, 플레이어 상태 변경 시 UI 상태를 자동으로 변경하지 않음
+              // 단, 영상이 끝났을 때만 시간을 초기화
+              if (event.data === window.YT.PlayerState.ENDED) {
                 setIsPlaying(false);
                 setCurrentTime(0);
               }

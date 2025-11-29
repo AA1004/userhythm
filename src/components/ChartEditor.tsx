@@ -511,11 +511,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         handleLaneInput(lane);
         return;
       }
-
-      if (e.code === 'Space') {
-        e.preventDefault();
-        setIsPlaying(prev => !prev);
-      }
     };
     
     window.addEventListener('keydown', handleKeyDown);
