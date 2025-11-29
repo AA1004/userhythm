@@ -220,6 +220,47 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
             pointerEvents: 'none',
           }}
         >
+          {/* 게임 화면 느낌을 위한 레인 + 판정선 가이드 */}
+          {/* 레인 영역: 좌우 10% 여백, 4레인 */}
+          <div
+            style={{
+              position: 'absolute',
+              left: '10%',
+              top: 0,
+              width: '80%',
+              height: '100%',
+              background: 'rgba(15,23,42,0.6)',
+              boxShadow: 'inset 0 0 0 1px rgba(148,163,184,0.25)',
+            }}
+          />
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div
+              key={`lane-line-${i}`}
+              style={{
+                position: 'absolute',
+                left: `${10 + i * 20}%`,
+                top: 0,
+                width: 1,
+                height: '100%',
+                backgroundColor: 'rgba(148,163,184,0.35)',
+                transform: 'translateX(-0.5px)',
+              }}
+            />
+          ))}
+          {/* 판정선: 게임 화면과 비슷하게 하단 80% 지점 */}
+          <div
+            style={{
+              position: 'absolute',
+              left: '10%',
+              width: '80%',
+              top: '80%',
+              height: 2,
+              background:
+                'linear-gradient(90deg, rgba(248,250,252,0.6), rgba(251,113,133,0.95))',
+              boxShadow: '0 0 14px rgba(248,113,133,0.9)',
+            }}
+          />
+
           {activeCues.map(renderCue)}
         </div>
       </div>

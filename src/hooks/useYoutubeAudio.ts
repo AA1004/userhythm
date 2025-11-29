@@ -87,6 +87,8 @@ export function useYoutubeAudio({
               // 초기 위치로 이동
               try {
                 player.seekTo(currentTimeMs / 1000, true);
+                // 자막 에디터에 들어왔을 때는 자동 재생하지 않음
+                player.pauseVideo?.();
               } catch {
                 // ignore
               }
@@ -112,6 +114,8 @@ export function useYoutubeAudio({
 
     try {
       if (isPlaying) {
+        // 재생 버튼을 눌렀을 때는 항상 타임라인 위치에서 재생 시작
+        player.seekTo(currentTimeMs / 1000, true);
         player.playVideo?.();
       } else {
         player.pauseVideo?.();
@@ -119,7 +123,7 @@ export function useYoutubeAudio({
     } catch (e) {
       console.warn('Subtitle audio 재생 제어 실패:', e);
     }
-  }, [isPlaying]);
+  }, [isPlaying, currentTimeMs]);
 
   // 재생 중일 때 플레이어 시간 → currentTimeMs 동기화
   useEffect(() => {
