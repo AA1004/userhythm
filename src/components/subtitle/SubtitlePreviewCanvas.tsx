@@ -154,7 +154,7 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
                   height: 14,
                   borderRadius: '9999px',
                   border: `2px solid ${CHART_EDITOR_THEME.accentStrong}`,
-                  backgroundColor: '#020617',
+                  backgroundColor: CHART_EDITOR_THEME.surface,
                   cursor: 'grab',
                   boxShadow: '0 0 10px rgba(56,189,248,0.8)',
                 }}
@@ -189,7 +189,7 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
           borderRadius: CHART_EDITOR_THEME.radiusLg,
           overflow: 'hidden',
           background:
-            'radial-gradient(circle at top, #020617 0%, #020617 40%, #020617 100%)',
+            `radial-gradient(circle at top, ${CHART_EDITOR_THEME.rootBackground} 0%, ${CHART_EDITOR_THEME.rootBackground} 40%, ${CHART_EDITOR_THEME.rootBackground} 100%)`,
         }}
       >
         {/* 안내 텍스트 */}

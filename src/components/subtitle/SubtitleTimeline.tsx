@@ -160,7 +160,7 @@ export const SubtitleTimeline: React.FC<SubtitleTimelineProps> = ({
       style={{
         height: 220,
         borderTop: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-        backgroundColor: '#020617',
+        backgroundColor: CHART_EDITOR_THEME.surface,
       }}
     >
       <div

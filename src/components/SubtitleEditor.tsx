@@ -10,6 +10,7 @@ import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { SubtitleTimeline } from './subtitle/SubtitleTimeline';
 import { SubtitleInspector } from './subtitle/SubtitleInspector';
 import { SubtitlePreviewCanvas } from './subtitle/SubtitlePreviewCanvas';
+import { useYoutubeAudio } from '../hooks/useYoutubeAudio';
 
 interface SubtitleEditorProps {
   chartId: string;
@@ -35,12 +36,23 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   const [selectedTrackId, setSelectedTrackId] = useState<string>(
     () => DEFAULT_SUBTITLE_TRACKS[0]?.id ?? 'track-1'
   );
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
   const durationMs = useMemo(() => {
     if (!chartData.notes.length) return 60000;
     const lastNote = Math.max(...chartData.notes.map((n) => n.endTime || n.time));
     return Math.max(lastNote + 5000, 60000);
   }, [chartData.notes]);
+
+  // YouTube 오디오 (있을 때만)
+  const hasYoutube = !!chartData.youtubeVideoId;
+  const { containerRef: audioContainerRef, isReady: isAudioReady } =
+    useYoutubeAudio({
+      videoId: chartData.youtubeVideoId ?? null,
+      currentTimeMs,
+      setCurrentTimeMs,
+      isPlaying,
+    });
 
   const handleAddSubtitle = useCallback(() => {
     const baseTrack =
@@ -177,20 +189,53 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
           boxShadow: CHART_EDITOR_THEME.shadowSoft,
         }}
       >
-        <div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div style={{ fontSize: 14, fontWeight: 600 }}>Subtitle Editor</div>
           <div
             style={{
               fontSize: 12,
               color: CHART_EDITOR_THEME.textSecondary,
-              marginTop: 2,
             }}
           >
             {chartData.title || 'Untitled'} · BPM {chartData.bpm} · 자막{' '}
             {subtitles.length}개
           </div>
+          <div
+            style={{
+              fontSize: 11,
+              color: CHART_EDITOR_THEME.textMuted,
+            }}
+          >
+            {hasYoutube
+              ? `YouTube와 동기화됨 · 현재 시간 ${(currentTimeMs / 1000).toFixed(2)}s`
+              : 'YouTube 정보가 없어 사운드 재생이 비활성화되었습니다'}
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            onClick={() => {
+              if (!hasYoutube || !isAudioReady) return;
+              setIsPlaying((prev) => !prev);
+            }}
+            disabled={!hasYoutube || !isAudioReady}
+            style={{
+              padding: '6px 10px',
+              borderRadius: CHART_EDITOR_THEME.radiusSm,
+              border: 'none',
+              background: hasYoutube
+                ? isPlaying
+                  ? 'linear-gradient(135deg, #f97373, #fb7185)'
+                  : 'linear-gradient(135deg, #22c55e, #4ade80)'
+                : 'rgba(31,41,55,0.8)',
+              color: hasYoutube ? '#022c22' : CHART_EDITOR_THEME.textSecondary,
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: !hasYoutube || !isAudioReady ? 'not-allowed' : 'pointer',
+              opacity: !hasYoutube || !isAudioReady ? 0.6 : 1,
+            }}
+          >
+            {isPlaying ? '일시정지' : '재생'}
+          </button>
           <button
             onClick={handleAddSubtitle}
             style={{
@@ -390,6 +435,21 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
             onChangeSubtitleTime={handleChangeSubtitleTime}
           />
         </div>
+
+        {/* 숨겨진 YouTube 오디오 플레이어 (자막 편집용) */}
+        {hasYoutube && (
+          <div
+            ref={audioContainerRef}
+            style={{
+              position: 'absolute',
+              width: 1,
+              height: 1,
+              opacity: 0,
+              pointerEvents: 'none',
+              overflow: 'hidden',
+            }}
+          />
+        )}
       </div>
     </div>
   );

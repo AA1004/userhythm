@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useEffect, useRef } from 'react';
+﻿import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { GameState, Note, Lane, JudgeType } from '../types/game';
 import { Note as NoteComponent } from './Note';
 import { KeyLane } from './KeyLane';
@@ -14,6 +14,9 @@ import { judgeTiming, judgeHoldReleaseTiming } from '../utils/judge';
 import { judgeConfig } from '../config/judgeConfig';
 import { generateNotes } from '../utils/noteGenerator';
 import { waitForYouTubeAPI } from '../utils/youtube';
+import { SubtitleCue, SubtitleStyle } from '../types/subtitle';
+import { subtitleAPI, localSubtitleStorage } from '../lib/subtitleAPI';
+import { isSupabaseConfigured } from '../lib/supabaseClient';
 
 // Subtitle editor chart data
 interface SubtitleEditorChartData {
@@ -49,6 +52,15 @@ const LANE_POSITIONS = [100, 200, 300, 400];
 const JUDGE_LINE_LEFT = 50; // 판정선 시작 위치 (첫 레인 왼쪽)
 const JUDGE_LINE_WIDTH = 400; // 판정선 너비 (4개 레인 영역)
 const JUDGE_LINE_Y = 640;
+
+// 자막 렌더링 영역 (16:9 비율, 4레인 영역 기준)
+const SUBTITLE_AREA_LEFT = 50; // 레인 영역과 동일하게 시작
+const SUBTITLE_AREA_WIDTH = 400;
+const SUBTITLE_AREA_HEIGHT = (SUBTITLE_AREA_WIDTH * 9) / 16; // 16:9 비율
+// 자막 영역을 판정선 위쪽에 배치 (노트/판정선과 겹치지 않도록 여유를 둠)
+const SUBTITLE_AREA_BOTTOM_MARGIN = 40;
+const SUBTITLE_AREA_TOP =
+  JUDGE_LINE_Y - SUBTITLE_AREA_BOTTOM_MARGIN - SUBTITLE_AREA_HEIGHT;
 
 const GAME_DURATION = 30000; // 30초
 const START_DELAY_MS = 4000;
@@ -104,6 +116,9 @@ export const Game: React.FC = () => {
     y: number;
   }>>([]);
   const keyEffectIdRef = useRef(0);
+
+  // 자막 상태
+  const [subtitles, setSubtitles] = useState<SubtitleCue[]>([]);
 
   const getAudioBaseSeconds = () => {
     if (!testAudioSettingsRef.current) return 0;
@@ -437,6 +452,83 @@ export const Game: React.FC = () => {
 
   useGameLoop(gameState, setGameState, handleNoteMiss, speed, START_DELAY_MS);
 
+  // 현재 게임 시간(ms)을 자막/채보 타임라인 시간으로 변환
+  const currentChartTimeMs = useMemo(
+    () => Math.max(0, gameState.currentTime),
+    [gameState.currentTime]
+  );
+
+  // 자막 불러오기
+  const loadSubtitlesForChart = useCallback(async (chartId: string) => {
+    try {
+      let cues: SubtitleCue[] = [];
+
+      if (isSupabaseConfigured) {
+        cues = await subtitleAPI.getSubtitlesByChartId(chartId);
+      } else {
+        cues = localSubtitleStorage.get(chartId);
+      }
+
+      cues.sort((a, b) => a.startTimeMs - b.startTimeMs);
+      setSubtitles(cues);
+    } catch (e) {
+      console.error('자막을 불러오지 못했습니다:', e);
+      setSubtitles([]);
+    }
+  }, []);
+
+  // 자막 페이드 인/아웃 포함 opacity 계산
+  const getSubtitleOpacity = useCallback(
+    (cue: SubtitleCue, chartTimeMs: number) => {
+      const style: SubtitleStyle = cue.style || ({} as SubtitleStyle);
+      const inEffect = style.inEffect ?? 'none';
+      const outEffect = style.outEffect ?? 'none';
+      const inDuration = style.inDurationMs ?? 120;
+      const outDuration = style.outDurationMs ?? 120;
+
+      if (chartTimeMs < cue.startTimeMs) return 0;
+
+      // in 페이드
+      if (chartTimeMs < cue.startTimeMs + inDuration && inEffect === 'fade') {
+        const t = (chartTimeMs - cue.startTimeMs) / Math.max(1, inDuration);
+        return Math.max(0, Math.min(1, t));
+      }
+
+      // 메인 표시 구간
+      if (chartTimeMs <= cue.endTimeMs) {
+        return 1;
+      }
+
+      // out 페이드
+      if (outEffect === 'fade' && chartTimeMs <= cue.endTimeMs + outDuration) {
+        const t = (chartTimeMs - cue.endTimeMs) / Math.max(1, outDuration);
+        return Math.max(0, Math.min(1, 1 - t));
+      }
+
+      return 0;
+    },
+    []
+  );
+
+  const activeSubtitles = useMemo(() => {
+    if (!subtitles.length) return [];
+    if (!gameState.gameStarted) return [];
+
+    const t = currentChartTimeMs;
+
+    return subtitles
+      .map((cue) => {
+        const opacity = getSubtitleOpacity(cue, t);
+        return opacity > 0
+          ? {
+              cue,
+              opacity,
+            }
+          : null;
+      })
+      .filter((x): x is { cue: SubtitleCue; opacity: number } => x !== null);
+  }, [subtitles, gameState.gameStarted, currentChartTimeMs, getSubtitleOpacity]);
+
   useEffect(() => {
     if (
       gameState.gameStarted &&
@@ -463,6 +555,7 @@ export const Game: React.FC = () => {
     processedMissNotes.current.clear(); // Miss 처리 노트 추적 초기화
     setPressedKeys(new Set());
     setHoldingNotes(new Map()); // 롱노트 상태 초기화
+    setSubtitles([]);
     setGameState((prev) => ({
       ...prev,
       gameStarted: false,
@@ -576,6 +669,7 @@ export const Game: React.FC = () => {
     testPreparedNotesRef.current = [];
     testAudioSettingsRef.current = null;
     setTestYoutubeVideoId(null);
+    setSubtitles([]);
     
     // YouTube 플레이어 정리
     if (testYoutubePlayer) {
@@ -861,11 +955,18 @@ export const Game: React.FC = () => {
       
       setHoldingNotes(new Map());
       processedMissNotes.current = new Set();
+
+      // 자막 로드 (chartId가 있을 때만)
+      if (chartData.chartId) {
+        loadSubtitlesForChart(chartData.chartId);
+      } else {
+        setSubtitles([]);
+      }
     } catch (error) {
       console.error('Failed to load chart:', error);
       alert('채보를 불러오는데 실패했습니다. 다시 시도해주세요.');
     }
-  }, [buildInitialScore]);
+  }, [buildInitialScore, loadSubtitlesForChart]);
 
   // 관리자 테스트 핸들러
   const handleAdminTest = useCallback((chartData: any) => {
@@ -987,6 +1088,67 @@ export const Game: React.FC = () => {
             isHolding={holdingNotes.has(note.id)}
           />
         ))}
+
+        {/* 자막 렌더링 (16:9 영역, 노트 위 레이어) */}
+        {activeSubtitles.map(({ cue, opacity }) => {
+          const style = cue.style || ({} as SubtitleStyle);
+          const pos = style.position ?? { x: 0.5, y: 0.9 };
+
+          const left =
+            SUBTITLE_AREA_LEFT + pos.x * SUBTITLE_AREA_WIDTH;
+          const top =
+            SUBTITLE_AREA_TOP + pos.y * SUBTITLE_AREA_HEIGHT;
+
+          const transformParts: string[] = ['translate(-50%, -50%)'];
+          if (style.rotationDeg) {
+            transformParts.push(`rotate(${style.rotationDeg}deg)`);
+          }
+
+          const textAlign = style.textAlign ?? 'center';
+          const baseOpacity = style.backgroundOpacity ?? 0.9;
+          const displayOpacity = baseOpacity * opacity;
+
+          const backgroundColor =
+            style.backgroundColor ?? 'rgba(0, 0, 0, 0.9)';
+
+          return (
+            <div
+              key={cue.id}
+              style={{
+                position: 'absolute',
+                left,
+                top,
+                transform: transformParts.join(' '),
+                transformOrigin: '50% 50%',
+                padding: '6px 14px',
+                borderRadius: 8,
+                backgroundColor,
+                opacity: displayOpacity,
+                color: style.color ?? '#ffffff',
+                fontFamily: style.fontFamily ?? 'Noto Sans KR, sans-serif',
+                fontSize: style.fontSize ?? 24,
+                fontWeight: style.fontWeight ?? 'normal',
+                fontStyle: style.fontStyle ?? 'normal',
+                textAlign,
+                whiteSpace: 'pre-wrap',
+                pointerEvents: 'none',
+                zIndex: 300,
+                boxShadow:
+                  '0 10px 30px rgba(0,0,0,0.9), 0 0 18px rgba(15,23,42,0.9)',
+                border: style.outlineColor
+                  ? `1px solid ${style.outlineColor}`
+                  : 'none',
+              }}
+            >
+              {cue.text.split('\n').map((line, idx, arr) => (
+                <React.Fragment key={idx}>
+                  {line}
+                  {idx < arr.length - 1 && <br />}
+                </React.Fragment>
+              ))}
+            </div>
+          );
+        })}
 
         {/* 판정선 - 게임 중에만 표시 (4개 레인 영역에만) */}
         {gameState.gameStarted && (

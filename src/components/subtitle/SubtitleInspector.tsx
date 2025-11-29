@@ -72,7 +72,7 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
         }}
       >
         <div style={{ marginBottom: 6, fontWeight: 600 }}>자막 텍스트</div>
-        <textarea
+          <textarea
           value={selectedCue.text}
           onChange={(e) =>
             onChangeCue({
@@ -84,7 +84,7 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
           style={{
             width: '100%',
             resize: 'vertical',
-            backgroundColor: '#020617',
+            backgroundColor: CHART_EDITOR_THEME.surface,
             color: CHART_EDITOR_THEME.textPrimary,
             border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
             borderRadius: CHART_EDITOR_THEME.radiusSm,
@@ -112,7 +112,7 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
               style={{
                 width: '100%',
                 padding: '6px 8px',
-                backgroundColor: '#020617',
+                backgroundColor: CHART_EDITOR_THEME.surface,
                 color: CHART_EDITOR_THEME.textPrimary,
                 borderRadius: CHART_EDITOR_THEME.radiusSm,
                 border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
@@ -137,7 +137,7 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
                 style={{
                   width: '100%',
                   padding: '6px 8px',
-                  backgroundColor: '#020617',
+                  backgroundColor: CHART_EDITOR_THEME.surface,
                   color: CHART_EDITOR_THEME.textPrimary,
                   borderRadius: CHART_EDITOR_THEME.radiusSm,
                   border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
@@ -163,7 +163,7 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
                 style={{
                   width: '100%',
                   padding: '6px 8px',
-                  backgroundColor: '#020617',
+                  backgroundColor: CHART_EDITOR_THEME.surface,
                   color: CHART_EDITOR_THEME.textPrimary,
                   borderRadius: CHART_EDITOR_THEME.radiusSm,
                   border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
@@ -184,7 +184,7 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
                 style={{
                   width: '100%',
                   padding: '6px 8px',
-                  backgroundColor: '#020617',
+                  backgroundColor: CHART_EDITOR_THEME.surface,
                   color: CHART_EDITOR_THEME.textPrimary,
                   borderRadius: CHART_EDITOR_THEME.radiusSm,
                   border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
@@ -237,7 +237,7 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
                 style={{
                   width: '100%',
                   padding: '6px 8px',
-                  backgroundColor: '#020617',
+                  backgroundColor: CHART_EDITOR_THEME.surface,
                   color: CHART_EDITOR_THEME.textPrimary,
                   borderRadius: CHART_EDITOR_THEME.radiusSm,
                   border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
@@ -258,7 +258,7 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
                 style={{
                   width: '100%',
                   padding: '6px 8px',
-                  backgroundColor: '#020617',
+                  backgroundColor: CHART_EDITOR_THEME.surface,
                   color: CHART_EDITOR_THEME.textPrimary,
                   borderRadius: CHART_EDITOR_THEME.radiusSm,
                   border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
@@ -278,7 +278,7 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
                 style={{
                   width: '100%',
                   padding: '6px 8px',
-                  backgroundColor: '#020617',
+                  backgroundColor: CHART_EDITOR_THEME.surface,
                   color: CHART_EDITOR_THEME.textPrimary,
                   borderRadius: CHART_EDITOR_THEME.radiusSm,
                   border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
@@ -299,7 +299,7 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
                 style={{
                   width: '100%',
                   padding: '6px 8px',
-                  backgroundColor: '#020617',
+                  backgroundColor: CHART_EDITOR_THEME.surface,
                   color: CHART_EDITOR_THEME.textPrimary,
                   borderRadius: CHART_EDITOR_THEME.radiusSm,
                   border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
