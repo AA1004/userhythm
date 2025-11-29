@@ -36,6 +36,7 @@ export const SubtitleTimeline: React.FC<SubtitleTimelineProps> = ({
 }) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
+  const isDraggingPlayheadRef = useRef<boolean>(false);
 
   const widthPx = useMemo(() => {
     const base = (durationMs / 1000) * PIXELS_PER_SECOND;
@@ -54,6 +55,7 @@ export const SubtitleTimeline: React.FC<SubtitleTimelineProps> = ({
 
   const handleBackgroundClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!scrollRef.current) return;
+    if (isDraggingPlayheadRef.current) return; // 재생선 드래그 중이면 무시
     // 클립 위 클릭은 상위에서 stopPropagation 하므로 여기서는 타임라인 빈 곳만 처리
     const rect = scrollRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left + scrollRef.current.scrollLeft;
@@ -61,6 +63,46 @@ export const SubtitleTimeline: React.FC<SubtitleTimelineProps> = ({
     onSelectSubtitle(null);
     onChangeCurrentTime(time);
   };
+
+  const handlePlayheadMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault(); // 기본 드래그 동작 방지
+    e.stopPropagation();
+    isDraggingPlayheadRef.current = true;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (scrollRef.current) {
+        const rect = scrollRef.current.getBoundingClientRect();
+        // 스크롤된 상태를 고려하여 X 좌표 계산
+        const relativeX = moveEvent.clientX - rect.left + scrollRef.current.scrollLeft;
+        const newTime = xToTime(relativeX);
+        onChangeCurrentTime(newTime);
+      }
+    };
+
+    const handleMouseUp = (upEvent: MouseEvent) => {
+      upEvent.preventDefault();
+      upEvent.stopPropagation();
+      
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      
+      // 최종 위치로 이동
+      if (scrollRef.current) {
+        const rect = scrollRef.current.getBoundingClientRect();
+        const relativeX = upEvent.clientX - rect.left + scrollRef.current.scrollLeft;
+        const newTime = xToTime(relativeX);
+        onChangeCurrentTime(newTime);
+      }
+      
+      // 약간의 지연 후 드래그 상태 해제 (클릭 이벤트 전파 방지)
+      setTimeout(() => {
+        isDraggingPlayheadRef.current = false;
+      }, 50);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  }, [xToTime, onChangeCurrentTime]);
 
   const beginDrag = (
     cue: SubtitleCue,
@@ -164,17 +206,34 @@ export const SubtitleTimeline: React.FC<SubtitleTimelineProps> = ({
 
           {/* 현재 재생 위치 라인 */}
           <div
+            onMouseDown={handlePlayheadMouseDown}
             style={{
               position: 'absolute',
-              left: timeToX(currentTimeMs),
+              left: timeToX(currentTimeMs) - 10, // 클릭 영역 확장을 위해 좌측으로 확장
               top: 0,
-              width: 2,
+              width: 22, // 클릭 영역 확장 (2px 선 + 좌우 10px씩)
               height: '100%',
-              background:
-                'linear-gradient(180deg, rgba(248,250,252,0.2), rgba(251,113,133,0.95))',
-              boxShadow: '0 0 18px rgba(248,113,133,0.8)',
+              cursor: 'ew-resize',
+              zIndex: 100,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
-          />
+          >
+            {/* 시각적인 재생선 */}
+            <div
+              style={{
+                position: 'absolute',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: 2,
+                height: '100%',
+                background:
+                  'linear-gradient(180deg, rgba(248,250,252,0.2), rgba(251,113,133,0.95))',
+                boxShadow: '0 0 18px rgba(248,113,133,0.8)',
+              }}
+            />
+          </div>
 
           {/* 트랙 레인 */}
           {tracks.map((track, index) => {

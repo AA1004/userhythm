@@ -121,12 +121,16 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
             boxShadow: isSelected
               ? '0 0 12px rgba(56,189,248,0.8)'
               : '0 4px 12px rgba(15,23,42,0.8)',
-            whiteSpace: 'pre-wrap',
             textAlign: style.textAlign ?? 'center',
             pointerEvents: 'auto',
           }}
         >
-          {cue.text}
+          {cue.text.split('\n').map((line, idx, arr) => (
+            <React.Fragment key={idx}>
+              {line}
+              {idx < arr.length - 1 && <br />}
+            </React.Fragment>
+          ))}
           {isSelected && (
             <>
               {/* 이동 핸들 (본문 영역 자체) */}
