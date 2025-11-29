@@ -1,5 +1,10 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
-import { SubtitleCue, SubtitleCueCreate, SubtitleCueUpdate, DEFAULT_SUBTITLE_STYLE } from '../types/subtitle';
+import {
+  SubtitleCue,
+  SubtitleCueCreate,
+  SubtitleCueUpdate,
+  DEFAULT_SUBTITLE_STYLE,
+} from '../types/subtitle';
 
 const missingConfigError = new Error(
   'Supabase 환경 변수가 설정되지 않았습니다. 자막 기능을 사용하려면 .env 파일을 구성하세요.'
@@ -16,18 +21,28 @@ const ensureConfigured = () => {
  */
 const rowToSubtitleCue = (row: any): SubtitleCue => {
   let style = DEFAULT_SUBTITLE_STYLE;
-  
+
   try {
     if (row.style) {
-      style = typeof row.style === 'string' ? JSON.parse(row.style) : row.style;
+      const parsed = typeof row.style === 'string' ? JSON.parse(row.style) : row.style;
+      style = { ...DEFAULT_SUBTITLE_STYLE, ...parsed };
     }
   } catch (e) {
     console.warn('Failed to parse subtitle style:', e);
   }
 
+  const trackIdFromStyle = (style as any)?.trackId;
+  const trackId = row.track_id ?? trackIdFromStyle ?? 'default';
+
+  // style JSON 안에 trackId를 유지해 두 시스템이 항상 동기화되도록 함
+  if (!(style as any).trackId) {
+    (style as any).trackId = trackId;
+  }
+
   return {
     id: row.id,
     chartId: row.chart_id,
+    trackId,
     startTimeMs: row.start_time_ms,
     endTimeMs: row.end_time_ms,
     text: row.text || '',
@@ -59,7 +74,17 @@ const subtitleCueToRow = (cue: SubtitleCueCreate | SubtitleCueUpdate, chartId?: 
     row.text = cue.text;
   }
   if ('style' in cue && cue.style !== undefined) {
-    row.style = JSON.stringify(cue.style);
+    const maybeTrackId =
+      (cue as any).trackId !== undefined
+        ? (cue as any).trackId
+        : (cue as any).style?.trackId ?? 'default';
+
+    const styleWithTrack = {
+      ...(cue as any).style,
+      trackId: maybeTrackId,
+    };
+
+    row.style = JSON.stringify(styleWithTrack);
   }
 
   return row;
