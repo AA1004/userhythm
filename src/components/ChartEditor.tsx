@@ -170,6 +170,18 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     [timelineDurationMs]
   );
 
+  // 시간을 가장 가까운 그리드 라인에 스냅
+  const snapToGrid = useCallback(
+    (timeMs: number) => {
+      const gridInterval = beatDuration / gridDivision;
+      // timeSignatureOffset을 고려해서 가장 가까운 그리드 위치로 스냅
+      const adjustedTime = timeMs - timeSignatureOffset;
+      const snappedAdjusted = Math.round(adjustedTime / gridInterval) * gridInterval;
+      return clampTime(snappedAdjusted + timeSignatureOffset);
+    },
+    [beatDuration, gridDivision, timeSignatureOffset, clampTime]
+  );
+
   // --- 자동 저장 ---
   const autoSaveData = useMemo(() => ({
     notes,
@@ -243,7 +255,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   }, [clampTime, yToTime, seekTo]);
 
   const handleLaneInput = useCallback((lane: Lane) => {
-    const time = clampTime(currentTime);
+    // 현재 시간을 그리드에 스냅해서 노트가 가로선에 맞게 설치되도록 함
+    const time = snapToGrid(currentTime);
     if (isLongNoteMode) {
       if (pendingLongNote && pendingLongNote.lane === lane) {
         const startTime = Math.min(pendingLongNote.startTime, time);
@@ -259,7 +272,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     } else {
       addNote(lane, time);
     }
-  }, [addNote, clampTime, currentTime, isLongNoteMode, pendingLongNote, setPendingLongNote]);
+  }, [addNote, snapToGrid, currentTime, isLongNoteMode, pendingLongNote, setPendingLongNote]);
 
   // 재생선 드래그
   const handlePlayheadMouseDown = useCallback((e: React.MouseEvent) => {
