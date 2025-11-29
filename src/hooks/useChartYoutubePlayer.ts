@@ -221,9 +221,10 @@ export function useChartYoutubePlayer({
     }
   }, [volume, youtubePlayer]);
 
-  // 현재 시간 동기화 (드래그 중이 아닐 때만)
+  // 현재 시간 동기화 (재생 중이고 드래그 중이 아닐 때만)
   useEffect(() => {
     if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
+    if (!isPlaying) return; // 일시정지 상태에서는 에디터의 currentTime을 신뢰
     if (isDraggingPlayhead) return;
 
     const syncInterval = setInterval(() => {
@@ -248,18 +249,24 @@ export function useChartYoutubePlayer({
     }, 100); // 100ms마다 동기화
 
     return () => clearInterval(syncInterval);
-  }, [youtubePlayer, currentTime, isDraggingPlayhead, setCurrentTime]);
+  }, [youtubePlayer, currentTime, isDraggingPlayhead, isPlaying, setCurrentTime]);
 
   // 시크 함수
   const seekTo = useCallback(
-    (timeMs: number) => {
+    (timeMs: number, shouldPause: boolean = false) => {
       if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
 
       try {
         const timeSeconds = timeMs / 1000;
-        youtubePlayer.seekTo(timeSeconds, true);
+        // allowSeekAhead를 false로 설정하여 재생이 자동으로 시작되지 않도록 함
+        youtubePlayer.seekTo(timeSeconds, false);
         setCurrentTime(timeMs);
         lastSyncTimeRef.current = timeMs;
+        
+        // 재생선 클릭 시 명시적으로 일시정지
+        if (shouldPause) {
+          youtubePlayer.pauseVideo?.();
+        }
       } catch (e) {
         console.warn('시크 실패:', e);
       }

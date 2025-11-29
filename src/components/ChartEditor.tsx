@@ -303,16 +303,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
     const scrollRect = timelineScrollRef.current.getBoundingClientRect();
     const clickY = e.clientY - scrollRect.top + timelineScrollRef.current.scrollTop;
-    
-    // 재생선 영역(playheadY ± 10px)을 클릭했다면 무시 (재생선 클릭으로 인식)
-    if (Math.abs(clickY - playheadY) < 10) {
-      return;
-    }
-    
+
     const time = clampTime(yToTime(clickY));
     setIsPlaying(false);
     setCurrentTime(time);
-    seekTo(time);
+    seekTo(time, true); // shouldPause: true로 전달하여 재생 방지
     // seekTo 후 재생이 시작되지 않도록 추가 보호
     setTimeout(() => {
       setIsPlaying(false);
@@ -422,7 +417,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         const rect = timelineScrollRef.current.getBoundingClientRect();
         const relativeY = upEvent.clientY - rect.top + timelineScrollRef.current.scrollTop;
         const newTime = clampTime(yToTime(relativeY));
-        seekTo(newTime);
+        seekTo(newTime, true); // shouldPause: true로 전달하여 재생 방지
         // seekTo 후에도 재생이 시작되지 않도록 명시적으로 일시정지 상태 유지
         setIsPlaying(false);
       }
@@ -609,9 +604,15 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         bpmChanges={sortedBpmChanges}
         beatsPerMeasure={beatsPerMeasure}
         songInfo={songInfo}
-        onRewind={() => seekTo(0)}
+        onRewind={() => {
+          setIsPlaying(false);
+          seekTo(0, true);
+        }}
         onTogglePlayback={() => setIsPlaying(prev => !prev)}
-        onStop={() => { setIsPlaying(false); seekTo(0); }}
+        onStop={() => {
+          setIsPlaying(false);
+          seekTo(0, true);
+        }}
         onToggleAutoScroll={() => setIsAutoScrollEnabled(prev => !prev)}
         onLoad={() => {
             // 로드 기능: 실제로는 파일 업로드나 목록에서 선택 등 구현 필요
@@ -694,6 +695,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           onAddSpeedChangeAtCurrent={handleAddSpeedChangeAtCurrent}
           onUpdateSpeedChange={handleUpdateSpeedChange}
           onDeleteSpeedChange={handleDeleteSpeedChange}
+          bpm={bpm}
+          bpmChanges={sortedBpmChanges}
         />
 
         {/* Main Timeline Canvas */}
@@ -717,6 +720,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                 onNoteClick={deleteNote}
                 timeToY={timeToY}
                 getNoteY={getNoteY}
+                currentTime={currentTime}
+                bpm={bpm}
+                bpmChanges={sortedBpmChanges}
+                beatsPerMeasure={beatsPerMeasure}
             />
             
             {/* Hidden Youtube Player */}

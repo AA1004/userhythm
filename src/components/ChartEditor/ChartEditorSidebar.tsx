@@ -1,6 +1,7 @@
 import React from 'react';
 import { CHART_EDITOR_THEME } from './constants';
-import { SpeedChange } from '../../types/game';
+import { SpeedChange, BPMChange } from '../../types/game';
+import { timeToMeasure, measureToTime } from '../../utils/bpmUtils';
 
 interface ChartEditorSidebarProps {
   zoom: number;
@@ -31,6 +32,9 @@ interface ChartEditorSidebarProps {
   onAddSpeedChangeAtCurrent: () => void;
   onUpdateSpeedChange: (id: number, patch: Partial<SpeedChange>) => void;
   onDeleteSpeedChange: (id: number) => void;
+  // 마디 계산을 위한 추가 props
+  bpm: number;
+  bpmChanges: BPMChange[];
 }
 
 export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
@@ -61,6 +65,8 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
   onAddSpeedChangeAtCurrent,
   onUpdateSpeedChange,
   onDeleteSpeedChange,
+  bpm,
+  bpmChanges,
 }) => {
   const gridCellMs = beatDuration / Math.max(1, gridDivision);
   const maxOffset = beatDuration;
@@ -462,9 +468,8 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
             }}
           >
             {speedChanges.map((sc) => {
-              const startSec = sc.startTimeMs / 1000;
-              const endSec =
-                sc.endTimeMs == null ? '' : (sc.endTimeMs / 1000).toFixed(2);
+              const startMeasure = timeToMeasure(sc.startTimeMs, bpm, bpmChanges, beatsPerMeasure);
+              const endMeasure = sc.endTimeMs == null ? null : timeToMeasure(sc.endTimeMs, bpm, bpmChanges, beatsPerMeasure);
               const isCurrent =
                 currentTimeMs >= sc.startTimeMs &&
                 (sc.endTimeMs == null || currentTimeMs < sc.endTimeMs);
@@ -504,16 +509,16 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
                     </span>
                     <input
                       type="number"
-                      min={0}
-                      value={startSec.toFixed(2)}
-                      onChange={(e) =>
+                      min={1}
+                      step={1}
+                      value={startMeasure}
+                      onChange={(e) => {
+                        const measure = Math.max(1, parseInt(e.target.value || '1'));
+                        const timeMs = measureToTime(measure, bpm, bpmChanges, beatsPerMeasure);
                         onUpdateSpeedChange(sc.id, {
-                          startTimeMs: Math.max(
-                            0,
-                            Math.round(parseFloat(e.target.value || '0') * 1000)
-                          ),
-                        })
-                      }
+                          startTimeMs: timeMs,
+                        });
+                      }}
                       style={{
                         flex: 1,
                         padding: '2px 4px',
@@ -530,7 +535,7 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
                         color: CHART_EDITOR_THEME.textSecondary,
                       }}
                     >
-                      s
+                      마디
                     </span>
                   </div>
                   <div
@@ -550,19 +555,18 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
                     </span>
                     <input
                       type="number"
-                      min={0}
-                      value={endSec}
+                      min={1}
+                      step={1}
+                      value={endMeasure || ''}
                       onChange={(e) => {
                         const raw = e.target.value;
                         if (!raw) {
                           onUpdateSpeedChange(sc.id, { endTimeMs: null });
                           return;
                         }
-                        const value = Math.max(
-                          0,
-                          Math.round(parseFloat(raw) * 1000)
-                        );
-                        onUpdateSpeedChange(sc.id, { endTimeMs: value });
+                        const measure = Math.max(1, parseInt(raw));
+                        const timeMs = measureToTime(measure, bpm, bpmChanges, beatsPerMeasure);
+                        onUpdateSpeedChange(sc.id, { endTimeMs: timeMs });
                       }}
                       placeholder="끝까지"
                       style={{
@@ -581,7 +585,7 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
                         color: CHART_EDITOR_THEME.textSecondary,
                       }}
                     >
-                      s
+                      마디
                     </span>
                   </div>
                   <div
@@ -622,7 +626,7 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
                       onClick={() => onDeleteSpeedChange(sc.id)}
                       style={{
                         padding: '2px 6px',
-                        fontSize: '11px',
+                        fontSize: '10px',
                         borderRadius: CHART_EDITOR_THEME.radiusSm,
                         border: 'none',
                         backgroundColor: 'rgba(248,113,113,0.18)',

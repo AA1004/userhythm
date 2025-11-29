@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect } from 'react';
-import { Note, TimeSignatureEvent, SpeedChange } from '../../types/game';
+import { Note, TimeSignatureEvent, SpeedChange, BPMChange } from '../../types/game';
 import {
   LANE_POSITIONS,
   LANE_WIDTH,
@@ -7,6 +7,7 @@ import {
   TAP_NOTE_HEIGHT,
   TIMELINE_BOTTOM_PADDING,
 } from './constants';
+import { timeToMeasure } from '../../utils/bpmUtils';
 
 // 노트가 레인 경계선 안에 딱 맞게 들어가도록 레인 너비에서 약간의 여백만 남김
 const NOTE_WIDTH = LANE_WIDTH - 4;
@@ -33,6 +34,10 @@ interface ChartEditorTimelineProps {
   onNoteClick: (noteId: number) => void;
   timeToY: (timeMs: number) => number;
   getNoteY: (noteTime: number) => number;
+  currentTime: number;
+  bpm: number;
+  bpmChanges: BPMChange[];
+  beatsPerMeasure: number;
 }
 
 export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
@@ -53,6 +58,10 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   onNoteClick,
   timeToY,
   getNoteY,
+  currentTime,
+  bpm,
+  bpmChanges,
+  beatsPerMeasure,
 }) => {
   // 그리드 라인 생성
   const gridLines = useMemo(() => {
@@ -312,6 +321,24 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
               boxShadow: '0 0 10px rgba(255, 0, 0, 0.5)',
             }}
           />
+        </div>
+        
+        {/* 마디 번호 표시 (재생선 오른쪽) */}
+        <div
+          style={{
+            position: 'absolute',
+            left: `${CONTENT_WIDTH + 8}px`,
+            top: `${playheadY}px`,
+            transform: 'translateY(-50%)',
+            fontSize: '11px',
+            color: '#FF0000',
+            fontWeight: 'bold',
+            textShadow: '0 0 4px rgba(255, 0, 0, 0.8)',
+            pointerEvents: 'none',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {timeToMeasure(currentTime, bpm, bpmChanges, beatsPerMeasure)}마디
         </div>
       </div>
       </div>

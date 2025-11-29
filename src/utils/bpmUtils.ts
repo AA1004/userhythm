@@ -173,6 +173,42 @@ export function timeToBeatIndex(
 }
 
 /**
+ * 시간(ms)을 마디 번호로 변환 (변속 고려)
+ * @param timeMs 시간 (ms)
+ * @param baseBpm 기본 BPM
+ * @param bpmChanges BPM 변속 목록
+ * @param beatsPerMeasure 마디당 비트 수
+ * @returns 마디 번호 (1부터 시작)
+ */
+export function timeToMeasure(
+  timeMs: number,
+  baseBpm: number,
+  bpmChanges: BPMChange[],
+  beatsPerMeasure: number
+): number {
+  const beatIndex = timeToBeatIndex(timeMs, baseBpm, bpmChanges);
+  return Math.floor(beatIndex / beatsPerMeasure) + 1; // 1부터 시작
+}
+
+/**
+ * 마디 번호를 시간(ms)으로 변환 (변속 고려)
+ * @param measure 마디 번호 (1부터 시작)
+ * @param baseBpm 기본 BPM
+ * @param bpmChanges BPM 변속 목록
+ * @param beatsPerMeasure 마디당 비트 수
+ * @returns 시간 (ms)
+ */
+export function measureToTime(
+  measure: number,
+  baseBpm: number,
+  bpmChanges: BPMChange[],
+  beatsPerMeasure: number
+): number {
+  const beatIndex = (measure - 1) * beatsPerMeasure; // 0부터 시작하는 비트 인덱스
+  return beatIndexToTime(beatIndex, baseBpm, bpmChanges);
+}
+
+/**
  * 특정 비트 인덱스에서의 BPM 가져오기
  * @param beatIndex 비트 인덱스
  * @param baseBpm 기본 BPM
