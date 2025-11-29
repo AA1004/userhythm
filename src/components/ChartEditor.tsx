@@ -286,7 +286,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     };
 
     const handleMouseUp = (upEvent: MouseEvent) => {
-      isDraggingPlayheadRef.current = false;
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
       
@@ -297,6 +296,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         const newTime = yToTime(relativeY);
         seekTo(newTime);
       }
+
+      // 클릭 이벤트가 발생하여 노트가 잘못 생성되는 것을 방지하기 위해
+      // 플래그 해제를 다음 틱으로 지연
+      setTimeout(() => {
+        isDraggingPlayheadRef.current = false;
+      }, 50);
     };
 
     window.addEventListener('mousemove', handleMouseMove);
