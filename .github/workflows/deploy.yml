@@ -102,6 +102,12 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_ADMIN_TOKEN: ${{ secrets.VITE_ADMIN_TOKEN }}
 
+      - name: Create .nojekyll file
+        run: |
+          echo "Creating .nojekyll file to disable Jekyll processing"
+          touch dist/.nojekyll
+          echo "✅ .nojekyll file created"
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
