@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:
+      - master
 
 permissions:
   contents: read
@@ -34,70 +34,11 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          NODE_ENV: production
-          VITE_BASE_PATH: /
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-          VITE_ADMIN_TOKEN: ${{ secrets.VITE_ADMIN_TOKEN }}
-
-      - name: Verify build output
-        run: |
-          echo "=== Build Verification ==="
-          echo "Checking dist/index.html..."
-          if [ -f dist/index.html ]; then
-            cat dist/index.html
-            echo ""
-            echo "Checking if /src/main.tsx is still referenced..."
-            if grep -q "/src/main.tsx" dist/index.html; then
-              echo "❌ ERROR: dist/index.html still references /src/main.tsx!"
-              exit 1
-            else
-              echo "✅ dist/index.html correctly transformed"
-            fi
-          else
-            echo "❌ ERROR: dist/index.html not found!"
-            exit 1
-          fi
-          echo ""
-          echo "Checking if assets exist..."
-          if [ -d dist/assets ]; then
-            ls -la dist/assets/
-            echo "✅ Assets directory found"
-          else
-            echo "❌ ERROR: Assets directory not found!"
-            exit 1
-          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
-
-      - name: List dist contents
-        run: |
-          echo "=== Dist folder structure ==="
-          find dist -type f -o -type d | sort
-          echo ""
-          echo "=== Dist/index.html ==="
-          cat dist/index.html
-
-      - name: Verify artifact before upload
-        run: |
-          echo "=== Final verification before upload ==="
-          echo "Checking dist/index.html content:"
-          cat dist/index.html
-          echo ""
-          echo "Checking for /src/main.tsx reference:"
-          if grep -q "/src/main.tsx" dist/index.html; then
-            echo "❌ CRITICAL: dist/index.html still has /src/main.tsx!"
-            exit 1
-          fi
-          echo "✅ No /src/main.tsx found - build is correct"
-          echo ""
-          echo "Files to be uploaded:"
-          find dist -type f | sort
-          echo ""
-          echo "=== Asset file paths in index.html ==="
-          grep -o 'src="[^"]*"' dist/index.html || true
-          grep -o 'href="[^"]*"' dist/index.html || true
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
@@ -114,4 +55,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-

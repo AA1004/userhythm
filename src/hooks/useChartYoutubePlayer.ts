@@ -30,17 +30,6 @@ export function useChartYoutubePlayer({
   const [videoDurationSeconds, setVideoDurationSeconds] = useState<number | null>(null);
   const [isLoadingDuration, setIsLoadingDuration] = useState<boolean>(false);
 
-  // videoId 변경 시 로딩 상태 초기화
-  useEffect(() => {
-    if (youtubeVideoId) {
-      setIsLoadingDuration(true);
-      setVideoDurationSeconds(null);
-    } else {
-      setIsLoadingDuration(false);
-      setVideoDurationSeconds(null);
-    }
-  }, [youtubeVideoId]);
-
   const youtubePlayerRef = useRef<HTMLDivElement>(null);
   const youtubePlayerReadyRef = useRef(false);
   const lastSyncTimeRef = useRef(0);
@@ -157,18 +146,6 @@ export function useChartYoutubePlayer({
                 player.setVolume(volume);
               } catch (e) {
                 console.warn('볼륨 설정 실패:', e);
-              }
-
-              // 비디오 길이 가져오기
-              try {
-                const duration = player.getDuration?.();
-                if (duration && duration > 0) {
-                  setVideoDurationSeconds(duration);
-                  setIsLoadingDuration(false);
-                }
-              } catch (e) {
-                console.warn('비디오 길이 가져오기 실패:', e);
-                setIsLoadingDuration(false);
               }
             },
             onStateChange: (event: any) => {
