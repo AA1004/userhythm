@@ -108,7 +108,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setIsPlaying,
     playbackSpeed,
     volume,
-    isDraggingPlayhead: isDraggingPlayheadRef.current,
   });
 
   // --- 에디터 전용 타이머(재생선 시간 소스) ---

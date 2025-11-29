@@ -882,16 +882,16 @@ export const Game: React.FC = () => {
         100
       : 0;
 
-  // 채보 저장 핸들러
-  const handleChartSave = useCallback((notes: Note[]) => {
-    setIsTestMode(false);
-    testPreparedNotesRef.current = [];
-    setGameState((prev) => ({
-      ...prev,
-      notes: notes.map((note) => ({ ...note, y: 0, hit: false })),
-    }));
-    setIsEditorOpen(false);
-  }, []);
+  // 채보 저장 핸들러 (현재 미사용)
+  // const handleChartSave = useCallback((notes: Note[]) => {
+  //   setIsTestMode(false);
+  //   testPreparedNotesRef.current = [];
+  //   setGameState((prev) => ({
+  //     ...prev,
+  //     notes: notes.map((note) => ({ ...note, y: 0, hit: false })),
+  //   }));
+  //   setIsEditorOpen(false);
+  // }, []);
 
   // 에디터 닫기 핸들러
   const handleEditorCancel = useCallback(() => {

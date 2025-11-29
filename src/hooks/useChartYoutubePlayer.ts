@@ -8,7 +8,6 @@ interface UseChartYoutubePlayerOptions {
   setIsPlaying: (playing: boolean) => void;
   playbackSpeed: number;
   volume: number;
-  isDraggingPlayhead: boolean;
 }
 
 /**
@@ -22,7 +21,6 @@ export function useChartYoutubePlayer({
   setIsPlaying,
   playbackSpeed,
   volume,
-  isDraggingPlayhead,
 }: UseChartYoutubePlayerOptions) {
   const [youtubeUrl, setYoutubeUrl] = useState<string>('');
   const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
