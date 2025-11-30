@@ -54,6 +54,39 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
       isPlaying,
     });
 
+  // --- 에디터 전용 타이머 (재생선 시간 소스) ---
+  React.useEffect(() => {
+    if (!isPlaying) return;
+
+    let rafId: number;
+    let lastTime = performance.now();
+
+    const tick = () => {
+      const now = performance.now();
+      const deltaMs = now - lastTime;
+      lastTime = now;
+
+      setCurrentTimeMs((prev) => {
+        const next = prev + deltaMs;
+        // durationMs를 직접 참조하지 않고 상태 업데이트 함수 내에서만 사용
+        if (next >= durationMs) {
+          // 끝에 도달하면 정지
+          setIsPlaying(false);
+          return durationMs;
+        }
+        return next;
+      });
+
+      rafId = requestAnimationFrame(tick);
+    };
+
+    rafId = requestAnimationFrame(tick);
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, [isPlaying, durationMs, setIsPlaying]);
+
   const handleAddSubtitle = useCallback(() => {
     const baseTrack =
       tracks.find((t) => t.id === selectedTrackId) ?? tracks[0] ?? DEFAULT_SUBTITLE_TRACKS[0];
@@ -208,30 +241,25 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
           >
             {hasYoutube
               ? `YouTube와 동기화됨 · 현재 시간 ${(currentTimeMs / 1000).toFixed(2)}s`
-              : 'YouTube 정보가 없어 사운드 재생이 비활성화되었습니다'}
+              : `무음 모드 (YouTube 없음) · 현재 시간 ${(currentTimeMs / 1000).toFixed(2)}s`}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button
             onClick={() => {
-              if (!hasYoutube || !isAudioReady) return;
               setIsPlaying((prev) => !prev);
             }}
-            disabled={!hasYoutube || !isAudioReady}
             style={{
               padding: '6px 10px',
               borderRadius: CHART_EDITOR_THEME.radiusSm,
               border: 'none',
-              background: hasYoutube
-                ? isPlaying
-                  ? 'linear-gradient(135deg, #f97373, #fb7185)'
-                  : 'linear-gradient(135deg, #22c55e, #4ade80)'
-                : 'rgba(31,41,55,0.8)',
-              color: hasYoutube ? '#022c22' : CHART_EDITOR_THEME.textSecondary,
+              background: isPlaying
+                ? 'linear-gradient(135deg, #f97373, #fb7185)'
+                : 'linear-gradient(135deg, #22c55e, #4ade80)',
+              color: '#022c22',
               fontSize: 12,
               fontWeight: 600,
-              cursor: !hasYoutube || !isAudioReady ? 'not-allowed' : 'pointer',
-              opacity: !hasYoutube || !isAudioReady ? 0.6 : 1,
+              cursor: 'pointer',
             }}
           >
             {isPlaying ? '일시정지' : '재생'}
@@ -404,36 +432,55 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
             flexDirection: 'column',
             gap: 10,
             minWidth: 0,
+            minHeight: 0,
           }}
         >
-          <SubtitlePreviewCanvas
-            width={480}
-            height={270}
-            currentTimeMs={currentTimeMs}
-            cues={subtitles}
-            selectedCueId={selectedSubtitleId}
-            onChangeCueStyle={(id, nextStyle) => handleChangeCueStyle(id, nextStyle)}
-          />
-
-          <SubtitleTimeline
-            tracks={tracks}
-            subtitles={subtitles}
-            durationMs={durationMs}
-            currentTimeMs={currentTimeMs}
-            onChangeCurrentTime={setCurrentTimeMs}
-            onSelectSubtitle={(id) => {
-              setSelectedSubtitleId(id);
-              if (id) {
-                const cue = subtitles.find((c) => c.id === id);
-                if (cue) {
-                  const trackId =
-                    cue.trackId ?? cue.style.trackId ?? tracks[0]?.id ?? 'track-1';
-                  setSelectedTrackId(trackId);
-                }
-              }
+          {/* 프리뷰 영역: 가능한 한 크게 */}
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 0,
             }}
-            onChangeSubtitleTime={handleChangeSubtitleTime}
-          />
+          >
+            <SubtitlePreviewCanvas
+              width={640}
+              height={360}
+              currentTimeMs={currentTimeMs}
+              cues={subtitles}
+              selectedCueId={selectedSubtitleId}
+              onChangeCueStyle={(id, nextStyle) => handleChangeCueStyle(id, nextStyle)}
+            />
+          </div>
+
+          {/* 타임라인: 맨 아래 고정 */}
+          <div
+            style={{
+              flex: '0 0 auto',
+            }}
+          >
+            <SubtitleTimeline
+              tracks={tracks}
+              subtitles={subtitles}
+              durationMs={durationMs}
+              currentTimeMs={currentTimeMs}
+              onChangeCurrentTime={setCurrentTimeMs}
+              onSelectSubtitle={(id) => {
+                setSelectedSubtitleId(id);
+                if (id) {
+                  const cue = subtitles.find((c) => c.id === id);
+                  if (cue) {
+                    const trackId =
+                      cue.trackId ?? cue.style.trackId ?? tracks[0]?.id ?? 'track-1';
+                    setSelectedTrackId(trackId);
+                  }
+                }
+              }}
+              onChangeSubtitleTime={handleChangeSubtitleTime}
+            />
+          </div>
         </div>
 
         {/* 숨겨진 YouTube 오디오 플레이어 (자막 편집용) */}

@@ -28,6 +28,11 @@ export function useYoutubeAudio({
   const playerRef = useRef<any>(null);
   const readyRef = useRef(false);
   const [isReady, setIsReady] = useState(false);
+  const latestTimeRef = useRef(currentTimeMs);
+
+  useEffect(() => {
+    latestTimeRef.current = currentTimeMs;
+  }, [currentTimeMs]);
 
   // 플레이어 초기화
   useEffect(() => {
@@ -86,7 +91,7 @@ export function useYoutubeAudio({
               setIsReady(true);
               // 초기 위치로 이동
               try {
-                player.seekTo(currentTimeMs / 1000, true);
+                player.seekTo(latestTimeRef.current / 1000, true);
                 // 자막 에디터에 들어왔을 때는 자동 재생하지 않음
                 player.pauseVideo?.();
               } catch {
@@ -105,69 +110,51 @@ export function useYoutubeAudio({
     return () => {
       isCancelled = true;
     };
-  }, [videoId, currentTimeMs]);
+  }, [videoId]);
 
-  // 재생/일시정지 동기화
+  // 재생/일시정지 제어
+  const wasPlayingRef = useRef(false);
+
   useEffect(() => {
     const player = playerRef.current;
     if (!player || !readyRef.current) return;
 
     try {
       if (isPlaying) {
-        // 재생 버튼을 눌렀을 때는 타임라인 위치에서 재생 시작
-        // 단, 플레이어 시간과 차이가 크지 않으면 seekTo 생략
-        const playerTime = (player.getCurrentTime?.() ?? 0) * 1000;
-        const timeDiff = Math.abs(playerTime - currentTimeMs);
-        if (timeDiff > 200) {
-          // 차이가 200ms 이상일 때만 시크
-          player.seekTo(currentTimeMs / 1000, true);
+        if (!wasPlayingRef.current) {
+          // 재생 시작: 현재 위치에서 재생
+          player.seekTo(latestTimeRef.current / 1000, true);
+          player.playVideo?.();
         }
-        player.playVideo?.();
       } else {
+        // 일시정지
         player.pauseVideo?.();
       }
     } catch (e) {
       console.warn('Subtitle audio 재생 제어 실패:', e);
     }
-  }, [isPlaying, currentTimeMs]);
 
-  // 재생 중일 때 플레이어 시간 → currentTimeMs 동기화
-  useEffect(() => {
-    if (!isPlaying) return;
+    wasPlayingRef.current = isPlaying;
+  }, [isPlaying]);
 
-    const id = window.setInterval(() => {
-      const player = playerRef.current;
-      if (!player || !readyRef.current) return;
-      if (!isPlaying) return; // 재생 중이 아니면 동기화 중단
-
-      try {
-        const t = player.getCurrentTime?.() ?? 0;
-        setCurrentTimeMs(Math.floor(t * 1000));
-      } catch {
-        // ignore
-      }
-    }, 200); // 200ms마다 동기화 (주기 완화)
-
-    return () => {
-      window.clearInterval(id);
-    };
-  }, [isPlaying, setCurrentTimeMs]);
-
-  // 타임라인에서 시간 변경 시 플레이어에 시크 (재생 중이 아닐 때만)
+  // 일시정지 상태에서 타임라인 클릭 시 시크
+  const prevTimeRef = useRef(currentTimeMs);
   useEffect(() => {
     const player = playerRef.current;
     if (!player || !readyRef.current) return;
-    if (isPlaying) return; // 재생 중에는 플레이어 기준으로만 흐르게
+    if (isPlaying) {
+      prevTimeRef.current = currentTimeMs;
+      return; // 재생 중에는 시크하지 않음
+    }
 
-    try {
-      const playerTime = (player.getCurrentTime?.() ?? 0) * 1000;
-      const diff = Math.abs(playerTime - currentTimeMs);
-      if (diff > 200) {
-        // 차이가 200ms 이상일 때만 시크 (허용 오차 완화)
+    // 일시정지 상태에서 시간이 변경되면 시크
+    if (Math.abs(currentTimeMs - prevTimeRef.current) > 100) {
+      try {
         player.seekTo(currentTimeMs / 1000, true);
+        prevTimeRef.current = currentTimeMs;
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
     }
   }, [currentTimeMs, isPlaying]);
 

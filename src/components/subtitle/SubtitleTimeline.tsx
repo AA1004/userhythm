@@ -158,9 +158,11 @@ export const SubtitleTimeline: React.FC<SubtitleTimelineProps> = ({
   return (
     <div
       style={{
-        height: 220,
+        height: 180,
         borderTop: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
         backgroundColor: CHART_EDITOR_THEME.surface,
+        borderRadius: CHART_EDITOR_THEME.radiusLg,
+        overflow: 'hidden',
       }}
     >
       <div

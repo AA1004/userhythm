@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { SubtitleCue, SubtitleStyle } from '../../types/subtitle';
 import { CHART_EDITOR_THEME } from '../ChartEditor/constants';
 
@@ -19,7 +19,26 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
   selectedCueId,
   onChangeCueStyle,
 }) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+
+  // 부모 컨테이너 크기 측정
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const updateSize = () => {
+      const rect = container.getBoundingClientRect();
+      setContainerSize({ width: rect.width - 16, height: rect.height - 16 }); // padding 8px * 2
+    };
+
+    updateSize();
+    const resizeObserver = new ResizeObserver(updateSize);
+    resizeObserver.observe(container);
+
+    return () => resizeObserver.disconnect();
+  }, []);
 
   const activeCues = cues.filter(
     (c) => currentTimeMs >= c.startTimeMs && currentTimeMs <= c.endTimeMs
@@ -167,10 +186,26 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
     [height, width, onChangeCueStyle, selectedCueId]
   );
 
+  // 부모 영역에 맞춰서 프리뷰 크기 계산 (비율 유지)
+  const aspectRatio = width / height;
+  let previewWidth = containerSize.width;
+  let previewHeight = containerSize.width / aspectRatio;
+  
+  // 높이가 부모를 넘어가면 높이 기준으로 조정
+  if (previewHeight > containerSize.height) {
+    previewHeight = containerSize.height;
+    previewWidth = containerSize.height * aspectRatio;
+  }
+
   return (
     <div
+      ref={containerRef}
       style={{
-        flex: '0 0 auto',
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         borderRadius: CHART_EDITOR_THEME.radiusLg,
         border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
         backgroundColor: 'transparent',
@@ -182,10 +217,8 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
         ref={previewRef}
         style={{
           position: 'relative',
-          width: '100%',
-          maxWidth: `${width}px`,
-          margin: '0 auto',
-          aspectRatio: `${width} / ${height}`,
+          width: `${previewWidth}px`,
+          height: `${previewHeight}px`,
           borderRadius: CHART_EDITOR_THEME.radiusLg,
           overflow: 'hidden',
           background:
