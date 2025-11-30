@@ -8,6 +8,8 @@ export interface SubtitleTimelineProps {
   /** 타임라인 전체 길이(ms) */
   durationMs: number;
   currentTimeMs: number;
+  bpm: number;
+  beatsPerMeasure?: number;
   onChangeCurrentTime: (timeMs: number) => void;
   onSelectSubtitle: (id: string | null) => void;
   onChangeSubtitleTime: (id: string, startTimeMs: number, endTimeMs: number) => void;
@@ -30,6 +32,8 @@ export const SubtitleTimeline: React.FC<SubtitleTimelineProps> = ({
   subtitles,
   durationMs,
   currentTimeMs,
+  bpm,
+  beatsPerMeasure = 4,
   onChangeCurrentTime,
   onSelectSubtitle,
   onChangeSubtitleTime,
@@ -42,6 +46,15 @@ export const SubtitleTimeline: React.FC<SubtitleTimelineProps> = ({
     const base = (durationMs / 1000) * PIXELS_PER_SECOND;
     return Math.max(base, 800);
   }, [durationMs]);
+
+  const beatDurationMs = useMemo(() => {
+    const clampedBpm = bpm > 1 ? bpm : 60;
+    return 60000 / clampedBpm;
+  }, [bpm]);
+
+  const totalBeats = useMemo(() => {
+    return Math.ceil(durationMs / beatDurationMs);
+  }, [durationMs, beatDurationMs]);
 
   const timeToX = useCallback(
     (timeMs: number) => (timeMs / 1000) * PIXELS_PER_SECOND,
@@ -158,9 +171,11 @@ export const SubtitleTimeline: React.FC<SubtitleTimelineProps> = ({
   return (
     <div
       style={{
-        height: 220,
+        height: 180,
         borderTop: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
         backgroundColor: CHART_EDITOR_THEME.surface,
+        borderRadius: CHART_EDITOR_THEME.radiusLg,
+        overflow: 'hidden',
       }}
     >
       <div
@@ -183,22 +198,23 @@ export const SubtitleTimeline: React.FC<SubtitleTimelineProps> = ({
             boxSizing: 'border-box',
           }}
         >
-          {/* 수직 그리드 라인 (1초 단위) */}
-          {Array.from({ length: Math.ceil(durationMs / 1000) + 1 }).map((_, i) => {
-            const x = timeToX(i * 1000);
+          {/* 수직 그리드 라인 (BPM 기반) */}
+          {Array.from({ length: totalBeats + 1 }).map((_, beatIndex) => {
+            const x = timeToX(beatIndex * beatDurationMs);
+            const isMeasureLine = beatIndex % beatsPerMeasure === 0;
             return (
               <div
-                key={`grid-${i}`}
+                key={`grid-beat-${beatIndex}`}
                 style={{
                   position: 'absolute',
                   left: x,
                   top: 0,
-                  width: 1,
+                  width: isMeasureLine ? 2 : 1,
                   height: '100%',
-                  backgroundColor:
-                    i % 4 === 0
-                      ? 'rgba(148,163,184,0.45)'
-                      : 'rgba(30,64,175,0.4)',
+                  backgroundColor: isMeasureLine
+                    ? 'rgba(96,165,250,0.45)'
+                    : 'rgba(148,163,184,0.35)',
+                  transform: 'translateX(-0.5px)',
                 }}
               />
             );
