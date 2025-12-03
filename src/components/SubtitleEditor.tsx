@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useCallback } from 'react';
+﻿import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Note } from '../types/game';
 import {
   SubtitleCue,
@@ -53,7 +53,7 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   });
 
   // --- 에디터 전용 타이머 (재생선 시간 소스) ---
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isPlaying) return;
 
     let rafId: number;
