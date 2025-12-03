@@ -11,12 +11,37 @@ import { CHART_EDITOR_THEME } from '../ChartEditor/constants';
 
 interface SubtitleInspectorProps {
   selectedCue: SubtitleCue | null;
+  allCues: SubtitleCue[];
   onChangeCue: (next: SubtitleCue) => void;
+  onDuplicateAtEnd?: (baseCue: SubtitleCue) => void; // 끝 시간부터 복사본 생성
+  onDeleteCue?: (cueId: string) => void; // 자막 삭제
+  bpm?: number;
+  beatsPerMeasure?: number;
+  gridOffsetMs?: number;
 }
+
+// 위치 프리셋 정의 (9방향)
+const POSITION_PRESETS = [
+  { label: '↖', x: 0.1, y: 0.1 },   // 상단 좌
+  { label: '↑', x: 0.5, y: 0.1 },   // 상단 중
+  { label: '↗', x: 0.9, y: 0.1 },   // 상단 우
+  { label: '←', x: 0.1, y: 0.5 },   // 중앙 좌
+  { label: '●', x: 0.5, y: 0.5 },   // 중앙
+  { label: '→', x: 0.9, y: 0.5 },   // 중앙 우
+  { label: '↙', x: 0.1, y: 0.9 },   // 하단 좌
+  { label: '↓', x: 0.5, y: 0.9 },   // 하단 중
+  { label: '↘', x: 0.9, y: 0.9 },   // 하단 우
+];
 
 export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
   selectedCue,
+  allCues,
   onChangeCue,
+  onDuplicateAtEnd,
+  onDeleteCue,
+  bpm = 120,
+  beatsPerMeasure = 4,
+  gridOffsetMs = 0,
 }) => {
   if (!selectedCue) {
     return (
@@ -50,6 +75,56 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
         ? { inEffect: value }
         : { outEffect: value }
     );
+  };
+
+  // 같은 트랙의 이전 자막 찾기
+  const findPreviousCue = (): SubtitleCue | null => {
+    const currentTrackId = selectedCue.trackId ?? selectedCue.style.trackId ?? 'default';
+    const sameTrackCues = allCues
+      .filter((cue) => {
+        const trackId = cue.trackId ?? cue.style.trackId ?? 'default';
+        return trackId === currentTrackId && cue.id !== selectedCue.id;
+      })
+      .sort((a, b) => a.startTimeMs - b.startTimeMs);
+    
+    // 현재 자막보다 시작 시간이 빠른 자막 중 가장 마지막 것
+    const previousCues = sameTrackCues.filter(
+      (cue) => cue.startTimeMs < selectedCue.startTimeMs
+    );
+    
+    return previousCues.length > 0 ? previousCues[previousCues.length - 1] : null;
+  };
+
+  const applyPreviousPosition = () => {
+    const prevCue = findPreviousCue();
+    if (prevCue && prevCue.style.position) {
+      updateStyle({ position: { ...prevCue.style.position } });
+    }
+  };
+
+  const previousCue = findPreviousCue();
+
+  // 한 마디 길이 계산 (ms)
+  const beatMs = 60000 / bpm;
+  const measureMs = beatMs * beatsPerMeasure;
+
+  // 가장 가까운 마디 시작으로 스냅
+  const snapToMeasureStart = (timeMs: number): number => {
+    const adjustedTime = timeMs - gridOffsetMs;
+    const measureIndex = Math.round(adjustedTime / measureMs);
+    return measureIndex * measureMs + gridOffsetMs;
+  };
+
+  // 한 마디에 맞추기
+  const snapToOneMeasure = () => {
+    const snappedStart = snapToMeasureStart(selectedCue.startTimeMs);
+    const snappedEnd = snappedStart + measureMs;
+    
+    onChangeCue({
+      ...selectedCue,
+      startTimeMs: snappedStart,
+      endTimeMs: snappedEnd,
+    });
   };
 
   return (
@@ -91,6 +166,136 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
             padding: 8,
           }}
         />
+      </div>
+
+      {/* 위치 */}
+      <div
+        style={{
+          padding: 10,
+          borderRadius: CHART_EDITOR_THEME.radiusMd,
+          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+        }}
+      >
+        <div style={{ marginBottom: 8, fontWeight: 600 }}>위치</div>
+        
+        {/* 9방향 프리셋 그리드 */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: 4,
+            marginBottom: 10,
+          }}
+        >
+          {POSITION_PRESETS.map((preset, idx) => {
+            const currentPos = style.position ?? { x: 0.5, y: 0.9 };
+            const isActive =
+              Math.abs(currentPos.x - preset.x) < 0.05 &&
+              Math.abs(currentPos.y - preset.y) < 0.05;
+            
+            return (
+              <button
+                key={idx}
+                onClick={() => updateStyle({ position: { x: preset.x, y: preset.y } })}
+                style={{
+                  padding: '8px 4px',
+                  border: isActive
+                    ? `2px solid ${CHART_EDITOR_THEME.accentStrong}`
+                    : `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  backgroundColor: isActive
+                    ? 'rgba(56,189,248,0.2)'
+                    : CHART_EDITOR_THEME.surface,
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  cursor: 'pointer',
+                  fontSize: 16,
+                  fontWeight: isActive ? 'bold' : 'normal',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {preset.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 이전 자막 위치 복사 */}
+        <button
+          onClick={applyPreviousPosition}
+          disabled={!previousCue}
+          style={{
+            width: '100%',
+            padding: '8px 12px',
+            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            borderRadius: CHART_EDITOR_THEME.radiusSm,
+            backgroundColor: previousCue
+              ? 'rgba(34,197,94,0.15)'
+              : CHART_EDITOR_THEME.surface,
+            color: previousCue
+              ? '#4ade80'
+              : CHART_EDITOR_THEME.textMuted,
+            cursor: previousCue ? 'pointer' : 'not-allowed',
+            fontSize: 12,
+            fontWeight: 500,
+            transition: 'all 0.15s',
+          }}
+        >
+          ◀ 이전 자막 위치 적용
+          {previousCue && (
+            <span style={{ opacity: 0.7, marginLeft: 6 }}>
+              ({(previousCue.style.position?.x ?? 0.5).toFixed(2)}, {(previousCue.style.position?.y ?? 0.9).toFixed(2)})
+            </span>
+          )}
+        </button>
+
+        {/* 끝 시간에서 복사본 생성 */}
+        {onDuplicateAtEnd && (
+          <button
+            onClick={() => onDuplicateAtEnd(selectedCue)}
+            style={{
+              width: '100%',
+              marginTop: 6,
+              padding: '8px 12px',
+              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+              borderRadius: CHART_EDITOR_THEME.radiusSm,
+              backgroundColor: 'rgba(56,189,248,0.15)',
+              color: CHART_EDITOR_THEME.accentStrong,
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 500,
+              transition: 'all 0.15s',
+            }}
+          >
+            ➕ 끝에서 이어서 복사본 생성
+            <span style={{ opacity: 0.7, marginLeft: 6 }}>
+              ({(selectedCue.endTimeMs / 1000).toFixed(2)}s~)
+            </span>
+          </button>
+        )}
+
+        {/* 한 마디에 맞추기 */}
+        <button
+          onClick={snapToOneMeasure}
+          style={{
+            width: '100%',
+            marginTop: 6,
+            padding: '8px 12px',
+            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            borderRadius: CHART_EDITOR_THEME.radiusSm,
+            backgroundColor: 'rgba(251,191,36,0.15)',
+            color: '#fbbf24',
+            cursor: 'pointer',
+            fontSize: 12,
+            fontWeight: 500,
+            transition: 'all 0.15s',
+          }}
+        >
+          🎵 한 마디에 맞추기
+          <span style={{ opacity: 0.7, marginLeft: 6 }}>
+            ({(measureMs / 1000).toFixed(2)}s)
+          </span>
+        </button>
       </div>
 
       {/* 폰트/스타일 */}
@@ -173,6 +378,27 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
                 <option value="bold">굵게</option>
               </select>
             </label>
+
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                cursor: 'pointer',
+                alignSelf: 'flex-end',
+                paddingBottom: 8,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={style.fontStyle === 'italic'}
+                onChange={(e) =>
+                  updateStyle({ fontStyle: e.target.checked ? 'italic' : 'normal' })
+                }
+                style={{ cursor: 'pointer' }}
+              />
+              <span style={{ fontStyle: 'italic' }}>기울임</span>
+            </label>
           </div>
 
           <div style={{ display: 'flex', gap: 8 }}>
@@ -197,6 +423,31 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
                 ))}
               </select>
             </label>
+          </div>
+
+          {/* 배경 설정 */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={style.showBackground !== false}
+                onChange={(e) =>
+                  updateStyle({ showBackground: e.target.checked })
+                }
+                style={{ cursor: 'pointer' }}
+              />
+              <span>배경 표시</span>
+            </label>
+          </div>
+
+          {style.showBackground !== false && (
             <label style={{ flex: 1 }}>
               <span style={{ display: 'block', marginBottom: 4 }}>배경 불투명도</span>
               <input
@@ -211,7 +462,7 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
                 style={{ width: '100%' }}
               />
             </label>
-          </div>
+          )}
         </div>
       </div>
 
@@ -309,8 +560,31 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
           </div>
         </div>
       </div>
+
+      {/* 삭제 */}
+      {onDeleteCue && (
+        <button
+          onClick={() => {
+            if (window.confirm('이 자막을 삭제하시겠습니까?')) {
+              onDeleteCue(selectedCue.id);
+            }
+          }}
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            border: `1px solid ${CHART_EDITOR_THEME.danger}`,
+            borderRadius: CHART_EDITOR_THEME.radiusSm,
+            backgroundColor: 'rgba(239,68,68,0.1)',
+            color: CHART_EDITOR_THEME.danger,
+            cursor: 'pointer',
+            fontSize: 13,
+            fontWeight: 600,
+            transition: 'all 0.15s',
+          }}
+        >
+          🗑️ 자막 삭제
+        </button>
+      )}
     </div>
   );
 };
-
-

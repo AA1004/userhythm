@@ -3,7 +3,6 @@ import { Note, TimeSignatureEvent, SpeedChange, BPMChange } from '../../types/ga
 import {
   LANE_POSITIONS,
   LANE_WIDTH,
-  PIXELS_PER_SECOND,
   TAP_NOTE_HEIGHT,
   TIMELINE_BOTTOM_PADDING,
 } from './constants';
@@ -52,7 +51,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   timelineContentHeight,
   timelineScrollRef,
   timelineContentRef,
-  zoom,
+  zoom: _zoom, // 줌은 타임라인 스케일링에만 사용 (노트 크기는 고정)
   onTimelineClick,
   onPlayheadMouseDown,
   onNoteClick,
@@ -67,7 +66,9 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   const gridLines = useMemo(() => {
     const lines: Array<{ y: number; isMeasure: boolean }> = [];
     const beatsPerMeasure = sortedTimeSignatures[0]?.beatsPerMeasure || 4;
-    const totalBeats = (timelineDurationMs / 1000) * (60 / (60000 / beatDuration));
+    const safeBeatDuration = Math.max(1, beatDuration);
+    const beatsPerSecond = 1000 / safeBeatDuration; // beatDuration(ms) ⇒ beats/sec
+    const totalBeats = (timelineDurationMs / 1000) * beatsPerSecond;
 
     for (let beat = 0; beat <= totalBeats; beat += 1 / gridDivision) {
       const timeMs = (beat * beatDuration) + timeSignatureOffset;
@@ -81,19 +82,8 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
     return lines;
   }, [timelineDurationMs, beatDuration, gridDivision, timeSignatureOffset, sortedTimeSignatures, timeToY]);
 
-  const gridCellHeight = useMemo(() => {
-    const cellDurationMs = beatDuration / Math.max(1, gridDivision);
-    const rawHeight =
-      (cellDurationMs / 1000) * PIXELS_PER_SECOND * Math.max(0.2, zoom);
-    return Math.max(12, rawHeight);
-  }, [beatDuration, gridDivision, zoom]);
-
-  const tapNoteHeight = useMemo(() => {
-    const candidate = gridCellHeight - 8;
-    const maxHeight = NOTE_WIDTH * 0.8;
-    const fallback = TAP_NOTE_HEIGHT;
-    return Math.max(18, Math.min(candidate || fallback, maxHeight));
-  }, [gridCellHeight]);
+  // 노트 높이는 줌과 무관하게 고정 (타임라인 스케일만 줌에 따라 변함)
+  const tapNoteHeight = TAP_NOTE_HEIGHT;
 
   // 초기 스크롤을 하단(판정선 위치)으로 설정
   useEffect(() => {
@@ -135,8 +125,8 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
             transform: 'translateX(-50%)',
             width: `${CONTENT_WIDTH}px`,
             height: '100%',
-          }}
-        >
+        }}
+      >
         {/* 레인 배경 */}
         {LANE_POSITIONS.map((x, index) => (
           <div
@@ -226,7 +216,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
 
         {/* 노트 렌더링 */}
         {notes.map((note) => {
-          const effectiveTapHeight = tapNoteHeight || TAP_NOTE_HEIGHT;
+          const effectiveTapHeight = tapNoteHeight;
           // 노트 중심이 그리드 가로선 위에 정확히 오도록 (gridCellHalf 오프셋 제거)
           const noteY = getNoteY(note.time);
           const isHold = note.duration > 0 || note.type === 'hold';
@@ -289,7 +279,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
                   background: tapGradient,
                   border: `3px solid ${tapBorder}`,
                   borderRadius: 14,
-                  boxShadow: '0 6px 14px rgba(0, 0, 0, 0.45)',
+                    boxShadow: '0 6px 14px rgba(0, 0, 0, 0.45)',
                   }}
                 />
               )}
@@ -340,7 +330,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
         >
           {timeToMeasure(currentTime, bpm, bpmChanges, beatsPerMeasure)}마디
         </div>
-      </div>
+        </div>
       </div>
     </div>
   );

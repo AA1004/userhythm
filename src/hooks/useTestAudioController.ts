@@ -163,7 +163,7 @@ export function useTestAudioController({
           // 재생 속도 설정 (값이 실제로 바뀔 때만 업데이트)
           const currentRate = youtubePlayer.getPlaybackRate?.() ?? 1;
           if (Math.abs(currentRate - playbackSpeed) > 0.01) {
-            youtubePlayer.setPlaybackRate?.(playbackSpeed);
+          youtubePlayer.setPlaybackRate?.(playbackSpeed);
           }
 
           // 시작 위치로 이동

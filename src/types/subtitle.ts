@@ -28,6 +28,8 @@ export interface SubtitleStyle {
   backgroundColor?: string;
   /** 배경 투명도 (0~1, backgroundColor가 있을 때 사용) */
   backgroundOpacity?: number;
+  /** 배경 표시 여부 (false면 배경 숨김) */
+  showBackground?: boolean;
   /** 외곽선 색상 */
   outlineColor?: string;
   /** 수평 정렬 */
@@ -72,6 +74,7 @@ export const DEFAULT_SUBTITLE_STYLE: SubtitleStyle = {
   color: '#FFFFFF',
   backgroundColor: '#000000',
   backgroundOpacity: 0.5,
+  showBackground: true,
   outlineColor: '#000000',
   textAlign: 'center',
   position: { x: 0.5, y: 0.9 },

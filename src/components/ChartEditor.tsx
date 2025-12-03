@@ -47,6 +47,36 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [zoom, setZoom] = useState<number>(1);
   const [volume, setVolume] = useState<number>(100);
+  const [subtitleSessionId, setSubtitleSessionId] = useState(() => {
+    if (typeof window === 'undefined') {
+      return `local-${Date.now()}`;
+    }
+    const existing = localStorage.getItem('subtitle-session-id');
+    if (existing) return existing;
+    const generated = `local-${Date.now()}`;
+    try {
+      localStorage.setItem('subtitle-session-id', generated);
+    } catch (error) {
+      console.warn('Failed to persist subtitle session id:', error);
+    }
+    return generated;
+  });
+  useEffect(() => {
+    const handler = (event: Event) => {
+      try {
+        const custom = event as CustomEvent<string>;
+        if (typeof custom.detail === 'string' && custom.detail.length > 0) {
+          setSubtitleSessionId(custom.detail);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    window.addEventListener('subtitle-chart-id-update', handler as EventListener);
+    return () => {
+      window.removeEventListener('subtitle-chart-id-update', handler as EventListener);
+    };
+  }, []);
   
   // --- BPM & Grid 상태 ---
   const [bpm, setBpm] = useState<number>(120);
@@ -55,6 +85,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     { id: 0, beatIndex: 0, beatsPerMeasure: 4 },
   ]);
   const [timeSignatureOffset, setTimeSignatureOffset] = useState<number>(0);
+  const [timelineExtraMs, setTimelineExtraMs] = useState<number>(0);
   const [gridDivision, setGridDivision] = useState<number>(1);
   const [speedChanges, setSpeedChanges] = useState<SpeedChange[]>([]);
   
@@ -161,12 +192,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       ? Math.max(...notes.map(n => n.endTime || n.time)) 
       : 0;
     const videoDurationMs = (videoDurationSeconds || 0) * 1000;
-    // videoDurationSeconds가 0이거나 NaN이면 최소 길이 사용
     const validVideoDuration = (videoDurationSeconds && videoDurationSeconds > 0) 
       ? videoDurationMs 
       : MIN_TIMELINE_DURATION_MS;
-    return Math.max(lastNoteTime + 5000, validVideoDuration, MIN_TIMELINE_DURATION_MS);
-  }, [notes, videoDurationSeconds]);
+    const baseDuration = Math.max(lastNoteTime + 5000, validVideoDuration, MIN_TIMELINE_DURATION_MS);
+    return Math.max(MIN_TIMELINE_DURATION_MS, baseDuration + timelineExtraMs);
+  }, [notes, videoDurationSeconds, timelineExtraMs]);
 
   const timelineContentHeight = useMemo(() => {
     return TIMELINE_TOP_PADDING + TIMELINE_BOTTOM_PADDING + (timelineDurationMs / 1000) * PIXELS_PER_SECOND * zoom;
@@ -232,6 +263,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       youtubeVideoId,
       timeSignatures,
       timeSignatureOffset,
+      timelineExtraMs,
       bpmChanges,
       speedChanges,
       chartTitle: shareTitle,
@@ -246,13 +278,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       zoom,
     }),
     [
-      notes,
-      bpm,
-      youtubeUrl,
-      youtubeVideoId,
-      timeSignatures,
-      timeSignatureOffset,
-      bpmChanges,
+    notes,
+    bpm,
+    youtubeUrl,
+    youtubeVideoId,
+    timeSignatures,
+    timeSignatureOffset,
+    bpmChanges,
       speedChanges,
       shareTitle,
       shareAuthor,
@@ -264,6 +296,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       currentTime,
       isAutoScrollEnabled,
       zoom,
+      timelineExtraMs,
     ]
   );
 
@@ -286,6 +319,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     if (typeof data.youtubeUrl === 'string') setYoutubeUrl(data.youtubeUrl);
     if (Array.isArray(data.timeSignatures)) setTimeSignatures(data.timeSignatures);
     if (data.timeSignatureOffset !== undefined) setTimeSignatureOffset(data.timeSignatureOffset);
+    if (typeof data.timelineExtraMs === 'number') setTimelineExtraMs(data.timelineExtraMs);
     if (Array.isArray(data.bpmChanges)) setBpmChanges(data.bpmChanges);
     if (Array.isArray(data.speedChanges)) {
       setSpeedChanges(data.speedChanges);
@@ -347,6 +381,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setBpmChanges([]);
     setTimeSignatures([{ id: 0, beatIndex: 0, beatsPerMeasure: 4 }]);
     setTimeSignatureOffset(0);
+    setTimelineExtraMs(0);
     setGridDivision(1);
     setSpeedChanges([]);
     setIsBpmInputOpen(false);
@@ -373,10 +408,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     // localStorage도 초기화
     try {
       localStorage.removeItem(AUTO_SAVE_KEY);
+      localStorage.removeItem(`subtitle-editor-${subtitleSessionId}`);
+      localStorage.removeItem(`subtitles_${subtitleSessionId}`);
     } catch (e) {
       console.warn('Failed to clear localStorage:', e);
     }
-  }, []);
+  }, [subtitleSessionId]);
 
   // --- 변속(SpeedChange) 핸들러 ---
   const handleAddSpeedChangeAtCurrent = useCallback(() => {
@@ -460,11 +497,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       return; // 중복이면 추가하지 않음
     }
     
-    if (isLongNoteMode) {
+      if (isLongNoteMode) {
       if (pendingLongNote && pendingLongNote.lane === lane) {
         const startTime = snapToGrid(Math.min(pendingLongNote.startTime, time));
         const endTime = snapToGrid(Math.max(pendingLongNote.startTime, time));
-        const duration = endTime - startTime;
+            const duration = endTime - startTime;
         if (duration > MIN_LONG_NOTE_DURATION) {
           // 롱노트도 중복 체크 (같은 레인에서 시간이 겹치는 노트가 있는지)
           const hasHoldDuplicate = notes.some((note) => {
@@ -481,12 +518,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           if (!hasHoldDuplicate) {
             addNote(lane, startTime, 'hold', duration);
           }
-        }
-        setPendingLongNote(null);
-      } else {
+            }
+            setPendingLongNote(null);
+          } else {
         setPendingLongNote({ lane, startTime: time });
-      }
-    } else {
+          }
+        } else {
       addNote(lane, time);
     }
   }, [addNote, snapToGrid, currentTime, isLongNoteMode, pendingLongNote, setPendingLongNote, notes]);
@@ -643,11 +680,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     try {
       // 이미지 업로드
       let imageUrl = previewImageUrl;
-        if (previewImageFile) {
+      if (previewImageFile) {
         // chartAPI.uploadImage 구현 필요 (생략된 경우 대비)
         // 여기서는 기존 로직이 있다고 가정하고 호출
         // imageUrl = await chartAPI.uploadImage(previewImageFile);
-        }
+      }
 
       await chartAPI.uploadChart({
         title: shareTitle,
@@ -851,14 +888,19 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         }}
         onToggleAutoScroll={() => setIsAutoScrollEnabled(prev => !prev)}
         onReset={handleReset}
-        onSubtitleClick={onOpenSubtitleEditor ? () => onOpenSubtitleEditor({
-            chartId: `local-${Date.now()}`,
+        onSubtitleClick={
+          onOpenSubtitleEditor
+            ? () =>
+                onOpenSubtitleEditor({
+                  chartId: subtitleSessionId,
             notes,
             bpm,
             youtubeVideoId,
             youtubeUrl,
-            title: shareTitle || 'Untitled'
-        }) : undefined}
+                  title: shareTitle || 'Untitled',
+                })
+            : undefined
+        }
         onExit={onCancel}
         onYoutubePasteButton={handleYoutubePasteButton}
         onToggleBpmInput={() => setIsBpmInputOpen(prev => !prev)}
@@ -898,7 +940,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           gridDivision={gridDivision}
           onGridDivisionChange={setGridDivision}
           timeSignatureOffset={timeSignatureOffset}
+          timelineExtraMs={timelineExtraMs}
           onTimeSignatureOffsetChange={setTimeSignatureOffset}
+          onTimelineExtraChange={(updater) => setTimelineExtraMs((prev) => updater(prev))}
           beatDuration={beatDuration}
           isLongNoteMode={isLongNoteMode}
           onToggleLongNoteMode={() => setIsLongNoteMode(prev => !prev)}
@@ -908,16 +952,17 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           onSetTestStartToZero={() => setTestStartInput('0')}
           onTestChart={() => {
             if (onTest) {
-              onTest({
-                notes,
-                startTimeMs: parseInt(testStartInput) || 0,
-                youtubeVideoId,
-                youtubeUrl,
-                playbackSpeed,
+                onTest({
+                    notes,
+                    startTimeMs: parseInt(testStartInput) || 0,
+                    youtubeVideoId,
+                    youtubeUrl,
+                    playbackSpeed,
                 audioOffsetMs: 0,
                 bpm,
                 speedChanges,
-              });
+                chartId: subtitleSessionId,
+                });
             }
           }}
           onShareClick={() => setIsShareModalOpen(true)}

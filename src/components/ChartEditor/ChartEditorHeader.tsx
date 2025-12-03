@@ -104,9 +104,9 @@ export const ChartEditorHeader: React.FC<ChartEditorHeaderProps> = ({
           flexWrap: 'wrap',
           alignItems: 'stretch',
           gap: '12px',
-        }}
-      >
-        {/* 재생 컨트롤 */}
+      }}
+    >
+      {/* 재생 컨트롤 */}
         <div
           style={{
             display: 'flex',
@@ -127,42 +127,42 @@ export const ChartEditorHeader: React.FC<ChartEditorHeaderProps> = ({
               color: CHART_EDITOR_THEME.textPrimary,
               border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
               borderRadius: CHART_EDITOR_THEME.radiusSm,
-              cursor: 'pointer',
+            cursor: 'pointer',
               fontSize: '12px',
-            }}
-          >
-            ⏮
-          </button>
-          <button
-            onClick={onTogglePlayback}
-            style={{
+          }}
+        >
+          ⏮
+        </button>
+        <button
+          onClick={onTogglePlayback}
+          style={{
               padding: '8px 14px',
               background:
                 'linear-gradient(135deg, #22d3ee, #38bdf8)',
               color: '#0b1120',
-              border: 'none',
+            border: 'none',
               borderRadius: CHART_EDITOR_THEME.radiusMd,
-              cursor: 'pointer',
+            cursor: 'pointer',
               fontWeight: 600,
               boxShadow: CHART_EDITOR_THEME.shadowSoft,
-            }}
-          >
-            {isPlaying ? '⏸' : '▶'}
-          </button>
-          <button
-            onClick={onStop}
-            style={{
+          }}
+        >
+          {isPlaying ? '⏸' : '▶'}
+        </button>
+        <button
+          onClick={onStop}
+          style={{
               padding: '6px 10px',
               backgroundColor: 'rgba(15,23,42,0.9)',
               color: CHART_EDITOR_THEME.textPrimary,
               border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
               borderRadius: CHART_EDITOR_THEME.radiusSm,
-              cursor: 'pointer',
+            cursor: 'pointer',
               fontSize: '12px',
-            }}
-          >
-            ⏹
-          </button>
+          }}
+        >
+          ⏹
+        </button>
           <label
             style={{
               display: 'flex',
@@ -173,16 +173,16 @@ export const ChartEditorHeader: React.FC<ChartEditorHeaderProps> = ({
               color: CHART_EDITOR_THEME.textSecondary,
             }}
           >
-            <input
-              type="checkbox"
-              checked={isAutoScrollEnabled}
-              onChange={onToggleAutoScroll}
-            />
+          <input
+            type="checkbox"
+            checked={isAutoScrollEnabled}
+            onChange={onToggleAutoScroll}
+          />
             <span>자동 스크롤</span>
-          </label>
-        </div>
+        </label>
+      </div>
 
-        {/* BPM 입력 */}
+      {/* BPM 입력 */}
         <div
           style={{
             display: 'flex',
@@ -205,69 +205,69 @@ export const ChartEditorHeader: React.FC<ChartEditorHeaderProps> = ({
           >
             BPM
           </span>
-          {isBpmInputOpen ? (
-            <input
-              type="number"
-              defaultValue={Math.round(bpm).toString()}
-              onBlur={(e) => onBpmInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  onBpmInput(e.currentTarget.value);
-                }
-              }}
-              autoFocus
-              style={{
-                width: '60px',
-                padding: '4px',
+        {isBpmInputOpen ? (
+          <input
+            type="number"
+            defaultValue={Math.round(bpm).toString()}
+            onBlur={(e) => onBpmInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                onBpmInput(e.currentTarget.value);
+              }
+            }}
+            autoFocus
+            style={{
+              width: '60px',
+              padding: '4px',
                 backgroundColor: '#020617',
                 color: CHART_EDITOR_THEME.textPrimary,
                 border: `1px solid ${CHART_EDITOR_THEME.borderStrong}`,
                 borderRadius: CHART_EDITOR_THEME.radiusSm,
                 fontSize: '13px',
-              }}
-            />
-          ) : (
-            <button
-              onClick={onToggleBpmInput}
-              style={{
-                padding: '4px 8px',
+            }}
+          />
+        ) : (
+          <button
+            onClick={onToggleBpmInput}
+            style={{
+              padding: '4px 8px',
                 backgroundColor: '#020617',
                 color: CHART_EDITOR_THEME.textPrimary,
                 border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
                 borderRadius: CHART_EDITOR_THEME.radiusSm,
-                cursor: 'pointer',
+              cursor: 'pointer',
                 fontSize: '13px',
-              }}
-            >
-              {Math.round(bpm)}
-            </button>
-          )}
-          <button
-            onClick={onTapBpm}
-            style={{
-              padding: '4px 8px',
+            }}
+          >
+            {Math.round(bpm)}
+          </button>
+        )}
+        <button
+          onClick={onTapBpm}
+          style={{
+            padding: '4px 8px',
               backgroundColor: 'rgba(34,211,238,0.12)',
               color: CHART_EDITOR_THEME.accentStrong,
               border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
               borderRadius: CHART_EDITOR_THEME.radiusSm,
-              cursor: 'pointer',
+            cursor: 'pointer',
               fontSize: '11px',
               fontWeight: 500,
-            }}
-          >
-            Tap ({tapCount})
-          </button>
-          {tapConfidence !== undefined && (
+          }}
+        >
+          Tap ({tapCount})
+        </button>
+        {tapConfidence !== undefined && (
             <span
               style={{
                 fontSize: '11px',
                 color: CHART_EDITOR_THEME.textSecondary,
               }}
             >
-              신뢰도: {(tapConfidence * 100).toFixed(0)}%
-            </span>
-          )}
-        </div>
+            신뢰도: {(tapConfidence * 100).toFixed(0)}%
+          </span>
+        )}
+      </div>
 
         {/* YouTube 메타 & 곡 정보 */}
         <div
@@ -284,10 +284,10 @@ export const ChartEditorHeader: React.FC<ChartEditorHeaderProps> = ({
             overflow: 'hidden',
           }}
         >
-          <button
+        <button
             onClick={onYoutubePasteButton}
             disabled={isLoadingYoutubeMeta}
-            style={{
+          style={{
               flexShrink: 0,
               padding: '8px 10px',
               borderRadius: CHART_EDITOR_THEME.radiusSm,
@@ -301,10 +301,10 @@ export const ChartEditorHeader: React.FC<ChartEditorHeaderProps> = ({
               fontWeight: 600,
               opacity: isLoadingYoutubeMeta ? 0.6 : 1,
               whiteSpace: 'nowrap',
-            }}
-          >
+          }}
+        >
             {isLoadingYoutubeMeta ? '로딩...' : 'YouTube 붙여넣기'}
-          </button>
+        </button>
           <div
             style={{
               display: 'flex',
@@ -344,13 +344,13 @@ export const ChartEditorHeader: React.FC<ChartEditorHeaderProps> = ({
 
         {/* 주요 액션 */}
         <div
-          style={{
+                style={{
             display: 'flex',
             gap: '8px',
             alignItems: 'center',
             flexWrap: 'wrap',
-          }}
-        >
+                }}
+              >
           {actionButtons.map((button) => (
             <button
               key={button.label}
@@ -377,7 +377,7 @@ export const ChartEditorHeader: React.FC<ChartEditorHeaderProps> = ({
               {button.label}
             </button>
           ))}
-        </div>
+          </div>
       </div>
 
       {/* 곡 정보 부가 표시 */}

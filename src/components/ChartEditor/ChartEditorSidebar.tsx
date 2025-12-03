@@ -16,7 +16,9 @@ interface ChartEditorSidebarProps {
   gridDivision: number;
   onGridDivisionChange: (division: number) => void;
   timeSignatureOffset: number;
+  timelineExtraMs: number;
   onTimeSignatureOffsetChange: (offset: number) => void;
+  onTimelineExtraChange: (updater: (prev: number) => number) => void;
   beatDuration: number;
   isLongNoteMode: boolean;
   onToggleLongNoteMode: () => void;
@@ -50,7 +52,9 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
   gridDivision,
   onGridDivisionChange,
   timeSignatureOffset,
+  timelineExtraMs,
   onTimeSignatureOffsetChange,
+  onTimelineExtraChange,
   beatDuration,
   isLongNoteMode,
   onToggleLongNoteMode,
@@ -69,7 +73,6 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
   bpmChanges,
 }) => {
   const gridCellMs = beatDuration / Math.max(1, gridDivision);
-  const maxOffset = beatDuration;
   const offsetInCells = timeSignatureOffset / gridCellMs;
   const displayOffset =
     offsetInCells === 0
@@ -81,8 +84,7 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
 
   const handleOffsetAdjust = (direction: -1 | 1) => {
     const next = timeSignatureOffset + direction * gridCellMs;
-    const clamped = Math.max(-maxOffset, Math.min(next, maxOffset));
-    onTimeSignatureOffsetChange(clamped);
+    onTimeSignatureOffsetChange(next);
   };
 
   return (
@@ -361,6 +363,84 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
           }}
           >
             밀기
+          </button>
+        </div>
+      </div>
+
+      {/* 타임라인 길이 조정 */}
+      <div
+        style={{
+          marginBottom: '16px',
+          padding: '10px 12px',
+          borderRadius: CHART_EDITOR_THEME.radiusMd,
+          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 8,
+          }}
+        >
+          <span
+            style={{
+              fontSize: '12px',
+              fontWeight: 600,
+              color: CHART_EDITOR_THEME.textSecondary,
+            }}
+          >
+            타임라인 길이
+          </span>
+          <span
+            style={{
+              fontSize: 12,
+              color: CHART_EDITOR_THEME.textPrimary,
+            }}
+          >
+            {timelineExtraMs >= 0 ? '+' : ''}
+            {(timelineExtraMs / 1000).toFixed(0)}초
+          </span>
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            gap: 8,
+          }}
+        >
+          <button
+            onClick={() => onTimelineExtraChange((prev) => prev - 5000)}
+            style={{
+              flex: 1,
+              padding: '8px',
+              backgroundColor: 'rgba(148,163,184,0.14)',
+              color: CHART_EDITOR_THEME.textPrimary,
+              border: 'none',
+              borderRadius: CHART_EDITOR_THEME.radiusSm,
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: 600,
+            }}
+          >
+            -5초
+          </button>
+          <button
+            onClick={() => onTimelineExtraChange((prev) => prev + 5000)}
+            style={{
+              flex: 1,
+              padding: '8px',
+              backgroundColor: 'rgba(34,211,238,0.14)',
+              color: CHART_EDITOR_THEME.accentStrong,
+              border: 'none',
+              borderRadius: CHART_EDITOR_THEME.radiusSm,
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: 600,
+          }}
+          >
+            +5초
           </button>
         </div>
       </div>

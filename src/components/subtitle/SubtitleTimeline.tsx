@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useCallback } from 'react';
+import React, { useMemo, useRef, useCallback, useEffect } from 'react';
 import { SubtitleCue, SubtitleTrack } from '../../types/subtitle';
 import { PIXELS_PER_SECOND, CHART_EDITOR_THEME } from '../ChartEditor/constants';
 
@@ -10,6 +10,9 @@ export interface SubtitleTimelineProps {
   currentTimeMs: number;
   bpm: number;
   beatsPerMeasure?: number;
+  beatNoteValue?: number;
+  lockPlayhead?: boolean;
+  timeSignatureOffset?: number;
   onChangeCurrentTime: (timeMs: number) => void;
   onSelectSubtitle: (id: string | null) => void;
   onChangeSubtitleTime: (id: string, startTimeMs: number, endTimeMs: number) => void;
@@ -34,6 +37,9 @@ export const SubtitleTimeline: React.FC<SubtitleTimelineProps> = ({
   currentTimeMs,
   bpm,
   beatsPerMeasure = 4,
+  beatNoteValue = 4,
+  lockPlayhead = false,
+  timeSignatureOffset = 0,
   onChangeCurrentTime,
   onSelectSubtitle,
   onChangeSubtitleTime,
@@ -49,12 +55,12 @@ export const SubtitleTimeline: React.FC<SubtitleTimelineProps> = ({
 
   const beatDurationMs = useMemo(() => {
     const clampedBpm = bpm > 1 ? bpm : 60;
-    return 60000 / clampedBpm;
-  }, [bpm]);
+    const denominatorFactor = 4 / Math.max(1, beatNoteValue); // 4분음표 기준
+    return (60000 / clampedBpm) * denominatorFactor;
+  }, [bpm, beatNoteValue]);
 
-  const totalBeats = useMemo(() => {
-    return Math.ceil(durationMs / beatDurationMs);
-  }, [durationMs, beatDurationMs]);
+  const safeBeatDuration = Math.max(1, beatDurationMs || 0);
+  const offsetMs = timeSignatureOffset;
 
   const timeToX = useCallback(
     (timeMs: number) => (timeMs / 1000) * PIXELS_PER_SECOND,
@@ -116,6 +122,19 @@ export const SubtitleTimeline: React.FC<SubtitleTimelineProps> = ({
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
   }, [xToTime, onChangeCurrentTime]);
+
+  const lockPlayheadToView = useCallback(() => {
+    if (!lockPlayhead) return;
+    const container = scrollRef.current;
+    if (!container) return;
+    const playheadX = timeToX(currentTimeMs);
+    const halfWidth = container.clientWidth / 2;
+    container.scrollLeft = Math.max(0, playheadX - halfWidth);
+  }, [lockPlayhead, currentTimeMs, timeToX]);
+
+  useEffect(() => {
+    lockPlayheadToView();
+  }, [lockPlayheadToView]);
 
   const beginDrag = (
     cue: SubtitleCue,
@@ -199,26 +218,38 @@ export const SubtitleTimeline: React.FC<SubtitleTimelineProps> = ({
           }}
         >
           {/* 수직 그리드 라인 (BPM 기반) */}
-          {Array.from({ length: totalBeats + 1 }).map((_, beatIndex) => {
-            const x = timeToX(beatIndex * beatDurationMs);
-            const isMeasureLine = beatIndex % beatsPerMeasure === 0;
-            return (
-              <div
-                key={`grid-beat-${beatIndex}`}
-                style={{
-                  position: 'absolute',
-                  left: x,
-                  top: 0,
-                  width: isMeasureLine ? 2 : 1,
-                  height: '100%',
-                  backgroundColor: isMeasureLine
-                    ? 'rgba(96,165,250,0.45)'
-                    : 'rgba(148,163,184,0.35)',
-                  transform: 'translateX(-0.5px)',
-                }}
-              />
-            );
-          })}
+          {(() => {
+            const startBeat = Math.floor((0 - offsetMs) / safeBeatDuration) - 1;
+            const endBeat = Math.ceil((durationMs - offsetMs) / safeBeatDuration) + 1;
+            const total = endBeat - startBeat + 1;
+            return Array.from({ length: total }).map((_, idx) => {
+              const beatIndex = startBeat + idx;
+              const lineTime = beatIndex * safeBeatDuration + offsetMs;
+              if (lineTime < 0 || lineTime > durationMs) {
+                return null;
+              }
+              const x = timeToX(lineTime);
+              const normalizedBeat =
+                ((beatIndex % beatsPerMeasure) + beatsPerMeasure) % beatsPerMeasure;
+              const isMeasureLine = normalizedBeat === 0;
+              return (
+                <div
+                  key={`grid-beat-${beatIndex}`}
+                  style={{
+                    position: 'absolute',
+                    left: x,
+                    top: 0,
+                    width: isMeasureLine ? 2 : 1,
+                    height: '100%',
+                    backgroundColor: isMeasureLine
+                      ? 'rgba(96,165,250,0.45)'
+                      : 'rgba(148,163,184,0.35)',
+                    transform: 'translateX(-0.5px)',
+                  }}
+                />
+              );
+            });
+          })()}
 
           {/* 현재 재생 위치 라인 */}
           <div

@@ -71,6 +71,7 @@ export interface ChartTestPayload {
   audioOffsetMs?: number;
   bpm?: number;
   speedChanges?: SpeedChange[];
+  chartId?: string;
 }
 
 export interface SubtitleEditorChartData {

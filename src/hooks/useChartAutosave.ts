@@ -41,10 +41,11 @@ export function useChartAutosave<T>(
       if (saved) {
         const parsed = JSON.parse(saved);
         onRestoreValue(parsed);
-        isRestoredRef.current = true;
       }
     } catch (error) {
       console.error('Failed to restore from localStorage:', error);
+    } finally {
+      isRestoredRef.current = true;
     }
   }, [key, onRestoreValue]);
 

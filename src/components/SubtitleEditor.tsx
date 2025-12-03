@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useCallback, useEffect } from 'react';
+﻿import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Note } from '../types/game';
 import {
   SubtitleCue,
@@ -11,6 +11,9 @@ import { SubtitleTimeline } from './subtitle/SubtitleTimeline';
 import { SubtitleInspector } from './subtitle/SubtitleInspector';
 import { SubtitlePreviewCanvas } from './subtitle/SubtitlePreviewCanvas';
 import { useYoutubeAudio } from '../hooks/useYoutubeAudio';
+import { useChartAutosave } from '../hooks/useChartAutosave';
+import { localSubtitleStorage, subtitleAPI } from '../lib/subtitleAPI';
+import { isSupabaseConfigured } from '../lib/supabaseClient';
 
 interface SubtitleEditorProps {
   chartId: string;
@@ -37,6 +40,21 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     () => DEFAULT_SUBTITLE_TRACKS[0]?.id ?? 'track-1'
   );
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [beatsPerMeasure, setBeatsPerMeasure] = useState<number>(4);
+  const [noteValue, setNoteValue] = useState<number>(4);
+  const [isPlayheadLocked, setIsPlayheadLocked] = useState<boolean>(false);
+  const [gridOffsetMs, setGridOffsetMs] = useState<number>(0);
+  const subtitlesLoadedRef = useRef(false);
+  const hadLocalSubtitlesRef = useRef(false);
+  const supabaseSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [activeChartId, setActiveChartId] = useState(chartId);
+  const [chartIdInput, setChartIdInput] = useState(chartId);
+
+  useEffect(() => {
+    setActiveChartId(chartId);
+    setChartIdInput(chartId);
+  }, [chartId]);
+  const subtitleAutosaveKey = useMemo(() => `subtitle-editor-${activeChartId}`, [activeChartId]);
 
   const durationMs = useMemo(() => {
     if (!chartData.notes.length) return 60000;
@@ -51,6 +69,189 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     currentTimeMs,
     isPlaying,
   });
+
+  const beatDurationMs = useMemo(() => {
+    const bpm = chartData.bpm || 120;
+    const denominatorFactor = 4 / Math.max(1, noteValue);
+    return (60000 / Math.max(1, bpm)) * denominatorFactor;
+  }, [chartData.bpm, noteValue]);
+
+  const gridOffsetDisplay = useMemo(() => {
+    if (!beatDurationMs) return '0';
+    const beats = gridOffsetMs / beatDurationMs;
+    if (Math.abs(beats) < 0.001) return '0';
+    const formatted = beats
+      .toFixed(2)
+      .replace(/\.0+$/, '')
+      .replace(/(\.\d*?)0+$/, '$1');
+    return `${beats > 0 ? '+' : ''}${formatted}`;
+  }, [gridOffsetMs, beatDurationMs]);
+
+  const handleGridOffsetAdjust = useCallback(
+    (direction: -1 | 1) => {
+      setGridOffsetMs((prev) => prev + direction * beatDurationMs);
+    },
+    [beatDurationMs]
+  );
+
+  const handleApplyChartId = useCallback(() => {
+    const nextId = chartIdInput.trim();
+    if (!nextId) {
+      alert('Chart ID를 입력하세요.');
+      return;
+    }
+    setActiveChartId(nextId);
+    try {
+      localStorage.setItem('subtitle-session-id', nextId);
+    } catch (error) {
+      console.warn('Failed to persist subtitle session id:', error);
+    }
+    try {
+      window.dispatchEvent(new CustomEvent('subtitle-chart-id-update', { detail: nextId }));
+    } catch {
+      // ignore
+    }
+  }, [chartIdInput]);
+
+  // 로컬 저장소에서 기존 자막 복원 (게임 테스트용 임시 저장)
+  useEffect(() => {
+    hadLocalSubtitlesRef.current = false;
+    const storedCues = localSubtitleStorage.get(chartId);
+    if (storedCues.length > 0) {
+      hadLocalSubtitlesRef.current = true;
+      setSubtitles((prev) => (prev.length > 0 ? prev : storedCues));
+    }
+    subtitlesLoadedRef.current = true;
+  }, [chartId]);
+
+  useEffect(() => {
+    if (!subtitlesLoadedRef.current) return;
+    if (!activeChartId) return;
+    localSubtitleStorage.save(activeChartId, subtitles);
+
+    if (isSupabaseConfigured) {
+      if (supabaseSaveTimeoutRef.current) {
+        clearTimeout(supabaseSaveTimeoutRef.current);
+      }
+
+      supabaseSaveTimeoutRef.current = setTimeout(async () => {
+        try {
+          await subtitleAPI.upsertSubtitles(activeChartId, subtitles);
+        } catch (error) {
+          console.error('Failed to sync subtitles to Supabase:', error);
+        }
+      }, 800);
+    }
+  }, [activeChartId, subtitles]);
+
+  useEffect(() => {
+    return () => {
+      if (supabaseSaveTimeoutRef.current) {
+        clearTimeout(supabaseSaveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const subtitleAutosaveData = useMemo(
+    () => ({
+      chartId: activeChartId,
+      tracks,
+      subtitles,
+      beatsPerMeasure,
+      noteValue,
+      isPlayheadLocked,
+      gridOffsetMs,
+      selectedTrackId,
+      currentTimeMs,
+    }),
+    [
+      activeChartId,
+      tracks,
+      subtitles,
+      beatsPerMeasure,
+      noteValue,
+      isPlayheadLocked,
+      gridOffsetMs,
+      selectedTrackId,
+      currentTimeMs,
+    ]
+  );
+
+  const handleSubtitleRestore = useCallback((data: any) => {
+    if (data && typeof data === 'object') {
+      if (typeof data.chartId === 'string') {
+        setActiveChartId(data.chartId);
+        setChartIdInput(data.chartId);
+        try {
+          localStorage.setItem('subtitle-session-id', data.chartId);
+        } catch {
+          // ignore
+        }
+        try {
+          window.dispatchEvent(new CustomEvent('subtitle-chart-id-update', { detail: data.chartId }));
+        } catch {
+          // ignore
+        }
+      }
+      if (Array.isArray(data.tracks) && data.tracks.length > 0) {
+        setTracks(data.tracks);
+      }
+      if (Array.isArray(data.subtitles)) {
+        setSubtitles(data.subtitles);
+      }
+      if (typeof data.beatsPerMeasure === 'number') {
+        setBeatsPerMeasure(data.beatsPerMeasure);
+      }
+      if (typeof data.noteValue === 'number') {
+        setNoteValue(data.noteValue);
+      }
+      if (typeof data.gridOffsetMs === 'number') {
+        setGridOffsetMs(data.gridOffsetMs);
+      }
+      if (typeof data.isPlayheadLocked === 'boolean') {
+        setIsPlayheadLocked(data.isPlayheadLocked);
+      }
+      if (typeof data.selectedTrackId === 'string') {
+        setSelectedTrackId(data.selectedTrackId);
+      }
+      if (typeof data.currentTimeMs === 'number') {
+        setCurrentTimeMs(Math.max(0, data.currentTimeMs));
+      }
+    }
+  }, []);
+
+  // 자동 저장 훅 (로컬)
+  useChartAutosave(subtitleAutosaveKey, subtitleAutosaveData, handleSubtitleRestore);
+
+  // Supabase 연동 (옵션)
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadSupabaseSubtitles() {
+      if (!isSupabaseConfigured) return;
+      if (!chartId) return;
+      if (hadLocalSubtitlesRef.current) return;
+
+      try {
+        const cues = await subtitleAPI.getSubtitlesByChartId(chartId);
+        if (!isMounted) return;
+        if (cues.length > 0) {
+          setSubtitles(cues);
+          localSubtitleStorage.save(chartId, cues);
+        }
+      } catch (error) {
+        console.error('Failed to load subtitles from Supabase:', error);
+      }
+    }
+
+    if (subtitles.length === 0) {
+      loadSupabaseSubtitles();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [chartId, subtitles.length]);
 
   // --- 에디터 전용 타이머 (재생선 시간 소스) ---
   useEffect(() => {
@@ -93,7 +294,7 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
 
     const next: SubtitleCue = {
       id: `sub-${Date.now()}`,
-      chartId,
+      chartId: activeChartId,
       trackId: baseTrack.id,
       startTimeMs: start,
       endTimeMs: end,
@@ -107,6 +308,33 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     setSubtitles((prev) => [...prev, next]);
     setSelectedSubtitleId(next.id);
   }, [chartId, currentTimeMs, durationMs, tracks]);
+
+  // 끝 시간에서 이어서 복사본 생성
+  const handleDuplicateAtEnd = useCallback((baseCue: SubtitleCue) => {
+    const duration = baseCue.endTimeMs - baseCue.startTimeMs;
+    const newStart = baseCue.endTimeMs;
+    const newEnd = Math.min(newStart + duration, durationMs);
+
+    const newCue: SubtitleCue = {
+      id: `sub-${Date.now()}`,
+      chartId: activeChartId,
+      trackId: baseCue.trackId,
+      startTimeMs: newStart,
+      endTimeMs: newEnd,
+      text: baseCue.text, // 텍스트도 복사
+      style: { ...baseCue.style }, // 스타일 전체 복사
+    };
+
+    setSubtitles((prev) => [...prev, newCue]);
+    setSelectedSubtitleId(newCue.id);
+    setCurrentTimeMs(newStart); // 재생선도 이동
+  }, [activeChartId, durationMs]);
+
+  // 자막 삭제
+  const handleDeleteCue = useCallback((cueId: string) => {
+    setSubtitles((prev) => prev.filter((cue) => cue.id !== cueId));
+    setSelectedSubtitleId(null);
+  }, []);
 
   const handleChangeSubtitleTime = useCallback(
     (id: string, startTimeMs: number, endTimeMs: number) => {
@@ -278,6 +506,169 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
           >
             자막 추가
           </button>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              backgroundColor: 'rgba(15,23,42,0.75)',
+              padding: '4px 8px',
+              borderRadius: CHART_EDITOR_THEME.radiusSm,
+              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11, color: CHART_EDITOR_THEME.textSecondary }}>박자표</span>
+              <input
+                type="number"
+                min={1}
+                max={16}
+                value={beatsPerMeasure}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value, 10);
+                  if (Number.isNaN(value)) return;
+                  setBeatsPerMeasure(Math.min(16, Math.max(1, value)));
+                }}
+                style={{
+                  width: 36,
+                  padding: '2px 4px',
+                  backgroundColor: 'rgba(2,6,23,0.9)',
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  textAlign: 'center',
+                }}
+              />
+              <span style={{ color: CHART_EDITOR_THEME.textSecondary }}>/</span>
+              <select
+                value={noteValue}
+                onChange={(e) => setNoteValue(parseInt(e.target.value, 10))}
+                style={{
+                  padding: '2px 4px',
+                  backgroundColor: 'rgba(2,6,23,0.9)',
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                }}
+              >
+                {[1, 2, 4, 8, 16].map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                backgroundColor: 'rgba(2,6,23,0.85)',
+                padding: '4px 6px',
+                borderRadius: CHART_EDITOR_THEME.radiusSm,
+                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+              }}
+            >
+              <button
+                onClick={() => handleGridOffsetAdjust(-1)}
+                style={{
+                  padding: '4px 6px',
+                  border: 'none',
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  backgroundColor: 'rgba(148,163,184,0.2)',
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  cursor: 'pointer',
+                  fontSize: 11,
+                  fontWeight: 600,
+                }}
+              >
+                당기기
+              </button>
+              <span
+                style={{
+                  minWidth: 48,
+                  textAlign: 'center',
+                  fontSize: 12,
+                  color: CHART_EDITOR_THEME.textPrimary,
+                }}
+              >
+                {gridOffsetDisplay}칸
+              </span>
+              <button
+                onClick={() => handleGridOffsetAdjust(1)}
+                style={{
+                  padding: '4px 6px',
+                  border: 'none',
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  backgroundColor: 'rgba(34,211,238,0.2)',
+                  color: CHART_EDITOR_THEME.accentStrong,
+                  cursor: 'pointer',
+                  fontSize: 11,
+                  fontWeight: 600,
+                }}
+              >
+                밀기
+              </button>
+            </div>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: 11,
+                color: CHART_EDITOR_THEME.textSecondary,
+                cursor: 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={isPlayheadLocked}
+                onChange={(e) => setIsPlayheadLocked(e.target.checked)}
+              />
+              재생선 고정
+            </label>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                backgroundColor: 'rgba(2,6,23,0.75)',
+                padding: '4px 6px',
+                borderRadius: CHART_EDITOR_THEME.radiusSm,
+                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+              }}
+            >
+              <input
+                value={chartIdInput}
+                onChange={(e) => setChartIdInput(e.target.value)}
+                placeholder="Chart ID"
+                style={{
+                  width: 180,
+                  padding: '4px 6px',
+                  backgroundColor: 'rgba(2,6,23,0.9)',
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  fontSize: 11,
+                }}
+              />
+              <button
+                onClick={handleApplyChartId}
+                style={{
+                  padding: '4px 8px',
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  border: 'none',
+                  backgroundColor: 'rgba(34,211,238,0.18)',
+                  color: CHART_EDITOR_THEME.accentStrong,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                ID 적용
+              </button>
+            </div>
+          </div>
           <button
             onClick={onClose}
             style={{
@@ -361,7 +752,7 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {tracks.map((track) => {
                 const isActive = track.id === selectedTrackId;
-                return (
+  return (
                   <div
                     key={track.id}
                     style={{
@@ -406,11 +797,11 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
                     >
                       ×
                     </button>
-                  </div>
+        </div>
                 );
               })}
-            </div>
-          </div>
+        </div>
+      </div>
 
           <div
             style={{
@@ -418,7 +809,16 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
               overflow: 'auto',
             }}
           >
-            <SubtitleInspector selectedCue={selectedCue} onChangeCue={handleChangeCue} />
+            <SubtitleInspector
+              selectedCue={selectedCue}
+              allCues={subtitles}
+              onChangeCue={handleChangeCue}
+              onDuplicateAtEnd={handleDuplicateAtEnd}
+              onDeleteCue={handleDeleteCue}
+              bpm={chartData.bpm || 120}
+              beatsPerMeasure={beatsPerMeasure}
+              gridOffsetMs={gridOffsetMs}
+            />
           </div>
         </div>
 
@@ -444,14 +844,12 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
             }}
           >
             <SubtitlePreviewCanvas
-              width={640}
-              height={360}
               currentTimeMs={currentTimeMs}
               cues={subtitles}
               selectedCueId={selectedSubtitleId}
               onChangeCueStyle={(id, nextStyle) => handleChangeCueStyle(id, nextStyle)}
             />
-          </div>
+            </div>
 
           {/* 타임라인: 맨 아래 고정 */}
           <div
@@ -465,7 +863,10 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
               durationMs={durationMs}
               currentTimeMs={currentTimeMs}
               bpm={chartData.bpm || 120}
-              beatsPerMeasure={4}
+              beatsPerMeasure={beatsPerMeasure}
+              beatNoteValue={noteValue}
+              lockPlayhead={isPlayheadLocked}
+              timeSignatureOffset={gridOffsetMs}
               onChangeCurrentTime={setCurrentTimeMs}
               onSelectSubtitle={(id) => {
                 setSelectedSubtitleId(id);
@@ -480,7 +881,7 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
               }}
               onChangeSubtitleTime={handleChangeSubtitleTime}
             />
-          </div>
+        </div>
         </div>
 
         {/* 숨겨진 YouTube 오디오 플레이어 (자막 편집용) */}

@@ -19,6 +19,7 @@ import { subtitleAPI, localSubtitleStorage } from '../lib/subtitleAPI';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { getNoteFallDuration } from '../utils/speedChange';
+import { GAME_VIEW_WIDTH, GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 
 // Subtitle editor chart data
 interface SubtitleEditorChartData {
@@ -37,8 +38,9 @@ interface EditorTestPayload {
   youtubeUrl: string;
   playbackSpeed: number;
   audioOffsetMs?: number;
-   bpm?: number;
-   speedChanges?: SpeedChange[];
+  bpm?: number;
+  speedChanges?: SpeedChange[];
+  chartId?: string;
 }
 
 const LANE_KEYS = [
@@ -58,13 +60,6 @@ const JUDGE_LINE_WIDTH = 400; // 판정선 너비 (4개 레인 영역)
 const JUDGE_LINE_Y = 640;
 
 // 자막 렌더링 영역 (16:9 비율, 4레인 영역 기준)
-const SUBTITLE_AREA_LEFT = 50; // 레인 영역과 동일하게 시작
-const SUBTITLE_AREA_WIDTH = 400;
-const SUBTITLE_AREA_HEIGHT = (SUBTITLE_AREA_WIDTH * 9) / 16; // 16:9 비율
-// 자막 영역을 판정선 위쪽에 배치 (노트/판정선과 겹치지 않도록 여유를 둠)
-const SUBTITLE_AREA_BOTTOM_MARGIN = 40;
-const SUBTITLE_AREA_TOP =
-  JUDGE_LINE_Y - SUBTITLE_AREA_BOTTOM_MARGIN - SUBTITLE_AREA_HEIGHT;
 
 const GAME_DURATION = 30000; // 30초
 const START_DELAY_MS = 4000;
@@ -77,6 +72,7 @@ export const Game: React.FC = () => {
   const [isSubtitleEditorOpen, setIsSubtitleEditorOpen] = useState<boolean>(false);
   const [subtitleEditorData, setSubtitleEditorData] = useState<SubtitleEditorChartData | null>(null);
   const [isTestMode, setIsTestMode] = useState<boolean>(false);
+  const [isFromEditor, setIsFromEditor] = useState<boolean>(false); // 에디터에서 테스트 시작인지 구분
   const testPreparedNotesRef = useRef<Note[]>([]);
   const [baseBpm, setBaseBpm] = useState<number>(120);
   const [speedChanges, setSpeedChanges] = useState<SpeedChange[]>([]);
@@ -86,14 +82,16 @@ export const Game: React.FC = () => {
   const testYoutubePlayerRef = useRef<HTMLDivElement>(null);
   const testYoutubePlayerReadyRef = useRef(false);
   const [testYoutubeVideoId, setTestYoutubeVideoId] = useState<string | null>(null);
-  const testAudioSettingsRef = useRef<{
-    youtubeVideoId: string | null;
-    youtubeUrl: string;
-    startTimeMs: number;
-    playbackSpeed: number;
-    audioOffsetMs?: number;
-  } | null>(null);
+const testAudioSettingsRef = useRef<{
+  youtubeVideoId: string | null;
+  youtubeUrl: string;
+  startTimeMs: number;
+  playbackSpeed: number;
+  audioOffsetMs?: number;
+  chartId?: string;
+} | null>(null);
   const audioHasStartedRef = useRef(false);
+  const lastResyncTimeRef = useRef(0); // 마지막 리싱크 시간 (쿨다운용)
   const [gameState, setGameState] = useState<GameState>(() => ({
     notes: generateNotes(GAME_DURATION),
     score: {
@@ -108,6 +106,8 @@ export const Game: React.FC = () => {
     gameStarted: false,
     gameEnded: false,
   }));
+  const gameContainerRef = useRef<HTMLDivElement | null>(null);
+  const [gameViewSize, setGameViewSize] = useState({ width: GAME_VIEW_WIDTH, height: GAME_VIEW_HEIGHT });
 
   const [pressedKeys, setPressedKeys] = useState<Set<Lane>>(new Set());
   const [holdingNotes, setHoldingNotes] = useState<Map<number, Note>>(new Map()); // 현재 누르고 있는 롱노트들 (노트 ID -> 노트)
@@ -157,6 +157,48 @@ export const Game: React.FC = () => {
     const savedSpeed = localStorage.getItem('rhythmGameSpeed');
     return savedSpeed ? parseFloat(savedSpeed) : 1.0;
   });
+
+  useEffect(() => {
+    const container = gameContainerRef.current;
+    if (!container || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const updateSize = () => {
+      setGameViewSize({
+        width: container.clientWidth,
+        height: container.clientHeight,
+      });
+    };
+
+    updateSize();
+    const observer = new ResizeObserver(() => updateSize());
+    observer.observe(container);
+
+    return () => observer.disconnect();
+  }, []);
+
+  // 자막 좌표 영역: 16:9 비율 (에디터 프리뷰와 동일)
+  // 게임 화면 높이를 기준으로 16:9 영역을 계산하여 좌우로 확장
+  const subtitleArea = useMemo(() => {
+    const containerHeight = gameViewSize.height || GAME_VIEW_HEIGHT;
+    const containerWidth = gameViewSize.width || GAME_VIEW_WIDTH;
+    
+    // 16:9 비율로 자막 영역 계산 (높이 기준)
+    const SUBTITLE_ASPECT_RATIO = 16 / 9;
+    const subtitleWidth = containerHeight * SUBTITLE_ASPECT_RATIO;
+    const subtitleHeight = containerHeight;
+    
+    // 게임 화면 중앙에 정렬 (좌우로 확장됨)
+    const offsetLeft = (containerWidth - subtitleWidth) / 2;
+    
+    return {
+      left: offsetLeft,
+      top: 0,
+      width: subtitleWidth,
+      height: subtitleHeight,
+    };
+  }, [gameViewSize]);
 
 
   // 속도가 변경될 때마다 localStorage에 저장
@@ -470,10 +512,16 @@ export const Game: React.FC = () => {
     try {
       let cues: SubtitleCue[] = [];
 
-      if (isSupabaseConfigured) {
+      const shouldForceLocal = !chartId || chartId.startsWith('local-');
+      if (isSupabaseConfigured && !shouldForceLocal) {
         cues = await subtitleAPI.getSubtitlesByChartId(chartId);
-      } else {
-        cues = localSubtitleStorage.get(chartId);
+      }
+
+      if (!cues.length || shouldForceLocal) {
+        const localCues = localSubtitleStorage.get(chartId);
+        if (localCues.length) {
+          cues = localCues;
+        }
       }
 
       cues.sort((a, b) => a.startTimeMs - b.startTimeMs);
@@ -557,6 +605,7 @@ export const Game: React.FC = () => {
 
   const resetGame = () => {
     setIsTestMode(false);
+    setIsFromEditor(false);
     audioHasStartedRef.current = false;
     testPreparedNotesRef.current = [];
     processedMissNotes.current.clear(); // Miss 처리 노트 추적 초기화
@@ -650,9 +699,15 @@ export const Game: React.FC = () => {
 
       testPreparedNotesRef.current = preparedNotes.map((note) => ({ ...note }));
       setIsTestMode(true);
+      setIsFromEditor(true); // 에디터에서 테스트 시작
       setIsEditorOpen(false);
       setBaseBpm(payload.bpm ?? 120);
       setSpeedChanges(payload.speedChanges ?? []);
+      if (payload.chartId) {
+        loadSubtitlesForChart(payload.chartId);
+      } else {
+        setSubtitles([]);
+      }
       
       // YouTube 플레이어 초기화를 위해 videoId 설정
       if (payload.youtubeVideoId) {
@@ -663,7 +718,7 @@ export const Game: React.FC = () => {
       
       startTestSession(preparedNotes);
     },
-    [startTestSession]
+    [startTestSession, loadSubtitlesForChart]
   );
 
   const handleRetest = useCallback(() => {
@@ -676,6 +731,7 @@ export const Game: React.FC = () => {
   const handleReturnToEditor = useCallback(() => {
     setIsEditorOpen(true);
     setIsTestMode(false);
+    setIsFromEditor(false);
     audioHasStartedRef.current = false;
     testPreparedNotesRef.current = [];
     testAudioSettingsRef.current = null;
@@ -702,18 +758,55 @@ export const Game: React.FC = () => {
   }, [testYoutubePlayer]);
 
   // ESC 키로 테스트 모드 나가기
+  // 플레이 목록으로 돌아가기 핸들러
+  const handleReturnToPlayList = useCallback(() => {
+    setIsTestMode(false);
+    setIsFromEditor(false);
+    audioHasStartedRef.current = false;
+    testPreparedNotesRef.current = [];
+    testAudioSettingsRef.current = null;
+    setTestYoutubeVideoId(null);
+    setSubtitles([]);
+    
+    // YouTube 플레이어 정리
+    if (testYoutubePlayer) {
+      try {
+        testYoutubePlayer.destroy();
+      } catch (e) {
+        console.warn('테스트 플레이어 정리 실패:', e);
+      }
+    }
+    setTestYoutubePlayer(null);
+    testYoutubePlayerReadyRef.current = false;
+    
+    setGameState((prev) => ({
+      ...prev,
+      gameStarted: false,
+      gameEnded: false,
+      currentTime: 0,
+      notes: [],
+      score: buildInitialScore(),
+    }));
+    
+    setIsChartSelectOpen(true);
+  }, [testYoutubePlayer, buildInitialScore]);
+
   useEffect(() => {
     if (!isTestMode || !gameState.gameStarted || gameState.gameEnded) return;
 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        handleReturnToEditor();
+        if (isFromEditor) {
+          handleReturnToEditor();
+        } else {
+          handleReturnToPlayList();
+        }
       }
     };
 
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  }, [isTestMode, gameState.gameStarted, gameState.gameEnded, handleReturnToEditor]);
+  }, [isTestMode, isFromEditor, gameState.gameStarted, gameState.gameEnded, handleReturnToEditor, handleReturnToPlayList]);
 
   // 테스트 모드 YouTube 플레이어 초기화
   useEffect(() => {
@@ -860,11 +953,21 @@ export const Game: React.FC = () => {
 
     const desiredSeconds = getAudioPositionSeconds(gameState.currentTime);
     const currentSeconds = testYoutubePlayer.getCurrentTime?.() ?? 0;
+    const now = Date.now();
 
-    if (Math.abs(currentSeconds - desiredSeconds) > 0.15) {
+    // 임계값: 0.5초 이상 차이날 때만 리싱크
+    // 쿨다운: 마지막 리싱크 후 2초 이내에는 리싱크하지 않음
+    const RESYNC_THRESHOLD = 0.5;
+    const RESYNC_COOLDOWN = 2000;
+
+    if (
+      Math.abs(currentSeconds - desiredSeconds) > RESYNC_THRESHOLD &&
+      now - lastResyncTimeRef.current > RESYNC_COOLDOWN
+    ) {
       try {
         testYoutubePlayer.seekTo(desiredSeconds, true);
-        console.log(`YouTube resync: ${desiredSeconds.toFixed(2)}s`);
+        lastResyncTimeRef.current = now;
+        console.log(`YouTube resync: ${currentSeconds.toFixed(2)}s → ${desiredSeconds.toFixed(2)}s (차이: ${Math.abs(currentSeconds - desiredSeconds).toFixed(2)}s)`);
       } catch (e) {
         console.warn("YouTube resync failed:", e);
       }
@@ -930,19 +1033,28 @@ export const Game: React.FC = () => {
       
       // YouTube 플레이어 설정 (필요시) - 먼저 설정해야 useEffect가 올바르게 작동함
       if (chartData.youtubeVideoId) {
-        testAudioSettingsRef.current = {
-          youtubeVideoId: chartData.youtubeVideoId,
-          youtubeUrl: chartData.youtubeUrl || '',
-          startTimeMs: 0,
-          playbackSpeed: 1,
-        };
+      testAudioSettingsRef.current = {
+        youtubeVideoId: chartData.youtubeVideoId,
+        youtubeUrl: chartData.youtubeUrl || '',
+        startTimeMs: 0,
+        playbackSpeed: 1,
+        chartId: chartData.chartId,
+      };
         setTestYoutubeVideoId(chartData.youtubeVideoId); // state로 설정하여 useEffect가 감지하도록
         setIsTestMode(true);
-      } else {
-        setIsTestMode(false);
-        setTestYoutubeVideoId(null);
-        testAudioSettingsRef.current = null;
-      }
+    } else {
+      setIsTestMode(false);
+      setTestYoutubeVideoId(null);
+      testAudioSettingsRef.current = chartData.chartId
+        ? {
+            youtubeVideoId: null,
+            youtubeUrl: chartData.youtubeUrl || '',
+            startTimeMs: 0,
+            playbackSpeed: 1,
+            chartId: chartData.chartId,
+          }
+        : null;
+    }
       
       // 선택된 채보 데이터로 게임 상태 초기화
       const preparedNotes = chartData.notes.map((note: Note) => ({
@@ -1056,18 +1168,21 @@ export const Game: React.FC = () => {
         fontFamily: 'Arial, sans-serif',
       }}
     >
-      <div
-        style={{
-          width: '500px', // 좌우 여백을 3분의 1로 줄임: 700px - 400px = 300px -> 100px
-          height: '800px',
-          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
-          position: 'relative',
-          overflow: 'hidden',
-          borderRadius: CHART_EDITOR_THEME.radiusLg,
-          boxShadow: CHART_EDITOR_THEME.shadowSoft,
-          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-        }}
-      >
+      {/* 게임 + 자막 wrapper (자막이 게임 바깥으로 나갈 수 있도록) */}
+      <div style={{ position: 'relative' }}>
+        <div
+          ref={gameContainerRef}
+          style={{
+            width: '500px',
+            height: '800px',
+            backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+            position: 'relative',
+            overflow: 'hidden',
+            borderRadius: CHART_EDITOR_THEME.radiusLg,
+            boxShadow: CHART_EDITOR_THEME.shadowSoft,
+            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+          }}
+        >
         {/* 4개 레인 영역 배경 */}
         <div
           style={{
@@ -1117,67 +1232,6 @@ export const Game: React.FC = () => {
               laneX={LANE_POSITIONS[note.lane]}
               isHolding={holdingNotes.has(note.id)}
             />
-          );
-        })}
-
-        {/* 자막 렌더링 (16:9 영역, 노트 위 레이어) */}
-        {activeSubtitles.map(({ cue, opacity }) => {
-          const style = cue.style || ({} as SubtitleStyle);
-          const pos = style.position ?? { x: 0.5, y: 0.9 };
-
-          const left =
-            SUBTITLE_AREA_LEFT + pos.x * SUBTITLE_AREA_WIDTH;
-          const top =
-            SUBTITLE_AREA_TOP + pos.y * SUBTITLE_AREA_HEIGHT;
-
-          const transformParts: string[] = ['translate(-50%, -50%)'];
-          if (style.rotationDeg) {
-            transformParts.push(`rotate(${style.rotationDeg}deg)`);
-          }
-
-          const textAlign = style.textAlign ?? 'center';
-          const baseOpacity = style.backgroundOpacity ?? 0.9;
-          const displayOpacity = baseOpacity * opacity;
-
-          const backgroundColor =
-            style.backgroundColor ?? 'rgba(0, 0, 0, 0.9)';
-
-          return (
-            <div
-              key={cue.id}
-              style={{
-                position: 'absolute',
-                left,
-                top,
-                transform: transformParts.join(' '),
-                transformOrigin: '50% 50%',
-                padding: '6px 14px',
-                borderRadius: 8,
-                backgroundColor,
-                opacity: displayOpacity,
-                color: style.color ?? '#ffffff',
-                fontFamily: style.fontFamily ?? 'Noto Sans KR, sans-serif',
-                fontSize: style.fontSize ?? 24,
-                fontWeight: style.fontWeight ?? 'normal',
-                fontStyle: style.fontStyle ?? 'normal',
-                textAlign,
-                whiteSpace: 'pre-wrap',
-                pointerEvents: 'none',
-                zIndex: 300,
-                boxShadow:
-                  '0 10px 30px rgba(0,0,0,0.9), 0 0 18px rgba(15,23,42,0.9)',
-                border: style.outlineColor
-                  ? `1px solid ${style.outlineColor}`
-                  : 'none',
-              }}
-            >
-              {cue.text.split('\n').map((line, idx, arr) => (
-                <React.Fragment key={idx}>
-                  {line}
-                  {idx < arr.length - 1 && <br />}
-                </React.Fragment>
-              ))}
-            </div>
           );
         })}
 
@@ -1308,10 +1362,10 @@ export const Game: React.FC = () => {
         {/* 점수 - 게임 중에만 표시 */}
         {gameState.gameStarted && <ScoreComponent score={gameState.score} />}
 
-        {/* 테스트 모드 중 나가기 버튼 */}
+        {/* 테스트/플레이 중 나가기 버튼 */}
         {gameState.gameStarted && !gameState.gameEnded && isTestMode && (
           <button
-            onClick={handleReturnToEditor}
+            onClick={isFromEditor ? handleReturnToEditor : handleReturnToPlayList}
             style={{
               position: 'absolute',
               top: '16px',
@@ -1622,30 +1676,57 @@ export const Game: React.FC = () => {
                 >
                   🔁 다시 테스트
                 </button>
-                <button
-                  onClick={handleReturnToEditor}
-                  style={{
-                    padding: '14px 24px',
-                    fontSize: '18px',
-                    background: CHART_EDITOR_THEME.ctaButtonGradient,
-                    color: CHART_EDITOR_THEME.textPrimary,
-                    border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
-                    borderRadius: CHART_EDITOR_THEME.radiusMd,
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                    transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradient;
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-                >
-                  ✏️ 에디터로 돌아가기
-                </button>
+                {isFromEditor ? (
+                  <button
+                    onClick={handleReturnToEditor}
+                    style={{
+                      padding: '14px 24px',
+                      fontSize: '18px',
+                      background: CHART_EDITOR_THEME.ctaButtonGradient,
+                      color: CHART_EDITOR_THEME.textPrimary,
+                      border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
+                      borderRadius: CHART_EDITOR_THEME.radiusMd,
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradient;
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    ✏️ 에디터로 돌아가기
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleReturnToPlayList}
+                    style={{
+                      padding: '14px 24px',
+                      fontSize: '18px',
+                      background: CHART_EDITOR_THEME.ctaButtonGradient,
+                      color: CHART_EDITOR_THEME.textPrimary,
+                      border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
+                      borderRadius: CHART_EDITOR_THEME.radiusMd,
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradient;
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    📋 플레이 목록으로
+                  </button>
+                )}
                 <button
                   onClick={resetGame}
                   style={{
@@ -1748,6 +1829,85 @@ export const Game: React.FC = () => {
             }}
           />
         )}
+      </div>
+      
+      {/* 자막 레이어 (게임 컨테이너 바깥, 16:9 영역으로 확장) */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          overflow: 'visible',
+          pointerEvents: 'none',
+          zIndex: 300,
+        }}
+      >
+        {activeSubtitles.map(({ cue, opacity }) => {
+          const style = cue.style || ({} as SubtitleStyle);
+          const pos = style.position ?? { x: 0.5, y: 0.9 };
+
+          const left = subtitleArea.left + pos.x * subtitleArea.width;
+          const top = subtitleArea.top + pos.y * subtitleArea.height;
+
+          const transformParts: string[] = ['translate(-50%, -50%)'];
+          if (style.rotationDeg) {
+            transformParts.push(`rotate(${style.rotationDeg}deg)`);
+          }
+
+          const textAlign = style.textAlign ?? 'center';
+          const showBackground = style.showBackground !== false;
+          const bgOpacity = style.backgroundOpacity ?? 0.9;
+
+          // 배경색에 투명도 적용 (rgba로 변환)
+          const bgColor = style.backgroundColor ?? '#000000';
+          const backgroundColor = showBackground
+            ? `rgba(${parseInt(bgColor.slice(1, 3), 16)}, ${parseInt(bgColor.slice(3, 5), 16)}, ${parseInt(bgColor.slice(5, 7), 16)}, ${bgOpacity})`
+            : 'transparent';
+
+          return (
+            <div
+              key={cue.id}
+              style={{
+                position: 'absolute',
+                left,
+                top,
+                transform: transformParts.join(' '),
+                transformOrigin: '50% 50%',
+                padding: showBackground ? '6px 14px' : 0,
+                borderRadius: showBackground ? 8 : 0,
+                backgroundColor,
+                opacity: opacity, // 페이드 효과용 (전체 자막)
+                color: style.color ?? '#ffffff',
+                fontFamily: style.fontFamily ?? 'Noto Sans KR, sans-serif',
+                fontSize: style.fontSize ?? 24,
+                fontWeight: style.fontWeight ?? 'normal',
+                fontStyle: style.fontStyle ?? 'normal',
+                textAlign,
+                whiteSpace: 'pre',
+                width: 'max-content',
+                maxWidth: 'none',
+                pointerEvents: 'none',
+                boxShadow: showBackground
+                  ? '0 10px 30px rgba(0,0,0,0.9), 0 0 18px rgba(15,23,42,0.9)'
+                  : 'none',
+                border: showBackground && style.outlineColor
+                  ? `1px solid ${style.outlineColor}`
+                  : 'none',
+                // 배경 없을 때 텍스트 가독성을 위한 텍스트 그림자
+                textShadow: !showBackground
+                  ? '0 0 8px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.6)'
+                  : 'none',
+              }}
+            >
+              {cue.text.split('\n').map((line, idx, arr) => (
+                <React.Fragment key={idx}>
+                  {line}
+                  {idx < arr.length - 1 && <br />}
+                </React.Fragment>
+              ))}
+            </div>
+          );
+        })}
+      </div>
       </div>
     </div>
   );

@@ -3,17 +3,23 @@ import { SubtitleCue, SubtitleStyle } from '../../types/subtitle';
 import { CHART_EDITOR_THEME } from '../ChartEditor/constants';
 
 interface SubtitlePreviewCanvasProps {
-  width: number;
-  height: number;
   currentTimeMs: number;
   cues: SubtitleCue[];
   selectedCueId: string | null;
   onChangeCueStyle: (id: string, nextStyle: SubtitleStyle) => void;
 }
 
+// 프리뷰 비율: 16:9 (넓은 화면)
+const PREVIEW_ASPECT_RATIO = 16 / 9;
+
+// 게임 화면 내 레인 영역 비율 (가이드 표시용)
+// 게임 화면: 500x800, 레인: 50~450px (가운데 400px)
+const GAME_ASPECT_RATIO = 500 / 800; // 5:8
+const LANE_AREA_LEFT_RATIO = 50 / 500;   // 0.1
+const LANE_AREA_WIDTH_RATIO = 400 / 500; // 0.8
+const JUDGE_LINE_Y_RATIO = 640 / 800;    // 0.8
+
 export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
-  width,
-  height,
   currentTimeMs,
   cues,
   selectedCueId,
@@ -100,6 +106,7 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
       const style = cue.style;
       const pos = style.position ?? { x: 0.5, y: 0.9 };
 
+      // 0~1 좌표를 퍼센트로 변환
       const left = `${pos.x * 100}%`;
       const top = `${pos.y * 100}%`;
 
@@ -112,9 +119,14 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
 
       const isSelected = cue.id === selectedCueId;
 
+      const showBackground = style.showBackground !== false;
       const bgOpacity = style.backgroundOpacity ?? 0.5;
-      const backgroundColor =
-        style.backgroundColor ?? 'rgba(0,0,0,1)';
+      
+      // 배경색에 투명도 적용 (rgba로 변환)
+      const bgColor = style.backgroundColor ?? '#000000';
+      const backgroundColor = showBackground
+        ? `rgba(${parseInt(bgColor.slice(1, 3), 16)}, ${parseInt(bgColor.slice(3, 5), 16)}, ${parseInt(bgColor.slice(5, 7), 16)}, ${bgOpacity})`
+        : 'transparent';
 
       return (
         <div
@@ -125,10 +137,10 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
             top,
             transform: transform.join(' '),
             transformOrigin: '50% 50%',
-            padding: '8px 16px',
-            borderRadius: 8,
+            padding: showBackground ? '8px 16px' : 0,
+            borderRadius: showBackground ? 8 : 0,
             backgroundColor: backgroundColor,
-            opacity: bgOpacity,
+            // opacity는 배경색의 rgba에서 처리하므로 항상 1
             color: style.color,
             fontFamily: style.fontFamily,
             fontSize: style.fontSize,
@@ -139,9 +151,15 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
               : 'none',
             boxShadow: isSelected
               ? '0 0 12px rgba(56,189,248,0.8)'
-              : '0 4px 12px rgba(15,23,42,0.8)',
+              : showBackground
+                ? '0 4px 12px rgba(15,23,42,0.8)'
+                : 'none',
             textAlign: style.textAlign ?? 'center',
+            textShadow: !showBackground
+              ? '0 0 8px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.8)'
+              : 'none',
             pointerEvents: 'auto',
+            zIndex: 10,
           }}
         >
           {cue.text.split('\n').map((line, idx, arr) => (
@@ -183,19 +201,32 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
         </div>
       );
     },
-    [height, width, onChangeCueStyle, selectedCueId]
+    [onChangeCueStyle, selectedCueId]
   );
 
-  // 부모 영역에 맞춰서 프리뷰 크기 계산 (비율 유지)
-  const aspectRatio = width / height;
+  // 부모 영역에 맞춰서 프리뷰 크기 계산 (16:9 비율 유지)
   let previewWidth = containerSize.width;
-  let previewHeight = containerSize.width / aspectRatio;
+  let previewHeight = containerSize.width / PREVIEW_ASPECT_RATIO;
   
   // 높이가 부모를 넘어가면 높이 기준으로 조정
   if (previewHeight > containerSize.height) {
     previewHeight = containerSize.height;
-    previewWidth = containerSize.height * aspectRatio;
+    previewWidth = containerSize.height * PREVIEW_ASPECT_RATIO;
   }
+
+  // 프리뷰 내에서 게임 화면 영역 계산 (가이드 표시용)
+  // 프리뷰 중앙에 게임 화면 비율(5:8)의 영역을 배치
+  let gameAreaHeight = previewHeight;
+  let gameAreaWidth = gameAreaHeight * GAME_ASPECT_RATIO;
+  
+  // 게임 영역이 프리뷰 폭을 넘어가면 폭 기준으로 조정
+  if (gameAreaWidth > previewWidth) {
+    gameAreaWidth = previewWidth;
+    gameAreaHeight = gameAreaWidth / GAME_ASPECT_RATIO;
+  }
+  
+  const gameAreaLeft = (previewWidth - gameAreaWidth) / 2;
+  const gameAreaTop = (previewHeight - gameAreaHeight) / 2;
 
   return (
     <div
@@ -221,85 +252,104 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
           height: `${previewHeight}px`,
           borderRadius: CHART_EDITOR_THEME.radiusLg,
           overflow: 'hidden',
-          background:
-            `radial-gradient(circle at top, ${CHART_EDITOR_THEME.rootBackground} 0%, ${CHART_EDITOR_THEME.rootBackground} 40%, ${CHART_EDITOR_THEME.rootBackground} 100%)`,
+          background: CHART_EDITOR_THEME.surfaceElevated,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
         }}
       >
         {/* 안내 텍스트 */}
         <div
           style={{
             position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'flex-end',
-            padding: 8,
+            top: 8,
+            right: 8,
             color: CHART_EDITOR_THEME.textSecondary,
             fontSize: 11,
             pointerEvents: 'none',
-            background:
-              'linear-gradient(180deg, rgba(15,23,42,0.4), transparent 40%)',
+            zIndex: 5,
           }}
         >
           현재 시간: {(currentTimeMs / 1000).toFixed(2)}s
         </div>
 
-        {/* 실제 자막 렌더링 레이어 */}
+        {/* 게임 화면 영역 가이드 (5:8 비율) */}
         <div
           style={{
-            position: 'relative',
-            width: '100%',
-            height: '100%',
+            position: 'absolute',
+            left: gameAreaLeft,
+            top: gameAreaTop,
+            width: gameAreaWidth,
+            height: gameAreaHeight,
+            border: `1px dashed ${CHART_EDITOR_THEME.borderSubtle}`,
             pointerEvents: 'none',
           }}
         >
-          {/* 게임 화면 느낌을 위한 레인 + 판정선 가이드 (Game.tsx의 세로형 레인 비율에 가깝게 축소) */}
-          {/* 레인 영역: 가운데에 세로로 긴 4레인 박스 (가로보다 세로가 훨씬 긴 형태) */}
+          {/* 레인 영역 배경 */}
           <div
             style={{
               position: 'absolute',
-              left: '40%',   // 전체 폭의 가운데 20%만 사용
-              top: '8%',
-              width: '20%',
-              height: '84%', // 세로를 훨씬 길게
-              background: 'rgba(15,23,42,0.45)',
-              boxShadow: 'inset 0 0 0 1px rgba(148,163,184,0.18)',
+              left: `${LANE_AREA_LEFT_RATIO * 100}%`,
+              top: 0,
+              width: `${LANE_AREA_WIDTH_RATIO * 100}%`,
+              height: '100%',
+              backgroundColor: 'rgba(15, 23, 42, 0.4)',
             }}
           />
+          
+          {/* 레인 경계선 */}
           {[0, 1, 2, 3, 4].map((i) => (
             <div
               key={`lane-line-${i}`}
               style={{
                 position: 'absolute',
-                // 레인 경계선: 40% ~ 60% 사이를 4개 레인으로 분할
-                left: `${40 + i * 5}%`,
-                top: '8%',
+                left: `${(LANE_AREA_LEFT_RATIO + (LANE_AREA_WIDTH_RATIO / 4) * i) * 100}%`,
+                top: 0,
                 width: 1,
-                height: '84%',
-                backgroundColor: 'rgba(148,163,184,0.26)',
+                height: '100%',
+                backgroundColor: 'rgba(255,255,255,0.08)',
                 transform: 'translateX(-0.5px)',
               }}
             />
           ))}
-          {/* 판정선: 레인 박스 안의 하단 쪽 (실제 게임 비율보다 조금 줄인 느낌) */}
+          
+          {/* 판정선 */}
           <div
             style={{
               position: 'absolute',
-              left: '40%',
-              width: '20%',
-              top: '78%',
+              left: `${LANE_AREA_LEFT_RATIO * 100}%`,
+              width: `${LANE_AREA_WIDTH_RATIO * 100}%`,
+              top: `${JUDGE_LINE_Y_RATIO * 100}%`,
               height: 2,
-              background:
-                'linear-gradient(90deg, rgba(248,250,252,0.6), rgba(251,113,133,0.95))',
-              boxShadow: '0 0 14px rgba(248,113,133,0.9)',
+              background: 'linear-gradient(90deg, rgba(248,250,252,0.4), rgba(251,113,133,0.7))',
+              boxShadow: '0 0 8px rgba(248,113,133,0.6)',
             }}
           />
+          
+          {/* 게임 화면 레이블 */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 4,
+              right: 4,
+              fontSize: 9,
+              color: CHART_EDITOR_THEME.textMuted,
+              opacity: 0.6,
+            }}
+          >
+            게임 화면
+          </div>
+        </div>
 
+        {/* 자막 렌더링 레이어 (프리뷰 전체 영역) */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+          }}
+        >
           {activeCues.map(renderCue)}
         </div>
       </div>
     </div>
   );
 };
-
-

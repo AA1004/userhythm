@@ -71,7 +71,7 @@ export function useChartYoutubePlayer({
             setVideoDurationSeconds(duration);
           }
         } else {
-          setVideoDurationSeconds(duration);
+        setVideoDurationSeconds(duration);
         }
         setIsLoadingDuration(false);
       })
@@ -244,7 +244,7 @@ export function useChartYoutubePlayer({
         if (!wasPlayingRef.current) {
           const timeSeconds = latestTimeRef.current / 1000;
           youtubePlayer.seekTo(timeSeconds, false);
-          youtubePlayer.playVideo?.();
+        youtubePlayer.playVideo?.();
         } else {
           ensurePlaying();
         }
