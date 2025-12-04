@@ -342,7 +342,9 @@ const testAudioSettingsRef = useRef<{
   }, []);
 
   const handleLogout = useCallback(async () => {
+    console.log('[Game] 로그아웃 버튼 클릭');
     if (!isSupabaseConfigured) {
+      // Supabase 미설정 환경에서는 로컬 상태만 비움
       setAuthUser(null);
       setRemoteProfile(null);
       return;
@@ -350,11 +352,15 @@ const testAudioSettingsRef = useRef<{
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
+      console.log('[Game] Supabase 로그아웃 성공');
       setAuthUser(null);
       setRemoteProfile(null);
     } catch (error: any) {
       console.error('로그아웃 실패:', error);
       alert(error?.message || '로그아웃 중 문제가 발생했습니다.');
+      // 에러가 나도 UI 상으로는 강제로 로그인 해제해 줌
+      setAuthUser(null);
+      setRemoteProfile(null);
     }
   }, []);
 
@@ -399,9 +405,24 @@ const testAudioSettingsRef = useRef<{
   const currentRoleLabel = useMemo(() => {
     if (!remoteProfile?.role) return '일반 사용자';
     switch (remoteProfile.role) {
-      case 'admin': return '관리자';
-      case 'moderator': return '운영자';
-      default: return '일반 사용자';
+      case 'admin':
+        return '관리자';
+      case 'moderator':
+        return '운영자';
+      default:
+        return '일반 사용자';
+    }
+  }, [remoteProfile?.role]);
+
+  // 역할별 체스말 아이콘 (User → 폰, Moderator → 비숍, Admin → 퀸)
+  const roleChessIcon = useMemo(() => {
+    switch (remoteProfile?.role) {
+      case 'admin':
+        return '♛';
+      case 'moderator':
+        return '♝';
+      default:
+        return '♟';
     }
   }, [remoteProfile?.role]);
 
@@ -1692,222 +1713,264 @@ const testAudioSettingsRef = useRef<{
           <div
             style={{
               position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              textAlign: 'center',
-              color: '#fff',
-              width: '90%',
-              maxWidth: '600px',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              pointerEvents: 'none',
             }}
           >
-            {/* 첫 화면 표시 */}
-            <h1 
-              style={{ 
-                fontSize: '50px', 
-                marginBottom: '24px', 
-                marginTop: '-40px',
-                fontWeight: '900',
-                fontStyle: 'italic',
-                letterSpacing: '2px', // 4px에서 2px로 줄임
-                background: CHART_EDITOR_THEME.titleGradient,
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                WebkitTextStroke: `3px ${CHART_EDITOR_THEME.rootBackground}`, // 텍스트 테두리
-                textShadow: CHART_EDITOR_THEME.titleGlow,
-                fontFamily: 'Arial Black, sans-serif',
-                textTransform: 'uppercase',
-                lineHeight: '1.1',
-              }}
-            >
-               UseRhythm
-            </h1>
-            <p style={{ fontSize: '18px', marginBottom: '48px', color: CHART_EDITOR_THEME.textSecondary }}>
-              누구나 리듬게임 채보를 만들고 공유하세요
-            </p>
-
-            {/* 메인 메뉴 */}
             <div
               style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '16px',
-                marginBottom: '48px',
+                width: '100%',
+                maxWidth: 520,
+                padding: '0 24px',
+                boxSizing: 'border-box',
+                textAlign: 'center',
+                pointerEvents: 'auto',
               }}
             >
-              <button
+              {/* 히어로 영역 */}
+              <div style={{ marginBottom: '32px' }}>
+                <h1
+                  style={{
+                    fontSize: '46px',
+                    marginBottom: '12px',
+                    marginTop: '-20px',
+                    fontWeight: 900,
+                    fontStyle: 'italic',
+                    letterSpacing: '0.18em',
+                    background: CHART_EDITOR_THEME.titleGradient,
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    WebkitTextStroke: `3px ${CHART_EDITOR_THEME.rootBackground}`,
+                    textShadow: CHART_EDITOR_THEME.titleGlow,
+                    fontFamily: 'Arial Black, sans-serif',
+                    textTransform: 'uppercase',
+                    lineHeight: 1.1,
+                  }}
+                >
+                  UseRhythm
+                </h1>
+                <p
+                  style={{
+                    fontSize: '15px',
+                    lineHeight: 1.6,
+                    color: CHART_EDITOR_THEME.textSecondary,
+                  }}
+                >
+                  누구나 리듬게임 채보를 만들고,
+                  <br />
+                  친구들과 플레이를 공유해 보세요.
+                </p>
+              </div>
+
+              {/* 메인 액션 버튼들 */}
+              <div
                 style={{
-                  padding: '20px 40px',
-                  fontSize: '22px',
-                  background: CHART_EDITOR_THEME.ctaButtonGradient,
-                  color: CHART_EDITOR_THEME.textPrimary,
-                  border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
-                  borderRadius: CHART_EDITOR_THEME.radiusLg,
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  transition: 'all 0.2s',
-                  boxShadow: `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = `0 6px 16px ${CHART_EDITOR_THEME.accentSoft}`;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradient;
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`;
-                }}
-                onClick={() => {
-                  setIsChartSelectOpen(true);
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 14,
+                  marginBottom: 32,
                 }}
               >
-                ▶️ 플레이
-              </button>
-
-              <button
-                style={{
-                  padding: '20px 40px',
-                  fontSize: '22px',
-                  background: CHART_EDITOR_THEME.ctaButtonGradient,
-                  color: CHART_EDITOR_THEME.textPrimary,
-                  border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
-                  borderRadius: CHART_EDITOR_THEME.radiusLg,
-                  cursor: canEditCharts ? 'pointer' : 'not-allowed',
-                  fontWeight: 'bold',
-                  transition: 'all 0.2s',
-                  boxShadow: `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`,
-                  opacity: canEditCharts ? 1 : 0.5,
-                }}
-                onMouseEnter={(e) => {
-                  if (!canEditCharts) return;
-                  e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = `0 6px 16px ${CHART_EDITOR_THEME.accentSoft}`;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradient;
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`;
-                }}
-                onClick={() => {
-                  if (!ensureEditorAccess()) return;
-                  setIsEditorOpen(true);
-                }}
-                title={!canEditCharts && isSupabaseConfigured ? 'Google 로그인 후 이용할 수 있습니다.' : undefined}
-              >
-                ✏️ 채보 만들기
-              </button>
-
-              {canSeeAdminMenu && (
+                {/* 플레이 버튼 */}
                 <button
                   style={{
-                    padding: '12px 24px',
-                    fontSize: '16px',
-                    background: CHART_EDITOR_THEME.ctaButtonGradient,
-                    color: CHART_EDITOR_THEME.textPrimary,
-                    border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                    borderRadius: CHART_EDITOR_THEME.radiusMd,
+                    padding: '18px 40px',
+                    fontSize: '20px',
+                    background: CHART_EDITOR_THEME.buttonPrimaryBg,
+                    color: CHART_EDITOR_THEME.buttonPrimaryText,
+                    border: 'none',
+                    borderRadius: CHART_EDITOR_THEME.radiusLg,
                     cursor: 'pointer',
                     fontWeight: 'bold',
-                    transition: 'all 0.2s',
-                    boxShadow: `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`,
+                    transition: 'all 0.18s ease-out',
+                    boxShadow: CHART_EDITOR_THEME.shadowSoft,
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
+                    e.currentTarget.style.background =
+                      CHART_EDITOR_THEME.buttonPrimaryBgHover;
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background =
+                      CHART_EDITOR_THEME.buttonPrimaryBg;
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                  onClick={() => {
+                    setIsChartSelectOpen(true);
+                  }}
+                >
+                  ▶️ 플레이
+                </button>
+
+                {/* 채보 만들기 버튼 */}
+                <button
+                  style={{
+                    padding: '16px 40px',
+                    fontSize: '18px',
+                    background: CHART_EDITOR_THEME.ctaButtonGradient,
+                    color: CHART_EDITOR_THEME.textPrimary,
+                    border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
+                    borderRadius: CHART_EDITOR_THEME.radiusLg,
+                    cursor: canEditCharts ? 'pointer' : 'not-allowed',
+                    fontWeight: 'bold',
+                    transition: 'all 0.18s ease-out',
+                    boxShadow: `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`,
+                    opacity: canEditCharts ? 1 : 0.5,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!canEditCharts) return;
+                    e.currentTarget.style.background =
+                      CHART_EDITOR_THEME.ctaButtonGradientHover;
                     e.currentTarget.style.transform = 'translateY(-2px)';
                     e.currentTarget.style.boxShadow = `0 6px 16px ${CHART_EDITOR_THEME.accentSoft}`;
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradient;
+                    e.currentTarget.style.background =
+                      CHART_EDITOR_THEME.ctaButtonGradient;
                     e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`;
                   }}
                   onClick={() => {
-                    setIsAdminOpen(true);
+                    if (!ensureEditorAccess()) return;
+                    setIsEditorOpen(true);
                   }}
+                  title={
+                    !canEditCharts && isSupabaseConfigured
+                      ? 'Google 로그인 후 이용할 수 있습니다.'
+                      : undefined
+                  }
                 >
-                  🔐 관리자
+                  ✏️ 채보 만들기
                 </button>
-              )}
-            </div>
 
-            {/* 로그인/설정 영역 */}
-            <div style={{ marginBottom: '24px' }}>
-              {isSupabaseConfigured && !authUser ? (
-                <button
-                  onClick={handleLoginWithGoogle}
-                  style={{
-                    padding: '10px 20px',
-                    fontSize: '14px',
-                    background: 'transparent',
-                    color: CHART_EDITOR_THEME.textPrimary,
-                    border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                    borderRadius: CHART_EDITOR_THEME.radiusSm,
-                    cursor: 'pointer',
-                    marginRight: '8px',
-                  }}
-                >
-                  🔑 Google 로그인
-                </button>
-              ) : authUser ? (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-                  <span style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '14px' }}>
-                    👤 {userDisplayName}
-                  </span>
+                {/* 관리자 버튼 (보조 액션) */}
+                {canSeeAdminMenu && (
+                  <button
+                    style={{
+                      alignSelf: 'center',
+                      padding: '10px 22px',
+                      fontSize: '14px',
+                      background: CHART_EDITOR_THEME.buttonGhostBg,
+                      color: CHART_EDITOR_THEME.textPrimary,
+                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      cursor: 'pointer',
+                      fontWeight: 500,
+                      transition: 'all 0.18s ease-out',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background =
+                        CHART_EDITOR_THEME.buttonGhostBgHover;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background =
+                        CHART_EDITOR_THEME.buttonGhostBg;
+                    }}
+                    onClick={() => {
+                      setIsAdminOpen(true);
+                    }}
+                  >
+                    🔐 관리자 패널
+                  </button>
+                )}
+              </div>
+
+              {/* 로그인/설정 영역 */}
+              <div style={{ marginBottom: 16 }}>
+                {isSupabaseConfigured && !authUser ? (
+                  <button
+                    onClick={handleLoginWithGoogle}
+                    style={{
+                      padding: '9px 22px',
+                      fontSize: '13px',
+                      background: CHART_EDITOR_THEME.buttonGhostBg,
+                      color: CHART_EDITOR_THEME.textPrimary,
+                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                      borderRadius: 999,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🔑 Google 계정으로 로그인
+                  </button>
+                ) : authUser ? (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 10,
+                      fontSize: '13px',
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: CHART_EDITOR_THEME.textSecondary,
+                      }}
+                    >
+                      {roleChessIcon} {userDisplayName}
+                    </span>
+                    <button
+                      onClick={() => setIsSettingsOpen(true)}
+                      style={{
+                        padding: '6px 14px',
+                        fontSize: '13px',
+                        background: CHART_EDITOR_THEME.buttonGhostBg,
+                        color: CHART_EDITOR_THEME.textPrimary,
+                        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      ⚙ 설정
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      style={{
+                        padding: '6px 14px',
+                        fontSize: '13px',
+                        background: 'transparent',
+                        color: CHART_EDITOR_THEME.textSecondary,
+                        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      로그아웃
+                    </button>
+                  </div>
+                ) : (
                   <button
                     onClick={() => setIsSettingsOpen(true)}
                     style={{
-                      padding: '8px 16px',
-                      fontSize: '14px',
-                      background: 'transparent',
+                      padding: '6px 16px',
+                      fontSize: '13px',
+                      background: CHART_EDITOR_THEME.buttonGhostBg,
                       color: CHART_EDITOR_THEME.textPrimary,
                       border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
                       borderRadius: CHART_EDITOR_THEME.radiusSm,
                       cursor: 'pointer',
                     }}
                   >
-                    ⚙️ 설정
+                    ⚙ 설정
                   </button>
-                  <button
-                    onClick={handleLogout}
-                    style={{
-                      padding: '8px 16px',
-                      fontSize: '14px',
-                      background: 'transparent',
-                      color: CHART_EDITOR_THEME.textSecondary,
-                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                      borderRadius: CHART_EDITOR_THEME.radiusSm,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    로그아웃
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setIsSettingsOpen(true)}
+                )}
+              </div>
+
+              {isSupabaseConfigured && !authUser && (
+                <p
                   style={{
-                    padding: '8px 16px',
-                    fontSize: '14px',
-                    background: 'transparent',
-                    color: CHART_EDITOR_THEME.textPrimary,
-                    border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                    borderRadius: CHART_EDITOR_THEME.radiusSm,
-                    cursor: 'pointer',
+                    fontSize: '12px',
+                    color: CHART_EDITOR_THEME.textSecondary,
                   }}
                 >
-                  ⚙️ 설정
-                </button>
+                  채보 만들기는 Google 로그인 후 이용할 수 있습니다.
+                </p>
               )}
             </div>
-
-            {isSupabaseConfigured && !authUser && (
-              <p style={{ fontSize: '12px', color: CHART_EDITOR_THEME.textSecondary }}>
-                채보 만들기는 Google 로그인 후 이용할 수 있습니다.
-              </p>
-            )}
           </div>
         )}
 
