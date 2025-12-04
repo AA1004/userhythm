@@ -18,6 +18,8 @@ import { SubtitleCue, SubtitleStyle } from '../types/subtitle';
 import { subtitleAPI, localSubtitleStorage } from '../lib/subtitleAPI';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
+import { VideoRhythmLayout } from './VideoRhythmLayout';
+import { LyricOverlay } from './LyricOverlay';
 import { getNoteFallDuration } from '../utils/speedChange';
 import { GAME_VIEW_WIDTH, GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 
@@ -157,6 +159,16 @@ const testAudioSettingsRef = useRef<{
     const savedSpeed = localStorage.getItem('rhythmGameSpeed');
     return savedSpeed ? parseFloat(savedSpeed) : 1.0;
   });
+
+  // BGA(배경 동영상) 사용 여부
+  const [isBgaEnabled, setIsBgaEnabled] = useState<boolean>(() => {
+    const saved = localStorage.getItem('rhythmGameBgaEnabled');
+    return saved ? saved === 'true' : true;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('rhythmGameBgaEnabled', String(isBgaEnabled));
+  }, [isBgaEnabled]);
 
   useEffect(() => {
     const container = gameContainerRef.current;
@@ -1156,33 +1168,51 @@ const testAudioSettingsRef = useRef<{
     return <ChartAdmin onClose={() => setIsAdminOpen(false)} onTestChart={handleAdminTest} />;
   }
 
+  const backgroundVideoId = testYoutubeVideoId;
+  const shouldPlayBga =
+    !!backgroundVideoId &&
+    isBgaEnabled &&
+    gameState.gameStarted &&
+    !gameState.gameEnded;
+
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100vh',
-        background: CHART_EDITOR_THEME.backgroundGradient,
-        fontFamily: 'Arial, sans-serif',
-      }}
+    <VideoRhythmLayout
+      videoId={backgroundVideoId}
+      bgaEnabled={isBgaEnabled}
+      shouldPlayBga={shouldPlayBga}
     >
       {/* 게임 + 자막 wrapper (자막이 게임 바깥으로 나갈 수 있도록) */}
-      <div style={{ position: 'relative' }}>
+      <div
+        style={{
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'center',
+          fontFamily: 'Arial, sans-serif',
+        }}
+      >
         <div
-          ref={gameContainerRef}
           style={{
-            width: '500px',
-            height: '800px',
-            backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
             position: 'relative',
-            overflow: 'hidden',
-            borderRadius: CHART_EDITOR_THEME.radiusLg,
-            boxShadow: CHART_EDITOR_THEME.shadowSoft,
-            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            width: 'min(500px, 100vw - 32px)',
+            height: 'min(800px, 100vh - 32px)',
+            maxWidth: '500px',
+            maxHeight: '800px',
+            margin: '0 auto',
           }}
         >
+          <div
+            ref={gameContainerRef}
+            style={{
+              width: '100%',
+              height: '100%',
+              backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+              position: 'relative',
+              overflow: 'hidden',
+              borderRadius: CHART_EDITOR_THEME.radiusLg,
+              boxShadow: CHART_EDITOR_THEME.shadowSoft,
+              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            }}
+          >
         {/* 4개 레인 영역 배경 */}
         <div
           style={{
@@ -1607,6 +1637,63 @@ const testAudioSettingsRef = useRef<{
                 </div>
               </div>
 
+              {/* BGA(배경 동영상) 토글 */}
+              <div
+                style={{
+                  marginTop: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  color: CHART_EDITOR_THEME.textPrimary,
+                }}
+              >
+                <span style={{ fontSize: '14px' }}>배경 동영상 (BGA)</span>
+                <label
+                  style={{
+                    position: 'relative',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isBgaEnabled}
+                    onChange={(e) => setIsBgaEnabled(e.target.checked)}
+                    style={{ display: 'none' }}
+                  />
+                  <span
+                    style={{
+                      width: 42,
+                      height: 22,
+                      borderRadius: 999,
+                      backgroundColor: isBgaEnabled
+                        ? 'rgba(34,197,94,0.9)'
+                        : 'rgba(15,23,42,0.9)',
+                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                      boxShadow: CHART_EDITOR_THEME.shadowSoft,
+                      position: 'relative',
+                      transition: 'background-color 0.2s',
+                    }}
+                  >
+                    <span
+                      style={{
+                        position: 'absolute',
+                        top: 2,
+                        left: isBgaEnabled ? 22 : 2,
+                        width: 18,
+                        height: 18,
+                        borderRadius: '50%',
+                        backgroundColor: '#0f172a',
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.6)',
+                        transition: 'left 0.2s',
+                      }}
+                    />
+                  </span>
+                </label>
+              </div>
+
               <div style={{ 
                 fontSize: '14px', 
                 color: CHART_EDITOR_THEME.textSecondary, 
@@ -1830,85 +1917,11 @@ const testAudioSettingsRef = useRef<{
           />
         )}
       </div>
-      
+
       {/* 자막 레이어 (게임 컨테이너 바깥, 16:9 영역으로 확장) */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          overflow: 'visible',
-          pointerEvents: 'none',
-          zIndex: 300,
-        }}
-      >
-        {activeSubtitles.map(({ cue, opacity }) => {
-          const style = cue.style || ({} as SubtitleStyle);
-          const pos = style.position ?? { x: 0.5, y: 0.9 };
-
-          const left = subtitleArea.left + pos.x * subtitleArea.width;
-          const top = subtitleArea.top + pos.y * subtitleArea.height;
-
-          const transformParts: string[] = ['translate(-50%, -50%)'];
-          if (style.rotationDeg) {
-            transformParts.push(`rotate(${style.rotationDeg}deg)`);
-          }
-
-          const textAlign = style.textAlign ?? 'center';
-          const showBackground = style.showBackground !== false;
-          const bgOpacity = style.backgroundOpacity ?? 0.9;
-
-          // 배경색에 투명도 적용 (rgba로 변환)
-          const bgColor = style.backgroundColor ?? '#000000';
-          const backgroundColor = showBackground
-            ? `rgba(${parseInt(bgColor.slice(1, 3), 16)}, ${parseInt(bgColor.slice(3, 5), 16)}, ${parseInt(bgColor.slice(5, 7), 16)}, ${bgOpacity})`
-            : 'transparent';
-
-          return (
-            <div
-              key={cue.id}
-              style={{
-                position: 'absolute',
-                left,
-                top,
-                transform: transformParts.join(' '),
-                transformOrigin: '50% 50%',
-                padding: showBackground ? '6px 14px' : 0,
-                borderRadius: showBackground ? 8 : 0,
-                backgroundColor,
-                opacity: opacity, // 페이드 효과용 (전체 자막)
-                color: style.color ?? '#ffffff',
-                fontFamily: style.fontFamily ?? 'Noto Sans KR, sans-serif',
-                fontSize: style.fontSize ?? 24,
-                fontWeight: style.fontWeight ?? 'normal',
-                fontStyle: style.fontStyle ?? 'normal',
-                textAlign,
-                whiteSpace: 'pre',
-                width: 'max-content',
-                maxWidth: 'none',
-                pointerEvents: 'none',
-                boxShadow: showBackground
-                  ? '0 10px 30px rgba(0,0,0,0.9), 0 0 18px rgba(15,23,42,0.9)'
-                  : 'none',
-                border: showBackground && style.outlineColor
-                  ? `1px solid ${style.outlineColor}`
-                  : 'none',
-                // 배경 없을 때 텍스트 가독성을 위한 텍스트 그림자
-                textShadow: !showBackground
-                  ? '0 0 8px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.6)'
-                  : 'none',
-              }}
-            >
-              {cue.text.split('\n').map((line, idx, arr) => (
-                <React.Fragment key={idx}>
-                  {line}
-                  {idx < arr.length - 1 && <br />}
-                </React.Fragment>
-              ))}
-            </div>
-          );
-        })}
+      <LyricOverlay activeSubtitles={activeSubtitles} subtitleArea={subtitleArea} />
+        </div>
       </div>
-      </div>
-    </div>
+    </VideoRhythmLayout>
   );
 };
