@@ -819,9 +819,30 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     const centerOffset = container.clientHeight / 2;
     const targetScrollTop = playheadY - centerOffset;
     
-    // requestAnimationFrame으로 부드럽게 (간단히 직접 설정)
+    // 재생 중에는 항상 재생선을 화면 중앙 근처로 유지
     container.scrollTop = targetScrollTop;
   }, [isPlaying, isAutoScrollEnabled, playheadY]);
+
+  // 줌 변경 시 (자동 스크롤이 켜져 있다면) 재생선을 화면 중앙에 고정
+  const lastZoomRef = useRef(zoom);
+  useEffect(() => {
+    if (!isAutoScrollEnabled) {
+      lastZoomRef.current = zoom;
+      return;
+    }
+    if (!timelineScrollRef.current) {
+      lastZoomRef.current = zoom;
+      return;
+    }
+    if (zoom === lastZoomRef.current) return;
+
+    const container = timelineScrollRef.current;
+    const centerOffset = container.clientHeight / 2;
+    const targetScrollTop = playheadY - centerOffset;
+    container.scrollTop = targetScrollTop;
+
+    lastZoomRef.current = zoom;
+  }, [zoom, isAutoScrollEnabled, playheadY]);
 
   // 키보드 핸들러 (스페이스바 재생 등)
   useEffect(() => {
