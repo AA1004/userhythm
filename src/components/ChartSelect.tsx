@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { chartAPI, Chart, isSupabaseConfigured } from '../lib/supabaseClient';
 import { extractYouTubeVideoId } from '../utils/youtube';
+import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 
 interface ChartSelectProps {
   onSelect: (chartData: any) => void;
@@ -109,8 +110,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
           left: 0,
           right: 0,
           bottom: 0,
-          background:
-            'radial-gradient(circle at top, rgba(15,23,42,0.96), rgba(15,23,42,1))',
+          background: CHART_EDITOR_THEME.backgroundGradient,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -119,12 +119,14 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
       >
         <div
           style={{
-            backgroundColor: '#2a2a2a',
+            backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
             padding: '40px',
-            borderRadius: '12px',
+            borderRadius: CHART_EDITOR_THEME.radiusLg,
             maxWidth: '600px',
             width: '90%',
             textAlign: 'center',
+            boxShadow: CHART_EDITOR_THEME.shadowSoft,
+            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
           }}
         >
           <h2 style={{ color: '#fff', marginBottom: '20px', fontSize: '24px' }}>
@@ -166,8 +168,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
         left: 0,
         right: 0,
         bottom: 0,
-        background:
-          'radial-gradient(circle at top, rgba(15,23,42,0.96), rgba(15,23,42,1))',
+        background: CHART_EDITOR_THEME.backgroundGradient,
         display: 'flex',
         flexDirection: 'column',
         zIndex: 10000,

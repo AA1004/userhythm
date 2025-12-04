@@ -21,6 +21,7 @@ export const CHART_EDITOR_THEME = {
   surface: '#020617', // 기본 패널/카드 배경
   surfaceElevated: '#0b1120',
   sidebarBackground: '#020617',
+  overlayScrim: 'rgba(15, 23, 42, 0.85)', // 모달/풀스크린 오버레이
 
   // 테두리/구분선
   borderSubtle: 'rgba(148, 163, 184, 0.35)',
@@ -36,6 +37,7 @@ export const CHART_EDITOR_THEME = {
   accentSoft: 'rgba(56, 189, 248, 0.14)',
   accentStrong: '#22d3ee',
   danger: '#f97373',
+  success: '#22c55e',
 
   // 버튼 / 카드 공통
   radiusSm: 6,
@@ -44,6 +46,19 @@ export const CHART_EDITOR_THEME = {
   paddingSm: 6,
   paddingMd: 10,
   paddingLg: 16,
+
+  // 버튼 스타일 프리셋
+  buttonPrimaryBg: 'linear-gradient(135deg, rgba(56, 189, 248, 0.9), rgba(129, 140, 248, 0.9))',
+  buttonPrimaryBgHover: 'linear-gradient(135deg, rgba(56, 189, 248, 1), rgba(129, 140, 248, 1))',
+  buttonPrimaryText: '#020617',
+  buttonGhostBg: 'transparent',
+  buttonGhostBgHover: 'rgba(15, 23, 42, 0.7)',
+  buttonGhostText: '#e5e7eb',
+
+  // 입력 필드
+  inputBg: '#020617',
+  inputBorder: 'rgba(148, 163, 184, 0.45)',
+  inputBorderFocused: 'rgba(56, 189, 248, 0.9)',
 
   // 그림자 프리셋
   shadowSoft: '0 12px 30px rgba(15, 23, 42, 0.85)',

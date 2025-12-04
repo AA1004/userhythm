@@ -87,7 +87,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         left: 0,
         right: 0,
         bottom: 0,
-        background: 'rgba(0, 0, 0, 0.7)',
+        background: CHART_EDITOR_THEME.overlayScrim,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -108,7 +108,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 style={{ color: CHART_EDITOR_THEME.textPrimary, marginTop: 0, marginBottom: '24px' }}>
+        <h2
+          style={{
+            color: CHART_EDITOR_THEME.textPrimary,
+            marginTop: 0,
+            marginBottom: '24px',
+            fontSize: '18px',
+            letterSpacing: '0.03em',
+          }}
+        >
           ⚙️ 설정
         </h2>
 

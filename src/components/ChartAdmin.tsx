@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { chartAPI, Chart } from '../lib/supabaseClient';
 import { extractYouTubeVideoId } from '../utils/youtube';
+import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 
 interface ChartAdminProps {
   onClose: () => void;
@@ -118,7 +119,7 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: '#1a1a1a',
+          background: CHART_EDITOR_THEME.overlayScrim,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -127,14 +128,16 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
       >
         <div
           style={{
-            backgroundColor: '#2a2a2a',
+            backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
             padding: '40px',
-            borderRadius: '12px',
+            borderRadius: CHART_EDITOR_THEME.radiusLg,
             maxWidth: '400px',
             width: '90%',
+            boxShadow: CHART_EDITOR_THEME.shadowSoft,
+            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
           }}
         >
-          <h2 style={{ color: '#fff', marginBottom: '20px', textAlign: 'center' }}>
+          <h2 style={{ color: CHART_EDITOR_THEME.textPrimary, marginBottom: '20px', textAlign: 'center' }}>
             관리자 로그인
           </h2>
           <input
@@ -146,10 +149,10 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
             style={{
               width: '100%',
               padding: '12px',
-              borderRadius: '6px',
-              border: '1px solid #555',
-              backgroundColor: '#1f1f1f',
-              color: '#fff',
+              borderRadius: CHART_EDITOR_THEME.radiusSm,
+              border: `1px solid ${CHART_EDITOR_THEME.inputBorder}`,
+              backgroundColor: CHART_EDITOR_THEME.inputBg,
+              color: CHART_EDITOR_THEME.textPrimary,
               fontSize: '14px',
               marginBottom: '15px',
             }}
@@ -161,10 +164,10 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
                 flex: 1,
                 padding: '12px',
                 fontSize: '14px',
-                backgroundColor: '#616161',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '6px',
+                background: CHART_EDITOR_THEME.buttonGhostBg,
+                color: CHART_EDITOR_THEME.textPrimary,
+                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                borderRadius: CHART_EDITOR_THEME.radiusSm,
                 cursor: 'pointer',
               }}
             >
@@ -177,10 +180,10 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
                 padding: '12px',
                 fontSize: '14px',
                 fontWeight: 'bold',
-                backgroundColor: '#2196F3',
-                color: '#fff',
+                background: CHART_EDITOR_THEME.buttonPrimaryBg,
+                color: CHART_EDITOR_THEME.buttonPrimaryText,
                 border: 'none',
-                borderRadius: '6px',
+                borderRadius: CHART_EDITOR_THEME.radiusSm,
                 cursor: 'pointer',
               }}
             >
@@ -194,30 +197,30 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: '#1a1a1a',
-        display: 'flex',
-        flexDirection: 'column',
-        zIndex: 10000,
-      }}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: CHART_EDITOR_THEME.backgroundGradient,
+          display: 'flex',
+          flexDirection: 'column',
+          zIndex: 10000,
+        }}
     >
       {/* 헤더 */}
       <div
         style={{
-          backgroundColor: '#2a2a2a',
+          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
           padding: '20px',
-          borderBottom: '2px solid #444',
+          borderBottom: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
         }}
       >
-        <h1 style={{ color: '#fff', fontSize: '24px', margin: 0 }}>
+        <h1 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '24px', margin: 0 }}>
           채보 관리자 패널
         </h1>
         <button
@@ -225,10 +228,10 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
           style={{
             padding: '10px 20px',
             fontSize: '14px',
-            backgroundColor: '#616161',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
+            background: CHART_EDITOR_THEME.buttonGhostBg,
+            color: CHART_EDITOR_THEME.textPrimary,
+            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            borderRadius: CHART_EDITOR_THEME.radiusSm,
             cursor: 'pointer',
           }}
         >
@@ -242,14 +245,14 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
         <div
           style={{
             width: '400px',
-            backgroundColor: '#2a2a2a',
-            borderRight: '2px solid #444',
+            backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+            borderRight: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
             overflowY: 'auto',
             padding: '20px',
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-            <h2 style={{ color: '#fff', fontSize: '18px', margin: 0 }}>
+            <h2 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '18px', margin: 0 }}>
               대기 중인 채보 ({pendingCharts.length})
             </h2>
             <button
@@ -258,11 +261,12 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
               style={{
                 padding: '6px 12px',
                 fontSize: '12px',
-                backgroundColor: '#424242',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '4px',
+                background: CHART_EDITOR_THEME.buttonGhostBg,
+                color: CHART_EDITOR_THEME.textPrimary,
+                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                borderRadius: CHART_EDITOR_THEME.radiusSm,
                 cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.6 : 1,
               }}
             >
               {loading ? '로딩...' : '새로고침'}
@@ -270,11 +274,11 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
           </div>
 
           {loading ? (
-            <div style={{ color: '#aaa', textAlign: 'center', padding: '20px' }}>
+            <div style={{ color: CHART_EDITOR_THEME.textSecondary, textAlign: 'center', padding: '20px' }}>
               로딩 중...
             </div>
           ) : pendingCharts.length === 0 ? (
-            <div style={{ color: '#aaa', textAlign: 'center', padding: '20px' }}>
+            <div style={{ color: CHART_EDITOR_THEME.textSecondary, textAlign: 'center', padding: '20px' }}>
               대기 중인 채보가 없습니다.
             </div>
           ) : (
@@ -285,20 +289,22 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
                   onClick={() => setSelectedChart(chart)}
                   style={{
                     padding: '15px',
-                    backgroundColor: selectedChart?.id === chart.id ? '#3a3a3a' : '#1f1f1f',
-                    borderRadius: '8px',
+                    backgroundColor: selectedChart?.id === chart.id ? CHART_EDITOR_THEME.surface : '#020617',
+                    borderRadius: CHART_EDITOR_THEME.radiusMd,
                     cursor: 'pointer',
-                    border: selectedChart?.id === chart.id ? '2px solid #2196F3' : '2px solid transparent',
+                    border: selectedChart?.id === chart.id
+                      ? `1px solid ${CHART_EDITOR_THEME.accentStrong}`
+                      : `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
                     transition: 'all 0.2s',
                   }}
                 >
-                  <div style={{ color: '#fff', fontSize: '16px', fontWeight: 'bold', marginBottom: '5px' }}>
+                  <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px', fontWeight: 'bold', marginBottom: '5px' }}>
                     {chart.title}
                   </div>
-                  <div style={{ color: '#aaa', fontSize: '12px', marginBottom: '8px' }}>
+                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '8px' }}>
                     작성자: {chart.author} | BPM: {chart.bpm} | 난이도: {chart.difficulty}
                   </div>
-                  <div style={{ color: '#777', fontSize: '11px' }}>
+                  <div style={{ color: CHART_EDITOR_THEME.textMuted, fontSize: '11px' }}>
                     {new Date(chart.created_at).toLocaleString('ko-KR')}
                   </div>
                 </div>
@@ -317,34 +323,35 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
         >
           {selectedChart ? (
             <div>
-              <h2 style={{ color: '#fff', fontSize: '22px', marginBottom: '20px' }}>
+              <h2 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '22px', marginBottom: '20px' }}>
                 {selectedChart.title}
               </h2>
 
               <div
                 style={{
-                  backgroundColor: '#2a2a2a',
+                  backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
                   padding: '20px',
-                  borderRadius: '8px',
+                  borderRadius: CHART_EDITOR_THEME.radiusMd,
                   marginBottom: '20px',
+                  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
                 }}
               >
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
                   <div>
-                    <div style={{ color: '#aaa', fontSize: '12px', marginBottom: '5px' }}>작성자</div>
-                    <div style={{ color: '#fff', fontSize: '16px' }}>{selectedChart.author}</div>
+                    <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>작성자</div>
+                    <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart.author}</div>
                   </div>
                   <div>
-                    <div style={{ color: '#aaa', fontSize: '12px', marginBottom: '5px' }}>BPM</div>
-                    <div style={{ color: '#fff', fontSize: '16px' }}>{selectedChart.bpm}</div>
+                    <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>BPM</div>
+                    <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart.bpm}</div>
                   </div>
                   <div>
-                    <div style={{ color: '#aaa', fontSize: '12px', marginBottom: '5px' }}>난이도</div>
-                    <div style={{ color: '#fff', fontSize: '16px' }}>{selectedChart.difficulty}</div>
+                    <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>난이도</div>
+                    <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart.difficulty}</div>
                   </div>
                   <div>
-                    <div style={{ color: '#aaa', fontSize: '12px', marginBottom: '5px' }}>노트 수</div>
-                    <div style={{ color: '#fff', fontSize: '16px' }}>
+                    <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>노트 수</div>
+                    <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
                       {(() => {
                         try {
                           const data = JSON.parse(selectedChart.data_json);
@@ -359,8 +366,8 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
 
                 {selectedChart.description && (
                   <div style={{ marginTop: '15px' }}>
-                    <div style={{ color: '#aaa', fontSize: '12px', marginBottom: '5px' }}>설명</div>
-                    <div style={{ color: '#ddd', fontSize: '14px', lineHeight: 1.5 }}>
+                    <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>설명</div>
+                    <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '14px', lineHeight: 1.5 }}>
                       {selectedChart.description}
                     </div>
                   </div>
@@ -368,12 +375,12 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
 
                 {selectedChart.youtube_url && (
                   <div style={{ marginTop: '15px' }}>
-                    <div style={{ color: '#aaa', fontSize: '12px', marginBottom: '5px' }}>YouTube URL</div>
+                    <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>YouTube URL</div>
                     <a
                       href={selectedChart.youtube_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ color: '#2196F3', fontSize: '14px', wordBreak: 'break-all' }}
+                      style={{ color: '#38bdf8', fontSize: '14px', wordBreak: 'break-all' }}
                     >
                       {selectedChart.youtube_url}
                     </a>
@@ -381,8 +388,8 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
                 )}
 
                 <div style={{ marginTop: '15px' }}>
-                  <div style={{ color: '#aaa', fontSize: '12px', marginBottom: '5px' }}>업로드 일시</div>
-                  <div style={{ color: '#ddd', fontSize: '14px' }}>
+                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>업로드 일시</div>
+                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '14px' }}>
                     {new Date(selectedChart.created_at).toLocaleString('ko-KR')}
                   </div>
                 </div>
@@ -395,10 +402,10 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
                     padding: '12px 20px',
                     fontSize: '14px',
                     fontWeight: 'bold',
-                    backgroundColor: '#4CAF50',
-                    color: '#fff',
+                    background: CHART_EDITOR_THEME.buttonPrimaryBg,
+                    color: CHART_EDITOR_THEME.buttonPrimaryText,
                     border: 'none',
-                    borderRadius: '6px',
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
                     cursor: 'pointer',
                     marginBottom: '20px',
                     width: '100%',
@@ -410,12 +417,13 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
 
               <div
                 style={{
-                  backgroundColor: '#2a2a2a',
+                  backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
                   padding: '20px',
-                  borderRadius: '8px',
+                  borderRadius: CHART_EDITOR_THEME.radiusMd,
+                  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
                 }}
               >
-                <h3 style={{ color: '#fff', fontSize: '16px', marginBottom: '15px' }}>
+                <h3 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px', marginBottom: '15px' }}>
                   승인/거절 처리
                 </h3>
 
@@ -427,10 +435,10 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
                   style={{
                     width: '100%',
                     padding: '10px',
-                    borderRadius: '6px',
-                    border: '1px solid #555',
-                    backgroundColor: '#1f1f1f',
-                    color: '#fff',
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    border: `1px solid ${CHART_EDITOR_THEME.inputBorder}`,
+                    backgroundColor: CHART_EDITOR_THEME.inputBg,
+                    color: CHART_EDITOR_THEME.textPrimary,
                     fontSize: '14px',
                     resize: 'vertical',
                     marginBottom: '15px',
@@ -446,10 +454,10 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
                       padding: '12px',
                       fontSize: '14px',
                       fontWeight: 'bold',
-                      backgroundColor: processing ? '#424242' : '#f44336',
+                      backgroundColor: processing ? '#4b1212' : CHART_EDITOR_THEME.danger,
                       color: '#fff',
                       border: 'none',
-                      borderRadius: '6px',
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
                       cursor: processing ? 'not-allowed' : 'pointer',
                     }}
                   >
@@ -463,10 +471,10 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
                       padding: '12px',
                       fontSize: '14px',
                       fontWeight: 'bold',
-                      backgroundColor: processing ? '#424242' : '#4CAF50',
+                      backgroundColor: processing ? '#14532d' : CHART_EDITOR_THEME.success,
                       color: '#fff',
                       border: 'none',
-                      borderRadius: '6px',
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
                       cursor: processing ? 'not-allowed' : 'pointer',
                     }}
                   >
@@ -482,7 +490,7 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
                 alignItems: 'center',
                 justifyContent: 'center',
                 height: '100%',
-                color: '#aaa',
+                color: CHART_EDITOR_THEME.textSecondary,
                 fontSize: '16px',
               }}
             >
