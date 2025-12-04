@@ -85,16 +85,18 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   // 노트 높이는 줌과 무관하게 고정 (타임라인 스케일만 줌에 따라 변함)
   const tapNoteHeight = TAP_NOTE_HEIGHT;
 
-  // 초기 한 번만 스크롤을 하단(판정선 위치)으로 설정
+  // 초기 한 번만 스크롤을 재생선 위치로 설정 (재생선이 화면 중앙에 오도록)
   const didInitScrollRef = useRef(false);
   useEffect(() => {
     if (didInitScrollRef.current) return;
     if (!timelineScrollRef.current) return;
     const container = timelineScrollRef.current;
-    // 스크롤을 최하단으로 이동 (판정선이 보이도록)
-    container.scrollTop = container.scrollHeight;
+    // 재생선이 화면 중앙에 오도록 스크롤 설정
+    const centerOffset = container.clientHeight / 2;
+    const targetScrollTop = playheadY - centerOffset;
+    container.scrollTop = Math.max(0, targetScrollTop);
     didInitScrollRef.current = true;
-  }, [timelineScrollRef]);
+  }, [timelineScrollRef, playheadY]);
 
   return (
     <div

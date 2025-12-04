@@ -11,9 +11,7 @@ interface ChartShareModalProps {
   onDifficultyChange: (difficulty: string) => void;
   description: string;
   onDescriptionChange: (description: string) => void;
-  previewImageFile: File | null;
-  previewImageUrl: string | null;
-  onImageChange: (file: File | null) => void;
+  thumbnailUrl: string | null;
   isUploading: boolean;
   uploadStatus: string;
   onUpload: () => void;
@@ -32,8 +30,7 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
   onDifficultyChange,
   description,
   onDescriptionChange,
-  previewImageUrl,
-  onImageChange,
+  thumbnailUrl,
   isUploading,
   uploadStatus,
   onUpload,
@@ -41,11 +38,6 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
   onLogin,
 }) => {
   if (!isOpen) return null;
-
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    onImageChange(file);
-  };
 
   return (
     <div
@@ -175,30 +167,33 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
 
         <div style={{ marginBottom: '16px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>미리보기 이미지</label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleImageSelect}
-            style={{
-              width: '100%',
-              padding: '8px',
-              backgroundColor: '#2a2a2a',
-              color: '#fff',
-              border: '1px solid #444',
-              borderRadius: '6px',
-            }}
-          />
-          {previewImageUrl && (
-            <img
-              src={previewImageUrl}
-              alt="Preview"
+          {thumbnailUrl ? (
+            <div
               style={{
-                marginTop: '12px',
-                maxWidth: '100%',
-                maxHeight: '200px',
-                borderRadius: '6px',
+                backgroundColor: '#2a2a2a',
+                padding: '12px',
+                borderRadius: '8px',
               }}
-            />
+            >
+              <img
+                src={thumbnailUrl}
+                alt="YouTube Thumbnail"
+                style={{
+                  width: '100%',
+                  maxHeight: '200px',
+                  objectFit: 'cover',
+                  borderRadius: '6px',
+                  marginBottom: '8px',
+                }}
+              />
+              <p style={{ margin: 0, fontSize: '12px', color: '#bbb' }}>
+                유튜브 썸네일이 자동으로 사용됩니다.
+              </p>
+            </div>
+          ) : (
+            <p style={{ margin: 0, fontSize: '12px', color: '#bbb' }}>
+              유튜브 URL을 입력하면 썸네일이 자동으로 표시됩니다.
+            </p>
           )}
         </div>
 

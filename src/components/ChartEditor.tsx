@@ -19,6 +19,7 @@ import {
   PLAYBACK_SPEED_OPTIONS,
   CHART_EDITOR_THEME,
 } from './ChartEditor/constants';
+import { extractYouTubeVideoId } from '../utils/youtube';
 
 const KEY_TO_LANE: Record<string, Lane> = {
   a: 0,
@@ -117,8 +118,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [shareDescription, setShareDescription] = useState<string>('');
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadStatus, setUploadStatus] = useState<string>('');
-  const [previewImageFile, setPreviewImageFile] = useState<File | null>(null);
-  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
@@ -141,6 +140,19 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     playbackSpeed,
     volume,
   });
+
+  const youtubeThumbnailUrl = useMemo(() => {
+    if (youtubeVideoId) {
+      return `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg`;
+    }
+    if (youtubeUrl) {
+      const fallbackId = extractYouTubeVideoId(youtubeUrl);
+      if (fallbackId) {
+        return `https://img.youtube.com/vi/${fallbackId}/hqdefault.jpg`;
+      }
+    }
+    return null;
+  }, [youtubeVideoId, youtubeUrl]);
 
   // --- 에디터 전용 타이머(재생선 시간 소스) ---
   useEffect(() => {
@@ -393,8 +405,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setShareAuthor('');
     setShareDifficulty('Normal');
     setShareDescription('');
-    setPreviewImageFile(null);
-    setPreviewImageUrl(null);
     setYoutubeUrl('');
     noteIdRef.current = 0;
     speedChangeIdRef.current = 0;
@@ -682,14 +692,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setUploadStatus('업로드 중...');
     
     try {
-      // 이미지 업로드
-      let imageUrl = previewImageUrl;
-      if (previewImageFile) {
-        // chartAPI.uploadImage 구현 필요 (생략된 경우 대비)
-        // 여기서는 기존 로직이 있다고 가정하고 호출
-        // imageUrl = await chartAPI.uploadImage(previewImageFile);
-      }
-
       await chartAPI.uploadChart({
         title: shareTitle,
         author: shareAuthor,
@@ -698,7 +700,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         description: shareDescription,
         data_json: JSON.stringify(autoSaveData),
         youtube_url: youtubeUrl,
-        preview_image: imageUrl || undefined,
+        preview_image: youtubeThumbnailUrl || undefined,
       });
       
       setUploadStatus('업로드 완료! 관리자 승인 후 공개됩니다.');
@@ -712,7 +714,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     } finally {
       setIsUploading(false);
     }
-  }, [shareTitle, shareAuthor, shareDifficulty, shareDescription, bpm, youtubeUrl, previewImageUrl, previewImageFile, autoSaveData, user]);
+  }, [shareTitle, shareAuthor, shareDifficulty, shareDescription, bpm, youtubeUrl, youtubeThumbnailUrl, autoSaveData, user]);
 
   const handleExportJson = useCallback(() => {
     try {
@@ -1076,15 +1078,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         onDifficultyChange={setShareDifficulty}
         description={shareDescription}
         onDescriptionChange={setShareDescription}
-        previewImageFile={previewImageFile}
-        previewImageUrl={previewImageUrl}
-        onImageChange={(file) => {
-            setPreviewImageFile(file);
-            if (file) {
-                const url = URL.createObjectURL(file);
-                setPreviewImageUrl(url);
-            }
-        }}
+        thumbnailUrl={youtubeThumbnailUrl}
         isUploading={isUploading}
         uploadStatus={uploadStatus}
         onUpload={handleShare}
