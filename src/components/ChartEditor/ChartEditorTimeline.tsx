@@ -87,22 +87,44 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
 
   // 초기 한 번만 스크롤을 재생선 위치로 설정 (재생선이 화면 중앙에 오도록)
   const didInitScrollRef = useRef(false);
+  const lastTimelineHeightRef = useRef<number | null>(null);
   useEffect(() => {
+    // 타임라인 높이가 크게 바뀌면 재초기화
+    if (
+      lastTimelineHeightRef.current !== null &&
+      Math.abs(lastTimelineHeightRef.current - timelineContentHeight) > 1
+    ) {
+      didInitScrollRef.current = false;
+    }
+    lastTimelineHeightRef.current = timelineContentHeight;
+
     if (didInitScrollRef.current) return;
     if (!timelineScrollRef.current) return;
-    didInitScrollRef.current = true;
 
     const container = timelineScrollRef.current;
-    // 렌더링 완료 후 다음 프레임에서 스크롤 설정 (타이밍 문제 방지)
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (!container) return;
-        const centerOffset = container.clientHeight / 2;
-        const targetScrollTop = playheadY - centerOffset;
-        container.scrollTop = Math.max(0, targetScrollTop);
-      });
+    let frame1: number | null = null;
+    let frame2: number | null = null;
+
+    const alignToPlayhead = () => {
+      if (!timelineScrollRef.current) return;
+      const centerOffset = container.clientHeight / 2;
+      const targetScrollTop = Math.max(0, playheadY - centerOffset);
+      container.scrollTop = targetScrollTop;
+      // 일정 범위 이내면 초기 정렬 완료로 간주
+      if (Math.abs(container.scrollTop - targetScrollTop) <= 1) {
+        didInitScrollRef.current = true;
+      }
+    };
+
+    frame1 = requestAnimationFrame(() => {
+      frame2 = requestAnimationFrame(alignToPlayhead);
     });
-  }, [timelineScrollRef, playheadY]);
+
+    return () => {
+      if (frame1) cancelAnimationFrame(frame1);
+      if (frame2) cancelAnimationFrame(frame2);
+    };
+  }, [timelineContentHeight, playheadY]);
 
   return (
     <div
