@@ -90,12 +90,18 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   useEffect(() => {
     if (didInitScrollRef.current) return;
     if (!timelineScrollRef.current) return;
-    const container = timelineScrollRef.current;
-    // 재생선이 화면 중앙에 오도록 스크롤 설정
-    const centerOffset = container.clientHeight / 2;
-    const targetScrollTop = playheadY - centerOffset;
-    container.scrollTop = Math.max(0, targetScrollTop);
     didInitScrollRef.current = true;
+
+    const container = timelineScrollRef.current;
+    // 렌더링 완료 후 다음 프레임에서 스크롤 설정 (타이밍 문제 방지)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!container) return;
+        const centerOffset = container.clientHeight / 2;
+        const targetScrollTop = playheadY - centerOffset;
+        container.scrollTop = Math.max(0, targetScrollTop);
+      });
+    });
   }, [timelineScrollRef, playheadY]);
 
   return (
