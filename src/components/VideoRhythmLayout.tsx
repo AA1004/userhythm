@@ -8,6 +8,8 @@ type VideoRhythmLayoutProps = {
   bgaEnabled?: boolean;
   /** 게임 상태에 따라 BGA를 재생/일시정지할지 여부 */
   shouldPlayBga?: boolean;
+  /** 게임 진행 시간에 맞춘 BGA 재생 위치(초) */
+  bgaCurrentSeconds?: number | null;
   children: React.ReactNode;
 };
 
@@ -24,11 +26,13 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   videoId,
   bgaEnabled = true,
   shouldPlayBga = false,
+  bgaCurrentSeconds = null,
   children,
 }) => {
   const backgroundPlayerContainerRef = useRef<HTMLDivElement | null>(null);
   const [backgroundPlayer, setBackgroundPlayer] = useState<any>(null);
   const backgroundPlayerReadyRef = useRef(false);
+  const lastBgaSeekRef = useRef<number | null>(null);
   const userInteractedRef = useRef(false);
 
   // 배경용 YouTube 플레이어 초기화
@@ -130,7 +134,6 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     if (!backgroundPlayer) return;
 
     const handlePointerDown = () => {
-      userInteractedRef.current = true;
       if (!backgroundPlayerReadyRef.current) return;
       if (!bgaEnabled || !videoId) return;
 
@@ -149,6 +152,27 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       window.removeEventListener('pointerdown', handlePointerDown);
     };
   }, [backgroundPlayer, shouldPlayBga, bgaEnabled, videoId]);
+
+  // 게임 타임라인에 맞춰 BGA 위치도 함께 시크
+  useEffect(() => {
+    if (!backgroundPlayer || !backgroundPlayerReadyRef.current) return;
+    if (typeof bgaCurrentSeconds !== 'number') return;
+
+    try {
+      const currentSeconds = backgroundPlayer.getCurrentTime?.() ?? 0;
+      const diff = Math.abs(currentSeconds - bgaCurrentSeconds);
+
+      if (diff > 0.3 || lastBgaSeekRef.current === null) {
+        backgroundPlayer.seekTo(bgaCurrentSeconds, true);
+        lastBgaSeekRef.current = bgaCurrentSeconds;
+        if (!shouldPlayBga) {
+          backgroundPlayer.pauseVideo?.();
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [bgaCurrentSeconds, backgroundPlayer, shouldPlayBga]);
 
   return (
     <div

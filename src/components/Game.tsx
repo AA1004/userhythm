@@ -1169,17 +1169,23 @@ const testAudioSettingsRef = useRef<{
   }
 
   const backgroundVideoId = testYoutubeVideoId;
+  const bgaCurrentSeconds =
+    backgroundVideoId && isBgaEnabled
+      ? getAudioPositionSeconds(gameState.currentTime)
+      : null;
   const shouldPlayBga =
     !!backgroundVideoId &&
     isBgaEnabled &&
     gameState.gameStarted &&
-    !gameState.gameEnded;
+    !gameState.gameEnded &&
+    gameState.currentTime >= 0;
 
   return (
     <VideoRhythmLayout
       videoId={backgroundVideoId}
       bgaEnabled={isBgaEnabled}
       shouldPlayBga={shouldPlayBga}
+      bgaCurrentSeconds={bgaCurrentSeconds ?? undefined}
     >
       {/* 게임 + 자막 wrapper (자막이 게임 바깥으로 나갈 수 있도록) */}
       <div

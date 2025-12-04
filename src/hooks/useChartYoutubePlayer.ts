@@ -243,8 +243,8 @@ export function useChartYoutubePlayer({
       if (isPlaying) {
         if (!wasPlayingRef.current) {
           const timeSeconds = latestTimeRef.current / 1000;
-          youtubePlayer.seekTo(timeSeconds, false);
-        youtubePlayer.playVideo?.();
+          youtubePlayer.seekTo(timeSeconds, true);
+          youtubePlayer.playVideo?.();
         } else {
           ensurePlaying();
         }
@@ -299,12 +299,12 @@ export function useChartYoutubePlayer({
         
         // snapOnly 모드: 플레이어에는 시크하지 않고 에디터 시간만 업데이트
         if (!snapOnly) {
-          // allowSeekAhead를 false로 설정하여 재생이 자동으로 시작되지 않도록 함
-          youtubePlayer.seekTo(timeSeconds, false);
+          youtubePlayer.seekTo(timeSeconds, true);
         }
         
         setCurrentTime(timeMs);
         lastSyncTimeRef.current = timeMs;
+        latestTimeRef.current = timeMs;
         
         // 재생선 클릭 시 명시적으로 일시정지
         if (shouldPause) {
