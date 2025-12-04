@@ -830,8 +830,16 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   }, [isPlaying, isAutoScrollEnabled, playheadY]);
 
   // 줌 변경 시 (자동 스크롤이 켜져 있다면) 재생선을 화면 중앙에 고정
+  const didZoomMountRef = useRef(false);
   const lastZoomRef = useRef(zoom);
   useEffect(() => {
+    // 초기 마운트 시에는 건너뛰기 (ChartEditorTimeline에서 초기 스크롤 처리)
+    if (!didZoomMountRef.current) {
+      didZoomMountRef.current = true;
+      lastZoomRef.current = zoom;
+      return;
+    }
+
     if (!isAutoScrollEnabled) {
       lastZoomRef.current = zoom;
       return;
