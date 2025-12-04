@@ -343,26 +343,30 @@ const testAudioSettingsRef = useRef<{
 
   const handleLogout = useCallback(async () => {
     console.log('[Game] 로그아웃 버튼 클릭');
+
+    // UI는 즉시 로그아웃 상태로 전환 (낙관적 업데이트)
+    setAuthUser(null);
+    setRemoteProfile(null);
+
     if (!isSupabaseConfigured) {
-      // Supabase 미설정 환경에서는 로컬 상태만 비움
-      setAuthUser(null);
-      setRemoteProfile(null);
+      // Supabase 미설정 환경에서는 여기서 끝
       return;
     }
+
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      console.log('[Game] Supabase 로그아웃 성공');
-      setAuthUser(null);
-      setRemoteProfile(null);
+      // Supabase signOut이 길게 걸리거나 응답이 없더라도 UI를 막지 않도록 타임아웃을 건다
+      const signOutPromise = supabase.auth.signOut();
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Supabase signOut timeout')), 7000)
+      );
+
+      await Promise.race([signOutPromise, timeout]);
+      console.log('[Game] Supabase 로그아웃 요청 완료');
     } catch (error: any) {
-      console.error('로그아웃 실패:', error);
-      alert(error?.message || '로그아웃 중 문제가 발생했습니다.');
-      // 에러가 나도 UI 상으로는 강제로 로그인 해제해 줌
-      setAuthUser(null);
-      setRemoteProfile(null);
+      console.error('로그아웃 실패(무시 가능):', error);
+      // 여기서는 추가 alert 없이 콘솔만 찍고 넘어간다 (UI는 이미 로그인 해제 상태)
     }
-  }, []);
+  }, [isSupabaseConfigured]);
 
   // 닉네임 저장 핸들러
   const handleDisplayNameSave = useCallback(async () => {
