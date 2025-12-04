@@ -33,7 +33,6 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   const [backgroundPlayer, setBackgroundPlayer] = useState<any>(null);
   const backgroundPlayerReadyRef = useRef(false);
   const lastBgaSeekRef = useRef<number | null>(null);
-  const userInteractedRef = useRef(false);
 
   // 배경용 YouTube 플레이어 초기화
   useEffect(() => {
