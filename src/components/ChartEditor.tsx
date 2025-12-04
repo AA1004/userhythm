@@ -104,6 +104,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [tapBpmResult, setTapBpmResult] = useState<{ bpm: number; confidence: number } | null>(null);
   const [tapCount, setTapCount] = useState(0);
   const isDraggingPlayheadRef = useRef(false); // 훅으로 전달하기 위해 ref 사용
+  const lastPointerClientYRef = useRef<number | null>(null); // 재생선 드래그 중 마지막 마우스 Y 좌표
   const [pendingLongNote, setPendingLongNote] = useState<{ lane: Lane; startTime: number } | null>(null);
   const playheadRafIdRef = useRef<number | null>(null);
   const lastTickTimestampRef = useRef<number | null>(null);
@@ -557,19 +558,21 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     e.preventDefault(); // 기본 드래그 동작 방지 (텍스트 선택 등)
     e.stopPropagation();
     isDraggingPlayheadRef.current = true;
+    lastPointerClientYRef.current = e.clientY;
     setIsPlaying(false); // 드래그 시 일시정지
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
-      if (timelineScrollRef.current) {
-        const rect = timelineScrollRef.current.getBoundingClientRect();
-        // 스크롤된 상태를 고려하여 Y 좌표 계산
-        const relativeY = moveEvent.clientY - rect.top + timelineScrollRef.current.scrollTop;
-        const newTime = clampTime(yToTime(relativeY));
-        setCurrentTime(newTime);
-        
-        // YouTube seek (드래그 중에는 부하 줄이기 위해 throttle 고려 가능하나 여기선 직접 호출)
-        // seekTo(newTime); // 너무 잦은 호출 방지 위해 mouseUp에서만 하거나, throttle 필요
-      }
+      if (!timelineScrollRef.current) return;
+      const rect = timelineScrollRef.current.getBoundingClientRect();
+      // 스크롤된 상태를 고려하여 Y 좌표 계산
+      const relativeY =
+        moveEvent.clientY - rect.top + timelineScrollRef.current.scrollTop;
+      const newTime = clampTime(yToTime(relativeY));
+      setCurrentTime(newTime);
+      lastPointerClientYRef.current = moveEvent.clientY;
+
+      // YouTube seek (드래그 중에는 부하 줄이기 위해 throttle 고려 가능하나 여기선 직접 호출)
+      // seekTo(newTime); // 너무 잦은 호출 방지 위해 mouseUp에서만 하거나, throttle 필요
     };
 
     const handleMouseUp = (upEvent: MouseEvent) => {
@@ -592,12 +595,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       // 플래그 해제를 다음 틱으로 지연
       setTimeout(() => {
         isDraggingPlayheadRef.current = false;
+        lastPointerClientYRef.current = null;
       }, 50);
     };
 
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
-  }, [yToTime, seekTo]);
+  }, [yToTime, seekTo, clampTime]);
 
   // BPM Tap
   const handleTapBpm = useCallback(() => {
@@ -843,6 +847,28 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
     lastZoomRef.current = zoom;
   }, [zoom, isAutoScrollEnabled, playheadY]);
+
+  // 재생선 드래그 중 스크롤(마우스 휠 등) 시, 재생선을 마우스 위치에 맞춰 부드럽게 따라가게 함
+  useEffect(() => {
+    const container = timelineScrollRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      if (!isDraggingPlayheadRef.current) return;
+      if (lastPointerClientYRef.current == null) return;
+
+      const rect = container.getBoundingClientRect();
+      const relativeY =
+        lastPointerClientYRef.current - rect.top + container.scrollTop;
+      const newTime = clampTime(yToTime(relativeY));
+      setCurrentTime(newTime);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+    };
+  }, [clampTime, yToTime]);
 
   // 키보드 핸들러 (스페이스바 재생 등)
   useEffect(() => {
