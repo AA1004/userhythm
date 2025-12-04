@@ -367,13 +367,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setIsPlaying(false);
     setPendingLongNote(null);
     isDraggingPlayheadRef.current = false;
-    // 스크롤을 맨 아래로 이동 (렌더링 후 실행)
-    setTimeout(() => {
-      if (timelineScrollRef.current) {
-        const container = timelineScrollRef.current;
-        container.scrollTop = container.scrollHeight - container.clientHeight;
-      }
-    }, 0);
   }, []);
 
   useChartAutosave(AUTO_SAVE_KEY, autoSaveData, handleRestore);
