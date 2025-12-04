@@ -82,6 +82,16 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
           .replace(/\\.0+$/, '')
           .replace(/(\\.\\d*?)0+$/, '$1')}`;
 
+  // 재생 속도 슬라이더용 보조 값
+  const minPlaybackSpeed = Math.min(...playbackSpeedOptions);
+  const maxPlaybackSpeed = Math.max(...playbackSpeedOptions);
+  const midPlaybackSpeed = 1;
+  const clampedMid =
+    Math.min(Math.max(midPlaybackSpeed, minPlaybackSpeed), maxPlaybackSpeed);
+  const midPlaybackPercent =
+    ((clampedMid - minPlaybackSpeed) / (maxPlaybackSpeed - minPlaybackSpeed || 1)) *
+    100;
+
   const handleOffsetAdjust = (direction: -1 | 1) => {
     const next = timeSignatureOffset + direction * gridCellMs;
     onTimeSignatureOffsetChange(next);
@@ -162,25 +172,52 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
         >
           재생 속도: {playbackSpeed}x
         </label>
-        <select
+        <input
+          type="range"
+          min={minPlaybackSpeed}
+          max={maxPlaybackSpeed}
+          step={0.05}
           value={playbackSpeed}
           onChange={(e) => onPlaybackSpeedChange(parseFloat(e.target.value))}
+          style={{ width: '100%' }}
+        />
+        <div
           style={{
-            width: '100%',
-            padding: '6px 8px',
-            backgroundColor: '#020617',
-            color: CHART_EDITOR_THEME.textPrimary,
-            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-            borderRadius: CHART_EDITOR_THEME.radiusSm,
-            fontSize: '13px',
+            position: 'relative',
+            marginTop: '4px',
+            fontSize: '11px',
+            color: CHART_EDITOR_THEME.textSecondary,
+            height: '14px',
           }}
         >
-          {playbackSpeedOptions.map((speed) => (
-            <option key={speed} value={speed}>
-              {speed}x
-            </option>
-          ))}
-        </select>
+          <span
+            style={{
+              position: 'absolute',
+              left: 0,
+              transform: 'translateX(0%)',
+            }}
+          >
+            {minPlaybackSpeed}x
+          </span>
+          <span
+            style={{
+              position: 'absolute',
+              left: `${midPlaybackPercent}%`,
+              transform: 'translateX(-50%)',
+            }}
+          >
+            1.0x
+          </span>
+          <span
+            style={{
+              position: 'absolute',
+              right: 0,
+              transform: 'translateX(0%)',
+            }}
+          >
+            {maxPlaybackSpeed}x
+          </span>
+        </div>
       </div>
 
       {/* 볼륨 */}
