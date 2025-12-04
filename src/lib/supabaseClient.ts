@@ -56,6 +56,19 @@ export interface ChartReview {
   created_at: string;
 }
 
+// User role type
+export type UserRole = 'user' | 'moderator' | 'admin';
+
+// User profile type
+export interface UserProfile {
+  id: string;
+  display_name: string | null;
+  role: UserRole;
+  nickname_updated_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // Chart API functions
 export const chartAPI = {
   // Upload a new chart
@@ -185,5 +198,96 @@ export const chartAPI = {
       .getPublicUrl(filePath);
 
     return data.publicUrl;
+  },
+};
+
+// Profile API functions
+export const profileAPI = {
+  // Get or create user profile
+  async getOrCreateProfile(userId: string): Promise<UserProfile> {
+    ensureConfigured();
+    
+    // Try to get existing profile
+    const { data: existing, error: selectError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (existing) {
+      return existing as UserProfile;
+    }
+
+    // Create new profile if not exists
+    if (selectError?.code === 'PGRST116') {
+      const { data: created, error: insertError } = await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          display_name: null,
+          role: 'user',
+          nickname_updated_at: null,
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+      return created as UserProfile;
+    }
+
+    throw selectError;
+  },
+
+  // Update display name (with weekly restriction check)
+  async updateDisplayName(userId: string, displayName: string): Promise<{ success: boolean; nextChangeAt?: Date }> {
+    ensureConfigured();
+    
+    // Get current profile to check last update time
+    const { data: profile, error: selectError } = await supabase
+      .from('profiles')
+      .select('nickname_updated_at')
+      .eq('id', userId)
+      .single();
+
+    if (selectError) throw selectError;
+
+    // Check if 7 days have passed since last nickname change
+    if (profile?.nickname_updated_at) {
+      const lastUpdate = new Date(profile.nickname_updated_at);
+      const nextAllowed = new Date(lastUpdate.getTime() + 7 * 24 * 60 * 60 * 1000);
+      if (new Date() < nextAllowed) {
+        return { success: false, nextChangeAt: nextAllowed };
+      }
+    }
+
+    // Update display name
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({
+        display_name: displayName,
+        nickname_updated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', userId);
+
+    if (updateError) throw updateError;
+    return { success: true };
+  },
+
+  // Get user profile
+  async getProfile(userId: string): Promise<UserProfile | null> {
+    if (!supabaseConfiguredFlag) return null;
+    
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null; // Not found
+      throw error;
+    }
+    return data as UserProfile;
   },
 };

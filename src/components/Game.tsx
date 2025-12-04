@@ -1,4 +1,5 @@
 ﻿import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import type { User } from '@supabase/supabase-js';
 import { GameState, Note, Lane, JudgeType, SpeedChange } from '../types/game';
 import { Note as NoteComponent } from './Note';
 import { KeyLane } from './KeyLane';
@@ -8,6 +9,7 @@ import { ChartEditor } from './ChartEditor';
 import { ChartSelect } from './ChartSelect';
 import { ChartAdmin } from './ChartAdmin';
 import { SubtitleEditor } from './SubtitleEditor';
+import { SettingsModal } from './SettingsModal';
 import { useKeyboard } from '../hooks/useKeyboard';
 import { useGameLoop } from '../hooks/useGameLoop';
 import { judgeTiming, judgeHoldReleaseTiming } from '../utils/judge';
@@ -16,7 +18,7 @@ import { generateNotes } from '../utils/noteGenerator';
 import { waitForYouTubeAPI } from '../utils/youtube';
 import { SubtitleCue, SubtitleStyle } from '../types/subtitle';
 import { subtitleAPI, localSubtitleStorage } from '../lib/subtitleAPI';
-import { isSupabaseConfigured } from '../lib/supabaseClient';
+import { supabase, isSupabaseConfigured, profileAPI, UserProfile } from '../lib/supabaseClient';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { VideoRhythmLayout } from './VideoRhythmLayout';
 import { LyricOverlay } from './LyricOverlay';
@@ -45,13 +47,6 @@ interface EditorTestPayload {
   chartId?: string;
 }
 
-const LANE_KEYS = [
-  ['D'],
-  ['F'],
-  ['J'],
-  ['K'],
-];
-
 // 4개 레인을 더 붙이도록 배치: 각 레인 100px 너비, 4개 = 400px
 // 좌우 여백을 3분의 1로 줄임: (700 - 400) / 2 / 3 = 50px
 // 각 레인 중앙: 50 + 50 = 100px, 이후 100px씩 간격
@@ -67,6 +62,30 @@ const GAME_DURATION = 30000; // 30초
 const START_DELAY_MS = 4000;
 const BASE_FALL_DURATION = 2000; // 기본 노트 낙하 시간(ms)
 
+const DEFAULT_KEY_BINDINGS: [string, string, string, string] = ['D', 'F', 'J', 'K'];
+const DISPLAY_NAME_STORAGE_KEY = 'rhythmGameDisplayName';
+const KEY_BINDINGS_STORAGE_KEY = 'rhythmGameKeyBindings';
+const NOTE_SPEED_STORAGE_KEY = 'rhythmGameNoteSpeed';
+const BGA_ENABLED_STORAGE_KEY = 'rhythmGameBgaEnabled';
+
+const safeReadLocalStorage = (key: string) => {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const safeWriteLocalStorage = (key: string, value: string) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // ignore
+  }
+};
+
 export const Game: React.FC = () => {
   const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
   const [isChartSelectOpen, setIsChartSelectOpen] = useState<boolean>(false);
@@ -78,6 +97,55 @@ export const Game: React.FC = () => {
   const testPreparedNotesRef = useRef<Note[]>([]);
   const [baseBpm, setBaseBpm] = useState<number>(120);
   const [speedChanges, setSpeedChanges] = useState<SpeedChange[]>([]);
+
+  // 인증 관련 상태
+  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [remoteProfile, setRemoteProfile] = useState<UserProfile | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+
+  // 설정 관련 상태
+  const [displayName, setDisplayName] = useState<string>(() => {
+    return safeReadLocalStorage(DISPLAY_NAME_STORAGE_KEY) || '';
+  });
+  const [keyBindings, setKeyBindings] = useState<string[]>(() => {
+    const stored = safeReadLocalStorage(KEY_BINDINGS_STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length === 4) {
+          return parsed.map((key: string, index: number) => {
+            if (typeof key !== 'string' || key.length === 0) {
+              return DEFAULT_KEY_BINDINGS[index];
+            }
+            return key.toUpperCase();
+          });
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return [...DEFAULT_KEY_BINDINGS];
+  });
+  const [noteSpeed, setNoteSpeed] = useState<number>(() => {
+    const stored = safeReadLocalStorage(NOTE_SPEED_STORAGE_KEY);
+    if (stored) {
+      const parsed = parseFloat(stored);
+      if (!isNaN(parsed) && parsed >= 0.5 && parsed <= 10) {
+        return parsed;
+      }
+    }
+    return 1.0;
+  });
+  const [isBgaEnabled, setIsBgaEnabled] = useState<boolean>(() => {
+    const stored = safeReadLocalStorage(BGA_ENABLED_STORAGE_KEY);
+    return stored === 'true';
+  });
+  const [nextDisplayNameChangeAt, setNextDisplayNameChangeAt] = useState<Date | null>(null);
+
+  // 로그인 가능 여부 (Supabase 설정 필요)
+  const canEditCharts = !isSupabaseConfigured ? true : !!authUser;
+  const hasPrivilegedRole = remoteProfile?.role === 'admin' || remoteProfile?.role === 'moderator';
+  const canSeeAdminMenu = !isSupabaseConfigured ? true : !!authUser && hasPrivilegedRole;
   
   // 테스트 모드 YouTube 플레이어 상태
   const [testYoutubePlayer, setTestYoutubePlayer] = useState<any>(null);
@@ -154,21 +222,208 @@ const testAudioSettingsRef = useRef<{
     []
   );
   
-  // localStorage에서 속도 불러오기
-  const [speed, setSpeed] = useState<number>(() => {
-    const savedSpeed = localStorage.getItem('rhythmGameSpeed');
-    return savedSpeed ? parseFloat(savedSpeed) : 1.0;
-  });
+  // speed는 noteSpeed를 사용
+  const speed = noteSpeed;
 
-  // BGA(배경 동영상) 사용 여부
-  const [isBgaEnabled, setIsBgaEnabled] = useState<boolean>(() => {
-    const saved = localStorage.getItem('rhythmGameBgaEnabled');
-    return saved ? saved === 'true' : true;
-  });
+  // 인증 상태 동기화
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setAuthUser(null);
+      return;
+    }
+
+    let isMounted = true;
+    const syncSession = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('세션 정보를 가져오지 못했습니다:', error);
+          return;
+        }
+        const user = data.session?.user ?? null;
+        if (isMounted) {
+          setAuthUser(user);
+        }
+
+        if (user) {
+          try {
+            const profile = await profileAPI.getOrCreateProfile(user.id);
+            if (isMounted) {
+              setRemoteProfile(profile);
+              if (profile.display_name) {
+                setDisplayName(profile.display_name);
+              }
+              if (profile.nickname_updated_at) {
+                const nextChange = new Date(new Date(profile.nickname_updated_at).getTime() + 7 * 24 * 60 * 60 * 1000);
+                setNextDisplayNameChangeAt(nextChange);
+              }
+            }
+          } catch (profileError) {
+            console.error('프로필 정보를 불러오지 못했습니다:', profileError);
+          }
+        } else {
+          if (isMounted) {
+            setRemoteProfile(null);
+          }
+        }
+      } catch (error) {
+        console.error('Supabase 세션 동기화 실패:', error);
+      }
+    };
+
+    syncSession();
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!isMounted) return;
+      const user = session?.user ?? null;
+      setAuthUser(user);
+
+      if (user) {
+        try {
+          const profile = await profileAPI.getOrCreateProfile(user.id);
+          if (isMounted) {
+            setRemoteProfile(profile);
+            if (profile.display_name) {
+              setDisplayName(profile.display_name);
+            }
+            if (profile.nickname_updated_at) {
+              const nextChange = new Date(new Date(profile.nickname_updated_at).getTime() + 7 * 24 * 60 * 60 * 1000);
+              setNextDisplayNameChangeAt(nextChange);
+            }
+          }
+        } catch (profileError) {
+          console.error('프로필 정보를 불러오지 못했습니다:', profileError);
+        }
+      } else {
+        setRemoteProfile(null);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      authListener?.subscription.unsubscribe();
+    };
+  }, []);
+
+  // 설정 로컬 스토리지 저장
+  useEffect(() => {
+    safeWriteLocalStorage(DISPLAY_NAME_STORAGE_KEY, displayName);
+  }, [displayName]);
 
   useEffect(() => {
-    localStorage.setItem('rhythmGameBgaEnabled', String(isBgaEnabled));
+    safeWriteLocalStorage(KEY_BINDINGS_STORAGE_KEY, JSON.stringify(keyBindings));
+  }, [keyBindings]);
+
+  useEffect(() => {
+    safeWriteLocalStorage(NOTE_SPEED_STORAGE_KEY, String(noteSpeed));
+  }, [noteSpeed]);
+
+  useEffect(() => {
+    safeWriteLocalStorage(BGA_ENABLED_STORAGE_KEY, String(isBgaEnabled));
   }, [isBgaEnabled]);
+
+  // 로그인/로그아웃 핸들러
+  const handleLoginWithGoogle = useCallback(async () => {
+    if (!isSupabaseConfigured) {
+      alert('Supabase가 설정되지 않았습니다.');
+      return;
+    }
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Google 로그인 실패:', error);
+      alert(error?.message || '로그인 중 문제가 발생했습니다.');
+    }
+  }, []);
+
+  const handleLogout = useCallback(async () => {
+    if (!isSupabaseConfigured) {
+      setAuthUser(null);
+      setRemoteProfile(null);
+      return;
+    }
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setAuthUser(null);
+      setRemoteProfile(null);
+    } catch (error: any) {
+      console.error('로그아웃 실패:', error);
+      alert(error?.message || '로그아웃 중 문제가 발생했습니다.');
+    }
+  }, []);
+
+  // 닉네임 저장 핸들러
+  const handleDisplayNameSave = useCallback(async () => {
+    if (!authUser || !displayName.trim()) return;
+    try {
+      const result = await profileAPI.updateDisplayName(authUser.id, displayName.trim());
+      if (result.success) {
+        alert('닉네임이 저장되었습니다.');
+        setNextDisplayNameChangeAt(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+      } else if (result.nextChangeAt) {
+        setNextDisplayNameChangeAt(result.nextChangeAt);
+        alert(`닉네임은 ${result.nextChangeAt.toLocaleDateString()} 이후에 변경할 수 있습니다.`);
+      }
+    } catch (error: any) {
+      console.error('닉네임 저장 실패:', error);
+      alert(error?.message || '닉네임 저장 중 문제가 발생했습니다.');
+    }
+  }, [authUser, displayName]);
+
+  // 키 바인딩 변경 핸들러
+  const handleKeyBindingChange = useCallback((index: number, key: string) => {
+    setKeyBindings((prev) => {
+      const next = [...prev];
+      next[index] = key;
+      return next;
+    });
+  }, []);
+
+  const handleResetKeyBindings = useCallback(() => {
+    setKeyBindings([...DEFAULT_KEY_BINDINGS]);
+  }, []);
+
+  // 닉네임 변경 가능 여부
+  const canChangeDisplayName = useMemo(() => {
+    if (!nextDisplayNameChangeAt) return true;
+    return new Date() >= nextDisplayNameChangeAt;
+  }, [nextDisplayNameChangeAt]);
+
+  // 역할 라벨
+  const currentRoleLabel = useMemo(() => {
+    if (!remoteProfile?.role) return '일반 사용자';
+    switch (remoteProfile.role) {
+      case 'admin': return '관리자';
+      case 'moderator': return '운영자';
+      default: return '일반 사용자';
+    }
+  }, [remoteProfile?.role]);
+
+  // 레인 키 라벨 (설정된 키 바인딩 사용)
+  const laneKeyLabels = useMemo(() => keyBindings.map((k) => [k]), [keyBindings]);
+
+  // 에디터 접근 확인
+  const ensureEditorAccess = useCallback(() => {
+    if (!canEditCharts) {
+      alert('Google 로그인 후 이용할 수 있습니다.');
+      return false;
+    }
+    return true;
+  }, [canEditCharts]);
+
+  // 표시할 이름 (닉네임 > 구글 이름 > 이메일)
+  const userDisplayName = useMemo(() => {
+    if (displayName.trim()) return displayName.trim();
+    if (authUser?.user_metadata?.full_name) return authUser.user_metadata.full_name;
+    if (authUser?.email) return authUser.email.split('@')[0];
+    return '게스트';
+  }, [displayName, authUser]);
 
   useEffect(() => {
     const container = gameContainerRef.current;
@@ -491,7 +746,8 @@ const testAudioSettingsRef = useRef<{
   useKeyboard(
     handleKeyPress,
     handleKeyRelease,
-    gameState.gameStarted && !gameState.gameEnded
+    gameState.gameStarted && !gameState.gameEnded,
+    keyBindings
   );
 
   const handleNoteMiss = useCallback((note: Note) => {
@@ -1282,7 +1538,7 @@ const testAudioSettingsRef = useRef<{
             <KeyLane
               key={index}
               x={x}
-              keys={LANE_KEYS[index]}
+              keys={laneKeyLabels[index]}
               isPressed={pressedKeys.has(index as Lane)}
             />
           ))}
@@ -1518,12 +1774,14 @@ const testAudioSettingsRef = useRef<{
                   color: CHART_EDITOR_THEME.textPrimary,
                   border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
                   borderRadius: CHART_EDITOR_THEME.radiusLg,
-                  cursor: 'pointer',
+                  cursor: canEditCharts ? 'pointer' : 'not-allowed',
                   fontWeight: 'bold',
                   transition: 'all 0.2s',
                   boxShadow: `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`,
+                  opacity: canEditCharts ? 1 : 0.5,
                 }}
                 onMouseEnter={(e) => {
+                  if (!canEditCharts) return;
                   e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
                   e.currentTarget.style.transform = 'translateY(-2px)';
                   e.currentTarget.style.boxShadow = `0 6px 16px ${CHART_EDITOR_THEME.accentSoft}`;
@@ -1534,42 +1792,122 @@ const testAudioSettingsRef = useRef<{
                   e.currentTarget.style.boxShadow = `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`;
                 }}
                 onClick={() => {
+                  if (!ensureEditorAccess()) return;
                   setIsEditorOpen(true);
                 }}
+                title={!canEditCharts && isSupabaseConfigured ? 'Google 로그인 후 이용할 수 있습니다.' : undefined}
               >
                 ✏️ 채보 만들기
               </button>
 
-              <button
-                style={{
-                  padding: '12px 24px',
-                  fontSize: '16px',
-                  background: CHART_EDITOR_THEME.ctaButtonGradient,
-                  color: CHART_EDITOR_THEME.textPrimary,
-                  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                  borderRadius: CHART_EDITOR_THEME.radiusMd,
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  transition: 'all 0.2s',
-                  boxShadow: `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = `0 6px 16px ${CHART_EDITOR_THEME.accentSoft}`;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradient;
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`;
-                }}
-                onClick={() => {
-                  setIsAdminOpen(true);
-                }}
-              >
-                🔐 관리자
-              </button>
+              {canSeeAdminMenu && (
+                <button
+                  style={{
+                    padding: '12px 24px',
+                    fontSize: '16px',
+                    background: CHART_EDITOR_THEME.ctaButtonGradient,
+                    color: CHART_EDITOR_THEME.textPrimary,
+                    border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                    borderRadius: CHART_EDITOR_THEME.radiusMd,
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    transition: 'all 0.2s',
+                    boxShadow: `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = `0 6px 16px ${CHART_EDITOR_THEME.accentSoft}`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradient;
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`;
+                  }}
+                  onClick={() => {
+                    setIsAdminOpen(true);
+                  }}
+                >
+                  🔐 관리자
+                </button>
+              )}
             </div>
+
+            {/* 로그인/설정 영역 */}
+            <div style={{ marginBottom: '24px' }}>
+              {isSupabaseConfigured && !authUser ? (
+                <button
+                  onClick={handleLoginWithGoogle}
+                  style={{
+                    padding: '10px 20px',
+                    fontSize: '14px',
+                    background: 'transparent',
+                    color: CHART_EDITOR_THEME.textPrimary,
+                    border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    cursor: 'pointer',
+                    marginRight: '8px',
+                  }}
+                >
+                  🔑 Google 로그인
+                </button>
+              ) : authUser ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+                  <span style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '14px' }}>
+                    👤 {userDisplayName}
+                  </span>
+                  <button
+                    onClick={() => setIsSettingsOpen(true)}
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: '14px',
+                      background: 'transparent',
+                      color: CHART_EDITOR_THEME.textPrimary,
+                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ⚙️ 설정
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: '14px',
+                      background: 'transparent',
+                      color: CHART_EDITOR_THEME.textSecondary,
+                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    로그아웃
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setIsSettingsOpen(true)}
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '14px',
+                    background: 'transparent',
+                    color: CHART_EDITOR_THEME.textPrimary,
+                    border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    cursor: 'pointer',
+                  }}
+                >
+                  ⚙️ 설정
+                </button>
+              )}
+            </div>
+
+            {isSupabaseConfigured && !authUser && (
+              <p style={{ fontSize: '12px', color: CHART_EDITOR_THEME.textSecondary }}>
+                채보 만들기는 Google 로그인 후 이용할 수 있습니다.
+              </p>
+            )}
 
 
             {/* 설정 */}
@@ -1616,7 +1954,7 @@ const testAudioSettingsRef = useRef<{
                   max="10.0"
                   step="0.1"
                   value={speed}
-                  onChange={(e) => setSpeed(parseFloat(e.target.value))}
+                  onChange={(e) => setNoteSpeed(parseFloat(e.target.value))}
                   style={{
                     width: '100%',
                     height: '8px',
@@ -1928,6 +2266,25 @@ const testAudioSettingsRef = useRef<{
       <LyricOverlay activeSubtitles={activeSubtitles} subtitleArea={subtitleArea} />
         </div>
       </div>
+
+      {/* 설정 모달 */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        displayName={displayName}
+        onDisplayNameChange={setDisplayName}
+        onDisplayNameSave={handleDisplayNameSave}
+        canChangeDisplayName={canChangeDisplayName}
+        nextDisplayNameChangeAt={nextDisplayNameChangeAt}
+        keyBindings={keyBindings}
+        onKeyBindingChange={handleKeyBindingChange}
+        onResetKeyBindings={handleResetKeyBindings}
+        noteSpeed={noteSpeed}
+        onNoteSpeedChange={setNoteSpeed}
+        isBgaEnabled={isBgaEnabled}
+        onBgaChange={setIsBgaEnabled}
+        currentRoleLabel={currentRoleLabel}
+      />
     </VideoRhythmLayout>
   );
 };
