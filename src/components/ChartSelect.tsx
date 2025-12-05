@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { chartAPI, Chart, isSupabaseConfigured } from '../lib/supabaseClient';
 import { extractYouTubeVideoId } from '../utils/youtube';
-import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 
 interface ChartSelectProps {
   onSelect: (chartData: any) => void;
@@ -76,12 +75,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
       onSelect({
         notes: chartData.notes || [],
         bpm: chart.bpm,
-        timeSignatures:
-          chartData.timeSignatures || [
-            { id: 0, beatIndex: 0, beatsPerMeasure: 4 },
-          ],
+        timeSignatures: chartData.timeSignatures || [{ id: 0, beatIndex: 0, beatsPerMeasure: 4 }],
         timeSignatureOffset: chartData.timeSignatureOffset || 0,
-        speedChanges: chartData.speedChanges || [],
         youtubeVideoId,
         youtubeUrl,
         playbackSpeed: chartData.playbackSpeed || 1,
@@ -110,7 +105,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
           left: 0,
           right: 0,
           bottom: 0,
-          background: CHART_EDITOR_THEME.backgroundGradient,
+          backgroundColor: '#1a1a1a',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -119,14 +114,12 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
       >
         <div
           style={{
-            backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+            backgroundColor: '#2a2a2a',
             padding: '40px',
-            borderRadius: CHART_EDITOR_THEME.radiusLg,
+            borderRadius: '12px',
             maxWidth: '600px',
             width: '90%',
             textAlign: 'center',
-            boxShadow: CHART_EDITOR_THEME.shadowSoft,
-            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
           }}
         >
           <h2 style={{ color: '#fff', marginBottom: '20px', fontSize: '24px' }}>
@@ -168,7 +161,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
         left: 0,
         right: 0,
         bottom: 0,
-        background: CHART_EDITOR_THEME.backgroundGradient,
+        backgroundColor: '#1a1a1a',
         display: 'flex',
         flexDirection: 'column',
         zIndex: 10000,
@@ -177,25 +170,24 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
       {/* 헤더 */}
       <div
         style={{
-          backgroundColor: '#020617',
-          padding: '18px 20px',
-          borderBottom: '1px solid rgba(148, 163, 184, 0.4)',
+          backgroundColor: '#2a2a2a',
+          padding: '20px',
+          borderBottom: '2px solid #444',
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-          <h1 style={{ color: '#e5e7eb', fontSize: '22px', margin: 0 }}>
+          <h1 style={{ color: '#fff', fontSize: '24px', margin: 0 }}>
             채보 선택하기
           </h1>
           <button
             onClick={onClose}
             style={{
-              padding: '8px 18px',
-              fontSize: '13px',
-              background:
-                'linear-gradient(135deg, #38bdf8, #818cf8)',
-              color: '#020617',
+              padding: '10px 20px',
+              fontSize: '14px',
+              backgroundColor: '#616161',
+              color: '#fff',
               border: 'none',
-              borderRadius: 999,
+              borderRadius: '6px',
               cursor: 'pointer',
             }}
           >
@@ -215,11 +207,11 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
             placeholder="제목 또는 작성자로 검색..."
             style={{
               flex: 1,
-              padding: '9px 10px',
-              borderRadius: 999,
-              border: '1px solid rgba(148,163,184,0.6)',
-              backgroundColor: '#020617',
-              color: '#e5e7eb',
+              padding: '10px',
+              borderRadius: '6px',
+              border: '1px solid #555',
+              backgroundColor: '#1f1f1f',
+              color: '#fff',
               fontSize: '14px',
             }}
           />
@@ -230,11 +222,11 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
               setCurrentPage(1);
             }}
             style={{
-              padding: '9px 10px',
-              borderRadius: 999,
-              border: '1px solid rgba(148,163,184,0.6)',
-              backgroundColor: '#020617',
-              color: '#e5e7eb',
+              padding: '10px',
+              borderRadius: '6px',
+              border: '1px solid #555',
+              backgroundColor: '#1f1f1f',
+              color: '#fff',
               fontSize: '14px',
             }}
           >
@@ -248,11 +240,11 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
               setCurrentPage(1);
             }}
             style={{
-              padding: '9px 12px',
-              borderRadius: 999,
-              border: '1px solid rgba(148,163,184,0.6)',
-              backgroundColor: '#020617',
-              color: '#e5e7eb',
+              padding: '10px 15px',
+              borderRadius: '6px',
+              border: '1px solid #555',
+              backgroundColor: '#1f1f1f',
+              color: '#fff',
               fontSize: '14px',
               cursor: 'pointer',
             }}
@@ -273,7 +265,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
           style={{
             flex: 1,
             overflowY: 'auto',
-            padding: '18px 20px',
+            padding: '20px',
           }}
         >
           {loading ? (
@@ -311,9 +303,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-                gap: '18px',
-                alignItems: 'stretch',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                gap: '20px',
               }}
             >
               {charts.map((chart) => (
@@ -321,39 +312,36 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
                   key={chart.id}
                   onClick={() => setSelectedChart(chart)}
                   style={{
-                    background:
-                      'radial-gradient(circle at top left, rgba(56,189,248,0.18), transparent 55%), #020617',
-                    borderRadius: 14,
-                    padding: '18px',
+                    backgroundColor: '#2a2a2a',
+                    borderRadius: '8px',
+                    padding: '20px',
                     cursor: 'pointer',
-                    border:
-                      selectedChart?.id === chart.id
-                        ? '1px solid rgba(129, 230, 217, 0.9)'
-                        : '1px solid rgba(51, 65, 85, 0.9)',
-                    boxShadow:
-                      selectedChart?.id === chart.id
-                        ? '0 0 0 1px rgba(34, 211, 238, 0.9), 0 18px 40px rgba(15, 23, 42, 0.9)'
-                        : '0 10px 24px rgba(15, 23, 42, 0.9)',
-                    transition: 'transform 0.15s ease-out, box-shadow 0.15s ease-out, border-color 0.15s',
+                    border: selectedChart?.id === chart.id ? '2px solid #2196F3' : '2px solid transparent',
+                    transition: 'all 0.2s',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    if (selectedChart?.id !== chart.id) {
+                      e.currentTarget.style.backgroundColor = '#333';
+                    }
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
+                    if (selectedChart?.id !== chart.id) {
+                      e.currentTarget.style.backgroundColor = '#2a2a2a';
+                    }
                   }}
                 >
                   {chart.preview_image ? (
                     <div
                       style={{
                         width: '100%',
-                        aspectRatio: '16 / 9',
+                        height: '180px',
                         marginBottom: '12px',
-                        borderRadius: 10,
+                        borderRadius: '6px',
                         overflow: 'hidden',
-                        backgroundColor: '#020617',
-                        boxShadow: '0 0 0 1px rgba(148, 163, 184, 0.4)',
-                        position: 'relative',
+                        backgroundColor: '#1f1f1f',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
                     >
                       <img
@@ -363,7 +351,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
                           width: '100%',
                           height: '100%',
                           objectFit: 'cover',
-                          display: 'block',
                         }}
                         onError={(e) => {
                           console.error('이미지 로드 실패:', chart.preview_image);
@@ -379,35 +366,33 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
                     <div
                       style={{
                         width: '100%',
-                        aspectRatio: '16 / 9',
+                        height: '180px',
                         marginBottom: '12px',
-                        borderRadius: 10,
-                        background:
-                          'linear-gradient(135deg, rgba(56, 189, 248, 0.16), rgba(129, 140, 248, 0.08))',
-                        border: '1px dashed rgba(148, 163, 184, 0.7)',
+                        borderRadius: '6px',
+                        backgroundColor: '#1f1f1f',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: '#9CA3AF',
+                        color: '#666',
                         fontSize: '12px',
                       }}
                     >
                       이미지 없음
                     </div>
                   )}
-                  <div style={{ color: '#e5e7eb', fontSize: '17px', fontWeight: 'bold', marginBottom: '6px' }}>
+                  <div style={{ color: '#fff', fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>
                     {chart.title}
                   </div>
-                  <div style={{ color: '#9ca3af', fontSize: '13px', marginBottom: '10px' }}>
+                  <div style={{ color: '#aaa', fontSize: '13px', marginBottom: '12px' }}>
                     작성자: {chart.author}
                   </div>
                   <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
                     <span
                       style={{
                         padding: '4px 8px',
-                        backgroundColor: 'rgba(15,23,42,0.9)',
+                        backgroundColor: '#1f1f1f',
                         borderRadius: '4px',
-                        color: '#e5e7eb',
+                        color: '#ddd',
                         fontSize: '11px',
                       }}
                     >
@@ -442,7 +427,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
                   {chart.description && (
                     <div
                       style={{
-                        color: '#9ca3af',
+                        color: '#999',
                         fontSize: '12px',
                         lineHeight: 1.4,
                         overflow: 'hidden',
