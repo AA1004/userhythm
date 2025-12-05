@@ -197,17 +197,17 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
 
   return (
     <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
           background: CHART_EDITOR_THEME.backgroundGradient,
-          display: 'flex',
-          flexDirection: 'column',
-          zIndex: 10000,
-        }}
+        display: 'flex',
+        flexDirection: 'column',
+        zIndex: 10000,
+      }}
     >
       {/* 헤더 */}
       <div

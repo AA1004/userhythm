@@ -195,8 +195,8 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
               position: 'absolute',
               left: 0,
               transform: 'translateX(0%)',
-            }}
-          >
+          }}
+        >
             {minPlaybackSpeed}x
           </span>
           <span

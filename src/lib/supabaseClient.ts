@@ -114,18 +114,26 @@ export const chartAPI = {
     return true;
   },
 
-  // Get approved charts with pagination and filters
-  async getApprovedCharts(options?: {
+  // 새 페이지 기반 조회 (AbortController 지원)
+  async getChartsPage(options?: {
     search?: string;
     sortBy?: 'created_at' | 'play_count' | 'title';
     sortOrder?: 'asc' | 'desc';
+    page?: number;
     limit?: number;
-    offset?: number;
+    signal?: AbortSignal;
   }) {
     ensureConfigured();
+    const page = options?.page ?? 1;
+    const limit = options?.limit ?? 12;
+    const offset = Math.max(0, (page - 1) * limit);
+
     let query = supabase
       .from('charts')
-      .select('*', { count: 'exact' })
+      .select(
+        'id,title,author,bpm,play_count,difficulty,preview_image,data_json,created_at,youtube_url,description',
+        { count: 'planned' }
+      )
       .eq('status', 'approved');
 
     if (options?.search) {
@@ -136,14 +144,25 @@ export const chartAPI = {
     const sortOrder = options?.sortOrder || 'desc';
     query = query.order(sortBy, { ascending: sortOrder === 'asc' });
 
-    if (options?.limit) {
-      query = query.range(options.offset || 0, (options.offset || 0) + options.limit - 1);
+    query = query.range(offset, offset + limit - 1);
+
+    if (options?.signal) {
+      query = query.abortSignal(options.signal);
     }
 
     const { data, error, count } = await withTimeout<any>(query, 12000);
 
-    if (error) throw error;
-    return { charts: data || [], total: count || 0 };
+    if (error) {
+      // AbortSignal로 취소된 경우 그대로 전파
+      if ((error as any)?.name === 'AbortError') throw error;
+      throw error;
+    }
+
+    const items = data || [];
+    const total = typeof count === 'number' ? count : items.length + offset;
+    const hasMore = items.length === limit && (total ? offset + items.length < total : true);
+
+    return { items, total, hasMore, page, limit };
   },
 
   // Get pending charts (for admin)
