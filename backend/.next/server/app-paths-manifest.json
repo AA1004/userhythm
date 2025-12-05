@@ -1,3 +1,7 @@
+<<<<<<< HEAD
 {
   "/api/auth/google/start/route": "app/api/auth/google/start/route.js"
 }
+=======
+{}
+>>>>>>> 63d21439481d313cb812a73013ccf819640ac4c3
