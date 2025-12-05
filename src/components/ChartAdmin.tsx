@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { chartAPI, Chart } from '../lib/supabaseClient';
+import { api, ApiChart } from '../lib/api';
 import { extractYouTubeVideoId } from '../utils/youtube';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 
@@ -9,9 +9,9 @@ interface ChartAdminProps {
 }
 
 export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) => {
-  const [pendingCharts, setPendingCharts] = useState<Chart[]>([]);
+  const [pendingCharts, setPendingCharts] = useState<ApiChart[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [selectedChart, setSelectedChart] = useState<Chart | null>(null);
+  const [selectedChart, setSelectedChart] = useState<ApiChart | null>(null);
   const [adminToken, setAdminToken] = useState<string>('');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [reviewComment, setReviewComment] = useState<string>('');
@@ -22,8 +22,8 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
   const loadPendingCharts = useCallback(async () => {
     setLoading(true);
     try {
-      const charts = await chartAPI.getPendingCharts();
-      setPendingCharts(charts);
+      const res = await api.getPendingCharts();
+      setPendingCharts(res.charts);
     } catch (error) {
       console.error('Failed to load pending charts:', error);
       alert('채보 목록을 불러오는데 실패했습니다.');
@@ -51,7 +51,7 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
     
     setProcessing(true);
     try {
-      await chartAPI.updateChartStatus(chartId, 'approved', 'admin', reviewComment);
+      await api.updateChartStatus(chartId, 'approved', reviewComment);
       alert('채보가 승인되었습니다!');
       setReviewComment('');
       setSelectedChart(null);
@@ -69,7 +69,7 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
     
     setProcessing(true);
     try {
-      await chartAPI.updateChartStatus(chartId, 'rejected', 'admin', reviewComment);
+      await api.updateChartStatus(chartId, 'rejected', reviewComment);
       alert('채보가 거절되었습니다.');
       setReviewComment('');
       setSelectedChart(null);
@@ -82,7 +82,7 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
     }
   };
 
-  const handleTestChart = (chart: Chart) => {
+  const handleTestChart = (chart: ApiChart) => {
     try {
       const chartData = JSON.parse(chart.data_json);
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Chart } from '../lib/supabaseClient';
+import { api, ApiChart } from '../lib/api';
 import { extractYouTubeVideoId } from '../utils/youtube';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 
@@ -9,21 +9,19 @@ interface ChartSelectProps {
   refreshToken?: number; // 외부에서 강제 새로고침 트리거
 }
 
-const STATIC_JSON_URL = '/charts.json';
-
 export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, refreshToken }) => {
   const requestControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
 
-  const [allCharts, setAllCharts] = useState<Chart[]>([]);
-  const [charts, setCharts] = useState<Chart[]>([]);
+  const [allCharts, setAllCharts] = useState<ApiChart[]>([]);
+  const [charts, setCharts] = useState<ApiChart[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<'title' | 'author'>('title');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [selectedChart, setSelectedChart] = useState<Chart | null>(null);
+  const [selectedChart, setSelectedChart] = useState<ApiChart | null>(null);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
@@ -49,8 +47,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  const normalizeCharts = useCallback((loadedCharts: Chart[]) => {
-    return loadedCharts.map((chart: Chart) => {
+  const normalizeCharts = useCallback((loadedCharts: ApiChart[]) => {
+    return loadedCharts.map((chart: ApiChart) => {
       if (chart.preview_image) return chart;
 
       try {
@@ -83,11 +81,14 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
       setError(null);
 
       try {
-        const res = await fetch(STATIC_JSON_URL, { signal: controller.signal });
-        if (!res.ok) throw new Error(`정적 채보 데이터를 불러오지 못했습니다. (${res.status})`);
-        const json = await res.json();
-        const loadedCharts: Chart[] = Array.isArray(json?.charts) ? json.charts : [];
-        const normalizedCharts = normalizeCharts(loadedCharts);
+        const { charts } = await api.getCharts({
+          search: searchQuery || undefined,
+          sortBy,
+          sortOrder,
+          limit: 500,
+          offset: 0,
+        });
+        const normalizedCharts = normalizeCharts(charts as ApiChart[]);
         if (!isMountedRef.current) return;
         setAllCharts(normalizedCharts);
         setStatus('success');
@@ -96,7 +97,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         if (error?.name === 'AbortError' || message.toLowerCase().includes('abort')) {
           return;
         }
-        console.error('Failed to load static charts:', error);
+        console.error('Failed to load charts:', error);
         if (!isMountedRef.current) return;
         setStatus('error');
         setError(message || '채보 목록을 불러오는데 실패했습니다.');
@@ -168,7 +169,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
     setCurrentPage(next);
   }, [currentPage, hasMore, isLoadingMore]);
 
-  const handleSelectChart = (chart: Chart) => {
+  const handleSelectChart = (chart: ApiChart) => {
     try {
       const chartData = JSON.parse(chart.data_json);
 
@@ -505,7 +506,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                 {error}
               </div>
               <button
-                onClick={() => loadCharts()}
+                onClick={() => fetchAllCharts(true)}
                 style={{
                   padding: '10px 20px',
                   fontSize: '14px',
@@ -818,7 +819,9 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
               <div>
                 <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>업로드 일시</div>
                 <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px' }}>
-                  {new Date(selectedChart.created_at).toLocaleString('ko-KR')}
+                  {selectedChart.created_at
+                    ? new Date(selectedChart.created_at).toLocaleString('ko-KR')
+                    : '정보 없음'}
                 </div>
               </div>
             </div>
