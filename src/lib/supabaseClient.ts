@@ -91,7 +91,7 @@ export interface UserProfile {
   role: UserRole;
   nickname_updated_at: string | null;
   created_at: string;
-  updated_at?: string | null;
+  updated_at: string;
 }
 
 // Chart API functions
@@ -286,34 +286,50 @@ export const profileAPI = {
   async updateDisplayName(userId: string, displayName: string): Promise<{ success: boolean; nextChangeAt?: Date }> {
     ensureConfigured();
     
-    // Get current profile to check last update time
-    const { data: profile, error: selectError } = await supabase
-      .from('profiles')
-      .select('nickname_updated_at')
-      .eq('id', userId)
-      .single();
+    const nowIso = new Date().toISOString();
+    const sevenDaysAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    if (selectError) throw selectError;
-
-    // Check if 7 days have passed since last nickname change
-    if (profile?.nickname_updated_at) {
-      const lastUpdate = new Date(profile.nickname_updated_at);
-      const nextAllowed = new Date(lastUpdate.getTime() + 7 * 24 * 60 * 60 * 1000);
-      if (new Date() < nextAllowed) {
-        return { success: false, nextChangeAt: nextAllowed };
-      }
-    }
-
-    // Update display name
-    const { error: updateError } = await supabase
-      .from('profiles')
-      .update({
-        display_name: displayName,
-        nickname_updated_at: new Date().toISOString(),
-      })
-      .eq('id', userId);
+    // 단일 UPDATE에서 제한을 검증 (동시성/조작 방지)
+    const { data, error: updateError, count } = await withTimeout(
+      supabase
+        .from('profiles')
+        .update({
+          display_name: displayName,
+          nickname_updated_at: nowIso,
+          updated_at: nowIso,
+        })
+        .eq('id', userId)
+        .or(`nickname_updated_at.is.null,nickname_updated_at.lte.${sevenDaysAgoIso}`)
+        .select('nickname_updated_at', { count: 'exact' }),
+      10000
+    );
 
     if (updateError) throw updateError;
+
+    // count가 0이면 제한에 걸려 업데이트되지 않음
+    if (!count || count === 0) {
+      // 최신 제한 시점 안내를 위해 현재 값을 다시 조회
+      const { data: profile, error: selectError } = await withTimeout(
+        supabase
+          .from('profiles')
+          .select('nickname_updated_at')
+          .eq('id', userId)
+          .single(),
+        10000
+      );
+
+      if (selectError) throw selectError;
+
+      if (profile?.nickname_updated_at) {
+        const lastUpdate = new Date(profile.nickname_updated_at);
+        const nextAllowed = new Date(lastUpdate.getTime() + 7 * 24 * 60 * 60 * 1000);
+        return { success: false, nextChangeAt: nextAllowed };
+      }
+
+      // nickname_updated_at이 없으면 다음 시도 가능
+      return { success: false };
+    }
+
     return { success: true };
   },
 

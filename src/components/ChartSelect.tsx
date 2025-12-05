@@ -1,24 +1,28 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { chartAPI, Chart, isSupabaseConfigured } from '../lib/supabaseClient';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Chart } from '../lib/supabaseClient';
 import { extractYouTubeVideoId } from '../utils/youtube';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 
 interface ChartSelectProps {
   onSelect: (chartData: any) => void;
   onClose: () => void;
+  refreshToken?: number; // 외부에서 강제 새로고침 트리거
 }
 
-export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) => {
+const STATIC_JSON_URL = '/charts.json';
+
+export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, refreshToken }) => {
   const requestControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
 
+  const [allCharts, setAllCharts] = useState<Chart[]>([]);
   const [charts, setCharts] = useState<Chart[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [sortBy, setSortBy] = useState<'created_at' | 'play_count' | 'title'>('created_at');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [sortBy, setSortBy] = useState<'title' | 'author'>('title');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [selectedChart, setSelectedChart] = useState<Chart | null>(null);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -67,96 +71,102 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
     });
   }, []);
 
-  const loadCharts = useCallback(
-    async (page: number = 1, append: boolean = false) => {
-      if (!isSupabaseConfigured) {
-        setError('Supabase 환경 변수가 설정되지 않았습니다.');
-        setStatus('error');
-        setHasMore(false);
-        return;
-      }
-
-      // 이전 요청 취소
+  const fetchAllCharts = useCallback(
+    async (showLoading: boolean = true) => {
       if (requestControllerRef.current) {
         requestControllerRef.current.abort();
       }
       const controller = new AbortController();
       requestControllerRef.current = controller;
 
-      if (append) {
-        setIsLoadingMore(true);
-      } else {
-        setStatus('loading');
-      }
+      if (showLoading) setStatus('loading');
       setError(null);
 
       try {
-        const { items, total, hasMore: more } = await chartAPI.getChartsPage({
-          search: searchQuery || undefined,
-          sortBy,
-          sortOrder,
-          page,
-          limit: chartsPerPage,
-          signal: controller.signal,
-        });
-
-        const normalizedCharts = normalizeCharts(items);
-
+        const res = await fetch(STATIC_JSON_URL, { signal: controller.signal });
+        if (!res.ok) throw new Error(`정적 채보 데이터를 불러오지 못했습니다. (${res.status})`);
+        const json = await res.json();
+        const loadedCharts: Chart[] = Array.isArray(json?.charts) ? json.charts : [];
+        const normalizedCharts = normalizeCharts(loadedCharts);
         if (!isMountedRef.current) return;
-
-        if (append) {
-          setCharts((prev) => {
-            const map = new Map<string, Chart>();
-            prev.forEach((c) => map.set(c.id, c));
-            normalizedCharts.forEach((c) => map.set(c.id, c));
-            return Array.from(map.values());
-          });
-        } else {
-          setCharts(normalizedCharts);
-        }
-
-        setTotalCount(total);
-        setHasMore(more);
+        setAllCharts(normalizedCharts);
         setStatus('success');
       } catch (error: any) {
         const message = error?.message || '';
         if (error?.name === 'AbortError' || message.toLowerCase().includes('abort')) {
-          // React StrictMode 이펙트 클린업 등으로 발생하는 취소는 무시
           return;
         }
-        console.error('Failed to load charts:', error);
+        console.error('Failed to load static charts:', error);
         if (!isMountedRef.current) return;
         setStatus('error');
-        setError(error?.message || '채보 목록을 불러오는데 실패했습니다.');
-        if (!append) {
-          setCharts([]);
-          setTotalCount(0);
-        }
+        setError(message || '채보 목록을 불러오는데 실패했습니다.');
+        setAllCharts([]);
+        setCharts([]);
         setHasMore(false);
+        setTotalCount(0);
       } finally {
         if (requestControllerRef.current === controller) {
           requestControllerRef.current = null;
         }
-        if (isMountedRef.current && append) {
-          setIsLoadingMore(false);
-        }
+        setIsLoadingMore(false);
       }
     },
-    [searchQuery, sortBy, sortOrder, chartsPerPage, normalizeCharts]
+    [normalizeCharts]
   );
 
+  // 최초 로드 및 새로고침 버튼/외부 트리거 시 호출
+  useEffect(() => {
+    fetchAllCharts(true);
+  }, [fetchAllCharts]);
+
+  // 외부 트리거로 새로고침
+  useEffect(() => {
+    if (refreshToken === undefined) return;
+    fetchAllCharts(true);
+  }, [refreshToken, fetchAllCharts]);
+
+  // 검색/정렬 변경 시 페이지 리셋
   useEffect(() => {
     setCurrentPage(1);
-    setHasMore(true);
-    loadCharts(1, false);
-  }, [loadCharts]);
+  }, [searchQuery, sortBy, sortOrder]);
+
+  const filteredCharts = useMemo(() => {
+    const keyword = searchQuery.toLowerCase();
+    let list = allCharts;
+    if (keyword) {
+      list = list.filter(
+        (c) =>
+          c.title?.toLowerCase().includes(keyword) ||
+          c.author?.toLowerCase().includes(keyword) ||
+          c.description?.toLowerCase?.().includes(keyword)
+      );
+    }
+    const sorted = [...list].sort((a, b) => {
+      const dir = sortOrder === 'asc' ? 1 : -1;
+      if (sortBy === 'title') {
+        return a.title.localeCompare(b.title) * dir;
+      }
+      return (a.author || '').localeCompare(b.author || '') * dir;
+    });
+    return sorted;
+  }, [allCharts, searchQuery, sortBy, sortOrder]);
+
+  // 페이지네이션 적용
+  useEffect(() => {
+    const slice = filteredCharts.slice(0, currentPage * chartsPerPage);
+    setCharts(slice);
+    setTotalCount(filteredCharts.length);
+    setHasMore(slice.length < filteredCharts.length);
+    if (status === 'idle') {
+      setStatus('success');
+    }
+  }, [filteredCharts, currentPage, chartsPerPage, status]);
 
   const handleLoadMore = useCallback(() => {
     if (isLoadingMore || !hasMore) return;
     const next = currentPage + 1;
     setCurrentPage(next);
-    loadCharts(next, true);
-  }, [currentPage, hasMore, isLoadingMore, loadCharts]);
+  }, [currentPage, hasMore, isLoadingMore]);
 
   const handleSelectChart = (chart: Chart) => {
     try {
@@ -343,7 +353,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
               onClick={() => {
                 setCurrentPage(1);
                 setHasMore(true);
-                loadCharts(1, false);
+                fetchAllCharts(true);
               }}
               disabled={status === 'loading'}
               title="최신 데이터 불러오기"
@@ -437,9 +447,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
               fontSize: '14px',
             }}
           >
-            <option value="created_at">최신순</option>
-            <option value="play_count">인기순</option>
             <option value="title">제목순</option>
+            <option value="author">작성자순</option>
           </select>
           <button
             onClick={() => {

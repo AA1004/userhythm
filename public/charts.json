@@ -1,0 +1,16 @@
+{
+  "charts": [
+    {
+      "id": "demo-1",
+      "title": "Demo Chart 1",
+      "author": "System",
+      "bpm": 120,
+      "difficulty": "normal",
+      "preview_image": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+      "youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "description": "이곳에 채보 설명을 입력하세요.",
+      "data_json": "{\"notes\":[],\"youtubeUrl\":\"https://www.youtube.com/watch?v=dQw4w9WgXcQ\",\"playbackSpeed\":1}"
+    }
+  ]
+}
+

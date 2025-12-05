@@ -92,6 +92,7 @@ export const Game: React.FC = () => {
   const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
   const [isSubtitleEditorOpen, setIsSubtitleEditorOpen] = useState<boolean>(false);
   const [subtitleEditorData, setSubtitleEditorData] = useState<SubtitleEditorChartData | null>(null);
+  const [chartListRefreshToken, setChartListRefreshToken] = useState<number>(0);
   const [isTestMode, setIsTestMode] = useState<boolean>(false);
   const [isFromEditor, setIsFromEditor] = useState<boolean>(false); // 에디터에서 테스트 시작인지 구분
   const testPreparedNotesRef = useRef<Note[]>([]);
@@ -1084,6 +1085,8 @@ const testAudioSettingsRef = useRef<{
       score: buildInitialScore(),
     }));
     
+    // 플레이 종료 후 채보 목록 새로고침 트리거
+    setChartListRefreshToken((prev) => prev + 1);
     setIsChartSelectOpen(true);
   }, [testYoutubePlayer, buildInitialScore]);
 
@@ -1444,7 +1447,13 @@ const testAudioSettingsRef = useRef<{
 
   // 채보 선택 화면
   if (isChartSelectOpen) {
-    return <ChartSelect onSelect={handleChartSelect} onClose={() => setIsChartSelectOpen(false)} />;
+    return (
+      <ChartSelect
+        onSelect={handleChartSelect}
+        onClose={() => setIsChartSelectOpen(false)}
+        refreshToken={chartListRefreshToken}
+      />
+    );
   }
 
   // 관리자 화면
