@@ -13,16 +13,41 @@ if (!supabaseConfiguredFlag) {
   console.warn('Supabase credentials not configured. Chart sharing features will be disabled.');
 }
 
+// Vite HMR 시 모듈이 재로드되면서 createClient가 중복 호출되어
+// GoTrueClient 경고가 나올 수 있으므로 싱글톤으로 보관
+const globalForSupabase = globalThis as unknown as { __supabaseClient?: SupabaseClient };
+
 // 환경 변수가 없으면 더미 URL과 키로 클라이언트를 생성합니다.
 // 실제 API 호출 시 에러가 발생하지만, 초기화 오류는 방지합니다.
-export const supabase: SupabaseClient = createClient(
-  supabaseConfiguredFlag ? supabaseUrl : 'https://placeholder.supabase.co',
-  supabaseConfiguredFlag ? supabaseAnonKey : 'placeholder-anon-key'
-);
+export const supabase: SupabaseClient =
+  globalForSupabase.__supabaseClient ||
+  createClient(
+    supabaseConfiguredFlag ? supabaseUrl : 'https://placeholder.supabase.co',
+    supabaseConfiguredFlag ? supabaseAnonKey : 'placeholder-anon-key'
+  );
+
+if (!globalForSupabase.__supabaseClient) {
+  globalForSupabase.__supabaseClient = supabase;
+}
 
 const missingConfigError = new Error(
   'Supabase 환경 변수가 설정되지 않았습니다. 루트 디렉터리의 CHART_SHARING_SETUP.md를 참고해 .env 파일을 구성한 뒤 개발 서버를 재시작하세요.'
 );
+
+const withTimeout = async <T>(promise: PromiseLike<T>, timeoutMs = 10000): Promise<T> => {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error('Supabase 요청이 지연되고 있습니다. 잠시 후 다시 시도해주세요.'));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutId!);
+  }
+};
 
 const ensureConfigured = () => {
   if (!supabaseConfiguredFlag) {
@@ -115,7 +140,7 @@ export const chartAPI = {
       query = query.range(options.offset || 0, (options.offset || 0) + options.limit - 1);
     }
 
-    const { data, error, count } = await query;
+    const { data, error, count } = await withTimeout<any>(query, 12000);
 
     if (error) throw error;
     return { charts: data || [], total: count || 0 };

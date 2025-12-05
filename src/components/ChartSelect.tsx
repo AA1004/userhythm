@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { chartAPI, Chart, isSupabaseConfigured } from '../lib/supabaseClient';
 import { extractYouTubeVideoId } from '../utils/youtube';
 
@@ -8,6 +8,12 @@ interface ChartSelectProps {
 }
 
 export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) => {
+  const CACHE_KEY = 'chart_select_cache_v1';
+  const loadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
+  const hasLoadedChartsRef = useRef(false);
+
   const [charts, setCharts] = useState<Chart[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -18,6 +24,53 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
   const [totalCount, setTotalCount] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const chartsPerPage = 20;
+  const isDefaultQuery =
+    searchQuery.trim() === '' && sortBy === 'created_at' && sortOrder === 'desc' && currentPage === 1;
+
+  const readCache = (): { charts: Chart[]; total: number } | null => {
+    try {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed?.charts) && typeof parsed?.total === 'number') {
+        return parsed;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const writeCache = (payload: { charts: Chart[]; total: number }) => {
+    try {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
+    } catch {
+      // ignore quota errors
+    }
+  };
+
+  // 기본 쿼리라면 캐시를 먼저 보여줘서 차단/지연 시에도 리스트가 즉시 보이도록 함
+  useEffect(() => {
+    if (!isDefaultQuery) return;
+    const cached = readCache();
+    if (cached && isMountedRef.current) {
+      setCharts(cached.charts);
+      setTotalCount(cached.total);
+      setLoading(false);
+      setError(null);
+      hasLoadedChartsRef.current = cached.charts.length > 0;
+    }
+  }, [isDefaultQuery]);
+
+  useEffect(() => {
+    // React 18 StrictMode에서 effect가 즉시 clean-up 되더라도 다시 true로 세팅
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+      if (requestTimeoutRef.current) clearTimeout(requestTimeoutRef.current);
+    };
+  }, []);
 
   const loadCharts = useCallback(async () => {
     if (!isSupabaseConfigured) {
@@ -28,30 +81,107 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
 
     setLoading(true);
     setError(null);
+    hasLoadedChartsRef.current = false;
+
+    console.log('[ChartSelect] fetch charts start', {
+      searchQuery,
+      sortBy,
+      sortOrder,
+      currentPage,
+      isDefaultQuery,
+    });
+
+    // 15초 이상 스피너에 머물지 않도록 안전 타임아웃
+    if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+    loadingTimeoutRef.current = setTimeout(() => {
+      if (!isMountedRef.current) return;
+      setLoading(false);
+      if (!hasLoadedChartsRef.current) {
+        setError('채보 목록 응답이 지연되고 있습니다. 잠시 후 다시 시도해주세요.');
+      }
+    }, 15000);
+
     try {
-      const { charts: loadedCharts, total } = await chartAPI.getApprovedCharts({
-        search: searchQuery,
-        sortBy,
-        sortOrder,
-        limit: chartsPerPage,
-        offset: (currentPage - 1) * chartsPerPage,
+      // Supabase 응답이 지연될 때 추가 타임아웃(12초)으로 보호
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        requestTimeoutRef.current = setTimeout(() => {
+          reject(new Error('채보 목록 응답이 지연되고 있습니다.'));
+        }, 12000);
       });
+
+      const { charts: loadedCharts, total } = await Promise.race([
+        chartAPI.getApprovedCharts({
+          search: searchQuery,
+          sortBy,
+          sortOrder,
+          limit: chartsPerPage,
+          offset: (currentPage - 1) * chartsPerPage,
+        }),
+        timeoutPromise,
+      ]);
+      // 프리뷰 이미지가 없으면 YouTube 썸네일로 대체
+      const normalizedCharts = loadedCharts.map((chart: Chart) => {
+        if (chart.preview_image) return chart;
+
+        try {
+          const data = JSON.parse(chart.data_json || '{}');
+          const youtubeUrl: string = data.youtubeUrl || chart.youtube_url || '';
+          const youtubeVideoId: string | null =
+            data.youtubeVideoId || (youtubeUrl ? extractYouTubeVideoId(youtubeUrl) : null);
+
+          if (youtubeVideoId) {
+            const thumbnail = `https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg`;
+            return { ...chart, preview_image: thumbnail };
+          }
+        } catch {
+          // parsing 실패 시 원본 유지
+        }
+
+        return chart;
+      });
+
       // 디버깅: preview_image 확인
-      console.log('로드된 채보:', loadedCharts.map(chart => ({
+      console.log('로드된 채보:', normalizedCharts.map(chart => ({
         id: chart.id,
         title: chart.title,
         preview_image: chart.preview_image
       })));
-      setCharts(loadedCharts);
+      if (!isMountedRef.current) return;
+      setCharts(normalizedCharts);
+      hasLoadedChartsRef.current = normalizedCharts.length > 0;
       setTotalCount(total);
+      if (isDefaultQuery) {
+        writeCache({ charts: normalizedCharts, total });
+      }
     } catch (error: any) {
       console.error('Failed to load charts:', error);
       const errorMessage = error?.message || '채보 목록을 불러오는데 실패했습니다.';
-      setError(errorMessage);
-      setCharts([]);
-      setTotalCount(0);
+      if (isMountedRef.current) {
+        // 차단/지연 시 기본 쿼리는 캐시로 대체해 빈 화면을 피함
+        const cached = isDefaultQuery ? readCache() : null;
+        if (cached) {
+          setError(null);
+          setCharts(cached.charts);
+          setTotalCount(cached.total);
+          hasLoadedChartsRef.current = cached.charts.length > 0;
+        } else {
+          setError(errorMessage);
+          setCharts([]);
+          setTotalCount(0);
+        }
+      }
     } finally {
-      setLoading(false);
+      if (requestTimeoutRef.current) {
+        clearTimeout(requestTimeoutRef.current);
+        requestTimeoutRef.current = null;
+      }
+      if (loadingTimeoutRef.current) {
+        clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [searchQuery, sortBy, sortOrder, currentPage]);
 
@@ -77,6 +207,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose }) =
         bpm: chart.bpm,
         timeSignatures: chartData.timeSignatures || [{ id: 0, beatIndex: 0, beatsPerMeasure: 4 }],
         timeSignatureOffset: chartData.timeSignatureOffset || 0,
+        speedChanges: chartData.speedChanges || [],
         youtubeVideoId,
         youtubeUrl,
         playbackSpeed: chartData.playbackSpeed || 1,

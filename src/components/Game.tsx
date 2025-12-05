@@ -430,6 +430,9 @@ const testAudioSettingsRef = useRef<{
     }
   }, [remoteProfile?.role]);
 
+  const isAdmin = useMemo(() => remoteProfile?.role === 'admin', [remoteProfile?.role]);
+  const isModerator = useMemo(() => remoteProfile?.role === 'moderator', [remoteProfile?.role]);
+
   // 레인 키 라벨 (설정된 키 바인딩 사용)
   const laneKeyLabels = useMemo(() => keyBindings.map((k) => [k]), [keyBindings]);
 
@@ -1910,13 +1913,41 @@ const testAudioSettingsRef = useRef<{
                       fontSize: '13px',
                     }}
                   >
-                    <span
+                    <div
                       style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
                         color: CHART_EDITOR_THEME.textSecondary,
                       }}
                     >
-                      {roleChessIcon} {userDisplayName}
-                    </span>
+                      <span>
+                        {roleChessIcon} {userDisplayName}
+                      </span>
+                      {(isAdmin || isModerator) && (
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            padding: '2px 8px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            letterSpacing: '0.25px',
+                            color: isAdmin ? '#fecaca' : '#c7d2fe',
+                            background: isAdmin
+                              ? 'rgba(239, 68, 68, 0.16)'
+                              : 'rgba(56, 189, 248, 0.12)',
+                            border: isAdmin
+                              ? '1px solid rgba(239, 68, 68, 0.55)'
+                              : '1px solid rgba(56, 189, 248, 0.55)',
+                            borderRadius: CHART_EDITOR_THEME.radiusSm,
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          {isAdmin ? 'ADMIN' : 'MODERATOR'}
+                        </span>
+                      )}
+                    </div>
                     <button
                       onClick={() => setIsSettingsOpen(true)}
                       style={{
