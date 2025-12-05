@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || `${DEFAULT_LIMIT}`, 10) || DEFAULT_LIMIT, MAX_LIMIT);
     const offset = parseInt(searchParams.get('offset') || '0', 10) || 0;
 
-    const where = search
+    const where: any = search
       ? {
           OR: [
             { title: { contains: search, mode: 'insensitive' } },

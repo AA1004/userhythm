@@ -160,18 +160,18 @@ export const chartAPI = {
   },
 
   // Update chart status (admin only)
-  async updateChartStatus(chartId: string, status: 'approved' | 'rejected', reviewer: string, comment?: string) {
-    return api.updateChartStatus(chartId, status, comment);
+  async updateChartStatus(chartId: string, status: 'approved' | 'rejected', _comment?: string) {
+    return api.updateChartStatus(chartId, status, _comment);
   },
 
   // Increment play count
-  async incrementPlayCount(chartId: string) {
+  async incrementPlayCount(_chartId: string) {
     // 아직 미구현 (백엔드에 엔드포인트 추가 필요)
     return;
   },
 
   // Upload preview image
-  async uploadPreviewImage(chartId: string, file: File) {
+  async uploadPreviewImage(_chartId: string, _file: File) {
     throw new Error('미구현');
   },
 };
@@ -194,7 +194,7 @@ export const profileAPI = {
   },
 
   // Update display name (with weekly restriction check)
-  async updateDisplayName(userId: string, displayName: string): Promise<{ success: boolean; nextChangeAt?: Date }> {
+  async updateDisplayName(_userId: string, displayName: string): Promise<{ success: boolean; nextChangeAt?: Date }> {
     const res = await api.updateDisplayName(displayName);
     if (res.success) return { success: true };
     if (res.nextChangeAt) return { success: false, nextChangeAt: new Date(res.nextChangeAt) };

@@ -305,7 +305,7 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
                     작성자: {chart.author} | BPM: {chart.bpm} | 난이도: {chart.difficulty}
                   </div>
                   <div style={{ color: CHART_EDITOR_THEME.textMuted, fontSize: '11px' }}>
-                    {new Date(chart.created_at).toLocaleString('ko-KR')}
+                    {chart.created_at ? new Date(chart.created_at).toLocaleString('ko-KR') : '정보 없음'}
                   </div>
                 </div>
               ))}
@@ -389,9 +389,11 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
 
                 <div style={{ marginTop: '15px' }}>
                   <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>업로드 일시</div>
-                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '14px' }}>
-                    {new Date(selectedChart.created_at).toLocaleString('ko-KR')}
-                  </div>
+                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '14px' }}>
+                  {selectedChart.created_at
+                    ? new Date(selectedChart.created_at).toLocaleString('ko-KR')
+                    : '정보 없음'}
+                </div>
                 </div>
               </div>
 

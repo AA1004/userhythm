@@ -195,75 +195,11 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         chartTitle: chart.title,
         chartAuthor: chart.author,
       });
-      
-      // Increment play count
-      chartAPI.incrementPlayCount(chart.id).catch(console.error);
     } catch (error) {
       console.error('Failed to parse chart data:', error);
       alert('채보 데이터를 불러오는데 실패했습니다.');
     }
   };
-
-  // 환경 변수가 설정되지 않은 경우 안내 화면 표시
-  if (!isSupabaseConfigured) {
-    return (
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: CHART_EDITOR_THEME.backgroundGradient,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000,
-        }}
-      >
-        <div
-          style={{
-            backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
-            padding: '40px',
-            borderRadius: CHART_EDITOR_THEME.radiusLg,
-            maxWidth: '600px',
-            width: '90%',
-            textAlign: 'center',
-            boxShadow: CHART_EDITOR_THEME.shadowSoft,
-            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-          }}
-        >
-          <h2 style={{ color: CHART_EDITOR_THEME.textPrimary, marginBottom: '20px', fontSize: '24px' }}>
-            채보 선택 기능을 사용할 수 없습니다
-          </h2>
-          <p style={{ color: CHART_EDITOR_THEME.textSecondary, marginBottom: '20px', lineHeight: 1.6, fontSize: '14px' }}>
-            채보 선택 기능을 사용하려면 Supabase 환경 변수가 설정되어야 합니다.
-            <br />
-            루트 디렉터리의 <strong style={{ color: CHART_EDITOR_THEME.textPrimary }}>CHART_SHARING_SETUP.md</strong> 파일을 참고하여
-            <br />
-            <strong style={{ color: CHART_EDITOR_THEME.textPrimary }}>VITE_SUPABASE_URL</strong>과 <strong style={{ color: CHART_EDITOR_THEME.textPrimary }}>VITE_SUPABASE_ANON_KEY</strong> 환경 변수를
-            <br />
-            설정한 뒤 개발 서버를 재시작해주세요.
-          </p>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '12px 24px',
-              fontSize: '14px',
-              background: CHART_EDITOR_THEME.buttonPrimaryBg,
-              color: CHART_EDITOR_THEME.buttonPrimaryText,
-              border: 'none',
-              borderRadius: CHART_EDITOR_THEME.radiusSm,
-              cursor: 'pointer',
-              boxShadow: CHART_EDITOR_THEME.shadowSoft,
-            }}
-          >
-            닫기
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div

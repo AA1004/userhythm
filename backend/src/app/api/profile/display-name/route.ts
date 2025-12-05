@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '../../../../../lib/prisma';
-import { getSessionFromRequest } from '../../../../../lib/auth';
+import { prisma } from '../../../../lib/prisma';
+import { getSessionFromRequest } from '../../../../lib/auth';
 
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 

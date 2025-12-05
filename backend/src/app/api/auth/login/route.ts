@@ -10,7 +10,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'email and password are required' }, { status: 400 });
     }
     const user = await prisma.user.findUnique({ where: { email }, include: { profile: true } });
-    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    if (!user || !user.passwordHash) {
+      return NextResponse.json({ error: 'invalid credentials' }, { status: 401 });
+    }
+    const isValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isValid) {
       return NextResponse.json({ error: 'invalid credentials' }, { status: 401 });
     }
     const token = signSession({ userId: user.id, role: user.role });

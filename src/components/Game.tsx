@@ -1,5 +1,10 @@
 ﻿import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import type { User } from '@supabase/supabase-js';
+type AuthUser = {
+  id: string;
+  email?: string;
+  role?: string;
+  profile?: any;
+};
 import { GameState, Note, Lane, JudgeType, SpeedChange } from '../types/game';
 import { Note as NoteComponent } from './Note';
 import { KeyLane } from './KeyLane';
@@ -100,7 +105,7 @@ export const Game: React.FC = () => {
   const [speedChanges, setSpeedChanges] = useState<SpeedChange[]>([]);
 
   // 인증 관련 상태
-  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [remoteProfile, setRemoteProfile] = useState<UserProfile | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
 
@@ -449,10 +454,11 @@ const testAudioSettingsRef = useRef<{
   // 표시할 이름 (닉네임 > 구글 이름 > 이메일)
   const userDisplayName = useMemo(() => {
     if (displayName.trim()) return displayName.trim();
-    if (authUser?.user_metadata?.full_name) return authUser.user_metadata.full_name;
+    if (remoteProfile?.display_name) return remoteProfile.display_name;
+    if (authUser?.profile?.nickname) return authUser.profile.nickname;
     if (authUser?.email) return authUser.email.split('@')[0];
     return '게스트';
-  }, [displayName, authUser]);
+  }, [displayName, authUser, remoteProfile]);
 
   useEffect(() => {
     const container = gameContainerRef.current;

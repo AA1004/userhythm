@@ -1,4 +1,3 @@
-import { supabase, isSupabaseConfigured } from './supabaseClient';
 import {
   SubtitleCue,
   SubtitleCueCreate,
@@ -6,15 +5,8 @@ import {
   DEFAULT_SUBTITLE_STYLE,
 } from '../types/subtitle';
 
-const missingConfigError = new Error(
-  'Supabase 환경 변수가 설정되지 않았습니다. 자막 기능을 사용하려면 .env 파일을 구성하세요.'
-);
-
-const ensureConfigured = () => {
-  if (!isSupabaseConfigured) {
-    throw missingConfigError;
-  }
-};
+// 현재 Supabase 백엔드 의존성을 제거하고 로컬 스토리지만 사용합니다.
+// 향후 백엔드 연동 시 이 파일을 API 호출 기반으로 교체하세요.
 
 /**
  * Supabase에서 가져온 row를 SubtitleCue로 변환
@@ -98,150 +90,96 @@ export const subtitleAPI = {
    * 특정 채보의 모든 자막 가져오기
    */
   async getSubtitlesByChartId(chartId: string): Promise<SubtitleCue[]> {
-    ensureConfigured();
-
-    const { data, error } = await supabase
-      .from('subtitles')
-      .select('*')
-      .eq('chart_id', chartId)
-      .order('start_time_ms', { ascending: true });
-
-    if (error) {
-      console.error('Failed to fetch subtitles:', error);
-      throw error;
-    }
-
-    return (data || []).map(rowToSubtitleCue);
+    return localSubtitleStorage.get(chartId);
   },
 
   /**
    * 자막 생성
    */
   async createSubtitle(cue: SubtitleCueCreate): Promise<SubtitleCue> {
-    ensureConfigured();
-
+    const existing = localSubtitleStorage.get(cue.chartId || 'default');
     const row = subtitleCueToRow(cue);
-    row.created_at = new Date().toISOString();
-    row.updated_at = new Date().toISOString();
-
-    const { data, error } = await supabase
-      .from('subtitles')
-      .insert(row)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Failed to create subtitle:', error);
-      throw error;
-    }
-
-    return rowToSubtitleCue(data);
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const saved: SubtitleCue = rowToSubtitleCue({
+      ...row,
+      id,
+      created_at: now,
+      updated_at: now,
+    });
+    existing.push(saved);
+    localSubtitleStorage.save(saved.chartId, existing);
+    return saved;
   },
 
   /**
    * 자막 업데이트
    */
   async updateSubtitle(id: string, updates: SubtitleCueUpdate): Promise<SubtitleCue> {
-    ensureConfigured();
-
-    const row = subtitleCueToRow(updates);
-    row.updated_at = new Date().toISOString();
-
-    const { data, error } = await supabase
-      .from('subtitles')
-      .update(row)
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Failed to update subtitle:', error);
-      throw error;
-    }
-
-    return rowToSubtitleCue(data);
+    const chartId = (updates as any).chartId || 'default';
+    const list = localSubtitleStorage.get(chartId);
+    const now = new Date().toISOString();
+    const next = list.map((cue) =>
+      cue.id === id
+        ? rowToSubtitleCue({
+            ...subtitleCueToRow(updates, chartId),
+            id,
+            chart_id: chartId,
+            created_at: cue.createdAt ?? now,
+            updated_at: now,
+          })
+        : cue
+    );
+    localSubtitleStorage.save(chartId, next);
+    const found = next.find((c) => c.id === id);
+    if (!found) throw new Error('subtitle not found');
+    return found;
   },
 
   /**
    * 자막 삭제
    */
   async deleteSubtitle(id: string): Promise<void> {
-    ensureConfigured();
-
-    const { error } = await supabase
-      .from('subtitles')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('Failed to delete subtitle:', error);
-      throw error;
-    }
+    // chartId를 모르면 모든 트랙에서 제거 시도
+    const keys = Object.keys(localStorage).filter((k) => k.startsWith('subtitles_'));
+    keys.forEach((key) => {
+      const chartId = key.replace('subtitles_', '');
+      const list = localSubtitleStorage.get(chartId);
+      const next = list.filter((cue) => cue.id !== id);
+      localSubtitleStorage.save(chartId, next);
+    });
   },
 
   /**
    * 특정 채보의 모든 자막 삭제
    */
   async deleteAllSubtitlesByChartId(chartId: string): Promise<void> {
-    ensureConfigured();
-
-    const { error } = await supabase
-      .from('subtitles')
-      .delete()
-      .eq('chart_id', chartId);
-
-    if (error) {
-      console.error('Failed to delete all subtitles:', error);
-      throw error;
-    }
+    localSubtitleStorage.clear(chartId);
   },
 
   /**
    * 여러 자막 일괄 업데이트 (upsert)
    */
   async upsertSubtitles(chartId: string, cues: SubtitleCue[]): Promise<SubtitleCue[]> {
-    ensureConfigured();
-
-    const rows = cues.map((cue) => {
-      const row = subtitleCueToRow(cue, chartId);
-      row.id = cue.id;
-      row.updated_at = new Date().toISOString();
-      if (!cue.createdAt) {
-        row.created_at = new Date().toISOString();
-      }
-      return row;
-    });
-
-    const { data, error } = await supabase
-      .from('subtitles')
-      .upsert(rows, { onConflict: 'id' })
-      .select();
-
-    if (error) {
-      console.error('Failed to upsert subtitles:', error);
-      throw error;
-    }
-
-    return (data || []).map(rowToSubtitleCue);
+    const now = new Date().toISOString();
+    const normalized = cues.map((cue) =>
+      rowToSubtitleCue({
+        ...subtitleCueToRow(cue, chartId),
+        id: cue.id,
+        chart_id: chartId,
+        created_at: cue.createdAt ?? now,
+        updated_at: now,
+      })
+    );
+    localSubtitleStorage.save(chartId, normalized);
+    return normalized;
   },
 
   /**
    * 특정 채보의 자막 개수 조회
    */
   async getSubtitleCount(chartId: string): Promise<number> {
-    ensureConfigured();
-
-    const { count, error } = await supabase
-      .from('subtitles')
-      .select('*', { count: 'exact', head: true })
-      .eq('chart_id', chartId);
-
-    if (error) {
-      console.error('Failed to get subtitle count:', error);
-      throw error;
-    }
-
-    return count || 0;
+    return localSubtitleStorage.get(chartId).length;
   },
 };
 
