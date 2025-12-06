@@ -6,7 +6,8 @@ buildCommand = "cd backend && npm ci && npx prisma generate && npm run build"
 nodeVersion = "22"
 
 [deploy]
-startCommand = "cd backend && npx prisma migrate deploy && PORT=${PORT:-3000} HOSTNAME=0.0.0.0 npm run start -- --hostname 0.0.0.0 --port ${PORT:-3000}"
+# migrate 제거하고 순수 서버만 테스트
+startCommand = "cd backend && npm run start"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
