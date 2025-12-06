@@ -1,1 +1,32 @@
-self.__BUILD_MANIFEST={polyfillFiles:["static/chunks/polyfills-42372ed130431b0a.js"],devFiles:[],ampDevFiles:[],lowPriorityFiles:[],rootMainFiles:["static/chunks/webpack-100b9e646d9c912e.js","static/chunks/fd9d1056-749e5812300142af.js","static/chunks/117-fbcf455f3a89c0ad.js","static/chunks/main-app-4cbf070c2dada5dd.js"],pages:{"/_app":["static/chunks/webpack-100b9e646d9c912e.js","static/chunks/framework-f66176bb897dc684.js","static/chunks/main-d9ecfbf7b1a20054.js","static/chunks/pages/_app-72b849fbd24ac258.js"],"/_error":["static/chunks/webpack-100b9e646d9c912e.js","static/chunks/framework-f66176bb897dc684.js","static/chunks/main-d9ecfbf7b1a20054.js","static/chunks/pages/_error-7ba65e1336b92748.js"]},ampFirstPages:[]},self.__BUILD_MANIFEST.lowPriorityFiles=["/static/"+process.env.__NEXT_BUILD_ID+"/_buildManifest.js",,"/static/"+process.env.__NEXT_BUILD_ID+"/_ssgManifest.js"];
+self.__BUILD_MANIFEST = {
+  "polyfillFiles": [
+    "static/chunks/polyfills.js"
+  ],
+  "devFiles": [
+    "static/chunks/fallback/react-refresh.js"
+  ],
+  "ampDevFiles": [
+    "static/chunks/fallback/webpack.js",
+    "static/chunks/fallback/amp.js"
+  ],
+  "lowPriorityFiles": [],
+  "rootMainFiles": [],
+  "pages": {
+    "/_app": [
+      "static/chunks/fallback/webpack.js",
+      "static/chunks/fallback/main.js",
+      "static/chunks/fallback/pages/_app.js"
+    ],
+    "/_error": [
+      "static/chunks/fallback/webpack.js",
+      "static/chunks/fallback/main.js",
+      "static/chunks/fallback/pages/_error.js"
+    ]
+  },
+  "ampFirstPages": []
+};
+self.__BUILD_MANIFEST.lowPriorityFiles = [
+"/static/" + process.env.__NEXT_BUILD_ID + "/_buildManifest.js",
+,"/static/" + process.env.__NEXT_BUILD_ID + "/_ssgManifest.js",
+
+];
