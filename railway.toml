@@ -2,6 +2,9 @@
 builder = "nixpacks"
 buildCommand = "cd backend && npm ci && npx prisma generate && npm run build"
 
+[build.nixpacks]
+nodeVersion = "22"
+
 [deploy]
 startCommand = "cd backend && npm run start"
 healthcheckPath = "/api/auth/me"
