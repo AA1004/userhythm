@@ -6,8 +6,8 @@ buildCommand = "cd backend && npm ci && npx prisma generate && npm run build"
 nodeVersion = "22"
 
 [deploy]
-startCommand = "cd backend && npx prisma migrate deploy && npm run start"
-healthcheckPath = "/"
+startCommand = "cd backend && npx prisma migrate deploy && PORT=${PORT:-3000} HOSTNAME=0.0.0.0 npm run start -- --hostname 0.0.0.0 --port ${PORT:-3000}"
+healthcheckPath = "/api/health"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
