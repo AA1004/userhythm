@@ -1,6 +1,6 @@
 import { api } from './api';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'api.userhythm.kr';
+const API_BASE = import.meta.env.VITE_API_BASE || 'https://userhythm.kr';
 
 export type User = {
   id: string;
