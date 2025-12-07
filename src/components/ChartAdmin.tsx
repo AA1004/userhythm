@@ -339,7 +339,7 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
                   }}
                 >
                   <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px', fontWeight: 'bold', marginBottom: '5px' }}>
-                      {chart.title}
+                    {chart.title}
                   </div>
                   <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '8px' }}>
                       <span>{normalized._authorChess} </span>
@@ -466,7 +466,7 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
                   {selectedChart.created_at
                     ? new Date(selectedChart.created_at).toLocaleString('ko-KR')
                     : '정보 없음'}
-                </div>
+                  </div>
                 </div>
               </div>
 

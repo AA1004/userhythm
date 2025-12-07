@@ -44,7 +44,7 @@ export const supabase = {
         return { error: null };
       } catch (error: any) {
         return { error };
-      }
+}
     },
     onAuthStateChange(callback: (event: string, session: { user: User | null } | null) => void) {
       let active = true;
@@ -136,7 +136,7 @@ export const chartAPI = {
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-    });
+      });
     if (!res.ok) {
       const text = await res.text();
       throw new Error(text || res.statusText);

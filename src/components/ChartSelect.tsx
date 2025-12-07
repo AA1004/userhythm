@@ -34,7 +34,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
   const [perChartScores, setPerChartScores] = useState<ApiScore[]>([]);
   const [globalScores, setGlobalScores] = useState<ApiScore[]>([]);
   const [perUserScores, setPerUserScores] = useState<ApiUserAggregate[]>([]);
-  const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
 
   useEffect(() => {
     // React 18 StrictMode에서 effect가 즉시 clean-up 되더라도 다시 true로 세팅
@@ -150,10 +149,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         setPerChartScores(data.perChart || []);
         setGlobalScores(data.global || []);
         setPerUserScores(data.perUser || []);
-        setLeaderboardError(null);
       } catch (e: any) {
         console.error('Failed to load leaderboard:', e);
-        setLeaderboardError(e?.message || '리더보드를 불러올 수 없습니다.');
         setPerChartScores([]);
         setGlobalScores([]);
         setPerUserScores([]);
