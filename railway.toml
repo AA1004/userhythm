@@ -1,6 +1,6 @@
 [build]
 builder = "nixpacks"
-buildCommand = "cd backend && rm -rf .next && npm ci && npx prisma generate && npm run build"
+buildCommand = "cd backend && rm -rf .next || true && npm ci && npx prisma generate && npm run build"
 
 [build.nixpacks]
 nodeVersion = "20"
