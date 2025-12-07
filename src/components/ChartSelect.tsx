@@ -322,6 +322,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
             inset: 0,
             background: 'linear-gradient(135deg, rgba(56,189,248,0.2), rgba(129,140,248,0.12))',
             opacity: 0.7,
+            pointerEvents: 'none', // 인터랙션 막지 않도록
           }}
         />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', position: 'relative', zIndex: 1 }}>

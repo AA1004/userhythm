@@ -180,7 +180,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
         minHeight: '100vh',
         width: '100%',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start', // 맨 위로 붙임
         justifyContent: 'center',
         overflow: 'hidden',
         background: CHART_EDITOR_THEME.backgroundGradient,
