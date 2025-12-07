@@ -12,16 +12,22 @@ const SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 7; // 7 days
 const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN;
 const isProd = process.env.NODE_ENV === 'production';
 
+const fail = (reason: string, detail?: any, status = 500) => {
+  // detail은 로그에만 남기고, 응답에는 요약만 전달
+  console.error('[google-callback]', reason, detail);
+  return NextResponse.json({ error: reason }, { status });
+};
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get('code');
   const state = searchParams.get('state'); // redirect target
 
   if (!CLIENT_ID || !CLIENT_SECRET) {
-    return NextResponse.json({ error: 'Google OAuth not configured' }, { status: 500 });
+    return fail('Google OAuth not configured', null, 500);
   }
   if (!code) {
-    return NextResponse.json({ error: 'Missing code' }, { status: 400 });
+    return fail('Missing code', null, 400);
   }
 
   try {
@@ -39,8 +45,7 @@ export async function GET(req: NextRequest) {
     });
     const tokenJson = await tokenRes.json();
     if (!tokenRes.ok || !tokenJson.access_token) {
-      console.error('google token error', tokenJson);
-      return NextResponse.json({ error: 'Failed to exchange token' }, { status: 500 });
+      return fail('token_exchange_failed', tokenJson, 500);
     }
 
     // 2) 유저 정보
@@ -49,8 +54,7 @@ export async function GET(req: NextRequest) {
     });
     const userJson = await userRes.json();
     if (!userRes.ok || !userJson.email) {
-      console.error('google userinfo error', userJson);
-      return NextResponse.json({ error: 'Failed to fetch user info' }, { status: 500 });
+      return fail('userinfo_failed', userJson, 500);
     }
 
     const email = userJson.email as string;
@@ -96,8 +100,7 @@ export async function GET(req: NextRequest) {
     
     return response;
   } catch (error) {
-    console.error('google callback error', error);
-    return NextResponse.json({ error: 'OAuth failed' }, { status: 500 });
+    return fail('oauth_failed', error, 500);
   }
 }
 
