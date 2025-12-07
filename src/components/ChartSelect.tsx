@@ -413,10 +413,11 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
             alignItems: 'center',
             background: isInsaneMode
               ? 'linear-gradient(135deg, rgba(239,68,68,0.35), rgba(248,113,113,0.2))'
-              : 'none',
+              : 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(56,189,248,0.05))',
             padding: '8px',
             borderRadius: CHART_EDITOR_THEME.radiusSm,
-            border: isInsaneMode ? '1px solid rgba(248,113,113,0.4)' : 'none',
+            border: isInsaneMode ? '1px solid rgba(248,113,113,0.4)' : '1px solid rgba(59,130,246,0.12)',
+            transition: 'background 0.6s ease, border 0.6s ease',
           }}
         >
           <input
@@ -467,23 +468,49 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
           <button
             onClick={toggleInsaneMode}
             style={{
-              padding: '10px 12px',
-              borderRadius: CHART_EDITOR_THEME.radiusSm,
-              border: `1px solid ${isInsaneMode ? '#ef4444' : CHART_EDITOR_THEME.borderSubtle}`,
-              backgroundColor: isInsaneMode ? '#7f1d1d' : CHART_EDITOR_THEME.buttonGhostBg,
-              color: isInsaneMode ? '#fecaca' : CHART_EDITOR_THEME.textPrimary,
-              fontSize: '13px',
-              fontWeight: 'bold',
+              padding: '10px 16px',
+              borderRadius: 999,
+              border: isInsaneMode
+                ? '1px solid rgba(248,113,113,0.9)'
+                : '1px solid rgba(59,130,246,0.35)',
+              background: isInsaneMode
+                ? 'linear-gradient(135deg, #991b1b 0%, #b91c1c 45%, #ef4444 100%)'
+                : 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(56,189,248,0.12))',
+              color: isInsaneMode ? '#ffe4e6' : '#e5edff',
+              fontSize: '14px',
+              fontWeight: 800,
+              letterSpacing: '0.6px',
+              textTransform: 'uppercase',
+              textShadow: isInsaneMode ? '0 0 10px rgba(248,113,113,0.7)' : '0 0 6px rgba(59,130,246,0.5)',
               cursor: 'pointer',
+              boxShadow: isInsaneMode
+                ? '0 0 18px rgba(248,113,113,0.55), 0 0 32px rgba(239,68,68,0.35)'
+                : '0 0 12px rgba(59,130,246,0.25)',
+              transform: isInsaneMode ? 'translateZ(0) scale(1.02)' : 'translateZ(0)',
+              transition: 'all 0.25s ease',
             }}
             onMouseEnter={(e) => {
-              if (!isInsaneMode) e.currentTarget.style.background = CHART_EDITOR_THEME.buttonGhostBgHover;
+              if (!isInsaneMode) {
+                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59,130,246,0.25), rgba(56,189,248,0.2))';
+                e.currentTarget.style.boxShadow = '0 0 16px rgba(59,130,246,0.35)';
+              } else {
+                e.currentTarget.style.boxShadow = '0 0 22px rgba(248,113,113,0.7), 0 0 44px rgba(239,68,68,0.5)';
+                e.currentTarget.style.transform = 'translateZ(0) scale(1.04)';
+              }
             }}
             onMouseLeave={(e) => {
-              if (!isInsaneMode) e.currentTarget.style.background = CHART_EDITOR_THEME.buttonGhostBg;
+              if (!isInsaneMode) {
+                e.currentTarget.style.background =
+                  'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(56,189,248,0.12))';
+                e.currentTarget.style.boxShadow = '0 0 12px rgba(59,130,246,0.25)';
+                e.currentTarget.style.transform = 'translateZ(0)';
+              } else {
+                e.currentTarget.style.boxShadow = '0 0 16px rgba(248,113,113,0.45), 0 0 32px rgba(239,68,68,0.35)';
+                e.currentTarget.style.transform = 'translateZ(0) scale(1.02)';
+              }
             }}
           >
-            {isInsaneMode ? 'INSANE 모드 ON' : 'INSANE 모드'}
+            {isInsaneMode ? '🔥 INSANE ON' : '🔥 INSANE 모드'}
           </button>
           <button
             onClick={() => {
@@ -527,6 +554,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
             background: isInsaneMode
               ? 'linear-gradient(180deg, rgba(127,29,29,0.45), rgba(69,10,10,0.85))'
               : 'linear-gradient(180deg, rgba(15,23,42,0.45), rgba(15,23,42,0.8))',
+            transition: 'background 0.6s ease',
           }}
         >
           {status === 'loading' ? (
