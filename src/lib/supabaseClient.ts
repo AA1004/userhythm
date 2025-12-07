@@ -1,6 +1,8 @@
 import { api } from './api';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'https://userythm-production.up.railway.app';
+// 기본값은 로컬 개발용 (프런트 5173/5174 → 백엔드 3000)
+// 프로덕션에서는 VITE_API_BASE를 필수로 넣어주세요 (예: https://api.userhythm.kr)
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
 export type User = {
   id: string;

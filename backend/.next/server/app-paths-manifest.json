@@ -1,17 +1,4 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/api/auth/login/route": "app/api/auth/login/route.js",
-  "/api/auth/logout/route": "app/api/auth/logout/route.js",
-  "/api/auth/signup/route": "app/api/auth/signup/route.js",
   "/api/auth/google/start/route": "app/api/auth/google/start/route.js",
-  "/api/charts/[id]/route": "app/api/charts/[id]/route.js",
-  "/api/auth/google/callback/route": "app/api/auth/google/callback/route.js",
-  "/api/charts/approve/route": "app/api/charts/approve/route.js",
-  "/api/charts/[id]/status/route": "app/api/charts/[id]/status/route.js",
-  "/api/charts/pending/route": "app/api/charts/pending/route.js",
-  "/api/charts/route": "app/api/charts/route.js",
-  "/page": "app/page.js",
-  "/api/health/route": "app/api/health/route.js",
-  "/api/profile/display-name/route": "app/api/profile/display-name/route.js",
   "/api/auth/me/route": "app/api/auth/me/route.js"
 }
