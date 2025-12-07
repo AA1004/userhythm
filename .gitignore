@@ -12,6 +12,7 @@ server/.env.local
 # Build outputs
 dist/
 build/
+.next/
 *.log
 
 # IDE
