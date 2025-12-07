@@ -122,8 +122,26 @@ export interface UserProfile {
 // Chart API functions
 export const chartAPI = {
   // Upload a new chart
-  async uploadChart(_chartData: any) {
-    throw new Error('업로드는 새 백엔드에 아직 구현되지 않았습니다.');
+  async uploadChart(payload: {
+    title: string;
+    bpm: number;
+    dataJson: string;
+    youtubeUrl?: string | null;
+    description?: string | null;
+    difficulty?: string | null;
+    previewImage?: string | null;
+  }) {
+    const res = await fetch(`${API_BASE}/api/charts`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text || res.statusText);
+    }
+    return res.json() as Promise<{ chart: any }>;
   },
 
   // 새 페이지 기반 조회 (AbortController 지원)

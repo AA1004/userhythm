@@ -6,7 +6,6 @@ interface ChartShareModalProps {
   title: string;
   onTitleChange: (title: string) => void;
   author: string;
-  onAuthorChange: (author: string) => void;
   difficulty: string;
   onDifficultyChange: (difficulty: string) => void;
   description: string;
@@ -25,7 +24,6 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
   title,
   onTitleChange,
   author,
-  onAuthorChange,
   difficulty,
   onDifficultyChange,
   description,
@@ -108,11 +106,8 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
         </div>
 
         <div style={{ marginBottom: '16px' }}>
-          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>제작자 *</label>
-          <input
-            type="text"
-            value={author}
-            onChange={(e) => onAuthorChange(e.target.value)}
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>제작자</label>
+          <div
             style={{
               width: '100%',
               padding: '8px',
@@ -120,9 +115,13 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
               color: '#fff',
               border: '1px solid #444',
               borderRadius: '6px',
+              minHeight: '40px',
+              display: 'flex',
+              alignItems: 'center',
             }}
-            placeholder="제작자 이름"
-          />
+          >
+            {author || (user ? '이름을 불러올 수 없습니다' : '로그인 필요')}
+          </div>
         </div>
 
         <div style={{ marginBottom: '16px' }}>

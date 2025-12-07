@@ -121,6 +121,20 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [user, setUser] = useState<any>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
+  const resolvedAuthor = useMemo(() => {
+    const profile = user?.profile || {};
+    if (profile.nickname) return profile.nickname;
+    if (profile.display_name) return profile.display_name;
+    if (user?.email) return user.email.split('@')[0];
+    return '';
+  }, [user]);
+
+  useEffect(() => {
+    if (resolvedAuthor) {
+      setShareAuthor(resolvedAuthor);
+    }
+  }, [resolvedAuthor]);
+
   // --- Hooks 호출 ---
   const {
     youtubeUrl,
@@ -676,8 +690,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       return;
     }
 
-    if (!shareTitle || !shareAuthor) {
-      alert('제목과 제작자를 입력해주세요.');
+    if (!shareTitle) {
+      alert('제목을 입력해주세요.');
       return;
     }
     
@@ -687,13 +701,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     try {
       await chartAPI.uploadChart({
         title: shareTitle,
-        author: shareAuthor,
         bpm,
-        difficulty: shareDifficulty,
-        description: shareDescription,
-        data_json: JSON.stringify(autoSaveData),
-        youtube_url: youtubeUrl,
-        preview_image: youtubeThumbnailUrl || undefined,
+        difficulty: shareDifficulty || undefined,
+        description: shareDescription || undefined,
+        dataJson: JSON.stringify(autoSaveData),
+        youtubeUrl: youtubeUrl || undefined,
+        previewImage: youtubeThumbnailUrl || undefined,
       });
       
       setUploadStatus('업로드 완료! 관리자 승인 후 공개됩니다.');
@@ -707,7 +720,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     } finally {
       setIsUploading(false);
     }
-  }, [shareTitle, shareAuthor, shareDifficulty, shareDescription, bpm, youtubeUrl, youtubeThumbnailUrl, autoSaveData, user]);
+  }, [shareTitle, shareDifficulty, shareDescription, bpm, youtubeUrl, youtubeThumbnailUrl, autoSaveData, user]);
 
   const handleExportJson = useCallback(() => {
     try {
@@ -1073,8 +1086,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         onClose={() => setIsShareModalOpen(false)}
         title={shareTitle}
         onTitleChange={setShareTitle}
-        author={shareAuthor}
-        onAuthorChange={setShareAuthor}
+        author={resolvedAuthor || shareAuthor}
         difficulty={shareDifficulty}
         onDifficultyChange={setShareDifficulty}
         description={shareDescription}
