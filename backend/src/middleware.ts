@@ -7,6 +7,7 @@ const ALLOWED_ORIGINS = [
   'http://localhost:5174',
   'http://localhost:3000',
   'https://userhythm.kr',
+  'https://api.userhythm.kr',
 ];
 
 export function middleware(req: NextRequest) {
