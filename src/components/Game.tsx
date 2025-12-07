@@ -1339,35 +1339,53 @@ const testAudioSettingsRef = useRef<{
       
       // YouTube 플레이어 설정 (필요시) - 먼저 설정해야 useEffect가 올바르게 작동함
       if (chartData.youtubeVideoId) {
-      testAudioSettingsRef.current = {
-        youtubeVideoId: chartData.youtubeVideoId,
-        youtubeUrl: chartData.youtubeUrl || '',
-        startTimeMs: 0,
-        playbackSpeed: 1,
-        chartId: chartData.chartId,
-      };
+        testAudioSettingsRef.current = {
+          youtubeVideoId: chartData.youtubeVideoId,
+          youtubeUrl: chartData.youtubeUrl || '',
+          startTimeMs: 0,
+          playbackSpeed: 1,
+          chartId: chartData.chartId,
+        };
         setTestYoutubeVideoId(chartData.youtubeVideoId); // state로 설정하여 useEffect가 감지하도록
         setIsTestMode(true);
-    } else {
-      setIsTestMode(false);
-      setTestYoutubeVideoId(null);
-      testAudioSettingsRef.current = chartData.chartId
-        ? {
-            youtubeVideoId: null,
-            youtubeUrl: chartData.youtubeUrl || '',
-            startTimeMs: 0,
-            playbackSpeed: 1,
-            chartId: chartData.chartId,
-          }
-        : null;
-    }
+      } else {
+        setIsTestMode(false);
+        setTestYoutubeVideoId(null);
+        testAudioSettingsRef.current = chartData.chartId
+          ? {
+              youtubeVideoId: null,
+              youtubeUrl: chartData.youtubeUrl || '',
+              startTimeMs: 0,
+              playbackSpeed: 1,
+              chartId: chartData.chartId,
+            }
+          : null;
+      }
       
-      // 선택된 채보 데이터로 게임 상태 초기화
-      const preparedNotes = chartData.notes.map((note: Note) => ({
-        ...note,
-        y: 0,
-        hit: false,
-      }));
+      // 선택된 채보 데이터로 게임 상태 초기화 (키 중복 방지 및 기본 필드 보정)
+      const preparedNotes = chartData.notes
+        .map((note: Note, index: number) => {
+          const safeDuration =
+            typeof note.duration === 'number'
+              ? Math.max(0, note.duration)
+              : Math.max(
+                  0,
+                  (typeof note.endTime === 'number' ? note.endTime : note.time) - note.time
+                );
+          const endTime =
+            typeof note.endTime === 'number' ? note.endTime : note.time + safeDuration;
+          return {
+            ...note,
+            id: index + 1, // React key/게임 로직 모두에서 고유 ID 보장
+            time: Math.max(0, note.time),
+            duration: safeDuration,
+            endTime,
+            type: safeDuration > 0 ? 'hold' : 'tap',
+            y: 0,
+            hit: false,
+          };
+        })
+        .sort((a: Note, b: Note) => a.time - b.time);
       
       if (preparedNotes.length === 0) {
         alert('이 채보에는 노트가 없습니다.');
@@ -1560,7 +1578,7 @@ const testAudioSettingsRef = useRef<{
 
           return (
             <NoteComponent
-              key={note.id}
+              key={`${note.id}-${note.time}-${note.lane}`}
               note={note}
               fallDuration={fallDuration}
               currentTime={gameState.currentTime}
