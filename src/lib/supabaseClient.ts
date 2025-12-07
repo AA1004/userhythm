@@ -169,7 +169,7 @@ export const chartAPI = {
   // Increment play count
   async incrementPlayCount(_chartId: string) {
     // 아직 미구현 (백엔드에 엔드포인트 추가 필요)
-    return;
+      return;
   },
 
   // Upload preview image
