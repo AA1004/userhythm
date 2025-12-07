@@ -140,7 +140,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         setIsLoadingMore(false);
       }
     },
-    [normalizeCharts]
+    [normalizeCharts, searchQuery, sortBy, sortOrder]
   );
 
   const fetchLeaderboards = useCallback(
