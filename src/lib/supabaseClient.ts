@@ -1,6 +1,6 @@
 import { api } from './api';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
+const API_BASE = import.meta.env.VITE_API_BASE || 'api.userhythm.kr';
 
 export type User = {
   id: string;
