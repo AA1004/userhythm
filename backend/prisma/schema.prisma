@@ -23,6 +23,7 @@ model User {
   updatedAt     DateTime @updatedAt
   profile       Profile?
   charts        Chart[]
+  scores        Score[]
 }
 
 model Profile {
@@ -52,4 +53,16 @@ model Chart {
   updatedAt    DateTime @updatedAt
   userId       String?
   user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  scores       Score[]
+}
+
+model Score {
+  id        String   @id @default(uuid())
+  userId    String
+  chartId   String
+  accuracy  Float
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chart Chart @relation(fields: [chartId], references: [id], onDelete: Cascade)
 }

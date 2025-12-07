@@ -10,10 +10,13 @@ const MAX_TITLE_LENGTH = 200;
 const MAX_DESCRIPTION_LENGTH = 1000;
 const MAX_DIFFICULTY_LENGTH = 50;
 
-const serializeChart = (chart: Chart) => ({
+const serializeChart = (chart: Chart, opts?: { authorRole?: string; authorNickname?: string; authorEmail?: string }) => ({
   id: chart.id,
   title: chart.title,
   author: chart.author,
+  author_role: opts?.authorRole ?? null,
+  author_nickname: opts?.authorNickname ?? null,
+  author_email_prefix: opts?.authorEmail ? opts.authorEmail.split('@')[0] : null,
   bpm: chart.bpm,
   difficulty: chart.difficulty,
   preview_image: chart.previewImage ?? null,
@@ -58,11 +61,20 @@ export async function GET(req: NextRequest) {
         orderBy,
         skip: offset,
         take: limit,
+        include: { user: { include: { profile: true } } },
       }),
       prisma.chart.count({ where }),
     ]);
 
-    return NextResponse.json({ charts: items.map(serializeChart), total });
+    const serialized = items.map((c) =>
+      serializeChart(c, {
+        authorRole: c.user?.profile?.role || c.user?.role || null,
+        authorNickname: c.user?.profile?.nickname || (c.user?.profile as any)?.display_name || null,
+        authorEmail: c.user?.email || null,
+      })
+    );
+
+    return NextResponse.json({ charts: serialized, total });
   } catch (error) {
     console.error('charts list error', error);
     return NextResponse.json({ error: 'failed to load charts' }, { status: 500 });
@@ -155,7 +167,16 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ chart: serializeChart(chart) }, { status: 201 });
+    return NextResponse.json(
+      {
+        chart: serializeChart(chart, {
+          authorRole: dbUser.profile?.role || dbUser.role || null,
+          authorNickname: dbUser.profile?.nickname || (dbUser.profile as any)?.display_name || null,
+          authorEmail: dbUser.email || null,
+        }),
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('charts create error', error);
     return NextResponse.json({ error: 'failed to create chart' }, { status: 500 });

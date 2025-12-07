@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { api, ApiChart } from '../lib/api';
+import { api, ApiChart, ApiScore, ApiUserAggregate } from '../lib/api';
 import { extractYouTubeVideoId } from '../utils/youtube';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 
@@ -27,6 +27,14 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
   const [hasMore, setHasMore] = useState<boolean>(true);
   const chartsPerPage = 12;
+  const [isInsaneMode, setIsInsaneMode] = useState<boolean>(false);
+  const [insaneOnly, setInsaneOnly] = useState<boolean>(false);
+
+  // leaderboards
+  const [perChartScores, setPerChartScores] = useState<ApiScore[]>([]);
+  const [globalScores, setGlobalScores] = useState<ApiScore[]>([]);
+  const [perUserScores, setPerUserScores] = useState<ApiUserAggregate[]>([]);
+  const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
 
   useEffect(() => {
     // React 18 StrictMode에서 effect가 즉시 clean-up 되더라도 다시 true로 세팅
@@ -49,23 +57,43 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
 
   const normalizeCharts = useCallback((loadedCharts: ApiChart[]) => {
     return loadedCharts.map((chart: ApiChart) => {
-      if (chart.preview_image) return chart;
+      // author badge info
+      const authorChess =
+        chart.author_role === 'admin'
+          ? '♛'
+          : chart.author_role === 'moderator'
+          ? '♝'
+          : '♟';
+      const authorLabel =
+        chart.author_nickname ||
+        chart.author ||
+        chart.author_email_prefix ||
+        '알 수 없음';
 
-      try {
-        const data = JSON.parse(chart.data_json || '{}');
-        const youtubeUrl: string = data.youtubeUrl || chart.youtube_url || '';
-        const youtubeVideoId: string | null =
-          data.youtubeVideoId || (youtubeUrl ? extractYouTubeVideoId(youtubeUrl) : null);
-
-        if (youtubeVideoId) {
-          const thumbnail = `https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg`;
-          return { ...chart, preview_image: thumbnail };
+      // preview image
+      let preview = chart.preview_image || null;
+      if (!preview) {
+        try {
+          const data = JSON.parse(chart.data_json || '{}');
+          const youtubeUrl: string = data.youtubeUrl || chart.youtube_url || '';
+          const youtubeVideoId: string | null =
+            data.youtubeVideoId || (youtubeUrl ? extractYouTubeVideoId(youtubeUrl) : null);
+          if (youtubeVideoId) {
+            preview = `https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg`;
+          }
+        } catch {
+          // ignore parse error
         }
-      } catch {
-        // parsing 실패 시 원본 유지
       }
 
-      return chart;
+      return {
+        ...chart,
+        preview_image: preview,
+        _authorChess: authorChess,
+        _authorLabel: authorLabel,
+        _isAdmin: chart.author_role === 'admin',
+        _isModerator: chart.author_role === 'moderator',
+      };
     });
   }, []);
 
@@ -115,15 +143,36 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
     [normalizeCharts]
   );
 
+  const fetchLeaderboards = useCallback(
+    async (chartId?: string) => {
+      try {
+        const data = await api.getLeaderboard(chartId);
+        setPerChartScores(data.perChart || []);
+        setGlobalScores(data.global || []);
+        setPerUserScores(data.perUser || []);
+        setLeaderboardError(null);
+      } catch (e: any) {
+        console.error('Failed to load leaderboard:', e);
+        setLeaderboardError(e?.message || '리더보드를 불러올 수 없습니다.');
+        setPerChartScores([]);
+        setGlobalScores([]);
+        setPerUserScores([]);
+      }
+    },
+    []
+  );
+
   // 최초 로드 및 새로고침 버튼/외부 트리거 시 호출
   useEffect(() => {
     fetchAllCharts(true);
+    fetchLeaderboards();
   }, [fetchAllCharts]);
 
   // 외부 트리거로 새로고침
   useEffect(() => {
     if (refreshToken === undefined) return;
     fetchAllCharts(true);
+    fetchLeaderboards(selectedChart?.id);
   }, [refreshToken, fetchAllCharts]);
 
   // 검색/정렬 변경 시 페이지 리셋
@@ -134,6 +183,9 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
   const filteredCharts = useMemo(() => {
     const keyword = searchQuery.toLowerCase();
     let list = allCharts;
+    if (insaneOnly || isInsaneMode) {
+      list = list.filter((c) => (c.difficulty || '').toUpperCase() === 'INSANE');
+    }
     if (keyword) {
       list = list.filter(
         (c) =>
@@ -147,7 +199,9 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
       if (sortBy === 'title') {
         return a.title.localeCompare(b.title) * dir;
       }
-      return (a.author || '').localeCompare(b.author || '') * dir;
+      return ((a as any)._authorLabel || a.author || '').localeCompare(
+        (b as any)._authorLabel || b.author || ''
+      ) * dir;
     });
     return sorted;
   }, [allCharts, searchQuery, sortBy, sortOrder]);
@@ -162,6 +216,19 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
       setStatus('success');
     }
   }, [filteredCharts, currentPage, chartsPerPage, status]);
+  useEffect(() => {
+    // when selected chart changes, load per-chart leaderboard
+    if (selectedChart) {
+      fetchLeaderboards(selectedChart.id);
+    } else {
+      setPerChartScores([]);
+    }
+  }, [selectedChart, fetchLeaderboards]);
+
+  const toggleInsaneMode = () => {
+    setIsInsaneMode((prev) => !prev);
+    setInsaneOnly((prev) => !prev);
+  };
 
   const handleLoadMore = useCallback(() => {
     if (isLoadingMore || !hasMore) return;
@@ -193,7 +260,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         playbackSpeed: chartData.playbackSpeed || 1,
         chartId: chart.id,
         chartTitle: chart.title,
-        chartAuthor: chart.author,
+        chartAuthor: (chart as any)._authorLabel || chart.author,
       });
     } catch (error) {
       console.error('Failed to parse chart data:', error);
@@ -341,7 +408,19 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         </div>
 
         {/* 검색 및 필터 */}
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: '10px',
+            alignItems: 'center',
+            background: isInsaneMode
+              ? 'linear-gradient(135deg, rgba(239,68,68,0.35), rgba(248,113,113,0.2))'
+              : 'none',
+            padding: '8px',
+            borderRadius: CHART_EDITOR_THEME.radiusSm,
+            border: isInsaneMode ? '1px solid rgba(248,113,113,0.4)' : 'none',
+          }}
+        >
           <input
             type="text"
             value={searchInput}
@@ -388,6 +467,27 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
             <option value="author">작성자순</option>
           </select>
           <button
+            onClick={toggleInsaneMode}
+            style={{
+              padding: '10px 12px',
+              borderRadius: CHART_EDITOR_THEME.radiusSm,
+              border: `1px solid ${isInsaneMode ? '#ef4444' : CHART_EDITOR_THEME.borderSubtle}`,
+              backgroundColor: isInsaneMode ? '#7f1d1d' : CHART_EDITOR_THEME.buttonGhostBg,
+              color: isInsaneMode ? '#fecaca' : CHART_EDITOR_THEME.textPrimary,
+              fontSize: '13px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => {
+              if (!isInsaneMode) e.currentTarget.style.background = CHART_EDITOR_THEME.buttonGhostBgHover;
+            }}
+            onMouseLeave={(e) => {
+              if (!isInsaneMode) e.currentTarget.style.background = CHART_EDITOR_THEME.buttonGhostBg;
+            }}
+          >
+            {isInsaneMode ? 'INSANE 모드 ON' : 'INSANE 모드'}
+          </button>
+          <button
             onClick={() => {
               setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
               setCurrentPage(1);
@@ -426,7 +526,9 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
             flex: 1,
             overflowY: 'auto',
             padding: '20px',
-            background: 'linear-gradient(180deg, rgba(15,23,42,0.45), rgba(15,23,42,0.8))',
+            background: isInsaneMode
+              ? 'linear-gradient(180deg, rgba(127,29,29,0.45), rgba(69,10,10,0.85))'
+              : 'linear-gradient(180deg, rgba(15,23,42,0.45), rgba(15,23,42,0.8))',
           }}
         >
           {status === 'loading' ? (
@@ -556,8 +658,21 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                   <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>
                     {chart.title}
                   </div>
-                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '13px', marginBottom: '12px' }}>
-                    작성자: {chart.author}
+                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '13px', marginBottom: '12px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <span>{(chart as any)._authorChess || '♟'}</span>
+                    <span
+                      style={{
+                        fontWeight: (chart as any)._isAdmin ? 'bold' : undefined,
+                        color: (chart as any)._isAdmin ? '#f87171' : undefined,
+                      }}
+                    >
+                      {(chart as any)._authorLabel || chart.author}
+                    </span>
+                    {(chart as any)._isAdmin && (
+                      <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', backgroundColor: '#b91c1c', color: '#fff' }}>
+                        ADMIN
+                      </span>
+                    )}
                   </div>
                   <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
                     <span
@@ -702,7 +817,22 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px' }}>
               <div>
                 <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>작성자</div>
-                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart.author}</div>
+                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <span>{(selectedChart as any)._authorChess || '♟'}</span>
+                  <span
+                    style={{
+                      fontWeight: (selectedChart as any)._isAdmin ? 'bold' : undefined,
+                      color: (selectedChart as any)._isAdmin ? '#f87171' : undefined,
+                    }}
+                  >
+                    {(selectedChart as any)._authorLabel || selectedChart.author}
+                  </span>
+                  {(selectedChart as any)._isAdmin && (
+                    <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', backgroundColor: '#b91c1c', color: '#fff' }}>
+                      ADMIN
+                    </span>
+                  )}
+                </div>
               </div>
               <div>
                 <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>BPM</div>
@@ -779,9 +909,116 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
             >
               🎮 이 채보로 플레이
             </button>
+
+            <div style={{ marginTop: '20px' }}>
+              <h3 style={{ color: CHART_EDITOR_THEME.textPrimary, marginBottom: '10px' }}>정확도 리더보드</h3>
+              {leaderboardError && (
+                <div style={{ color: '#fca5a5', fontSize: '12px', marginBottom: '8px' }}>{leaderboardError}</div>
+              )}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
+                <div>
+                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
+                    곡별 상위 기록 (현재 선택)
+                  </div>
+                  <LeaderboardList scores={perChartScores} emptyText="데이터 없음" />
+                </div>
+                <div>
+                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
+                    글로벌 상위 기록
+                  </div>
+                  <LeaderboardList scores={globalScores} emptyText="데이터 없음" />
+                </div>
+                <div>
+                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
+                    사용자별 평균 정확도
+                  </div>
+                  <UserLeaderboardList entries={perUserScores} emptyText="데이터 없음" />
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
+    </div>
+  );
+};
+
+const LeaderboardList: React.FC<{ scores: ApiScore[]; emptyText?: string }> = ({ scores, emptyText }) => {
+  if (!scores || scores.length === 0) {
+    return <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px' }}>{emptyText || '데이터 없음'}</div>;
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      {scores.map((s, idx) => (
+        <div
+          key={s.id}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '8px 10px',
+            borderRadius: CHART_EDITOR_THEME.radiusSm,
+            backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            color: CHART_EDITOR_THEME.textPrimary,
+          }}
+        >
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <span style={{ color: CHART_EDITOR_THEME.textSecondary, width: '20px' }}>{idx + 1}</span>
+            <span>
+              {s.user?.nickname || s.user?.email?.split('@')[0] || '알 수 없음'}
+              {s.user?.role === 'admin' && (
+                <span style={{ fontSize: '10px', marginLeft: '6px', padding: '2px 6px', borderRadius: '999px', background: '#b91c1c', color: '#fff' }}>
+                  ADMIN
+                </span>
+              )}
+            </span>
+          </div>
+          <div style={{ fontWeight: 'bold', color: '#facc15' }}>{s.accuracy.toFixed(2)}%</div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const UserLeaderboardList: React.FC<{ entries: ApiUserAggregate[]; emptyText?: string }> = ({ entries, emptyText }) => {
+  if (!entries || entries.length === 0) {
+    return <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px' }}>{emptyText || '데이터 없음'}</div>;
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      {entries.map((e, idx) => (
+        <div
+          key={e.user_id}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '8px 10px',
+            borderRadius: CHART_EDITOR_THEME.radiusSm,
+            backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            color: CHART_EDITOR_THEME.textPrimary,
+          }}
+        >
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <span style={{ color: CHART_EDITOR_THEME.textSecondary, width: '20px' }}>{idx + 1}</span>
+            <span>
+              {e.user?.nickname || e.user?.email?.split('@')[0] || '알 수 없음'}
+              {e.user?.role === 'admin' && (
+                <span style={{ fontSize: '10px', marginLeft: '6px', padding: '2px 6px', borderRadius: '999px', background: '#b91c1c', color: '#fff' }}>
+                  ADMIN
+                </span>
+              )}
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <span style={{ color: '#facc15' }}>avg {e.avg_accuracy?.toFixed?.(2) ?? '-' }%</span>
+            <span style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px' }}>max {e.max_accuracy?.toFixed?.(2) ?? '-' }%</span>
+            <span style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px' }}>plays {e.play_count}</span>
+          </div>
+        </div>
+      ))}
     </div>
   );
 };
@@ -796,6 +1033,8 @@ function getDifficultyColor(difficulty: string): string {
       return '#FF9800';
     case 'expert':
       return '#f44336';
+    case 'insane':
+      return '#b91c1c';
     default:
       return '#616161';
   }

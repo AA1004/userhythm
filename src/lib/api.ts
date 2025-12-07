@@ -7,6 +7,9 @@ export interface ApiChart {
   id: string;
   title: string;
   author: string;
+  author_role?: string | null;
+  author_nickname?: string | null;
+  author_email_prefix?: string | null;
   bpm: number;
   difficulty?: string | null;
   preview_image?: string | null;
@@ -17,6 +20,39 @@ export interface ApiChart {
   status: string;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface ApiScore {
+  id: string;
+  user_id: string;
+  chart_id: string;
+  accuracy: number;
+  created_at?: string | null;
+  user?: {
+    id: string;
+    email: string;
+    role?: string;
+    nickname?: string | null;
+    profile?: any;
+  } | null;
+  chart?: {
+    id: string;
+    title: string;
+    difficulty?: string | null;
+  } | null;
+}
+
+export interface ApiUserAggregate {
+  user_id: string;
+  avg_accuracy: number | null;
+  max_accuracy: number | null;
+  play_count: number;
+  user?: {
+    id: string;
+    email: string;
+    role?: string;
+    nickname?: string | null;
+  } | null;
 }
 
 const toJson = async (res: Response) => {
@@ -86,6 +122,22 @@ export const api = {
       body: JSON.stringify({ status, comment }),
     });
     return toJson(res);
+  },
+
+  async getLeaderboard(chartId?: string) {
+    const qs = chartId ? `?chartId=${encodeURIComponent(chartId)}` : '';
+    const res = await fetch(`${API_BASE}/api/leaderboard${qs}`, { credentials: 'include' });
+    return toJson(res) as Promise<{ perChart: ApiScore[]; global: ApiScore[]; perUser: ApiUserAggregate[] }>;
+  },
+
+  async submitScore(chartId: string, accuracy: number) {
+    const res = await fetch(`${API_BASE}/api/leaderboard`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chartId, accuracy }),
+    });
+    return toJson(res) as Promise<{ score: ApiScore }>;
   },
 };
 

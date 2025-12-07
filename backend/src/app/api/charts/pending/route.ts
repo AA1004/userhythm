@@ -4,10 +4,13 @@ import { Chart } from '@prisma/client';
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 
-const serializeChart = (chart: Chart) => ({
+const serializeChart = (chart: Chart, opts?: { authorRole?: string; authorNickname?: string; authorEmail?: string }) => ({
   id: chart.id,
   title: chart.title,
   author: chart.author,
+  author_role: opts?.authorRole ?? null,
+  author_nickname: opts?.authorNickname ?? null,
+  author_email_prefix: opts?.authorEmail ? opts.authorEmail.split('@')[0] : null,
   bpm: chart.bpm,
   difficulty: chart.difficulty,
   preview_image: chart.previewImage ?? null,
@@ -30,9 +33,18 @@ export async function GET(request: Request) {
     const charts = await prisma.chart.findMany({
       where: { status: 'pending' },
       orderBy: { createdAt: 'desc' },
+      include: { user: { include: { profile: true } } },
     });
 
-    return NextResponse.json({ charts: charts.map(serializeChart) });
+    return NextResponse.json({
+      charts: charts.map((c) =>
+        serializeChart(c, {
+          authorRole: c.user?.profile?.role || c.user?.role || null,
+          authorNickname: c.user?.profile?.nickname || (c.user?.profile as any)?.display_name || null,
+          authorEmail: c.user?.email || null,
+        })
+      ),
+    });
   } catch (error) {
     console.error('pending charts error', error);
     return NextResponse.json({ error: 'failed to load pending charts' }, { status: 500 });

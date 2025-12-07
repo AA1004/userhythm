@@ -82,26 +82,64 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
     }
   };
 
-  const handleTestChart = (chart: ApiChart) => {
+  const normalizeChart = (chart: ApiChart) => {
     try {
-      const chartData = JSON.parse(chart.data_json);
-
-      const youtubeUrl: string = chartData.youtubeUrl || chart.youtube_url || '';
-      let youtubeVideoId: string | null = chartData.youtubeVideoId || null;
-
+      const data = JSON.parse(chart.data_json || '{}');
+      const youtubeUrl: string = data.youtubeUrl || chart.youtube_url || '';
+      let youtubeVideoId: string | null = data.youtubeVideoId || null;
       if (!youtubeVideoId && youtubeUrl) {
         youtubeVideoId = extractYouTubeVideoId(youtubeUrl);
       }
+      const notesLength = Array.isArray(data.notes) ? data.notes.length : '?';
+      const authorChess =
+        chart.author_role === 'admin'
+          ? '♛'
+          : chart.author_role === 'moderator'
+          ? '♝'
+          : '♟';
+      const authorLabel =
+        chart.author_nickname ||
+        chart.author ||
+        chart.author_email_prefix ||
+        '알 수 없음';
+      return {
+        ...chart,
+        _data: data,
+        _youtubeVideoId: youtubeVideoId,
+        _youtubeUrl: youtubeUrl,
+        _notesLength: notesLength,
+        _authorChess: authorChess,
+        _authorLabel: authorLabel,
+        _isAdmin: chart.author_role === 'admin',
+        _isModerator: chart.author_role === 'moderator',
+      };
+    } catch {
+      return {
+        ...chart,
+        _data: null,
+        _youtubeVideoId: null,
+        _youtubeUrl: null,
+        _notesLength: '?',
+        _authorChess: '♟',
+        _authorLabel: chart.author,
+        _isAdmin: chart.author_role === 'admin',
+        _isModerator: chart.author_role === 'moderator',
+      };
+    }
+  };
 
+  const handleTestChart = (chart: ApiChart) => {
+    const normalized = normalizeChart(chart);
+    try {
       if (onTestChart) {
         onTestChart({
-          notes: chartData.notes || [],
+          notes: normalized._data?.notes || [],
           startTimeMs: 0,
-          youtubeVideoId,
-          youtubeUrl,
-          playbackSpeed: chartData.playbackSpeed || 1,
-          bpm: chart.bpm,
-          speedChanges: chartData.speedChanges || [],
+          youtubeVideoId: normalized._youtubeVideoId,
+          youtubeUrl: normalized._youtubeUrl,
+          playbackSpeed: normalized._data?.playbackSpeed || 1,
+          bpm: normalized.bpm,
+          speedChanges: normalized._data?.speedChanges || [],
         });
       }
     } catch (error) {
@@ -283,10 +321,12 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {pendingCharts.map((chart) => (
+              {pendingCharts.map((chart) => {
+                const normalized = normalizeChart(chart);
+                return (
                 <div
                   key={chart.id}
-                  onClick={() => setSelectedChart(chart)}
+                  onClick={() => setSelectedChart(normalized)}
                   style={{
                     padding: '15px',
                     backgroundColor: selectedChart?.id === chart.id ? CHART_EDITOR_THEME.surface : '#020617',
@@ -299,16 +339,26 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
                   }}
                 >
                   <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px', fontWeight: 'bold', marginBottom: '5px' }}>
-                    {chart.title}
+                      {chart.title}
                   </div>
                   <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '8px' }}>
-                    작성자: {chart.author} | BPM: {chart.bpm} | 난이도: {chart.difficulty}
+                      <span>{normalized._authorChess} </span>
+                      <span style={{ fontWeight: normalized._isAdmin ? 'bold' : undefined, color: normalized._isAdmin ? '#f87171' : undefined }}>
+                        {normalized._authorLabel}
+                      </span>
+                      {normalized._isAdmin && (
+                        <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', backgroundColor: '#b91c1c', color: '#fff', marginLeft: '6px' }}>
+                          ADMIN
+                        </span>
+                      )}
+                      <span> | BPM: {chart.bpm} | 난이도: {chart.difficulty}</span>
                   </div>
                   <div style={{ color: CHART_EDITOR_THEME.textMuted, fontSize: '11px' }}>
                     {chart.created_at ? new Date(chart.created_at).toLocaleString('ko-KR') : '정보 없음'}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -339,7 +389,30 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
                   <div>
                     <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>작성자</div>
-                    <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart.author}</div>
+                    <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      <span>{(selectedChart as any)._authorChess || '♟'}</span>
+                      <span
+                        style={{
+                          fontWeight: (selectedChart as any)._isAdmin ? 'bold' : undefined,
+                          color: (selectedChart as any)._isAdmin ? '#f87171' : undefined,
+                        }}
+                      >
+                        {(selectedChart as any)._authorLabel || selectedChart.author}
+                      </span>
+                      {(selectedChart as any)._isAdmin && (
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            padding: '2px 6px',
+                            borderRadius: '999px',
+                            backgroundColor: '#b91c1c',
+                            color: '#fff',
+                          }}
+                        >
+                          ADMIN
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>BPM</div>

@@ -118,9 +118,31 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
               minHeight: '40px',
               display: 'flex',
               alignItems: 'center',
+              gap: '6px',
             }}
           >
-            {author || (user ? '이름을 불러올 수 없습니다' : '로그인 필요')}
+            <span>{user?.profile?.role === 'admin' ? '♛' : user?.profile?.role === 'moderator' ? '♝' : '♟'}</span>
+            <span
+              style={{
+                fontWeight: user?.role === 'admin' || user?.profile?.role === 'admin' ? 'bold' : undefined,
+                color: user?.role === 'admin' || user?.profile?.role === 'admin' ? '#f87171' : undefined,
+              }}
+            >
+              {author || (user ? '이름을 불러올 수 없습니다' : '로그인 필요')}
+            </span>
+            {(user?.role === 'admin' || user?.profile?.role === 'admin') && (
+              <span
+                style={{
+                  fontSize: '10px',
+                  padding: '2px 6px',
+                  borderRadius: '999px',
+                  backgroundColor: '#b91c1c',
+                  color: '#fff',
+                }}
+              >
+                ADMIN
+              </span>
+            )}
           </div>
         </div>
 
@@ -142,6 +164,7 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
             <option value="Normal">Normal</option>
             <option value="Hard">Hard</option>
             <option value="Expert">Expert</option>
+            <option value="INSANE">INSANE</option>
           </select>
         </div>
 

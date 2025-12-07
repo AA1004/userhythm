@@ -30,10 +30,11 @@ export const Note: React.FC<NoteProps> = ({
 
   const isHoldNote = note.duration > 0 && note.type === 'hold';
 
-  const computeY = (timeMs: number) => {
+  const computeY = (timeMs: number, clampToJudgeLine = false) => {
     const timeUntilHit = timeMs - currentTime;
     const progress = 1 - timeUntilHit / fallDuration;
-    return clamp(progress * judgeLineY, -200, judgeLineY + 50);
+    const maxY = clampToJudgeLine ? judgeLineY : judgeLineY + 50;
+    return clamp(progress * judgeLineY, -200, maxY);
   };
 
   const headY = computeY(note.time);
@@ -66,10 +67,12 @@ export const Note: React.FC<NoteProps> = ({
     );
   }
 
-  const tailY = computeY(note.endTime ?? note.time);
-  const topY = Math.min(headY, tailY);
-  const bottomY = Math.max(headY, tailY);
-  const containerHeight = Math.max(HOLD_MIN_HEIGHT, bottomY - topY);
+  const holdHeadY = computeY(note.time, true);
+  const holdTailY = computeY(note.endTime ?? note.time, true);
+  const bottomY = Math.max(holdHeadY, holdTailY);
+  const spanHeight = Math.abs(holdHeadY - holdTailY);
+  const containerHeight = Math.max(HOLD_MIN_HEIGHT, spanHeight);
+  const containerTop = bottomY - containerHeight;
   const holdProgress = note.duration
     ? clamp((currentTime - note.time) / note.duration, 0, 1)
     : 0;
@@ -79,7 +82,7 @@ export const Note: React.FC<NoteProps> = ({
       style={{
         position: 'absolute',
         left: `${laneX - NOTE_WIDTH / 2}px`,
-        top: `${topY}px`,
+        top: `${containerTop}px`,
         width: `${NOTE_WIDTH}px`,
         height: `${containerHeight}px`,
         pointerEvents: 'none',
