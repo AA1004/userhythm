@@ -1,27 +1,16 @@
-// Prisma 런타임 엔진을 명시적으로 라이브러리 모드로 사용하고,
-// 드라이버 어댑터(pg)를 통해 연결한다.
-process.env.PRISMA_CLIENT_ENGINE_TYPE = 'library';
-process.env.PRISMA_GENERATE_ENGINE = 'library';
 import { PrismaClient } from '../../generated/prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
 
 declare global {
   // eslint-disable-next-line no-var
+  // eslint-disable-next-line no-unused-var
   var prisma: PrismaClient | undefined;
 }
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool);
-
 export const prisma =
   global.prisma ||
-  new PrismaClient({
-    adapter,
-    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
-  });
+  // Prisma 5.21.1 타입 정의가 옵션 객체를 강제하므로, 빈 옵션을 any로 캐스팅해 전달한다.
+  new PrismaClient({} as any);
 
 if (process.env.NODE_ENV !== 'production') {
   global.prisma = prisma;
 }
-
