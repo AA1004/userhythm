@@ -1,4 +1,1 @@
-{
-  "/api/auth/google/start/route": "app/api/auth/google/start/route.js",
-  "/api/auth/me/route": "app/api/auth/me/route.js"
-}
+{}
