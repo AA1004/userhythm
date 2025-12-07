@@ -1873,115 +1873,78 @@ const testAudioSettingsRef = useRef<{
                 {canSeeAdminMenu && (
                   <button
                     style={{
-                      alignSelf: 'center',
-                      padding: '10px 22px',
-                      fontSize: '14px',
-                      background: CHART_EDITOR_THEME.buttonGhostBg,
+                      padding: '12px 24px',
+                      fontSize: '16px',
+                      background: CHART_EDITOR_THEME.ctaButtonGradient,
                       color: CHART_EDITOR_THEME.textPrimary,
                       border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      borderRadius: CHART_EDITOR_THEME.radiusMd,
                       cursor: 'pointer',
-                      fontWeight: 500,
-                      transition: 'all 0.18s ease-out',
+                      fontWeight: 'bold',
+                      transition: 'all 0.2s',
+                      boxShadow: `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`,
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background =
-                        CHART_EDITOR_THEME.buttonGhostBgHover;
+                      e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = `0 6px 16px ${CHART_EDITOR_THEME.accentSoft}`;
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background =
-                        CHART_EDITOR_THEME.buttonGhostBg;
+                      e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradient;
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`;
                     }}
                     onClick={() => {
                       setIsAdminOpen(true);
                     }}
                   >
-                    🔐 관리자 패널
+                    🔐 관리자
                   </button>
                 )}
               </div>
 
               {/* 로그인/설정 영역 */}
-              <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: 24 }}>
                 {isSupabaseConfigured && !authUser ? (
                   <button
                     onClick={handleLoginWithGoogle}
                     style={{
-                      padding: '9px 22px',
-                      fontSize: '13px',
-                      background: CHART_EDITOR_THEME.buttonGhostBg,
+                      padding: '10px 20px',
+                      fontSize: '14px',
+                      background: 'transparent',
                       color: CHART_EDITOR_THEME.textPrimary,
                       border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                      borderRadius: 999,
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
                       cursor: 'pointer',
+                      marginRight: '8px',
                     }}
                   >
-                    🔑 Google 계정으로 로그인
+                    🔑 Google 로그인
                   </button>
                 ) : authUser ? (
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 10,
-                      fontSize: '13px',
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        color: CHART_EDITOR_THEME.textSecondary,
-                      }}
-                    >
-                      <span>
-                        {roleChessIcon} {userDisplayName}
-                      </span>
-                      {(isAdmin || isModerator) && (
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            padding: '2px 8px',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            letterSpacing: '0.25px',
-                            color: isAdmin ? '#fecaca' : '#c7d2fe',
-                            background: isAdmin
-                              ? 'rgba(239, 68, 68, 0.16)'
-                              : 'rgba(56, 189, 248, 0.12)',
-                            border: isAdmin
-                              ? '1px solid rgba(239, 68, 68, 0.55)'
-                              : '1px solid rgba(56, 189, 248, 0.55)',
-                            borderRadius: CHART_EDITOR_THEME.radiusSm,
-                            textTransform: 'uppercase',
-                          }}
-                        >
-                          {isAdmin ? 'ADMIN' : 'MODERATOR'}
-                        </span>
-                      )}
-                    </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+                    <span style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '14px' }}>
+                      👤 {userDisplayName}
+                    </span>
                     <button
                       onClick={() => setIsSettingsOpen(true)}
                       style={{
-                        padding: '6px 14px',
-                        fontSize: '13px',
-                        background: CHART_EDITOR_THEME.buttonGhostBg,
+                        padding: '8px 16px',
+                        fontSize: '14px',
+                        background: 'transparent',
                         color: CHART_EDITOR_THEME.textPrimary,
                         border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
                         borderRadius: CHART_EDITOR_THEME.radiusSm,
                         cursor: 'pointer',
                       }}
                     >
-                      ⚙ 설정
+                      ⚙️ 설정
                     </button>
                     <button
                       onClick={handleLogout}
                       style={{
-                        padding: '6px 14px',
-                        fontSize: '13px',
+                        padding: '8px 16px',
+                        fontSize: '14px',
                         background: 'transparent',
                         color: CHART_EDITOR_THEME.textSecondary,
                         border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
