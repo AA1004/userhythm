@@ -7,7 +7,7 @@ nodeVersion = "20"
 
 [deploy]
 startCommand = "cd backend && npx next start -H 0.0.0.0 -p ${PORT:-3000}"
-healthcheckPath = "/api/health"
+healthcheckPath = "/"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
