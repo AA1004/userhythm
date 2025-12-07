@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getSessionFromRequest } from '../../../lib/auth';
+import { Chart } from '@prisma/client';
 
 const DEFAULT_LIMIT = 12;
 const MAX_LIMIT = 50;
@@ -8,6 +9,22 @@ const MAX_DATA_JSON_LENGTH = 200_000; // ~200KB
 const MAX_TITLE_LENGTH = 200;
 const MAX_DESCRIPTION_LENGTH = 1000;
 const MAX_DIFFICULTY_LENGTH = 50;
+
+const serializeChart = (chart: Chart) => ({
+  id: chart.id,
+  title: chart.title,
+  author: chart.author,
+  bpm: chart.bpm,
+  difficulty: chart.difficulty,
+  preview_image: chart.previewImage ?? null,
+  youtube_url: chart.youtubeUrl ?? null,
+  description: chart.description ?? null,
+  data_json: chart.dataJson,
+  play_count: chart.playCount,
+  status: chart.status,
+  created_at: (chart as any).createdAt?.toISOString?.() ?? null,
+  updated_at: (chart as any).updatedAt?.toISOString?.() ?? null,
+});
 
 export async function GET(req: NextRequest) {
   try {
@@ -45,7 +62,7 @@ export async function GET(req: NextRequest) {
       prisma.chart.count({ where }),
     ]);
 
-    return NextResponse.json({ charts: items, total });
+    return NextResponse.json({ charts: items.map(serializeChart), total });
   } catch (error) {
     console.error('charts list error', error);
     return NextResponse.json({ error: 'failed to load charts' }, { status: 500 });
@@ -138,7 +155,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ chart }, { status: 201 });
+    return NextResponse.json({ chart: serializeChart(chart) }, { status: 201 });
   } catch (error) {
     console.error('charts create error', error);
     return NextResponse.json({ error: 'failed to create chart' }, { status: 500 });
