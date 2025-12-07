@@ -2,12 +2,8 @@
 builder = "nixpacks"
 buildCommand = "cd backend && npm ci && npx prisma generate && npm run build"
 
-[variables]
-# Nixpacks가 메이저만 고정할 때를 대비해 명시적으로 마이너 버전 지정
-NIXPACKS_NODE_VERSION = "22.12.0"
-
 [build.nixpacks]
-nodeVersion = "22.12.0"
+nodeVersion = "20"
 
 [deploy]
 # 디버깅: 환경변수 출력 후 서버 시작 (호스트/포트 바인딩 포함)
