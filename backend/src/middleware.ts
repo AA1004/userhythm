@@ -1,8 +1,13 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-// 개발 환경 CORS 허용: 프런트(5173/5174)와 백엔드(3000)
-const ALLOWED_ORIGINS = ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'];
+// 개발/배포 CORS 허용: 로컬(5173/5174/3000) + 프로덕션 도메인
+const ALLOWED_ORIGINS = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000',
+  'https://userhythm.kr',
+];
 
 export function middleware(req: NextRequest) {
   // API 경로만 처리
