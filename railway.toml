@@ -8,3 +8,6 @@ nodeVersion = "20"
 [deploy]
 startCommand = "cd backend && npx next start -H 0.0.0.0 -p ${PORT:-3000}"
 numReplicas = 1
+[deploy.env]
+NODE_OPTIONS = "--trace-uncaught --trace-warnings"
+NEXT_RUNTIME_LOGGING = "verbose"
