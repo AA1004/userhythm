@@ -744,7 +744,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
               paddingBottom: '20px',
             }}
           >
-            {hasMore ? (
+            {hasMore && (
               <button
                 onClick={handleLoadMore}
                 disabled={isLoadingMore}
@@ -762,10 +762,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
               >
                 {isLoadingMore ? '불러오는 중...' : '더 보기'}
               </button>
-            ) : (
-              <span style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '13px' }}>
-                모두 불러왔습니다
-              </span>
             )}
           </div>
         </div>
@@ -912,9 +908,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
 
             <div style={{ marginTop: '20px' }}>
               <h3 style={{ color: CHART_EDITOR_THEME.textPrimary, marginBottom: '10px' }}>정확도 리더보드</h3>
-              {leaderboardError && (
-                <div style={{ color: '#fca5a5', fontSize: '12px', marginBottom: '8px' }}>{leaderboardError}</div>
-              )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
                 <div>
                   <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>

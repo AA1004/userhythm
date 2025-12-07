@@ -493,7 +493,15 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
         }}
       >
         <button
-          onClick={onToggleLongNoteMode}
+          onClick={(e) => {
+            onToggleLongNoteMode();
+            // 버튼에 포커스가 남아 키 입력이 막히는 것을 방지
+            e.currentTarget.blur();
+          }}
+          onMouseDown={(e) => {
+            // 클릭 시 포커스가 버튼에 머무르지 않도록 기본 포커스 행동 차단
+            e.preventDefault();
+          }}
           style={{
             width: '100%',
             padding: '10px 12px',

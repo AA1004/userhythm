@@ -120,7 +120,11 @@ export const ChartEditorHeader: React.FC<ChartEditorHeaderProps> = ({
           }}
         >
           <button
-            onClick={onRewind}
+            onClick={(e) => {
+              onRewind();
+              e.currentTarget.blur();
+            }}
+            onMouseDown={(e) => e.preventDefault()}
             style={{
               padding: '6px 10px',
               backgroundColor: 'rgba(15,23,42,0.9)',
@@ -134,7 +138,11 @@ export const ChartEditorHeader: React.FC<ChartEditorHeaderProps> = ({
           ⏮
         </button>
         <button
-          onClick={onTogglePlayback}
+          onClick={(e) => {
+            onTogglePlayback();
+            e.currentTarget.blur();
+          }}
+          onMouseDown={(e) => e.preventDefault()}
           style={{
               padding: '8px 14px',
               background:
@@ -150,7 +158,11 @@ export const ChartEditorHeader: React.FC<ChartEditorHeaderProps> = ({
           {isPlaying ? '⏸' : '▶'}
         </button>
         <button
-          onClick={onStop}
+          onClick={(e) => {
+            onStop();
+            e.currentTarget.blur();
+          }}
+          onMouseDown={(e) => e.preventDefault()}
           style={{
               padding: '6px 10px',
               backgroundColor: 'rgba(15,23,42,0.9)',

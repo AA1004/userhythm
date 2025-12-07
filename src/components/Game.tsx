@@ -1522,6 +1522,7 @@ const testAudioSettingsRef = useRef<{
             maxWidth: '500px',
             maxHeight: '800px',
             margin: '0 auto',
+            marginTop: 0,
           }}
         >
           <div
