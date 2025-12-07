@@ -6,8 +6,7 @@ buildCommand = "cd backend && npm ci && npx prisma generate && npm run build"
 nodeVersion = "20"
 
 [deploy]
-# 디버깅: 환경변수 출력 후 서버 시작 (호스트/포트 바인딩 포함)
-startCommand = "echo '=== ENV DEBUG ===' && echo DATABASE_URL=$DATABASE_URL && echo PORT=$PORT && echo NODE_ENV=$NODE_ENV && cd backend && npm run start -- --hostname 0.0.0.0 --port ${PORT:-3000}"
+startCommand = "cd backend && npx next start -H 0.0.0.0 -p ${PORT:-3000}"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
