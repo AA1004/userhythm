@@ -1925,7 +1925,9 @@ const testAudioSettingsRef = useRef<{
                 ) : authUser ? (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: CHART_EDITOR_THEME.textSecondary }}>
-                      <span>👤 {userDisplayName}</span>
+                      <span>
+                        {roleChessIcon} {userDisplayName}
+                      </span>
                       {(isAdmin || isModerator) && (
                         <span
                           style={{
