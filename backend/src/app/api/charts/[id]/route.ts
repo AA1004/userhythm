@@ -30,9 +30,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     if (!chart) return NextResponse.json({ error: 'not found' }, { status: 404 });
     return NextResponse.json({
       chart: serializeChart(chart, {
-        authorRole: chart.user?.profile?.role || chart.user?.role || null,
-        authorNickname: chart.user?.profile?.nickname || (chart.user?.profile as any)?.display_name || null,
-        authorEmail: chart.user?.email || null,
+        authorRole: chart.user?.profile?.role || chart.user?.role || undefined,
+        authorNickname: chart.user?.profile?.nickname || (chart.user?.profile as any)?.display_name || undefined,
+        authorEmail: chart.user?.email || undefined,
       }),
     });
   } catch (error) {

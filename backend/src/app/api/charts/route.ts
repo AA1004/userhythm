@@ -68,9 +68,9 @@ export async function GET(req: NextRequest) {
 
     const serialized = items.map((c) =>
       serializeChart(c, {
-        authorRole: c.user?.profile?.role || c.user?.role || null,
-        authorNickname: c.user?.profile?.nickname || (c.user?.profile as any)?.display_name || null,
-        authorEmail: c.user?.email || null,
+        authorRole: c.user?.profile?.role || c.user?.role || undefined,
+        authorNickname: c.user?.profile?.nickname || (c.user?.profile as any)?.display_name || undefined,
+        authorEmail: c.user?.email || undefined,
       })
     );
 
@@ -170,9 +170,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         chart: serializeChart(chart, {
-          authorRole: dbUser.profile?.role || dbUser.role || null,
-          authorNickname: dbUser.profile?.nickname || (dbUser.profile as any)?.display_name || null,
-          authorEmail: dbUser.email || null,
+          authorRole: dbUser.profile?.role || dbUser.role || undefined,
+          authorNickname: dbUser.profile?.nickname || (dbUser.profile as any)?.display_name || undefined,
+          authorEmail: dbUser.email || undefined,
         }),
       },
       { status: 201 }

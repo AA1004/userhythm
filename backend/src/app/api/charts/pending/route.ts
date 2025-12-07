@@ -39,9 +39,9 @@ export async function GET(request: Request) {
     return NextResponse.json({
       charts: charts.map((c) =>
         serializeChart(c, {
-          authorRole: c.user?.profile?.role || c.user?.role || null,
-          authorNickname: c.user?.profile?.nickname || (c.user?.profile as any)?.display_name || null,
-          authorEmail: c.user?.email || null,
+          authorRole: c.user?.profile?.role || c.user?.role || undefined,
+          authorNickname: c.user?.profile?.nickname || (c.user?.profile as any)?.display_name || undefined,
+          authorEmail: c.user?.email || undefined,
         })
       ),
     });
