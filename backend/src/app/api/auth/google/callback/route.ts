@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../../lib/prisma';
-import { signSession, setSessionCookie } from '../../../../../lib/auth';
+import { signSession } from '../../../../../lib/auth';
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 const REDIRECT_URI =
   process.env.GOOGLE_REDIRECT_URI || 'https://api.userhythm.kr/api/auth/google/callback';
+
+const SESSION_COOKIE = 'ur_session';
+const SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 7; // 7 days
+const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN;
+const isProd = process.env.NODE_ENV === 'production';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -74,13 +79,22 @@ export async function GET(req: NextRequest) {
       include: { profile: true },
     });
 
-    // 4) 세션 쿠키 발급
+    // 4) 세션 쿠키 발급 + redirect (쿠키를 redirect 응답에 직접 붙여야 함)
     const token = signSession({ userId: user.id, role: user.role });
-    setSessionCookie(token);
-
-    // 5) redirect back
     const redirectTarget = state || '/';
-    return NextResponse.redirect(redirectTarget, { status: 302 });
+    const response = NextResponse.redirect(redirectTarget, { status: 302 });
+    
+    // redirect 응답에 쿠키를 직접 설정
+    response.cookies.set(SESSION_COOKIE, token, {
+      httpOnly: true,
+      sameSite: isProd ? 'none' : 'lax',
+      secure: isProd,
+      path: '/',
+      maxAge: SESSION_MAX_AGE_SEC,
+      domain: COOKIE_DOMAIN || undefined,
+    });
+    
+    return response;
   } catch (error) {
     console.error('google callback error', error);
     return NextResponse.json({ error: 'OAuth failed' }, { status: 500 });
