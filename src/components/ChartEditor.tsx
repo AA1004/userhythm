@@ -113,7 +113,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const audioCtxRef = useRef<AudioContext | null>(null);
   const hitGainRef = useRef<GainNode | null>(null);
   const lastHitCheckTimeRef = useRef<number>(0);
-  const hitCursorRef = useRef<number>(0);
+  const playedNoteIdsRef = useRef<Set<number>>(new Set());
 
   // --- 공유 모달 상태 ---
   const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
@@ -180,21 +180,24 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     if (!AudioCtx) return null;
 
     if (!audioCtxRef.current) {
-      audioCtxRef.current = new AudioCtx();
-      hitGainRef.current = audioCtxRef.current.createGain();
-      hitGainRef.current.gain.value = Math.max(0, Math.min(1, hitSoundVolume / 100));
-      hitGainRef.current.connect(audioCtxRef.current.destination);
+      const ctx = new AudioCtx();
+      const gain = ctx.createGain();
+      gain.gain.value = Math.max(0, Math.min(1, hitSoundVolume / 100));
+      gain.connect(ctx.destination);
+      audioCtxRef.current = ctx;
+      hitGainRef.current = gain;
     }
 
-    if (audioCtxRef.current.state === 'suspended') {
+    const ctx = audioCtxRef.current;
+    if (ctx && ctx.state === 'suspended') {
       try {
-        await audioCtxRef.current.resume();
+        await ctx.resume();
       } catch {
         // ignore resume errors
       }
     }
 
-    return audioCtxRef.current;
+    return audioCtxRef.current ?? null;
   }, [hitSoundVolume]);
 
   // 키음 볼륨 반영
@@ -352,46 +355,38 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     [beatDuration, gridDivision, timeSignatureOffset, clampTime]
   );
 
-  // --- 재생선이 지나간 노트에 키음 재생 ---
-  useEffect(() => {
-    if (isPlaying) return;
-    const nextCursor = sortedNotesByTime.findIndex((n) => n.time >= currentTime);
-    hitCursorRef.current = nextCursor === -1 ? sortedNotesByTime.length : nextCursor;
-    lastHitCheckTimeRef.current = currentTime;
-  }, [sortedNotesByTime, currentTime, isPlaying]);
-
+  // --- 재생선이 지나간 노트에 키음 재생 (ID 기반 중복 방지) ---
+  // 재생 정지(처음으로 돌아갈 때만) 시 재생된 노트 ID 초기화
   useEffect(() => {
     if (!isPlaying) {
-      const nextCursor = sortedNotesByTime.findIndex((n) => n.time >= currentTime);
-      hitCursorRef.current = nextCursor === -1 ? sortedNotesByTime.length : nextCursor;
+      if (currentTime <= 0) {
+        playedNoteIdsRef.current.clear();
+      }
       lastHitCheckTimeRef.current = currentTime;
     }
-  }, [isPlaying, currentTime, sortedNotesByTime]);
+  }, [isPlaying, currentTime]);
 
+  // 뒤로 이동 시 재생된 노트 ID 초기화
+  useEffect(() => {
+    if (!isPlaying) return;
+    const lastTime = lastHitCheckTimeRef.current;
+    if (currentTime < lastTime) {
+      playedNoteIdsRef.current.clear();
+    }
+    lastHitCheckTimeRef.current = currentTime;
+  }, [isPlaying, currentTime]);
+
+  // 노트가 currentTime을 지나면 재생 (ID로 중복 방지)
   useEffect(() => {
     if (!isPlaying) return;
 
-    const lastTime = lastHitCheckTimeRef.current;
-    // 재생선이 뒤로 이동하면 커서 리셋
-    if (currentTime < lastTime) {
-      const resetCursor = sortedNotesByTime.findIndex((n) => n.time >= currentTime);
-      hitCursorRef.current = resetCursor === -1 ? sortedNotesByTime.length : resetCursor;
-      lastHitCheckTimeRef.current = currentTime;
-      return;
-    }
-
-    let cursor = hitCursorRef.current;
-    while (cursor < sortedNotesByTime.length) {
-      const noteTime = sortedNotesByTime[cursor].time;
-      if (noteTime > currentTime) break;
-      if (noteTime >= lastTime) {
+    for (const note of sortedNotesByTime) {
+      if (note.time > currentTime) break;
+      if (!playedNoteIdsRef.current.has(note.id)) {
+        playedNoteIdsRef.current.add(note.id);
         playHitSound();
       }
-      cursor += 1;
     }
-
-    hitCursorRef.current = cursor;
-    lastHitCheckTimeRef.current = currentTime;
   }, [currentTime, isPlaying, sortedNotesByTime, playHitSound]);
 
   // --- 자동 저장 ---
