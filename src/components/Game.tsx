@@ -1160,12 +1160,14 @@ const testAudioSettingsRef = useRef<{
       if (!videoId) return;
 
       const playerId = `test-youtube-player-${videoId}`;
-      if (playerElement.id !== playerId) {
-        playerElement.id = playerId;
-      }
+      // React 관리 노드가 교체되지 않도록 내부 마운트 노드에만 YouTube를 주입
+      const mountNode = document.createElement('div');
+      mountNode.id = `${playerId}-mount`;
+      playerElement.innerHTML = '';
+      playerElement.appendChild(mountNode);
 
       try {
-        playerInstance = new window.YT.Player(playerElement.id, {
+        playerInstance = new window.YT.Player(mountNode as any, {
           videoId: videoId,
           playerVars: {
             autoplay: 0,
@@ -1214,6 +1216,9 @@ const testAudioSettingsRef = useRef<{
       isCancelled = true;
       if (playerInstance) {
         cleanup(playerInstance);
+      }
+      if (testYoutubePlayerRef.current) {
+        testYoutubePlayerRef.current.innerHTML = '';
       }
     };
   }, [isTestMode, testYoutubeVideoId]);

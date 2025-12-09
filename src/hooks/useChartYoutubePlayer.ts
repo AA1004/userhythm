@@ -140,12 +140,14 @@ export function useChartYoutubePlayer({
       if (!videoId) return;
 
       const playerId = `youtube-player-${videoId}`;
-      if (playerElement.id !== playerId) {
-        playerElement.id = playerId;
-      }
+      // React가 관리하는 요소가 YouTube API에 의해 교체되지 않도록 내부 마운트 노드를 만들어 전달한다.
+      const mountNode = document.createElement('div');
+      mountNode.id = `${playerId}-mount`;
+      playerElement.innerHTML = '';
+      playerElement.appendChild(mountNode);
 
       try {
-        playerInstance = new window.YT.Player(playerElement.id, {
+        playerInstance = new window.YT.Player(mountNode as any, {
           videoId: videoId,
           playerVars: {
             autoplay: 0,
@@ -211,6 +213,10 @@ export function useChartYoutubePlayer({
       isCancelled = true;
       if (playerInstance) {
         cleanup(playerInstance);
+      }
+      // 마운트 노드 정리
+      if (youtubePlayerRef.current) {
+        youtubePlayerRef.current.innerHTML = '';
       }
     };
   }, [youtubeVideoId, setIsPlaying, setCurrentTime, volume]);

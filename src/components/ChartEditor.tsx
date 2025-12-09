@@ -48,6 +48,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [zoom, setZoom] = useState<number>(1);
   const [volume, setVolume] = useState<number>(100);
+  const [hitSoundVolume, setHitSoundVolume] = useState<number>(60);
   const [subtitleSessionId, setSubtitleSessionId] = useState(() => {
     if (typeof window === 'undefined') {
       return `local-${Date.now()}`;
@@ -109,6 +110,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [pendingLongNote, setPendingLongNote] = useState<{ lane: Lane; startTime: number } | null>(null);
   const playheadRafIdRef = useRef<number | null>(null);
   const lastTickTimestampRef = useRef<number | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const hitGainRef = useRef<GainNode | null>(null);
+  const lastHitCheckTimeRef = useRef<number>(0);
+  const hitCursorRef = useRef<number>(0);
 
   // --- 공유 모달 상태 ---
   const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
@@ -167,6 +172,69 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
     return null;
   }, [youtubeVideoId, youtubeUrl]);
+
+  // --- 키음 재생용 오디오 컨텍스트 ---
+  const ensureAudioContext = useCallback(async () => {
+    if (typeof window === 'undefined') return null;
+    const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return null;
+
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new AudioCtx();
+      hitGainRef.current = audioCtxRef.current.createGain();
+      hitGainRef.current.gain.value = Math.max(0, Math.min(1, hitSoundVolume / 100));
+      hitGainRef.current.connect(audioCtxRef.current.destination);
+    }
+
+    if (audioCtxRef.current.state === 'suspended') {
+      try {
+        await audioCtxRef.current.resume();
+      } catch {
+        // ignore resume errors
+      }
+    }
+
+    return audioCtxRef.current;
+  }, [hitSoundVolume]);
+
+  // 키음 볼륨 반영
+  useEffect(() => {
+    const ctx = audioCtxRef.current;
+    const gain = hitGainRef.current;
+    if (!ctx || !gain) return;
+    const value = Math.max(0, Math.min(1, hitSoundVolume / 100));
+    gain.gain.setValueAtTime(value, ctx.currentTime);
+  }, [hitSoundVolume]);
+
+  const playHitSound = useCallback(async () => {
+    const ctx = await ensureAudioContext();
+    const masterGain = hitGainRef.current;
+    if (!ctx || !masterGain) return;
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const envGain = ctx.createGain();
+
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(880, now);
+
+    const baseLevel = Math.max(0.0001, masterGain.gain.value);
+    envGain.gain.setValueAtTime(baseLevel, now);
+    envGain.gain.exponentialRampToValueAtTime(Math.max(0.0001, baseLevel * 0.25), now + 0.08);
+
+    osc.connect(envGain).connect(masterGain);
+    osc.start(now);
+    osc.stop(now + 0.12);
+
+    osc.onended = () => {
+      try {
+        osc.disconnect();
+        envGain.disconnect();
+      } catch {
+        // ignore
+      }
+    };
+  }, [ensureAudioContext]);
 
   // --- 에디터 전용 타이머(재생선 시간 소스) ---
   useEffect(() => {
@@ -244,6 +312,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   });
 
   const beatsPerMeasure = timeSignatures[0]?.beatsPerMeasure || 4;
+  const sortedNotesByTime = useMemo(() => {
+    return [...notes].sort((a, b) => a.time - b.time);
+  }, [notes]);
 
   const songInfo = useMemo(() => {
     const durationSeconds = timelineDurationMs / 1000;
@@ -281,6 +352,48 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     [beatDuration, gridDivision, timeSignatureOffset, clampTime]
   );
 
+  // --- 재생선이 지나간 노트에 키음 재생 ---
+  useEffect(() => {
+    if (isPlaying) return;
+    const nextCursor = sortedNotesByTime.findIndex((n) => n.time >= currentTime);
+    hitCursorRef.current = nextCursor === -1 ? sortedNotesByTime.length : nextCursor;
+    lastHitCheckTimeRef.current = currentTime;
+  }, [sortedNotesByTime, currentTime, isPlaying]);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      const nextCursor = sortedNotesByTime.findIndex((n) => n.time >= currentTime);
+      hitCursorRef.current = nextCursor === -1 ? sortedNotesByTime.length : nextCursor;
+      lastHitCheckTimeRef.current = currentTime;
+    }
+  }, [isPlaying, currentTime, sortedNotesByTime]);
+
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    const lastTime = lastHitCheckTimeRef.current;
+    // 재생선이 뒤로 이동하면 커서 리셋
+    if (currentTime < lastTime) {
+      const resetCursor = sortedNotesByTime.findIndex((n) => n.time >= currentTime);
+      hitCursorRef.current = resetCursor === -1 ? sortedNotesByTime.length : resetCursor;
+      lastHitCheckTimeRef.current = currentTime;
+      return;
+    }
+
+    let cursor = hitCursorRef.current;
+    while (cursor < sortedNotesByTime.length) {
+      const noteTime = sortedNotesByTime[cursor].time;
+      if (noteTime > currentTime) break;
+      if (noteTime >= lastTime) {
+        playHitSound();
+      }
+      cursor += 1;
+    }
+
+    hitCursorRef.current = cursor;
+    lastHitCheckTimeRef.current = currentTime;
+  }, [currentTime, isPlaying, sortedNotesByTime, playHitSound]);
+
   // --- 자동 저장 ---
   const autoSaveData = useMemo(
     () => ({
@@ -300,6 +413,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       testStartInput,
       playbackSpeed,
       volume,
+      hitSoundVolume,
       currentTime,
       isAutoScrollEnabled,
       zoom,
@@ -320,6 +434,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       testStartInput,
       playbackSpeed,
       volume,
+      hitSoundVolume,
       currentTime,
       isAutoScrollEnabled,
       zoom,
@@ -368,6 +483,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     if (data.testStartInput !== undefined) setTestStartInput(String(data.testStartInput));
     if (typeof data.playbackSpeed === 'number') setPlaybackSpeed(data.playbackSpeed);
     if (typeof data.volume === 'number') setVolume(data.volume);
+    if (typeof data.hitSoundVolume === 'number') setHitSoundVolume(data.hitSoundVolume);
     if (typeof data.zoom === 'number') setZoom(data.zoom);
     if (typeof data.isAutoScrollEnabled === 'boolean') {
       setIsAutoScrollEnabled(data.isAutoScrollEnabled);
@@ -397,6 +513,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setPlaybackSpeed(1);
     setZoom(1);
     setVolume(100);
+    setHitSoundVolume(60);
     setBpm(120);
     setBpmChanges([]);
     setTimeSignatures([{ id: 0, beatIndex: 0, beatsPerMeasure: 4 }]);
@@ -942,7 +1059,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           setIsPlaying(false);
           seekTo(0, { shouldPause: true });
         }}
-        onTogglePlayback={() => {
+        onTogglePlayback={async () => {
+          if (!isPlaying) {
+            try {
+              await ensureAudioContext();
+            } catch {
+              // ignore: fallback to play without pre-warm
+            }
+          }
           setIsPlaying(prev => !prev);
         }}
         onStop={() => {
@@ -998,6 +1122,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           onPlaybackSpeedChange={setPlaybackSpeed}
           volume={volume}
           onVolumeChange={setVolume}
+          hitSoundVolume={hitSoundVolume}
+          onHitSoundVolumeChange={setHitSoundVolume}
           beatsPerMeasure={beatsPerMeasure}
           onTimeSignatureChange={(beats) => setTimeSignatures([{ id: 0, beatIndex: 0, beatsPerMeasure: beats }])}
           gridDivision={gridDivision}

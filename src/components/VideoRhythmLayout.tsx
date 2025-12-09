@@ -62,12 +62,14 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       if (!container) return;
 
       const playerId = `bga-player-${videoId}`;
-      if (container.id !== playerId) {
-        container.id = playerId;
-      }
+      // React 노드가 교체되지 않도록 컨테이너 내부에 마운트 노드를 생성해 전달
+      const mountNode = document.createElement('div');
+      mountNode.id = `${playerId}-mount`;
+      container.innerHTML = '';
+      container.appendChild(mountNode);
 
       try {
-        playerInstance = new window.YT.Player(playerId, {
+        playerInstance = new window.YT.Player(mountNode as any, {
           videoId,
           playerVars: {
             autoplay: 0,
@@ -108,6 +110,9 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
         } catch {
           // ignore
         }
+      }
+      if (backgroundPlayerContainerRef.current) {
+        backgroundPlayerContainerRef.current.innerHTML = '';
       }
       setBackgroundPlayer(null);
     };

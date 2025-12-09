@@ -11,6 +11,8 @@ interface ChartEditorSidebarProps {
   onPlaybackSpeedChange: (speed: number) => void;
   volume: number;
   onVolumeChange: (volume: number) => void;
+  hitSoundVolume: number;
+  onHitSoundVolumeChange: (volume: number) => void;
   beatsPerMeasure: number;
   onTimeSignatureChange: (beats: number) => void;
   gridDivision: number;
@@ -47,6 +49,8 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
   onPlaybackSpeedChange,
   volume,
   onVolumeChange,
+  hitSoundVolume,
+  onHitSoundVolumeChange,
   beatsPerMeasure,
   onTimeSignatureChange,
   gridDivision,
@@ -247,6 +251,37 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
           step="1"
           value={volume}
           onChange={(e) => onVolumeChange(parseInt(e.target.value))}
+          style={{ width: '100%' }}
+        />
+      </div>
+
+      {/* 키음 볼륨 */}
+      <div
+        style={{
+          marginBottom: '16px',
+          padding: '10px 12px',
+          borderRadius: CHART_EDITOR_THEME.radiusMd,
+          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+        }}
+      >
+        <label
+          style={{
+            display: 'block',
+            marginBottom: '6px',
+            fontSize: '13px',
+            fontWeight: 500,
+          }}
+        >
+          키음 볼륨: {hitSoundVolume}%
+        </label>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={hitSoundVolume}
+          onChange={(e) => onHitSoundVolumeChange(parseInt(e.target.value))}
           style={{ width: '100%' }}
         />
       </div>
