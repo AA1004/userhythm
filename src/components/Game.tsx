@@ -63,7 +63,8 @@ const JUDGE_LINE_Y = 640;
 
 // 자막 렌더링 영역 (16:9 비율, 4레인 영역 기준)
 
-const GAME_DURATION = 300000; // 5분 (테스트 모드용 기본 최대 길이, 상한값 역할)
+const DEFAULT_GAME_DURATION = 30000; // 30초 (기본 랜덤 게임 / 리셋 시 사용)
+const MAX_CHART_DURATION = 300000; // 5분 (채보 기반 게임의 상한값)
 const START_DELAY_MS = 4000;
 const BASE_FALL_DURATION = 2000; // 기본 노트 낙하 시간(ms)
 
@@ -168,9 +169,9 @@ const testAudioSettingsRef = useRef<{
 } | null>(null);
   const audioHasStartedRef = useRef(false);
   const lastResyncTimeRef = useRef(0); // 마지막 리싱크 시간 (쿨다운용)
-  const [dynamicGameDuration, setDynamicGameDuration] = useState<number>(GAME_DURATION);
+  const [dynamicGameDuration, setDynamicGameDuration] = useState<number>(DEFAULT_GAME_DURATION);
   const [gameState, setGameState] = useState<GameState>(() => ({
-    notes: generateNotes(GAME_DURATION),
+    notes: generateNotes(DEFAULT_GAME_DURATION),
     score: {
       perfect: 0,
       great: 0,
@@ -917,13 +918,13 @@ const testAudioSettingsRef = useRef<{
     setPressedKeys(new Set());
     setHoldingNotes(new Map()); // 롱노트 상태 초기화
     setSubtitles([]);
-    setDynamicGameDuration(GAME_DURATION);
+    setDynamicGameDuration(DEFAULT_GAME_DURATION);
     setGameState((prev) => ({
       ...prev,
       gameStarted: false,
       gameEnded: false,
       currentTime: 0,
-      notes: generateNotes(GAME_DURATION),
+      notes: generateNotes(DEFAULT_GAME_DURATION),
       score: buildInitialScore(),
     }));
     setBaseBpm(120);
@@ -948,7 +949,7 @@ const testAudioSettingsRef = useRef<{
         : 0;
       const TAIL_MARGIN_MS = 5000; // 마지막 노트 이후 여유 시간
       const MIN_DURATION_MS = 60000; // 최소 1분
-      const MAX_DURATION_MS = GAME_DURATION; // 상한은 기본 게임 시간(5분)
+      const MAX_DURATION_MS = MAX_CHART_DURATION; // 상한은 채보 최대 길이(5분)
       const computedDuration = lastNoteTime + TAIL_MARGIN_MS;
       const clampedDuration = Math.max(
         MIN_DURATION_MS,
@@ -1428,7 +1429,7 @@ const testAudioSettingsRef = useRef<{
         : 0;
       const TAIL_MARGIN_MS = 5000; // 마지막 노트 이후 여유 시간
       const MIN_DURATION_MS = 60000; // 최소 1분
-      const MAX_DURATION_MS = GAME_DURATION; // 상한은 기본 게임 시간(5분)
+      const MAX_DURATION_MS = MAX_CHART_DURATION; // 상한은 채보 최대 길이(5분)
       const computedDuration = lastNoteTime + TAIL_MARGIN_MS;
       const clampedDuration = Math.max(
         MIN_DURATION_MS,
