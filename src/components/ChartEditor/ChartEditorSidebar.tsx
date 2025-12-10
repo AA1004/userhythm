@@ -821,23 +821,14 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
           backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
           borderRadius: CHART_EDITOR_THEME.radiusMd,
           border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <span style={{ fontSize: 13, fontWeight: 600 }}>BGA 가림 구간</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>BGA 가림</span>
           <button
             onClick={onAddBgaInterval}
             style={{
-              padding: '4px 8px',
+              padding: '3px 7px',
               fontSize: '11px',
               borderRadius: CHART_EDITOR_THEME.radiusSm,
               border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
@@ -846,164 +837,207 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
               cursor: 'pointer',
             }}
           >
-            + 현재 위치부터 추가
+            +
           </button>
         </div>
-        <div style={{ fontSize: 11, color: CHART_EDITOR_THEME.textSecondary }}>
-          구간별로 화면을 가리거나 보이게 설정하고, 페이드 인/아웃 시간을 조정할 수 있습니다. 페이드 시간이 0이면 즉시 전환됩니다.
-        </div>
         {bgaVisibilityIntervals.length === 0 ? (
-          <div style={{ fontSize: 12, color: CHART_EDITOR_THEME.textMuted }}>아직 구간이 없습니다.</div>
+          <div style={{ fontSize: 11, color: CHART_EDITOR_THEME.textMuted }}>구간 없음</div>
         ) : (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
-              maxHeight: 200,
-              overflowY: 'auto',
-            }}
-          >
-            {bgaVisibilityIntervals.map((it) => (
-              <div
-                key={it.id}
-                style={{
-                  padding: '8px',
-                  borderRadius: CHART_EDITOR_THEME.radiusSm,
-                  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                  backgroundColor: 'rgba(15,23,42,0.4)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 6,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: 11, color: CHART_EDITOR_THEME.textSecondary }}>시작(ms)</span>
-                  <input
-                    type="number"
-                    value={Math.round(it.startTimeMs)}
-                    onChange={(e) =>
-                      onUpdateBgaInterval(it.id, { startTimeMs: Number(e.target.value) || 0 })
-                    }
-                    style={{
-                      flex: 1,
-                      padding: '4px 6px',
-                      fontSize: 11,
-                      backgroundColor: '#020617',
-                      color: CHART_EDITOR_THEME.textPrimary,
-                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                      borderRadius: CHART_EDITOR_THEME.radiusSm,
-                    }}
-                  />
-                  <span style={{ fontSize: 11, color: CHART_EDITOR_THEME.textSecondary }}>끝(ms)</span>
-                  <input
-                    type="number"
-                    value={Math.round(it.endTimeMs)}
-                    onChange={(e) =>
-                      onUpdateBgaInterval(it.id, { endTimeMs: Number(e.target.value) || 0 })
-                    }
-                    style={{
-                      flex: 1,
-                      padding: '4px 6px',
-                      fontSize: 11,
-                      backgroundColor: '#020617',
-                      color: CHART_EDITOR_THEME.textPrimary,
-                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                      borderRadius: CHART_EDITOR_THEME.radiusSm,
-                    }}
-                  />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 200, overflowY: 'auto' }}>
+            {bgaVisibilityIntervals.map((it) => {
+              const startMeasure = timeToMeasure(it.startTimeMs, bpm, beatsPerMeasure, bpmChanges);
+              const endMeasure = timeToMeasure(it.endTimeMs, bpm, beatsPerMeasure, bpmChanges);
+              const startMeasureNum = Math.floor(startMeasure);
+              const startBeat = Math.floor((startMeasure - startMeasureNum) * beatsPerMeasure) + 1;
+              const endMeasureNum = Math.floor(endMeasure);
+              const endBeat = Math.floor((endMeasure - endMeasureNum) * beatsPerMeasure) + 1;
+
+              return (
+                <div
+                  key={it.id}
+                  style={{
+                    padding: '6px',
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    border: `1px solid ${it.mode === 'hidden' ? 'rgba(239,68,68,0.4)' : 'rgba(34,197,94,0.4)'}`,
+                    backgroundColor: 'rgba(15,23,42,0.4)',
+                  }}
+                >
+                  {/* 첫 줄: 구간 범위 (마디.박) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                    <input
+                      type="text"
+                      placeholder="마디"
+                      value={startMeasureNum + 1}
+                      onChange={(e) => {
+                        const m = Math.max(0, (parseInt(e.target.value) || 1) - 1);
+                        const newMs = measureToTime(m + (startBeat - 1) / beatsPerMeasure, bpm, beatsPerMeasure, bpmChanges);
+                        onUpdateBgaInterval(it.id, { startTimeMs: newMs });
+                      }}
+                      style={{
+                        width: 32,
+                        padding: '3px 4px',
+                        fontSize: 11,
+                        textAlign: 'center',
+                        backgroundColor: '#020617',
+                        color: CHART_EDITOR_THEME.textPrimary,
+                        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      }}
+                    />
+                    <span style={{ fontSize: 11, color: CHART_EDITOR_THEME.textSecondary }}>.</span>
+                    <input
+                      type="text"
+                      placeholder="박"
+                      value={startBeat}
+                      onChange={(e) => {
+                        const b = Math.max(1, Math.min(beatsPerMeasure, parseInt(e.target.value) || 1));
+                        const newMs = measureToTime(startMeasureNum + (b - 1) / beatsPerMeasure, bpm, beatsPerMeasure, bpmChanges);
+                        onUpdateBgaInterval(it.id, { startTimeMs: newMs });
+                      }}
+                      style={{
+                        width: 28,
+                        padding: '3px 4px',
+                        fontSize: 11,
+                        textAlign: 'center',
+                        backgroundColor: '#020617',
+                        color: CHART_EDITOR_THEME.textPrimary,
+                        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      }}
+                    />
+                    <span style={{ fontSize: 11, color: CHART_EDITOR_THEME.textMuted, margin: '0 2px' }}>~</span>
+                    <input
+                      type="text"
+                      placeholder="마디"
+                      value={endMeasureNum + 1}
+                      onChange={(e) => {
+                        const m = Math.max(0, (parseInt(e.target.value) || 1) - 1);
+                        const newMs = measureToTime(m + (endBeat - 1) / beatsPerMeasure, bpm, beatsPerMeasure, bpmChanges);
+                        onUpdateBgaInterval(it.id, { endTimeMs: newMs });
+                      }}
+                      style={{
+                        width: 32,
+                        padding: '3px 4px',
+                        fontSize: 11,
+                        textAlign: 'center',
+                        backgroundColor: '#020617',
+                        color: CHART_EDITOR_THEME.textPrimary,
+                        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      }}
+                    />
+                    <span style={{ fontSize: 11, color: CHART_EDITOR_THEME.textSecondary }}>.</span>
+                    <input
+                      type="text"
+                      placeholder="박"
+                      value={endBeat}
+                      onChange={(e) => {
+                        const b = Math.max(1, Math.min(beatsPerMeasure, parseInt(e.target.value) || 1));
+                        const newMs = measureToTime(endMeasureNum + (b - 1) / beatsPerMeasure, bpm, beatsPerMeasure, bpmChanges);
+                        onUpdateBgaInterval(it.id, { endTimeMs: newMs });
+                      }}
+                      style={{
+                        width: 28,
+                        padding: '3px 4px',
+                        fontSize: 11,
+                        textAlign: 'center',
+                        backgroundColor: '#020617',
+                        color: CHART_EDITOR_THEME.textPrimary,
+                        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      }}
+                    />
+                    <div style={{ flex: 1 }} />
+                    <button
+                      onClick={() => onDeleteBgaInterval(it.id)}
+                      style={{
+                        fontSize: 11,
+                        padding: '2px 6px',
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                        border: `1px solid ${CHART_EDITOR_THEME.danger}`,
+                        backgroundColor: 'rgba(239,68,68,0.12)',
+                        color: CHART_EDITOR_THEME.danger,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  {/* 둘째 줄: 모드 + 페이드 */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <button
+                      onClick={() => onUpdateBgaInterval(it.id, { mode: it.mode === 'hidden' ? 'visible' : 'hidden' })}
+                      style={{
+                        fontSize: 10,
+                        padding: '2px 6px',
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                        border: `1px solid ${it.mode === 'hidden' ? 'rgba(239,68,68,0.6)' : 'rgba(34,197,94,0.6)'}`,
+                        backgroundColor: it.mode === 'hidden' ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)',
+                        color: it.mode === 'hidden' ? '#fca5a5' : '#86efac',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {it.mode === 'hidden' ? '숨김' : '표시'}
+                    </button>
+                    <span style={{ fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>F-in</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={Math.round(it.fadeInMs ?? 0)}
+                      onChange={(e) =>
+                        onUpdateBgaInterval(it.id, { fadeInMs: Math.max(0, Number(e.target.value) || 0) })
+                      }
+                      style={{
+                        width: 42,
+                        padding: '2px 4px',
+                        fontSize: 10,
+                        textAlign: 'center',
+                        backgroundColor: '#020617',
+                        color: CHART_EDITOR_THEME.textPrimary,
+                        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      }}
+                    />
+                    <span style={{ fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>F-out</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={Math.round(it.fadeOutMs ?? 0)}
+                      onChange={(e) =>
+                        onUpdateBgaInterval(it.id, { fadeOutMs: Math.max(0, Number(e.target.value) || 0) })
+                      }
+                      style={{
+                        width: 42,
+                        padding: '2px 4px',
+                        fontSize: 10,
+                        textAlign: 'center',
+                        backgroundColor: '#020617',
+                        color: CHART_EDITOR_THEME.textPrimary,
+                        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      }}
+                    />
+                    <button
+                      onClick={() => onUpdateBgaInterval(it.id, { fadeInMs: 0, fadeOutMs: 0 })}
+                      title="페이드 제거 (하드컷)"
+                      style={{
+                        fontSize: 10,
+                        padding: '2px 6px',
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                        backgroundColor: 'rgba(148,163,184,0.12)',
+                        color: CHART_EDITOR_THEME.textSecondary,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      즉시
+                    </button>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: 11, color: CHART_EDITOR_THEME.textSecondary }}>모드</span>
-                  <select
-                    value={it.mode}
-                    onChange={(e) =>
-                      onUpdateBgaInterval(it.id, { mode: e.target.value as 'hidden' | 'visible' })
-                    }
-                    style={{
-                      flex: 1,
-                      padding: '6px 8px',
-                      fontSize: 11,
-                      backgroundColor: CHART_EDITOR_THEME.surface,
-                      color: CHART_EDITOR_THEME.textPrimary,
-                      borderRadius: CHART_EDITOR_THEME.radiusSm,
-                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                    }}
-                  >
-                    <option value="hidden">숨김</option>
-                    <option value="visible">표시</option>
-                  </select>
-                  <span style={{ fontSize: 11, color: CHART_EDITOR_THEME.textSecondary }}>페이드 인</span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={Math.round(it.fadeInMs ?? 0)}
-                    onChange={(e) =>
-                      onUpdateBgaInterval(it.id, { fadeInMs: Math.max(0, Number(e.target.value) || 0) })
-                    }
-                    style={{
-                      width: 80,
-                      padding: '4px 6px',
-                      fontSize: 11,
-                      backgroundColor: '#020617',
-                      color: CHART_EDITOR_THEME.textPrimary,
-                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                      borderRadius: CHART_EDITOR_THEME.radiusSm,
-                    }}
-                  />
-                  <span style={{ fontSize: 11, color: CHART_EDITOR_THEME.textSecondary }}>페이드 아웃</span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={Math.round(it.fadeOutMs ?? 0)}
-                    onChange={(e) =>
-                      onUpdateBgaInterval(it.id, { fadeOutMs: Math.max(0, Number(e.target.value) || 0) })
-                    }
-                    style={{
-                      width: 80,
-                      padding: '4px 6px',
-                      fontSize: 11,
-                      backgroundColor: '#020617',
-                      color: CHART_EDITOR_THEME.textPrimary,
-                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                      borderRadius: CHART_EDITOR_THEME.radiusSm,
-                    }}
-                  />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <button
-                    onClick={() => {
-                      onUpdateBgaInterval(it.id, { fadeInMs: 0, fadeOutMs: 0 });
-                    }}
-                    style={{
-                      fontSize: 11,
-                      padding: '4px 6px',
-                      borderRadius: CHART_EDITOR_THEME.radiusSm,
-                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                      backgroundColor: 'rgba(148,163,184,0.12)',
-                      color: CHART_EDITOR_THEME.textPrimary,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    하드 컷(즉시)
-                  </button>
-                  <button
-                    onClick={() => onDeleteBgaInterval(it.id)}
-                    style={{
-                      fontSize: 11,
-                      padding: '4px 6px',
-                      borderRadius: CHART_EDITOR_THEME.radiusSm,
-                      border: `1px solid ${CHART_EDITOR_THEME.danger}`,
-                      backgroundColor: 'rgba(239,68,68,0.12)',
-                      color: CHART_EDITOR_THEME.danger,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    삭제
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
