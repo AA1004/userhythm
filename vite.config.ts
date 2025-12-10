@@ -19,7 +19,7 @@ export default defineConfig({
     minify: false,
     outDir: 'dist',
     assetsDir: 'assets',
-    sourcemap: false,
+    sourcemap: true,
     emptyOutDir: true,
     rollupOptions: {
       input: {
