@@ -63,7 +63,7 @@ const JUDGE_LINE_Y = 640;
 
 // 자막 렌더링 영역 (16:9 비율, 4레인 영역 기준)
 
-const GAME_DURATION = 30000; // 30초
+const GAME_DURATION = 300000; // 5분 (테스트 모드용 기본 최대 길이, 상한값 역할)
 const START_DELAY_MS = 4000;
 const BASE_FALL_DURATION = 2000; // 기본 노트 낙하 시간(ms)
 
@@ -168,6 +168,7 @@ const testAudioSettingsRef = useRef<{
 } | null>(null);
   const audioHasStartedRef = useRef(false);
   const lastResyncTimeRef = useRef(0); // 마지막 리싱크 시간 (쿨다운용)
+  const [dynamicGameDuration, setDynamicGameDuration] = useState<number>(GAME_DURATION);
   const [gameState, setGameState] = useState<GameState>(() => ({
     notes: generateNotes(GAME_DURATION),
     score: {
@@ -891,7 +892,7 @@ const testAudioSettingsRef = useRef<{
   useEffect(() => {
     if (
       gameState.gameStarted &&
-      gameState.currentTime >= GAME_DURATION &&
+      gameState.currentTime >= dynamicGameDuration &&
       !gameState.gameEnded
     ) {
       setGameState((prev) => ({ ...prev, gameEnded: true }));
@@ -905,7 +906,7 @@ const testAudioSettingsRef = useRef<{
         }
       }
     }
-  }, [gameState.currentTime, gameState.gameStarted, gameState.gameEnded, isTestMode, testYoutubePlayer]);
+  }, [gameState.currentTime, gameState.gameStarted, gameState.gameEnded, dynamicGameDuration, isTestMode, testYoutubePlayer]);
 
   const resetGame = () => {
     setIsTestMode(false);
@@ -916,6 +917,7 @@ const testAudioSettingsRef = useRef<{
     setPressedKeys(new Set());
     setHoldingNotes(new Map()); // 롱노트 상태 초기화
     setSubtitles([]);
+    setDynamicGameDuration(GAME_DURATION);
     setGameState((prev) => ({
       ...prev,
       gameStarted: false,
@@ -935,6 +937,25 @@ const testAudioSettingsRef = useRef<{
       processedMissNotes.current.clear();
       setPressedKeys(new Set());
       setHoldingNotes(new Map()); // 롱노트 상태 초기화
+
+      // 채보 마지막 노트 기준으로 게임 길이 계산
+      const lastNoteTime = preparedNotes.length
+        ? Math.max(
+            ...preparedNotes.map((n) =>
+              typeof n.endTime === 'number' ? n.endTime : n.time
+            )
+          )
+        : 0;
+      const TAIL_MARGIN_MS = 5000; // 마지막 노트 이후 여유 시간
+      const MIN_DURATION_MS = 60000; // 최소 1분
+      const MAX_DURATION_MS = GAME_DURATION; // 상한은 기본 게임 시간(5분)
+      const computedDuration = lastNoteTime + TAIL_MARGIN_MS;
+      const clampedDuration = Math.max(
+        MIN_DURATION_MS,
+        Math.min(computedDuration, MAX_DURATION_MS)
+      );
+      setDynamicGameDuration(clampedDuration);
+
       setGameState((prev) => ({
         ...prev,
         gameStarted: true,
@@ -1396,6 +1417,24 @@ const testAudioSettingsRef = useRef<{
         alert('이 채보에는 노트가 없습니다.');
         return;
       }
+
+      // 채보 마지막 노트 기준으로 게임 길이 계산
+      const lastNoteTime = preparedNotes.length
+        ? Math.max(
+            ...preparedNotes.map((n: Note) =>
+              typeof n.endTime === 'number' ? n.endTime : n.time
+            )
+          )
+        : 0;
+      const TAIL_MARGIN_MS = 5000; // 마지막 노트 이후 여유 시간
+      const MIN_DURATION_MS = 60000; // 최소 1분
+      const MAX_DURATION_MS = GAME_DURATION; // 상한은 기본 게임 시간(5분)
+      const computedDuration = lastNoteTime + TAIL_MARGIN_MS;
+      const clampedDuration = Math.max(
+        MIN_DURATION_MS,
+        Math.min(computedDuration, MAX_DURATION_MS)
+      );
+      setDynamicGameDuration(clampedDuration);
       
       setGameState({
         notes: preparedNotes,
