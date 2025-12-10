@@ -38,22 +38,28 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     const container = backgroundPlayerContainerRef.current;
     if (!container || !player) return;
 
+    const rect = container.getBoundingClientRect();
+    const overscan = 1.05;
+    const videoBaseW = 16;
+    const videoBaseH = 9;
+    const scale = Math.max(rect.width / videoBaseW, rect.height / videoBaseH) * overscan;
+    const targetWidth = videoBaseW * scale;
+    const targetHeight = videoBaseH * scale;
+
     const iframe = player.getIframe?.();
     if (iframe) {
       iframe.style.position = 'absolute';
       iframe.style.top = '50%';
       iframe.style.left = '50%';
-      iframe.style.width = '120%';
-      iframe.style.height = '120%';
+      iframe.style.width = `${targetWidth}px`;
+      iframe.style.height = `${targetHeight}px`;
       iframe.style.transform = 'translate(-50%, -50%)';
       iframe.style.pointerEvents = 'none';
       iframe.style.objectFit = 'cover';
     }
 
     if (player.setSize) {
-      const rect = container.getBoundingClientRect();
-      const scale = 1.2; // 여백을 덮을 만큼 살짝 확대
-      player.setSize(rect.width * scale, rect.height * scale);
+      player.setSize(targetWidth, targetHeight);
     }
   };
 

@@ -1,5 +1,5 @@
 ﻿import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Note, BPMChange, TimeSignatureEvent, ChartTestPayload, SubtitleEditorChartData, Lane, SpeedChange } from '../types/game';
+import { Note, BPMChange, TimeSignatureEvent, ChartTestPayload, SubtitleEditorChartData, Lane, SpeedChange, BgaVisibilityInterval, BgaVisibilityMode } from '../types/game';
 import { ChartEditorHeader } from './ChartEditor/ChartEditorHeader';
 import { ChartEditorSidebar } from './ChartEditor/ChartEditorSidebar';
 import { ChartEditorTimeline } from './ChartEditor/ChartEditorTimeline';
@@ -90,6 +90,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [timelineExtraMs, setTimelineExtraMs] = useState<number>(0);
   const [gridDivision, setGridDivision] = useState<number>(1);
   const [speedChanges, setSpeedChanges] = useState<SpeedChange[]>([]);
+  const [bgaVisibilityIntervals, setBgaVisibilityIntervals] = useState<BgaVisibilityInterval[]>([]);
   
   // --- UI 상태 ---
   const [isBpmInputOpen, setIsBpmInputOpen] = useState<boolean>(false);
@@ -441,6 +442,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       timelineExtraMs,
       bpmChanges,
       speedChanges,
+      bgaVisibilityIntervals,
       chartTitle: shareTitle,
       chartAuthor: shareAuthor,
       gridDivision,
@@ -462,6 +464,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     timeSignatureOffset,
     bpmChanges,
       speedChanges,
+      bgaVisibilityIntervals,
       shareTitle,
       shareAuthor,
       gridDivision,
@@ -511,6 +514,24 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           : 0;
       speedChangeIdRef.current = maxId + 1;
     }
+    if (Array.isArray(data.bgaVisibilityIntervals)) {
+      const hydrated = data.bgaVisibilityIntervals.map((interval: any, idx: number) => ({
+        id: typeof interval.id === 'string' ? interval.id : `bga-${idx}`,
+        startTimeMs: Math.max(0, Number(interval.startTimeMs) || 0),
+        endTimeMs: Math.max(0, Number(interval.endTimeMs) || 0),
+        mode: (interval.mode as BgaVisibilityMode) ?? 'hidden',
+        fadeInMs:
+          interval.fadeInMs === undefined
+            ? undefined
+            : Math.max(0, Number(interval.fadeInMs) || 0),
+        fadeOutMs:
+          interval.fadeOutMs === undefined
+            ? undefined
+            : Math.max(0, Number(interval.fadeOutMs) || 0),
+        easing: interval.easing === 'linear' ? 'linear' : undefined,
+      }));
+      setBgaVisibilityIntervals(hydrated);
+    }
     if (typeof data.chartTitle === 'string') setShareTitle(data.chartTitle);
     if (typeof data.chartAuthor === 'string') setShareAuthor(data.chartAuthor);
     if (typeof data.gridDivision === 'number') setGridDivision(data.gridDivision);
@@ -556,6 +577,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setTimelineExtraMs(0);
     setGridDivision(1);
     setSpeedChanges([]);
+    setBgaVisibilityIntervals([]);
     setIsBpmInputOpen(false);
     setIsAutoScrollEnabled(true);
     setIsLongNoteMode(false);
@@ -613,6 +635,55 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const handleDeleteSpeedChange = useCallback((id: number) => {
     if (!confirm('이 변속 구간을 삭제할까요?')) return;
     setSpeedChanges((prev) => prev.filter((c) => c.id !== id));
+  }, []);
+
+  // --- BGA 가림 구간 핸들러 ---
+  const normalizeInterval = useCallback(
+    (raw: Partial<BgaVisibilityInterval> & { id: string }) => {
+      const start = clampTime(Math.max(0, raw.startTimeMs ?? 0));
+      const end = clampTime(Math.max(start + 1, raw.endTimeMs ?? start + 1));
+      return {
+        id: raw.id,
+        startTimeMs: Math.min(start, end),
+        endTimeMs: Math.max(start, end),
+        mode: (raw.mode as BgaVisibilityMode) ?? 'hidden',
+        fadeInMs: raw.fadeInMs !== undefined ? Math.max(0, Number(raw.fadeInMs)) : undefined,
+        fadeOutMs: raw.fadeOutMs !== undefined ? Math.max(0, Number(raw.fadeOutMs)) : undefined,
+        easing: raw.easing === 'linear' ? 'linear' : undefined,
+      } as BgaVisibilityInterval;
+    },
+    [clampTime]
+  );
+
+  const handleAddBgaInterval = useCallback(() => {
+    const start = clampTime(currentTime);
+    const end = clampTime(start + 5000);
+    const next: BgaVisibilityInterval = normalizeInterval({
+      id: `bga-${Date.now()}`,
+      startTimeMs: start,
+      endTimeMs: end,
+      mode: 'hidden',
+      fadeInMs: 300,
+      fadeOutMs: 300,
+      easing: 'linear',
+    });
+    setBgaVisibilityIntervals((prev) => [...prev, next].sort((a, b) => a.startTimeMs - b.startTimeMs));
+  }, [clampTime, currentTime, normalizeInterval]);
+
+  const handleUpdateBgaInterval = useCallback(
+    (id: string, patch: Partial<BgaVisibilityInterval>) => {
+      setBgaVisibilityIntervals((prev) =>
+        prev
+          .map((interval) => (interval.id === id ? normalizeInterval({ ...interval, ...patch, id }) : interval))
+          .sort((a, b) => a.startTimeMs - b.startTimeMs)
+      );
+    },
+    [normalizeInterval]
+  );
+
+  const handleDeleteBgaInterval = useCallback((id: string) => {
+    if (!confirm('이 BGA 가림 구간을 삭제할까요?')) return;
+    setBgaVisibilityIntervals((prev) => prev.filter((interval) => interval.id !== id));
   }, []);
 
 
@@ -1185,6 +1256,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                 audioOffsetMs: 0,
                 bpm,
                 speedChanges,
+                bgaVisibilityIntervals,
                 chartId: subtitleSessionId,
                 });
             }
@@ -1197,6 +1269,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           onDeleteSpeedChange={handleDeleteSpeedChange}
           bpm={bpm}
           bpmChanges={sortedBpmChanges}
+          bgaVisibilityIntervals={bgaVisibilityIntervals}
+          onAddBgaInterval={handleAddBgaInterval}
+          onUpdateBgaInterval={handleUpdateBgaInterval}
+          onDeleteBgaInterval={handleDeleteBgaInterval}
         />
 
         {/* Main Timeline Canvas */}
@@ -1224,6 +1300,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                 bpm={bpm}
                 bpmChanges={sortedBpmChanges}
                 beatsPerMeasure={beatsPerMeasure}
+                bgaVisibilityIntervals={bgaVisibilityIntervals}
             />
             
             {/* Hidden Youtube Player */}

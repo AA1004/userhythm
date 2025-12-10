@@ -32,15 +32,15 @@ export interface JudgeConfig {
 
 export const judgeConfig: JudgeConfig = {
   windows: {
-    perfect: 40, // 기본값: ±50ms
-    great: 80,  // 기본값: ±100ms
-    good: 120,   // 기본값: ±150ms
+    perfect: 80, // 기본값: ±50ms
+    great: 120,  // 기본값: ±100ms
+    good: 160,   // 기본값: ±150ms
   },
   // 롱노트 떼기 판정은 일반 판정보다 1.5배 더 여유롭게
   holdReleaseWindows: {
-    perfect: 80,  // ±75ms (기존 50ms의 1.5배)
-    great: 160,   // ±150ms (기존 100ms의 1.5배)
-    good: 240,    // ±225ms (기존 150ms의 1.5배)
+    perfect: 100,  // ±75ms (기존 50ms의 1.5배)
+    great: 180,   // ±150ms (기존 100ms의 1.5배)
+    good: 260,    // ±225ms (기존 150ms의 1.5배)
   },
   scores: {
     perfect: 100,

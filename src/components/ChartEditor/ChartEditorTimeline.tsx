@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useRef } from 'react';
-import { Note, TimeSignatureEvent, SpeedChange, BPMChange } from '../../types/game';
+import { Note, TimeSignatureEvent, SpeedChange, BPMChange, BgaVisibilityInterval } from '../../types/game';
 import {
   LANE_POSITIONS,
   LANE_WIDTH,
@@ -37,6 +37,7 @@ interface ChartEditorTimelineProps {
   bpm: number;
   bpmChanges: BPMChange[];
   beatsPerMeasure: number;
+  bgaVisibilityIntervals?: BgaVisibilityInterval[];
 }
 
 export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
@@ -61,6 +62,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   bpm,
   bpmChanges,
   beatsPerMeasure,
+  bgaVisibilityIntervals = [],
 }) => {
   // 그리드 라인 생성
   const gridLines = useMemo(() => {
@@ -230,6 +232,66 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
               }}
               title={`Speed BPM ${sc.bpm}`}
             />
+          );
+        })}
+
+        {/* BGA 가림 구간 오버레이 */}
+        {bgaVisibilityIntervals.map((interval) => {
+          const startY = timeToY(interval.startTimeMs);
+          const endY = timeToY(interval.endTimeMs);
+          const top = Math.min(startY, endY);
+          const height = Math.max(2, Math.abs(endY - startY));
+          const total = Math.max(1, Math.abs(interval.endTimeMs - interval.startTimeMs));
+          const fadeInRatio = Math.min(1, Math.max(0, (interval.fadeInMs ?? 0) / total));
+          const fadeOutRatio = Math.min(1, Math.max(0, (interval.fadeOutMs ?? 0) / total));
+          // 겹침 방지: 페이드 구간이 겹치면 만나는 지점에서 색상을 유지하도록 보정
+          const midStart = fadeInRatio;
+          const midEnd = Math.max(midStart, 1 - fadeOutRatio);
+          const baseColor =
+            interval.mode === 'hidden'
+              ? 'rgba(248,113,113,0.22)'
+              : 'rgba(74,222,128,0.18)';
+          const gradient = `linear-gradient(to bottom,
+            rgba(0,0,0,0) 0%,
+            ${baseColor} ${midStart * 100}%,
+            ${baseColor} ${midEnd * 100}%,
+            rgba(0,0,0,0) 100%)`;
+
+          return (
+            <div
+              key={interval.id}
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: `${top}px`,
+                width: `${CONTENT_WIDTH}px`,
+                height: `${height}px`,
+                background: gradient,
+                border: `1px dashed ${interval.mode === 'hidden' ? 'rgba(239,68,68,0.6)' : 'rgba(34,197,94,0.6)'}`,
+                borderRadius: 6,
+                boxShadow:
+                  interval.mode === 'hidden'
+                    ? '0 0 12px rgba(248,113,113,0.35)'
+                    : '0 0 12px rgba(74,222,128,0.35)',
+                zIndex: 6,
+              }}
+              title={`BGA ${interval.mode === 'hidden' ? '숨김' : '표시'} (${interval.startTimeMs}ms ~ ${interval.endTimeMs}ms)`}
+            >
+              <span
+                style={{
+                  position: 'absolute',
+                  right: 6,
+                  top: 4,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: interval.mode === 'hidden' ? '#fca5a5' : '#bbf7d0',
+                  textShadow: '0 0 6px rgba(0,0,0,0.65)',
+                  pointerEvents: 'none',
+                }}
+              >
+                {interval.mode === 'hidden' ? 'HIDE' : 'SHOW'}
+              </span>
+            </div>
           );
         })}
 

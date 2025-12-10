@@ -46,9 +46,34 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
     return () => resizeObserver.disconnect();
   }, []);
 
-  const activeCues = cues.filter(
-    (c) => currentTimeMs >= c.startTimeMs && currentTimeMs <= c.endTimeMs
-  );
+  const getCueOpacity = useCallback((cue: SubtitleCue, timeMs: number) => {
+    const style: SubtitleStyle = cue.style || ({} as SubtitleStyle);
+    const inEffect = style.inEffect ?? 'none';
+    const outEffect = style.outEffect ?? 'none';
+    const inDuration = style.inDurationMs ?? 120;
+    const outDuration = style.outDurationMs ?? 120;
+
+    if (timeMs < cue.startTimeMs) return 0;
+
+    if (inEffect === 'fade' && timeMs < cue.startTimeMs + inDuration) {
+      const t = (timeMs - cue.startTimeMs) / Math.max(1, inDuration);
+      return Math.max(0, Math.min(1, t));
+    }
+
+    if (timeMs <= cue.endTimeMs) return 1;
+
+    if (outEffect === 'fade' && timeMs <= cue.endTimeMs + outDuration) {
+      const t = (timeMs - cue.endTimeMs) / Math.max(1, outDuration);
+      return Math.max(0, Math.min(1, 1 - t));
+    }
+
+    return 0;
+  }, []);
+
+  const activeCues = cues.filter((c) => {
+    const outDuration = c.style?.outDurationMs ?? 0;
+    return currentTimeMs >= c.startTimeMs && currentTimeMs <= c.endTimeMs + outDuration;
+  });
 
   const handleDragStart = (
     cue: SubtitleCue,
@@ -128,6 +153,8 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
         ? `rgba(${parseInt(bgColor.slice(1, 3), 16)}, ${parseInt(bgColor.slice(3, 5), 16)}, ${parseInt(bgColor.slice(5, 7), 16)}, ${bgOpacity})`
         : 'transparent';
 
+      const opacity = getCueOpacity(cue, currentTimeMs);
+
       return (
         <div
           key={cue.id}
@@ -160,6 +187,7 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
               : 'none',
             pointerEvents: 'auto',
             zIndex: 10,
+            opacity,
           }}
         >
           {cue.text.split('\n').map((line, idx, arr) => (

@@ -5,7 +5,7 @@ type AuthUser = {
   role?: string;
   profile?: any;
 };
-import { GameState, Note, Lane, JudgeType, SpeedChange } from '../types/game';
+import { GameState, Note, Lane, JudgeType, SpeedChange, BgaVisibilityInterval } from '../types/game';
 import { Note as NoteComponent } from './Note';
 import { KeyLane } from './KeyLane';
 import { JudgeLine } from './JudgeLine';
@@ -186,6 +186,9 @@ const testAudioSettingsRef = useRef<{
   }));
   const gameContainerRef = useRef<HTMLDivElement | null>(null);
   const [gameViewSize, setGameViewSize] = useState({ width: GAME_VIEW_WIDTH, height: GAME_VIEW_HEIGHT });
+
+  const testBgaIntervalsRef = useRef<BgaVisibilityInterval[]>([]);
+  const [bgaVisibilityIntervals, setBgaVisibilityIntervals] = useState<BgaVisibilityInterval[]>([]);
 
   const [pressedKeys, setPressedKeys] = useState<Set<Lane>>(new Set());
   const [holdingNotes, setHoldingNotes] = useState<Map<number, Note>>(new Map()); // 현재 누르고 있는 롱노트들 (노트 ID -> 노트)
@@ -871,6 +874,40 @@ const testAudioSettingsRef = useRef<{
     []
   );
 
+  const getBgaMaskOpacity = useCallback(
+    (chartTimeMs: number) => {
+      let maxOpacity = 0;
+
+      for (const interval of bgaVisibilityIntervals) {
+        if (chartTimeMs < interval.startTimeMs || chartTimeMs > interval.endTimeMs) continue;
+        const fadeIn = Math.max(0, interval.fadeInMs ?? 0);
+        const fadeOut = Math.max(0, interval.fadeOutMs ?? 0);
+        const toHidden = interval.mode === 'hidden';
+
+        if (fadeIn > 0 && chartTimeMs < interval.startTimeMs + fadeIn) {
+          const t = (chartTimeMs - interval.startTimeMs) / Math.max(1, fadeIn);
+          const opacity = toHidden ? t : 1 - t;
+          maxOpacity = Math.max(maxOpacity, opacity);
+          continue;
+        }
+
+        if (fadeOut > 0 && chartTimeMs > interval.endTimeMs - fadeOut) {
+          const t = (interval.endTimeMs - chartTimeMs) / Math.max(1, fadeOut);
+          const clamped = Math.max(0, Math.min(1, t));
+          const opacity = toHidden ? clamped : 1 - clamped;
+          maxOpacity = Math.max(maxOpacity, opacity);
+          continue;
+        }
+
+        const opacity = toHidden ? 1 : 0;
+        maxOpacity = Math.max(maxOpacity, opacity);
+      }
+
+      return maxOpacity;
+    },
+    [bgaVisibilityIntervals]
+  );
+
   const activeSubtitles = useMemo(() => {
     if (!subtitles.length) return [];
     if (!gameState.gameStarted) return [];
@@ -918,6 +955,8 @@ const testAudioSettingsRef = useRef<{
     setPressedKeys(new Set());
     setHoldingNotes(new Map()); // 롱노트 상태 초기화
     setSubtitles([]);
+    setBgaVisibilityIntervals([]);
+    testBgaIntervalsRef.current = [];
     setDynamicGameDuration(DEFAULT_GAME_DURATION);
     setGameState((prev) => ({
       ...prev,
@@ -932,7 +971,7 @@ const testAudioSettingsRef = useRef<{
   };
 
   const startTestSession = useCallback(
-    (preparedNotes: Note[]) => {
+    (preparedNotes: Note[], visibilityIntervals: BgaVisibilityInterval[] = []) => {
       if (!preparedNotes.length) return;
       audioHasStartedRef.current = false;
       processedMissNotes.current.clear();
@@ -956,6 +995,11 @@ const testAudioSettingsRef = useRef<{
         Math.min(computedDuration, MAX_DURATION_MS)
       );
       setDynamicGameDuration(clampedDuration);
+      const sortedIntervals = [...visibilityIntervals].sort(
+        (a, b) => a.startTimeMs - b.startTimeMs
+      );
+      testBgaIntervalsRef.current = sortedIntervals;
+      setBgaVisibilityIntervals(sortedIntervals);
 
       setGameState((prev) => ({
         ...prev,
@@ -1042,7 +1086,7 @@ const testAudioSettingsRef = useRef<{
         setTestYoutubeVideoId(null);
       }
       
-      startTestSession(preparedNotes);
+      startTestSession(preparedNotes, payload.bgaVisibilityIntervals || []);
     },
     [startTestSession, loadSubtitlesForChart]
   );
@@ -1051,7 +1095,7 @@ const testAudioSettingsRef = useRef<{
     if (!testPreparedNotesRef.current.length) return;
     setIsTestMode(true);
     const clonedNotes = testPreparedNotesRef.current.map((note) => ({ ...note }));
-    startTestSession(clonedNotes);
+    startTestSession(clonedNotes, testBgaIntervalsRef.current);
   }, [startTestSession]);
 
   const handleReturnToEditor = useCallback(() => {
@@ -1419,6 +1463,33 @@ const testAudioSettingsRef = useRef<{
         return;
       }
 
+      const chartIntervals: BgaVisibilityInterval[] = Array.isArray(chartData.bgaVisibilityIntervals)
+        ? [...chartData.bgaVisibilityIntervals]
+        : [];
+      const sortedIntervals = chartIntervals
+        .map((it, idx) => ({
+          id: typeof it.id === 'string' ? it.id : `bga-${idx}`,
+          startTimeMs: Math.max(0, Number(it.startTimeMs) || 0),
+          endTimeMs: Math.max(0, Number(it.endTimeMs) || 0),
+          mode: it.mode === 'visible' ? 'visible' : 'hidden',
+          fadeInMs:
+            typeof it.fadeInMs === 'number'
+              ? it.fadeInMs
+              : it.fadeInMs === undefined
+                ? undefined
+                : Number(it.fadeInMs) || 0,
+          fadeOutMs:
+            typeof it.fadeOutMs === 'number'
+              ? it.fadeOutMs
+              : it.fadeOutMs === undefined
+                ? undefined
+                : Number(it.fadeOutMs) || 0,
+          easing: it.easing === 'linear' ? 'linear' : undefined,
+        }))
+        .sort((a, b) => a.startTimeMs - b.startTimeMs);
+      setBgaVisibilityIntervals(sortedIntervals);
+      testBgaIntervalsRef.current = sortedIntervals;
+
       // 채보 마지막 노트 기준으로 게임 길이 계산
       const lastNoteTime = preparedNotes.length
         ? Math.max(
@@ -1542,6 +1613,11 @@ const testAudioSettingsRef = useRef<{
     gameState.gameStarted &&
     !gameState.gameEnded &&
     gameState.currentTime >= 0;
+
+  const bgaMaskOpacity = useMemo(
+    () => getBgaMaskOpacity(gameState.currentTime),
+    [gameState.currentTime, getBgaMaskOpacity]
+  );
 
   return (
     <VideoRhythmLayout
@@ -1727,6 +1803,22 @@ const testAudioSettingsRef = useRef<{
               })}
             </div>
           ))}
+
+        {/* BGA 가림 오버레이 */}
+        <div
+          style={{
+            position: 'absolute',
+            left: '50px',
+            top: 0,
+            width: '400px',
+            height: '100%',
+            backgroundColor: 'rgba(8,12,24,0.94)',
+            opacity: bgaMaskOpacity,
+            transition: 'opacity 80ms linear',
+            pointerEvents: 'none',
+            zIndex: 520,
+          }}
+        />
 
         {/* 판정 피드백 - 4개 레인 영역 중앙에 통합 표시 (개별 애니메이션) */}
         {judgeFeedbacks.map((feedback) => 

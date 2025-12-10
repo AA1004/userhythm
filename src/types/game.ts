@@ -42,6 +42,18 @@ export interface SpeedChange {
   bpm: number; // 이 구간에서 적용할 절대 BPM
 }
 
+export type BgaVisibilityMode = 'hidden' | 'visible';
+
+export interface BgaVisibilityInterval {
+  id: string;
+  startTimeMs: number;
+  endTimeMs: number;
+  mode: BgaVisibilityMode;
+  fadeInMs?: number;
+  fadeOutMs?: number;
+  easing?: 'linear';
+}
+
 export interface BPMChange {
   id: number;
   beatIndex: number; // 변속이 시작되는 비트 인덱스
@@ -72,6 +84,7 @@ export interface ChartTestPayload {
   bpm?: number;
   speedChanges?: SpeedChange[];
   chartId?: string;
+  bgaVisibilityIntervals?: BgaVisibilityInterval[];
 }
 
 export interface SubtitleEditorChartData {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { CHART_EDITOR_THEME } from './constants';
-import { SpeedChange, BPMChange } from '../../types/game';
+import { SpeedChange, BPMChange, BgaVisibilityInterval } from '../../types/game';
 import { timeToMeasure, measureToTime } from '../../utils/bpmUtils';
 
 interface ChartEditorSidebarProps {
@@ -39,6 +39,11 @@ interface ChartEditorSidebarProps {
   // 마디 계산을 위한 추가 props
   bpm: number;
   bpmChanges: BPMChange[];
+  // BGA 가림 구간
+  bgaVisibilityIntervals: BgaVisibilityInterval[];
+  onAddBgaInterval: () => void;
+  onUpdateBgaInterval: (id: string, patch: Partial<BgaVisibilityInterval>) => void;
+  onDeleteBgaInterval: (id: string) => void;
 }
 
 export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
@@ -75,6 +80,10 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
   onDeleteSpeedChange,
   bpm,
   bpmChanges,
+  bgaVisibilityIntervals,
+  onAddBgaInterval,
+  onUpdateBgaInterval,
+  onDeleteBgaInterval,
 }) => {
   const gridCellMs = beatDuration / Math.max(1, gridDivision);
   const offsetInCells = timeSignatureOffset / gridCellMs;
@@ -800,6 +809,201 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      {/* BGA 가림 구간 */}
+      <div
+        style={{
+          marginBottom: '18px',
+          padding: '12px',
+          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+          borderRadius: CHART_EDITOR_THEME.radiusMd,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span style={{ fontSize: 13, fontWeight: 600 }}>BGA 가림 구간</span>
+          <button
+            onClick={onAddBgaInterval}
+            style={{
+              padding: '4px 8px',
+              fontSize: '11px',
+              borderRadius: CHART_EDITOR_THEME.radiusSm,
+              border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
+              backgroundColor: 'rgba(34,211,238,0.12)',
+              color: CHART_EDITOR_THEME.accentStrong,
+              cursor: 'pointer',
+            }}
+          >
+            + 현재 위치부터 추가
+          </button>
+        </div>
+        <div style={{ fontSize: 11, color: CHART_EDITOR_THEME.textSecondary }}>
+          구간별로 화면을 가리거나 보이게 설정하고, 페이드 인/아웃 시간을 조정할 수 있습니다. 페이드 시간이 0이면 즉시 전환됩니다.
+        </div>
+        {bgaVisibilityIntervals.length === 0 ? (
+          <div style={{ fontSize: 12, color: CHART_EDITOR_THEME.textMuted }}>아직 구간이 없습니다.</div>
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              maxHeight: 200,
+              overflowY: 'auto',
+            }}
+          >
+            {bgaVisibilityIntervals.map((it, idx) => (
+              <div
+                key={it.id}
+                style={{
+                  padding: '8px',
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                  backgroundColor: 'rgba(15,23,42,0.4)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 11, color: CHART_EDITOR_THEME.textSecondary }}>시작(ms)</span>
+                  <input
+                    type="number"
+                    value={Math.round(it.startTimeMs)}
+                    onChange={(e) =>
+                      onUpdateBgaInterval(it.id, { startTimeMs: Number(e.target.value) || 0 })
+                    }
+                    style={{
+                      flex: 1,
+                      padding: '4px 6px',
+                      fontSize: 11,
+                      backgroundColor: '#020617',
+                      color: CHART_EDITOR_THEME.textPrimary,
+                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    }}
+                  />
+                  <span style={{ fontSize: 11, color: CHART_EDITOR_THEME.textSecondary }}>끝(ms)</span>
+                  <input
+                    type="number"
+                    value={Math.round(it.endTimeMs)}
+                    onChange={(e) =>
+                      onUpdateBgaInterval(it.id, { endTimeMs: Number(e.target.value) || 0 })
+                    }
+                    style={{
+                      flex: 1,
+                      padding: '4px 6px',
+                      fontSize: 11,
+                      backgroundColor: '#020617',
+                      color: CHART_EDITOR_THEME.textPrimary,
+                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 11, color: CHART_EDITOR_THEME.textSecondary }}>모드</span>
+                  <select
+                    value={it.mode}
+                    onChange={(e) =>
+                      onUpdateBgaInterval(it.id, { mode: e.target.value as 'hidden' | 'visible' })
+                    }
+                    style={{
+                      flex: 1,
+                      padding: '6px 8px',
+                      fontSize: 11,
+                      backgroundColor: CHART_EDITOR_THEME.surface,
+                      color: CHART_EDITOR_THEME.textPrimary,
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                    }}
+                  >
+                    <option value="hidden">숨김</option>
+                    <option value="visible">표시</option>
+                  </select>
+                  <span style={{ fontSize: 11, color: CHART_EDITOR_THEME.textSecondary }}>페이드 인</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={Math.round(it.fadeInMs ?? 0)}
+                    onChange={(e) =>
+                      onUpdateBgaInterval(it.id, { fadeInMs: Math.max(0, Number(e.target.value) || 0) })
+                    }
+                    style={{
+                      width: 80,
+                      padding: '4px 6px',
+                      fontSize: 11,
+                      backgroundColor: '#020617',
+                      color: CHART_EDITOR_THEME.textPrimary,
+                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    }}
+                  />
+                  <span style={{ fontSize: 11, color: CHART_EDITOR_THEME.textSecondary }}>페이드 아웃</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={Math.round(it.fadeOutMs ?? 0)}
+                    onChange={(e) =>
+                      onUpdateBgaInterval(it.id, { fadeOutMs: Math.max(0, Number(e.target.value) || 0) })
+                    }
+                    style={{
+                      width: 80,
+                      padding: '4px 6px',
+                      fontSize: 11,
+                      backgroundColor: '#020617',
+                      color: CHART_EDITOR_THEME.textPrimary,
+                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <button
+                    onClick={() => {
+                      onUpdateBgaInterval(it.id, { fadeInMs: 0, fadeOutMs: 0 });
+                    }}
+                    style={{
+                      fontSize: 11,
+                      padding: '4px 6px',
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                      backgroundColor: 'rgba(148,163,184,0.12)',
+                      color: CHART_EDITOR_THEME.textPrimary,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    하드 컷(즉시)
+                  </button>
+                  <button
+                    onClick={() => onDeleteBgaInterval(it.id)}
+                    style={{
+                      fontSize: 11,
+                      padding: '4px 6px',
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      border: `1px solid ${CHART_EDITOR_THEME.danger}`,
+                      backgroundColor: 'rgba(239,68,68,0.12)',
+                      color: CHART_EDITOR_THEME.danger,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    삭제
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
