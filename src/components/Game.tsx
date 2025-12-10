@@ -1567,6 +1567,45 @@ const testAudioSettingsRef = useRef<{
     setIsEditorOpen(true);
   }, []);
 
+  // --- 디버그: 콘솔 명령으로 에디터 강제 오픈 ---
+  useEffect(() => {
+    const g = globalThis as any;
+    g.__openChartEditor = () => {
+      try {
+        localStorage.setItem('force-editor', '1');
+      } catch {
+        /* ignore */
+      }
+      window.location.reload();
+    };
+    return () => {
+      try {
+        delete g.__openChartEditor;
+      } catch {
+        g.__openChartEditor = undefined;
+      }
+    };
+  }, []);
+
+  // 새로고침 후 에디터 자동 열기 (force-editor 플래그)
+  useEffect(() => {
+    try {
+      const flag = localStorage.getItem('force-editor');
+      if (flag === '1') {
+        localStorage.removeItem('force-editor');
+        setIsSubtitleEditorOpen(false);
+        setSubtitleEditorData(null);
+        setIsChartSelectOpen(false);
+        setIsAdminOpen(false);
+        setIsTestMode(false);
+        setIsEditorOpen(true);
+        console.info('[debug] ChartEditor auto-opened via force-editor flag');
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
   // Show subtitle editor if open
   if (isSubtitleEditorOpen && subtitleEditorData) {
     return (
