@@ -1,7 +1,7 @@
 import React from 'react';
 import { CHART_EDITOR_THEME } from './constants';
 import { SpeedChange, BPMChange, BgaVisibilityInterval } from '../../types/game';
-import { timeToMeasure, measureToTime } from '../../utils/bpmUtils';
+import { timeToMeasure, beatIndexToTime, timeToBeatIndex } from '../../utils/bpmUtils';
 
 interface ChartEditorSidebarProps {
   zoom: number;
@@ -845,12 +845,14 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 200, overflowY: 'auto' }}>
             {bgaVisibilityIntervals.map((it) => {
-              const startMeasure = timeToMeasure(it.startTimeMs, bpm, beatsPerMeasure, bpmChanges);
-              const endMeasure = timeToMeasure(it.endTimeMs, bpm, beatsPerMeasure, bpmChanges);
-              const startMeasureNum = Math.floor(startMeasure);
-              const startBeat = Math.floor((startMeasure - startMeasureNum) * beatsPerMeasure) + 1;
-              const endMeasureNum = Math.floor(endMeasure);
-              const endBeat = Math.floor((endMeasure - endMeasureNum) * beatsPerMeasure) + 1;
+              // 시간을 비트 인덱스로 변환 후 마디.박 계산
+              const startBeatIdx = timeToBeatIndex(it.startTimeMs, bpm, bpmChanges);
+              const endBeatIdx = timeToBeatIndex(it.endTimeMs, bpm, bpmChanges);
+              
+              const startMeasureNum = Math.floor(startBeatIdx / beatsPerMeasure);
+              const startBeat = Math.floor(startBeatIdx % beatsPerMeasure) + 1;
+              const endMeasureNum = Math.floor(endBeatIdx / beatsPerMeasure);
+              const endBeat = Math.floor(endBeatIdx % beatsPerMeasure) + 1;
 
               return (
                 <div
@@ -870,7 +872,8 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
                       value={startMeasureNum + 1}
                       onChange={(e) => {
                         const m = Math.max(0, (parseInt(e.target.value) || 1) - 1);
-                        const newMs = measureToTime(m + (startBeat - 1) / beatsPerMeasure, bpm, beatsPerMeasure, bpmChanges);
+                        const beatIdx = m * beatsPerMeasure + (startBeat - 1);
+                        const newMs = beatIndexToTime(beatIdx, bpm, bpmChanges);
                         onUpdateBgaInterval(it.id, { startTimeMs: newMs });
                       }}
                       style={{
@@ -891,7 +894,8 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
                       value={startBeat}
                       onChange={(e) => {
                         const b = Math.max(1, Math.min(beatsPerMeasure, parseInt(e.target.value) || 1));
-                        const newMs = measureToTime(startMeasureNum + (b - 1) / beatsPerMeasure, bpm, beatsPerMeasure, bpmChanges);
+                        const beatIdx = startMeasureNum * beatsPerMeasure + (b - 1);
+                        const newMs = beatIndexToTime(beatIdx, bpm, bpmChanges);
                         onUpdateBgaInterval(it.id, { startTimeMs: newMs });
                       }}
                       style={{
@@ -912,7 +916,8 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
                       value={endMeasureNum + 1}
                       onChange={(e) => {
                         const m = Math.max(0, (parseInt(e.target.value) || 1) - 1);
-                        const newMs = measureToTime(m + (endBeat - 1) / beatsPerMeasure, bpm, beatsPerMeasure, bpmChanges);
+                        const beatIdx = m * beatsPerMeasure + (endBeat - 1);
+                        const newMs = beatIndexToTime(beatIdx, bpm, bpmChanges);
                         onUpdateBgaInterval(it.id, { endTimeMs: newMs });
                       }}
                       style={{
@@ -933,7 +938,8 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
                       value={endBeat}
                       onChange={(e) => {
                         const b = Math.max(1, Math.min(beatsPerMeasure, parseInt(e.target.value) || 1));
-                        const newMs = measureToTime(endMeasureNum + (b - 1) / beatsPerMeasure, bpm, beatsPerMeasure, bpmChanges);
+                        const beatIdx = endMeasureNum * beatsPerMeasure + (b - 1);
+                        const newMs = beatIndexToTime(beatIdx, bpm, bpmChanges);
                         onUpdateBgaInterval(it.id, { endTimeMs: newMs });
                       }}
                       style={{
