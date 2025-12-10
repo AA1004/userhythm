@@ -1606,6 +1606,12 @@ const testAudioSettingsRef = useRef<{
     }
   }, []);
 
+  // ⚠️ Hook은 early return 전에 호출되어야 함
+  const bgaMaskOpacity = useMemo(
+    () => getBgaMaskOpacity(gameState.currentTime),
+    [gameState.currentTime, getBgaMaskOpacity]
+  );
+
   // Show subtitle editor if open
   if (isSubtitleEditorOpen && subtitleEditorData) {
     return (
@@ -1649,11 +1655,6 @@ const testAudioSettingsRef = useRef<{
     gameState.gameStarted &&
     !gameState.gameEnded &&
     gameState.currentTime >= 0;
-
-  const bgaMaskOpacity = useMemo(
-    () => getBgaMaskOpacity(gameState.currentTime),
-    [gameState.currentTime, getBgaMaskOpacity]
-  );
 
   return (
     <VideoRhythmLayout
