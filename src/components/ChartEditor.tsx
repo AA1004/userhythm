@@ -376,25 +376,45 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   );
 
   // --- 재생선이 지나간 노트에 키음 재생 (ID 기반 중복 방지) ---
-  // 재생 정지(처음으로 돌아갈 때만) 시 재생된 노트 ID 초기화
+  // 재생이 멈춰 있는 동안 재생선을 옮기면,
+  // 해당 시점 이전 노트들은 이미 재생된 것으로 간주하도록 Set을 재구성한다.
   useEffect(() => {
     if (!isPlaying) {
-      if (currentTime <= 0) {
-        playedNoteIdsRef.current.clear();
+      const rebuilt = new Set<number>();
+      if (currentTime > 0) {
+        for (const note of sortedNotesByTime) {
+          if (note.time < currentTime) {
+            rebuilt.add(note.id);
+          } else {
+            break;
+          }
+        }
       }
+      playedNoteIdsRef.current = rebuilt;
       lastHitCheckTimeRef.current = currentTime;
     }
-  }, [isPlaying, currentTime]);
+  }, [isPlaying, currentTime, sortedNotesByTime]);
 
-  // 뒤로 이동 시 재생된 노트 ID 초기화
+  // 재생 중에 재생선이 뒤로 크게 이동하면,
+  // 해당 시점 이전 노트들을 이미 재생된 것으로 간주하도록 Set을 재구성한다.
   useEffect(() => {
     if (!isPlaying) return;
     const lastTime = lastHitCheckTimeRef.current;
     if (currentTime < lastTime) {
-      playedNoteIdsRef.current.clear();
+      const rebuilt = new Set<number>();
+      if (currentTime > 0) {
+        for (const note of sortedNotesByTime) {
+          if (note.time < currentTime) {
+            rebuilt.add(note.id);
+          } else {
+            break;
+          }
+        }
+      }
+      playedNoteIdsRef.current = rebuilt;
     }
     lastHitCheckTimeRef.current = currentTime;
-  }, [isPlaying, currentTime]);
+  }, [isPlaying, currentTime, sortedNotesByTime]);
 
   // 노트가 currentTime을 지나면 재생 (ID로 중복 방지)
   useEffect(() => {
