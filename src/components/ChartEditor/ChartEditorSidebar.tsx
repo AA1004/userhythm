@@ -683,7 +683,8 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
                       value={startMeasure}
                       onChange={(e) => {
                         const measure = Math.max(1, parseInt(e.target.value || '1'));
-                        const timeMs = measureToTime(measure, bpm, bpmChanges, beatsPerMeasure);
+                        const beatIdx = (measure - 1) * beatsPerMeasure;
+                        const timeMs = beatIndexToTime(beatIdx, bpm, bpmChanges);
                         onUpdateSpeedChange(sc.id, {
                           startTimeMs: timeMs,
                         });
@@ -734,7 +735,8 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
                           return;
                         }
                         const measure = Math.max(1, parseInt(raw));
-                        const timeMs = measureToTime(measure, bpm, bpmChanges, beatsPerMeasure);
+                        const beatIdx = (measure - 1) * beatsPerMeasure;
+                        const timeMs = beatIndexToTime(beatIdx, bpm, bpmChanges);
                         onUpdateSpeedChange(sc.id, { endTimeMs: timeMs });
                       }}
                       placeholder="끝까지"
