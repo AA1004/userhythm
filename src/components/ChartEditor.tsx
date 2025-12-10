@@ -48,7 +48,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [zoom, setZoom] = useState<number>(1);
   const [volume, setVolume] = useState<number>(100);
-  const [hitSoundVolume, setHitSoundVolume] = useState<number>(60);
+  const [hitSoundVolume, setHitSoundVolume] = useState<number>(40);
   const [subtitleSessionId, setSubtitleSessionId] = useState(() => {
     if (typeof window === 'undefined') {
       return `local-${Date.now()}`;
@@ -215,23 +215,43 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     if (!ctx || !masterGain) return;
 
     const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
+    const duration = 0.1; // 아주 짧은 드럼/클릭 느낌
+
+    // 노이즈 버퍼 생성 (하이햇/스네어 느낌의 어택)
+    const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * duration));
+    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i += 1) {
+      // 앞부분은 강하고 뒤로 갈수록 빠르게 줄어드는 노이즈
+      const env = Math.exp(-i / (bufferSize * 0.4));
+      data[i] = (Math.random() * 2 - 1) * env;
+    }
+
+    const noiseSource = ctx.createBufferSource();
+    noiseSource.buffer = noiseBuffer;
+
+    // 대역 통과 필터로 중고역만 살려서 울림 없는 드럼/클릭 느낌
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(2200, now);
+    filter.Q.setValueAtTime(0.9, now);
+
     const envGain = ctx.createGain();
-
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(880, now);
-
-    const baseLevel = Math.max(0.0001, masterGain.gain.value);
+    const baseLevel = Math.max(0.0001, masterGain.gain.value * 0.6); // 전체적으로 약간 더 작게
     envGain.gain.setValueAtTime(baseLevel, now);
-    envGain.gain.exponentialRampToValueAtTime(Math.max(0.0001, baseLevel * 0.25), now + 0.08);
+    envGain.gain.exponentialRampToValueAtTime(
+      Math.max(0.0001, baseLevel * 0.04),
+      now + duration
+    );
 
-    osc.connect(envGain).connect(masterGain);
-    osc.start(now);
-    osc.stop(now + 0.12);
+    noiseSource.connect(filter).connect(envGain).connect(masterGain);
+    noiseSource.start(now);
+    noiseSource.stop(now + duration);
 
-    osc.onended = () => {
+    noiseSource.onended = () => {
       try {
-        osc.disconnect();
+        noiseSource.disconnect();
+        filter.disconnect();
         envGain.disconnect();
       } catch {
         // ignore

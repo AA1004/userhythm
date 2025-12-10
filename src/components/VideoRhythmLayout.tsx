@@ -34,6 +34,29 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   const backgroundPlayerReadyRef = useRef(false);
   const lastBgaSeekRef = useRef<number | null>(null);
 
+  const applyBackgroundPlayerLayout = (player: any) => {
+    const container = backgroundPlayerContainerRef.current;
+    if (!container || !player) return;
+
+    const iframe = player.getIframe?.();
+    if (iframe) {
+      iframe.style.position = 'absolute';
+      iframe.style.top = '50%';
+      iframe.style.left = '50%';
+      iframe.style.width = '120%';
+      iframe.style.height = '120%';
+      iframe.style.transform = 'translate(-50%, -50%)';
+      iframe.style.pointerEvents = 'none';
+      iframe.style.objectFit = 'cover';
+    }
+
+    if (player.setSize) {
+      const rect = container.getBoundingClientRect();
+      const scale = 1.2; // 여백을 덮을 만큼 살짝 확대
+      player.setSize(rect.width * scale, rect.height * scale);
+    }
+  };
+
   // 배경용 YouTube 플레이어 초기화
   useEffect(() => {
     if (!videoId || !bgaEnabled) {
@@ -53,6 +76,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
 
     let isCancelled = false;
     let playerInstance: any = null;
+    let resizeHandler: (() => void) | null = null;
 
     waitForYouTubeAPI().then(() => {
       if (isCancelled) return;
@@ -93,6 +117,9 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
               } catch {
                 // ignore
               }
+              applyBackgroundPlayerLayout(player);
+              resizeHandler = () => applyBackgroundPlayerLayout(player);
+              window.addEventListener('resize', resizeHandler, { passive: true });
             },
           },
         });
@@ -109,6 +136,9 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
           playerInstance.destroy?.();
         } catch {
           // ignore
+        }
+        if (resizeHandler) {
+          window.removeEventListener('resize', resizeHandler);
         }
       }
       if (backgroundPlayerContainerRef.current) {
