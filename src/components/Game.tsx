@@ -50,6 +50,7 @@ interface EditorTestPayload {
   bpm?: number;
   speedChanges?: SpeedChange[];
   chartId?: string;
+  bgaVisibilityIntervals?: BgaVisibilityInterval[];
 }
 
 // 4개 레인을 더 붙이도록 배치: 각 레인 100px 너비, 4개 = 400px
@@ -1466,24 +1467,20 @@ const testAudioSettingsRef = useRef<{
       const chartIntervals: BgaVisibilityInterval[] = Array.isArray(chartData.bgaVisibilityIntervals)
         ? [...chartData.bgaVisibilityIntervals]
         : [];
-      const sortedIntervals = chartIntervals
-        .map((it, idx) => ({
+      const sortedIntervals: BgaVisibilityInterval[] = chartIntervals
+        .map((it, idx): BgaVisibilityInterval => ({
           id: typeof it.id === 'string' ? it.id : `bga-${idx}`,
           startTimeMs: Math.max(0, Number(it.startTimeMs) || 0),
           endTimeMs: Math.max(0, Number(it.endTimeMs) || 0),
           mode: it.mode === 'visible' ? 'visible' : 'hidden',
           fadeInMs:
-            typeof it.fadeInMs === 'number'
-              ? it.fadeInMs
-              : it.fadeInMs === undefined
-                ? undefined
-                : Number(it.fadeInMs) || 0,
+            it.fadeInMs === undefined
+              ? undefined
+              : Math.max(0, Number(it.fadeInMs) || 0),
           fadeOutMs:
-            typeof it.fadeOutMs === 'number'
-              ? it.fadeOutMs
-              : it.fadeOutMs === undefined
-                ? undefined
-                : Number(it.fadeOutMs) || 0,
+            it.fadeOutMs === undefined
+              ? undefined
+              : Math.max(0, Number(it.fadeOutMs) || 0),
           easing: it.easing === 'linear' ? 'linear' : undefined,
         }))
         .sort((a, b) => a.startTimeMs - b.startTimeMs);

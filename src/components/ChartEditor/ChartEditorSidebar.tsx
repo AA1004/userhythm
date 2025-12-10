@@ -864,7 +864,7 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
               overflowY: 'auto',
             }}
           >
-            {bgaVisibilityIntervals.map((it, idx) => (
+            {bgaVisibilityIntervals.map((it) => (
               <div
                 key={it.id}
                 style={{
