@@ -62,6 +62,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       iframe.style.pointerEvents = 'none';
       // 다양한 영상 비율을 고려해 넘침 방지: contain 사용 (레이아웃 배경색으로 여백 처리)
       iframe.style.objectFit = 'contain';
+      iframe.style.objectPosition = 'center center';
       iframe.style.backgroundColor = 'black';
     }
 
