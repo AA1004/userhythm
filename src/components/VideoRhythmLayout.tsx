@@ -52,8 +52,8 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     }
     lastLayoutSizeRef.current = { width: roundedWidth, height: roundedHeight };
 
-    // 약간만 여유를 두되, 과도하게 커지지 않도록 1.01로 제한
-    const overscan = 1.01;
+    // 최소한의 커버만 적용 (여백 최소화)
+    const overscan = 1.0;
     const videoBaseW = 16;
     const videoBaseH = 9;
     const scale = Math.max(rect.width / videoBaseW, rect.height / videoBaseH) * overscan;
