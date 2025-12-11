@@ -55,13 +55,14 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     const iframe = player.getIframe?.();
     if (iframe) {
       iframe.style.position = 'absolute';
-      iframe.style.top = '0';
-      iframe.style.left = '0';
-      iframe.style.width = `${roundedWidth}px`;
-      iframe.style.height = `${roundedHeight}px`;
+      iframe.style.inset = '0';
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
       iframe.style.transform = 'none';
       iframe.style.pointerEvents = 'none';
-      iframe.style.objectFit = 'cover';
+      // 다양한 영상 비율을 고려해 넘침 방지: contain 사용 (레이아웃 배경색으로 여백 처리)
+      iframe.style.objectFit = 'contain';
+      iframe.style.backgroundColor = 'black';
     }
 
     if (player.setSize) {
@@ -158,6 +159,10 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
           playerInstance.destroy?.();
         } catch {
           // ignore
+        }
+        if (layoutRafRef.current) {
+          cancelAnimationFrame(layoutRafRef.current);
+          layoutRafRef.current = null;
         }
         if (resizeHandler) {
           window.removeEventListener('resize', resizeHandler);
