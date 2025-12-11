@@ -55,12 +55,17 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
 
     const iframe = player.getIframe?.();
     if (iframe) {
-      // 영상 크기는 컨테이너에 맞추고, UI는 마스크로 가린다.
+      // YouTube UI를 잘라내기 위해 iframe을 크게 만들고 scale로 축소
+      // 높이 140% → scale(0.714)로 축소하면 결과적으로 100%로 보임
+      // 상단/하단 20%씩 잘려서 UI가 보이지 않음
+      const scaleY = 0.72; // 1/1.4 ≈ 0.714
       iframe.style.position = 'absolute';
-      iframe.style.inset = '0';
+      iframe.style.top = '50%';
+      iframe.style.left = '50%';
       iframe.style.width = '100%';
-      iframe.style.height = '100%';
-      iframe.style.transform = 'none';
+      iframe.style.height = '140%'; // 크게 만들어서 상하 UI 잘림
+      iframe.style.transform = `translate(-50%, -50%) scaleY(${scaleY})`;
+      iframe.style.transformOrigin = 'center center';
       iframe.style.pointerEvents = 'none';
       iframe.style.transition = 'none';
       iframe.style.objectFit = 'cover';
