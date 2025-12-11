@@ -46,8 +46,8 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     const containerAspect = containerWidth / containerHeight;
     const videoAspect = 16 / 9;
 
-    // 컨테이너에 딱 맞게 채우되, 불필요한 과스케일 방지
-    const overscan = 1.0;
+    // 컨테이너에 딱 맞게 채우되, 상단 넘침 최소화를 위해 소폭 축소
+    const overscan = 0.995;
     let targetWidth: number;
     let targetHeight: number;
 
