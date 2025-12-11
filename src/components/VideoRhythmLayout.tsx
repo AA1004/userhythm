@@ -55,16 +55,18 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
 
     const iframe = player.getIframe?.();
     if (iframe) {
+      // YouTube UI(제목바, 공유버튼)를 잘라내기 위해 iframe을 컨테이너보다 크게 만듦
+      // 상단/하단 각각 잘려서 UI가 보이지 않음
       iframe.style.position = 'absolute';
-      iframe.style.inset = '0';
-      iframe.style.width = '100%';
-      iframe.style.height = '100%';
-      iframe.style.transform = 'none';
+      iframe.style.top = '50%';
+      iframe.style.left = '50%';
+      iframe.style.width = '115%';
+      iframe.style.height = '140%'; // 상하 UI 잘라내기 위해 더 크게
+      iframe.style.transform = 'translate(-50%, -50%)';
       iframe.style.pointerEvents = 'none';
       iframe.style.transition = 'none';
-      // 다양한 영상 비율을 고려해 넘침 방지: contain 사용 (레이아웃 배경색으로 여백 처리)
-      iframe.style.objectFit = 'cover'; // UI 노출 최소화를 위해 전체 채움
-      iframe.style.objectPosition = 'center center';
+      iframe.style.objectFit = 'cover';
+      iframe.style.objectPosition = 'center';
       iframe.style.backgroundColor = 'black';
     }
   }, []);
