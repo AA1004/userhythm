@@ -183,11 +183,9 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
     () =>
       bgaVisibilityIntervals
         .map((interval) => {
-          const startY = timeToY(interval.startTimeMs);
-          const endY = timeToY(interval.endTimeMs);
-          const top = Math.min(startY, endY);
-          const height = Math.max(2, Math.abs(endY - startY));
-          return { interval, startY, endY, top, height };
+          const top = Math.min(timeToY(interval.startTimeMs), timeToY(interval.endTimeMs));
+          const height = Math.max(2, Math.abs(timeToY(interval.endTimeMs) - timeToY(interval.startTimeMs)));
+          return { interval, top, height };
         })
         .filter(({ top, height }) => {
           const bottom = top + height;
