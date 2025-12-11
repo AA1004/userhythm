@@ -55,14 +55,12 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
 
     const iframe = player.getIframe?.();
     if (iframe) {
-      // YouTube UI(제목바, 공유버튼)를 잘라내기 위해 iframe을 컨테이너보다 크게 만듦
-      // 상단/하단 각각 잘려서 UI가 보이지 않음
+      // 영상 크기는 컨테이너에 맞추고, UI는 마스크로 가린다.
       iframe.style.position = 'absolute';
-      iframe.style.top = '50%';
-      iframe.style.left = '50%';
-      iframe.style.width = '115%';
-      iframe.style.height = '140%'; // 상하 UI 잘라내기 위해 더 크게
-      iframe.style.transform = 'translate(-50%, -50%)';
+      iframe.style.inset = '0';
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
+      iframe.style.transform = 'none';
       iframe.style.pointerEvents = 'none';
       iframe.style.transition = 'none';
       iframe.style.objectFit = 'cover';
@@ -281,6 +279,29 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
               height: '100%',
               opacity: isBgVisible ? 1 : 0,
               transition: 'opacity 180ms ease-out',
+            }}
+          />
+          {/* 상/하단 UI 마스킹: 영상 크기는 유지, UI 영역만 덮어 숨김 */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 64, // 유튜브 제목바 높이 이상 덮음
+              background: 'linear-gradient(180deg, rgba(0,0,0,0.9), rgba(0,0,0,0.5), transparent)',
+              pointerEvents: 'none',
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 80, // 하단 UI 영역 덮음
+              background: 'linear-gradient(0deg, rgba(0,0,0,0.9), rgba(0,0,0,0.5), transparent)',
+              pointerEvents: 'none',
             }}
           />
         </div>
