@@ -41,8 +41,28 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     if (!container || !player) return;
 
     const rect = container.getBoundingClientRect();
-    const roundedWidth = Math.round(rect.width);
-    const roundedHeight = Math.round(rect.height);
+    const containerWidth = Math.max(1, rect.width);
+    const containerHeight = Math.max(1, rect.height);
+    const containerAspect = containerWidth / containerHeight;
+    const videoAspect = 16 / 9;
+
+    // 컨테이너에 딱 맞게 채우되, 불필요한 과스케일 방지
+    const overscan = 1.0;
+    let targetWidth: number;
+    let targetHeight: number;
+
+    if (containerAspect > videoAspect) {
+      // 컨테이너가 더 넓음 → 높이에 맞추어 가로를 확장
+      targetHeight = containerHeight * overscan;
+      targetWidth = targetHeight * videoAspect;
+    } else {
+      // 컨테이너가 더 좁음 → 가로에 맞추어 세로를 확장
+      targetWidth = containerWidth * overscan;
+      targetHeight = targetWidth / videoAspect;
+    }
+
+    const roundedWidth = Math.round(targetWidth);
+    const roundedHeight = Math.round(targetHeight);
 
     if (
       lastLayoutSizeRef.current.width === roundedWidth &&
@@ -51,14 +71,6 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       return;
     }
     lastLayoutSizeRef.current = { width: roundedWidth, height: roundedHeight };
-
-    // 최소한의 커버만 적용 (여백 최소화)
-    const overscan = 1.0;
-    const videoBaseW = 16;
-    const videoBaseH = 9;
-    const scale = Math.max(rect.width / videoBaseW, rect.height / videoBaseH) * overscan;
-    const targetWidth = videoBaseW * scale;
-    const targetHeight = videoBaseH * scale;
 
     const iframe = player.getIframe?.();
     if (iframe) {
