@@ -340,7 +340,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
         ))}
 
         {/* BGA 가림 구간 오버레이 */}
-        {visibleBgaIntervals.map(({ interval, startY, endY, top, height }) => {
+        {visibleBgaIntervals.map(({ interval, top, height }) => {
           const total = Math.max(1, Math.abs(interval.endTimeMs - interval.startTimeMs));
           const fadeInRatio = Math.min(1, Math.max(0, (interval.fadeInMs ?? 0) / total));
           const fadeOutRatio = Math.min(1, Math.max(0, (interval.fadeOutMs ?? 0) / total));
