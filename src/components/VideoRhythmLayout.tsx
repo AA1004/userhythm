@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { waitForYouTubeAPI } from '../utils/youtube';
 
@@ -33,12 +33,25 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   const [backgroundPlayer, setBackgroundPlayer] = useState<any>(null);
   const backgroundPlayerReadyRef = useRef(false);
   const lastBgaSeekRef = useRef<number | null>(null);
+  const lastLayoutSizeRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
+  const layoutRafRef = useRef<number | null>(null);
 
-  const applyBackgroundPlayerLayout = (player: any) => {
+  const applyBackgroundPlayerLayout = useCallback((player: any) => {
     const container = backgroundPlayerContainerRef.current;
     if (!container || !player) return;
 
     const rect = container.getBoundingClientRect();
+    const roundedWidth = Math.round(rect.width);
+    const roundedHeight = Math.round(rect.height);
+
+    if (
+      lastLayoutSizeRef.current.width === roundedWidth &&
+      lastLayoutSizeRef.current.height === roundedHeight
+    ) {
+      return;
+    }
+    lastLayoutSizeRef.current = { width: roundedWidth, height: roundedHeight };
+
     const overscan = 1.05;
     const videoBaseW = 16;
     const videoBaseH = 9;
@@ -61,7 +74,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     if (player.setSize) {
       player.setSize(targetWidth, targetHeight);
     }
-  };
+  }, []);
 
   // 배경용 YouTube 플레이어 초기화
   useEffect(() => {
@@ -124,7 +137,13 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
                 // ignore
               }
               applyBackgroundPlayerLayout(player);
-              resizeHandler = () => applyBackgroundPlayerLayout(player);
+              resizeHandler = () => {
+                if (layoutRafRef.current !== null) return;
+                layoutRafRef.current = requestAnimationFrame(() => {
+                  layoutRafRef.current = null;
+                  applyBackgroundPlayerLayout(player);
+                });
+              };
               window.addEventListener('resize', resizeHandler, { passive: true });
             },
           },
@@ -137,6 +156,10 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     return () => {
       isCancelled = true;
       backgroundPlayerReadyRef.current = false;
+      if (layoutRafRef.current) {
+        cancelAnimationFrame(layoutRafRef.current);
+        layoutRafRef.current = null;
+      }
       if (playerInstance) {
         try {
           playerInstance.destroy?.();

@@ -6,28 +6,30 @@ import react from '@vitejs/plugin-react'
 // GitHub Pages 기본 경로 사용 시: '/repository-name/'
 // 환경 변수로도 설정 가능: VITE_BASE_PATH
 const base = process.env.VITE_BASE_PATH || '/'
-
-// 디버깅: base 경로 확인
-if (process.env.NODE_ENV === 'production') {
-  console.log('Production build - base path:', base)
-}
+const enableSourceMap = process.env.SOURCEMAP === 'true'
+const shouldMinify = process.env.MINIFY === 'false' ? false : 'esbuild'
+const esbuildTarget = 'es2020'
 
 export default defineConfig({
   base,
   plugins: [react()],
   build: {
-    minify: false,
+    target: esbuildTarget,
+    minify: shouldMinify,
     outDir: 'dist',
     assetsDir: 'assets',
-    sourcemap: true,
+    sourcemap: enableSourceMap,
     emptyOutDir: true,
     rollupOptions: {
       input: {
         main: './index.html',
       },
-      output: {
-        manualChunks: undefined,
-      },
+    },
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom'],
+    esbuildOptions: {
+      target: esbuildTarget,
     },
   },
   server: {

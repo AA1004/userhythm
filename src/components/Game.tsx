@@ -191,6 +191,11 @@ const testAudioSettingsRef = useRef<{
   const testBgaIntervalsRef = useRef<BgaVisibilityInterval[]>([]);
   const [bgaVisibilityIntervals, setBgaVisibilityIntervals] = useState<BgaVisibilityInterval[]>([]);
 
+  const sortedBgaIntervals = useMemo(
+    () => [...bgaVisibilityIntervals].sort((a, b) => a.startTimeMs - b.startTimeMs),
+    [bgaVisibilityIntervals]
+  );
+
   const [pressedKeys, setPressedKeys] = useState<Set<Lane>>(new Set());
   const [holdingNotes, setHoldingNotes] = useState<Map<number, Note>>(new Map()); // 현재 누르고 있는 롱노트들 (노트 ID -> 노트)
   const [judgeFeedbacks, setJudgeFeedbacks] = useState<Array<{
@@ -879,8 +884,9 @@ const testAudioSettingsRef = useRef<{
     (chartTimeMs: number) => {
       let maxOpacity = 0;
 
-      for (const interval of bgaVisibilityIntervals) {
-        if (chartTimeMs < interval.startTimeMs || chartTimeMs > interval.endTimeMs) continue;
+      for (const interval of sortedBgaIntervals) {
+        if (interval.startTimeMs > chartTimeMs) break;
+        if (chartTimeMs > interval.endTimeMs) continue;
         const fadeIn = Math.max(0, interval.fadeInMs ?? 0);
         const fadeOut = Math.max(0, interval.fadeOutMs ?? 0);
         const toHidden = interval.mode === 'hidden';
@@ -905,8 +911,8 @@ const testAudioSettingsRef = useRef<{
       }
 
       return maxOpacity;
-    },
-    [bgaVisibilityIntervals]
+  },
+  [sortedBgaIntervals]
   );
 
   const activeSubtitles = useMemo(() => {
@@ -1606,10 +1612,15 @@ const testAudioSettingsRef = useRef<{
     }
   }, []);
 
+  const currentTimeBucket = useMemo(
+    () => Math.round(gameState.currentTime / 30),
+    [gameState.currentTime]
+  );
+
   // ⚠️ Hook은 early return 전에 호출되어야 함
   const bgaMaskOpacity = useMemo(
     () => getBgaMaskOpacity(gameState.currentTime),
-    [gameState.currentTime, getBgaMaskOpacity]
+    [currentTimeBucket, getBgaMaskOpacity]
   );
 
   // Show subtitle editor if open

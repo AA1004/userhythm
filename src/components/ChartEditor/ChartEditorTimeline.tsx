@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useRef } from 'react';
+import React, { useMemo, useEffect, useRef, useState, useCallback } from 'react';
 import { Note, TimeSignatureEvent, SpeedChange, BPMChange, BgaVisibilityInterval } from '../../types/game';
 import {
   LANE_POSITIONS,
@@ -64,6 +64,48 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   beatsPerMeasure,
   bgaVisibilityIntervals = [],
 }) => {
+  // 뷰포트 정보 (가시 영역 + 버퍼)
+  const [viewTop, setViewTop] = useState(0);
+  const [viewHeight, setViewHeight] = useState(0);
+  const viewBottom = viewTop + viewHeight;
+  const VIRTUAL_BUFFER = 800; // 위·아래 버퍼(px)
+
+  // 스크롤/리사이즈에 맞춰 뷰포트 값을 갱신
+  const updateViewport = useCallback(() => {
+    const container = timelineScrollRef.current;
+    if (!container) return;
+    const nextTop = container.scrollTop;
+    const nextHeight = container.clientHeight;
+    setViewTop((prev) => (prev === nextTop ? prev : nextTop));
+    setViewHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+  }, [timelineScrollRef]);
+
+  useEffect(() => {
+    const container = timelineScrollRef.current;
+    if (!container) return;
+
+    let rafId: number | null = null;
+    const handleScroll = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        updateViewport();
+      });
+    };
+
+    updateViewport();
+    container.addEventListener('scroll', handleScroll, { passive: true });
+
+    const resizeObserver = new ResizeObserver(() => updateViewport());
+    resizeObserver.observe(container);
+
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      if (rafId) cancelAnimationFrame(rafId);
+      resizeObserver.disconnect();
+    };
+  }, [updateViewport, timelineScrollRef]);
+
   // 그리드 라인 생성
   const gridLines = useMemo(() => {
     const lines: Array<{ y: number; isMeasure: boolean }> = [];
@@ -84,8 +126,75 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
     return lines;
   }, [timelineDurationMs, beatDuration, gridDivision, timeSignatureOffset, sortedTimeSignatures, timeToY]);
 
+  const paddedTop = Math.max(0, viewTop - VIRTUAL_BUFFER);
+  const paddedBottom = viewBottom + VIRTUAL_BUFFER;
+
+  const visibleGridLines = useMemo(
+    () => gridLines.filter((line) => line.y >= paddedTop && line.y <= paddedBottom),
+    [gridLines, paddedTop, paddedBottom]
+  );
+
   // 노트 높이는 줌과 무관하게 고정 (타임라인 스케일만 줌에 따라 변함)
   const tapNoteHeight = TAP_NOTE_HEIGHT;
+
+  const preparedNotes = useMemo(
+    () =>
+      notes.map((note) => {
+        const noteY = getNoteY(note.time);
+        const isHold = note.duration > 0 || note.type === 'hold';
+        const endY = isHold ? timeToY(note.endTime || note.time + note.duration) : noteY;
+        const topPosition = isHold
+          ? Math.min(noteY, endY) - tapNoteHeight / 2
+          : noteY - tapNoteHeight / 2;
+        const noteHeight = isHold
+          ? Math.max(tapNoteHeight, Math.abs(endY - noteY) + tapNoteHeight)
+          : tapNoteHeight;
+
+        return {
+          note,
+          noteY,
+          endY,
+          isHold,
+          topPosition,
+          noteHeight,
+          bottom: topPosition + noteHeight,
+        };
+      }),
+    [notes, getNoteY, timeToY, tapNoteHeight]
+  );
+
+  const visibleNotes = useMemo(
+    () =>
+      preparedNotes.filter(
+        (n) => n.bottom >= paddedTop && n.topPosition <= paddedBottom
+      ),
+    [preparedNotes, paddedTop, paddedBottom]
+  );
+
+  const visibleSpeedChanges = useMemo(
+    () =>
+      speedChanges
+        .map((sc) => ({ sc, y: timeToY(sc.startTimeMs) }))
+        .filter(({ y }) => y >= paddedTop && y <= paddedBottom),
+    [speedChanges, timeToY, paddedTop, paddedBottom]
+  );
+
+  const visibleBgaIntervals = useMemo(
+    () =>
+      bgaVisibilityIntervals
+        .map((interval) => {
+          const startY = timeToY(interval.startTimeMs);
+          const endY = timeToY(interval.endTimeMs);
+          const top = Math.min(startY, endY);
+          const height = Math.max(2, Math.abs(endY - startY));
+          return { interval, startY, endY, top, height };
+        })
+        .filter(({ top, height }) => {
+          const bottom = top + height;
+          return bottom >= paddedTop && top <= paddedBottom;
+        }),
+    [bgaVisibilityIntervals, timeToY, paddedTop, paddedBottom]
+  );
 
   // 초기 한 번만 스크롤을 재생선 위치로 설정 (재생선이 화면 중앙에 오도록)
   const didInitScrollRef = useRef(false);
@@ -198,7 +307,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
         ))}
 
         {/* 그리드 라인 */}
-        {gridLines.map((line, index) => (
+        {visibleGridLines.map((line, index) => (
           <div
             key={`grid-${index}`}
             style={{
@@ -215,36 +324,28 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
         ))}
 
         {/* 변속 마커 (SpeedChange) */}
-        {speedChanges.map((sc) => {
-          const y = timeToY(sc.startTimeMs);
-          return (
-            <div
-              key={`speed-start-${sc.id}`}
-              style={{
-                position: 'absolute',
-                left: 0,
-                top: `${y}px`,
-                width: `${CONTENT_WIDTH}px`,
-                height: 2,
-                background:
-                  'linear-gradient(90deg, rgba(56,189,248,0.1), rgba(56,189,248,0.9), rgba(56,189,248,0.1))',
-                boxShadow: '0 0 10px rgba(56,189,248,0.6)',
-              }}
-              title={`Speed BPM ${sc.bpm}`}
-            />
-          );
-        })}
+        {visibleSpeedChanges.map(({ sc, y }) => (
+          <div
+            key={`speed-start-${sc.id}`}
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: `${y}px`,
+              width: `${CONTENT_WIDTH}px`,
+              height: 2,
+              background:
+                'linear-gradient(90deg, rgba(56,189,248,0.1), rgba(56,189,248,0.9), rgba(56,189,248,0.1))',
+              boxShadow: '0 0 10px rgba(56,189,248,0.6)',
+            }}
+            title={`Speed BPM ${sc.bpm}`}
+          />
+        ))}
 
         {/* BGA 가림 구간 오버레이 */}
-        {bgaVisibilityIntervals.map((interval) => {
-          const startY = timeToY(interval.startTimeMs);
-          const endY = timeToY(interval.endTimeMs);
-          const top = Math.min(startY, endY);
-          const height = Math.max(2, Math.abs(endY - startY));
+        {visibleBgaIntervals.map(({ interval, startY, endY, top, height }) => {
           const total = Math.max(1, Math.abs(interval.endTimeMs - interval.startTimeMs));
           const fadeInRatio = Math.min(1, Math.max(0, (interval.fadeInMs ?? 0) / total));
           const fadeOutRatio = Math.min(1, Math.max(0, (interval.fadeOutMs ?? 0) / total));
-          // 겹침 방지: 페이드 구간이 겹치면 만나는 지점에서 색상을 유지하도록 보정
           const midStart = fadeInRatio;
           const midEnd = Math.max(midStart, 1 - fadeOutRatio);
           const baseColor =
@@ -310,23 +411,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
         />
 
         {/* 노트 렌더링 */}
-        {notes.map((note) => {
-          const effectiveTapHeight = tapNoteHeight;
-          // 노트 중심이 그리드 가로선 위에 정확히 오도록 (gridCellHalf 오프셋 제거)
-          const noteY = getNoteY(note.time);
-          const isHold = note.duration > 0 || note.type === 'hold';
-          const endY = isHold
-            ? timeToY(note.endTime || note.time + note.duration)
-            : noteY;
-          const topPosition = isHold
-            ? Math.min(noteY, endY) - effectiveTapHeight / 2
-            : noteY - effectiveTapHeight / 2;
-          const noteHeight = isHold
-            ? Math.max(
-                effectiveTapHeight,
-                Math.abs(endY - noteY) + effectiveTapHeight
-              )
-            : effectiveTapHeight;
+        {visibleNotes.map(({ note, isHold, topPosition, noteHeight }) => {
           const isOddLane = note.lane === 0 || note.lane === 2;
           const tapGradient = isOddLane
             ? 'linear-gradient(180deg, #FF6B6B 0%, #FF9A8B 100%)'
@@ -359,11 +444,11 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
                     width: '100%',
                     height: '100%',
                     background: holdGradient,
-                  borderRadius: 18,
-                  border: '2px solid rgba(255,255,255,0.25)',
-                  boxShadow: isOddLane
-                    ? '0 0 18px rgba(255, 214, 102, 0.8)'
-                    : '0 6px 16px rgba(0,0,0,0.45)',
+                    borderRadius: 18,
+                    border: '2px solid rgba(255,255,255,0.25)',
+                    boxShadow: isOddLane
+                      ? '0 0 18px rgba(255, 214, 102, 0.8)'
+                      : '0 6px 16px rgba(0,0,0,0.45)',
                   }}
                 />
               ) : (
@@ -371,9 +456,9 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
                   style={{
                     width: '100%',
                     height: '100%',
-                  background: tapGradient,
-                  border: `3px solid ${tapBorder}`,
-                  borderRadius: 14,
+                    background: tapGradient,
+                    border: `3px solid ${tapBorder}`,
+                    borderRadius: 14,
                     boxShadow: '0 6px 14px rgba(0, 0, 0, 0.45)',
                   }}
                 />
