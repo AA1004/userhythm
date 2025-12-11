@@ -260,16 +260,15 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
             pointerEvents: 'none', // 배경은 클릭 불가, 게임 영역만 인터랙션
           }}
         >
-          {/* 약간 확대해서 여백까지 자연스럽게 영상으로 채움 */}
+          {/* 화면에 딱 맞게 배치 */}
           <div
             ref={backgroundPlayerContainerRef}
             style={{
               position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: '120%',
-              height: '120%',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
             }}
           />
         </div>
