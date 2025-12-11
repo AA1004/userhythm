@@ -31,6 +31,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
 }) => {
   const backgroundPlayerContainerRef = useRef<HTMLDivElement | null>(null);
   const [backgroundPlayer, setBackgroundPlayer] = useState<any>(null);
+  const [isBgVisible, setIsBgVisible] = useState(false);
   const backgroundPlayerReadyRef = useRef(false);
   const lastBgaSeekRef = useRef<number | null>(null);
   const lastLayoutSizeRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
@@ -143,6 +144,10 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
                 });
               };
               window.addEventListener('resize', resizeHandler, { passive: true });
+
+              // UI 깜빡임 방지: 준비 직후 잠시 숨겼다가 노출
+              setIsBgVisible(false);
+              setTimeout(() => setIsBgVisible(true), 120);
             },
           },
         });
@@ -272,6 +277,8 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
               left: 0,
               width: '100%',
               height: '100%',
+              opacity: isBgVisible ? 1 : 0,
+              transition: 'opacity 180ms ease-out',
             }}
           />
         </div>
