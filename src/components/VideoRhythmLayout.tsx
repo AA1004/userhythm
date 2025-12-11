@@ -41,28 +41,8 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     if (!container || !player) return;
 
     const rect = container.getBoundingClientRect();
-    const containerWidth = Math.max(1, rect.width);
-    const containerHeight = Math.max(1, rect.height);
-    const containerAspect = containerWidth / containerHeight;
-    const videoAspect = 16 / 9;
-
-    // 컨테이너에 딱 맞게 채우되, 상단 넘침 최소화를 위해 소폭 축소
-    const overscan = 0.995;
-    let targetWidth: number;
-    let targetHeight: number;
-
-    if (containerAspect > videoAspect) {
-      // 컨테이너가 더 넓음 → 높이에 맞추어 가로를 확장
-      targetHeight = containerHeight * overscan;
-      targetWidth = targetHeight * videoAspect;
-    } else {
-      // 컨테이너가 더 좁음 → 가로에 맞추어 세로를 확장
-      targetWidth = containerWidth * overscan;
-      targetHeight = targetWidth / videoAspect;
-    }
-
-    const roundedWidth = Math.round(targetWidth);
-    const roundedHeight = Math.round(targetHeight);
+    const roundedWidth = Math.max(1, Math.round(rect.width));
+    const roundedHeight = Math.max(1, Math.round(rect.height));
 
     if (
       lastLayoutSizeRef.current.width === roundedWidth &&
@@ -75,17 +55,17 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     const iframe = player.getIframe?.();
     if (iframe) {
       iframe.style.position = 'absolute';
-      iframe.style.top = '50%';
-      iframe.style.left = '50%';
-      iframe.style.width = `${targetWidth}px`;
-      iframe.style.height = `${targetHeight}px`;
-      iframe.style.transform = 'translate(-50%, -50%)';
+      iframe.style.top = '0';
+      iframe.style.left = '0';
+      iframe.style.width = `${roundedWidth}px`;
+      iframe.style.height = `${roundedHeight}px`;
+      iframe.style.transform = 'none';
       iframe.style.pointerEvents = 'none';
       iframe.style.objectFit = 'cover';
     }
 
     if (player.setSize) {
-      player.setSize(targetWidth, targetHeight);
+      player.setSize(roundedWidth, roundedHeight);
     }
   }, []);
 
