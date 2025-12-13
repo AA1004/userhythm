@@ -15,7 +15,15 @@ const isProd = process.env.NODE_ENV === 'production';
 const fail = (reason: string, detail?: any, status = 500) => {
   // detail은 로그에만 남기고, 응답에는 요약만 전달
   console.error('[google-callback]', reason, detail);
-  return NextResponse.json({ error: reason }, { status });
+  const response: any = { error: reason };
+  if (process.env.NODE_ENV === 'development' && detail) {
+    if (typeof detail === 'object' && detail.message) {
+      response.message = detail.message;
+    } else if (typeof detail === 'string') {
+      response.message = detail;
+    }
+  }
+  return NextResponse.json(response, { status });
 };
 
 export async function GET(req: NextRequest) {
@@ -62,26 +70,49 @@ export async function GET(req: NextRequest) {
     const name = userJson.name as string | undefined;
 
     // 3) 사용자 upsert
-    const user = await prisma.user.upsert({
-      where: { email },
-      update: {
-        googleId,
-      },
-      create: {
-        email,
-        passwordHash: null,
-        role: 'user',
-        googleId,
-        profile: {
-          create: {
-            nickname: name || email,
-            role: 'user',
-            nicknameUpdatedAt: null,
+    let user;
+    try {
+      user = await prisma.user.upsert({
+        where: { email },
+        update: {
+          googleId,
+        },
+        create: {
+          email,
+          passwordHash: null,
+          role: 'user',
+          googleId,
+          profile: {
+            create: {
+              nickname: name || email,
+              role: 'user',
+              nicknameUpdatedAt: null,
+            },
           },
         },
-      },
-      include: { profile: true },
-    });
+        include: { profile: true },
+      });
+    } catch (dbError: any) {
+      // Railway 데이터베이스 인증 실패 처리
+      console.error('❌ Database error during OAuth callback:', dbError);
+      const errorMessage = dbError?.message || String(dbError);
+      const isAuthError = errorMessage.includes('Authentication failed') || 
+                         errorMessage.includes('credentials for `postgres` are not valid');
+      
+      if (isAuthError && process.env.NODE_ENV === 'development') {
+        // 로컬 환경에서 Railway DB 접근 실패 시 안내
+        return fail('database_connection_failed', {
+          message: 'Railway 데이터베이스에 연결할 수 없습니다. 로컬 환경에서는 Railway DB 접근이 제한될 수 있습니다.',
+          hint: '로컬 개발을 위해 별도의 로컬 데이터베이스를 사용하거나, Railway 데이터베이스의 Public Access 설정을 확인하세요.',
+          originalError: errorMessage,
+        }, 503);
+      }
+      
+      return fail('database_error', {
+        message: errorMessage,
+        name: dbError?.name,
+      }, 503);
+    }
 
     // 4) 세션 쿠키 발급 + redirect (쿠키를 redirect 응답에 직접 붙여야 함)
     const token = signSession({ userId: user.id, role: user.role });
@@ -100,7 +131,11 @@ export async function GET(req: NextRequest) {
     
     return response;
   } catch (error) {
-    return fail('oauth_failed', error, 500);
+    // 기타 예상치 못한 에러
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('OAuth callback unexpected error:', { errorMessage, errorStack });
+    return fail('oauth_failed', { message: errorMessage, stack: errorStack }, 500);
   }
 }
 

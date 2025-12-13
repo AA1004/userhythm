@@ -75,9 +75,24 @@ export async function GET(req: NextRequest) {
     );
 
     return NextResponse.json({ charts: serialized, total });
-  } catch (error) {
+  } catch (error: any) {
+    // 데이터베이스 연결 실패 시 로컬 환경에서는 빈 배열 반환
+    const isDbConnectionError = 
+      error?.name === 'PrismaClientInitializationError' ||
+      error?.message?.includes('Authentication failed') ||
+      error?.message?.includes('database server');
+    
+    if (isDbConnectionError && process.env.NODE_ENV === 'development') {
+      console.warn('⚠️  Database connection failed in development. Returning empty charts list.');
+      console.warn('Error:', error?.message || String(error));
+      return NextResponse.json({ charts: [], total: 0 }, { status: 200 });
+    }
+    
     console.error('charts list error', error);
-    return NextResponse.json({ error: 'failed to load charts' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('charts list error details:', { errorMessage, errorStack });
+    return NextResponse.json({ error: 'failed to load charts', details: process.env.NODE_ENV === 'development' ? errorMessage : undefined }, { status: 500 });
   }
 }
 
