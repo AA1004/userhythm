@@ -55,21 +55,19 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
 
     const iframe = player.getIframe?.();
     if (iframe) {
-      // YouTube UI를 잘라내기 위해 iframe을 크게 만들고 scale로 축소
-      // 높이 140% → scale(0.714)로 축소하면 결과적으로 100%로 보임
-      // 상단/하단 20%씩 잘려서 UI가 보이지 않음
-      const scaleY = 0.72; // 1/1.4 ≈ 0.714
+      // iframe을 컨테이너보다 크게 만들어서 YouTube UI가 overflow로 잘리게 함
+      // 높이 130%로 키우고 상단을 위로 올려서 중앙 정렬
+      // 상단/하단 15%씩이 컨테이너 밖으로 나가서 YouTube UI가 보이지 않음
       iframe.style.position = 'absolute';
-      iframe.style.top = '50%';
-      iframe.style.left = '50%';
+      iframe.style.top = '-15%'; // 상단을 위로 올려서 중앙 정렬
+      iframe.style.left = '0';
       iframe.style.width = '100%';
-      iframe.style.height = '140%'; // 크게 만들어서 상하 UI 잘림
-      iframe.style.transform = `translate(-50%, -50%) scaleY(${scaleY})`;
-      iframe.style.transformOrigin = 'center center';
+      iframe.style.height = '130%'; // 컨테이너보다 크게 만들어서 UI가 잘림
+      iframe.style.transform = 'none';
       iframe.style.pointerEvents = 'none';
       iframe.style.transition = 'none';
       iframe.style.objectFit = 'cover';
-      iframe.style.objectPosition = 'center';
+      iframe.style.objectPosition = 'center center';
       iframe.style.backgroundColor = 'black';
     }
   }, []);
@@ -284,29 +282,6 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
               height: '100%',
               opacity: isBgVisible ? 1 : 0,
               transition: 'opacity 180ms ease-out',
-            }}
-          />
-          {/* 상/하단 UI 마스킹: 영상 크기는 유지, UI 영역만 덮어 숨김 */}
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 64, // 유튜브 제목바 높이 이상 덮음
-              background: 'linear-gradient(180deg, rgba(0,0,0,0.9), rgba(0,0,0,0.5), transparent)',
-              pointerEvents: 'none',
-            }}
-          />
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: 80, // 하단 UI 영역 덮음
-              background: 'linear-gradient(0deg, rgba(0,0,0,0.9), rgba(0,0,0,0.5), transparent)',
-              pointerEvents: 'none',
             }}
           />
         </div>
