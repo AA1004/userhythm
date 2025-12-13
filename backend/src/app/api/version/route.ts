@@ -26,7 +26,7 @@ export async function GET() {
       version = await prisma.version.create({
         data: {
           id: VERSION_ID,
-          version: '1.2.2',
+          version: '1.2.3',
           changelog: JSON.stringify(defaultChangelog),
         },
       });

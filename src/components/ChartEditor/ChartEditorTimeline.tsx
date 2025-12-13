@@ -622,7 +622,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
         />
 
          {/* 노트 렌더링 */}
-          {visibleNotes.map(({ note, isHold, topPosition, noteHeight, rawLane, isSquishedLeft, isSquishedRight, squishRatio }) => {
+          {visibleNotes.map(({ note, isHold, topPosition, noteHeight, isSquishedLeft, isSquishedRight, squishRatio }) => {
            const isOddLane = note.lane === 0 || note.lane === 2;
            const tapGradient = isOddLane
              ? 'linear-gradient(180deg, #FF6B6B 0%, #FF9A8B 100%)'
