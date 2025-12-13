@@ -18,6 +18,11 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
   const [processing, setProcessing] = useState<boolean>(false);
 
   const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_TOKEN || 'admin123';
+  
+  // localhost:5173에서 접속하면 자동으로 ADMIN 인증
+  const isLocalhostDev = typeof window !== 'undefined' && 
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
+    window.location.port === '5173';
 
   const loadPendingCharts = useCallback(async () => {
     setLoading(true);
@@ -31,6 +36,13 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
       setLoading(false);
     }
   }, []);
+
+  // localhost:5173이면 자동으로 인증
+  useEffect(() => {
+    if (isLocalhostDev) {
+      setIsAuthenticated(true);
+    }
+  }, [isLocalhostDev]);
 
   useEffect(() => {
     if (isAuthenticated) {

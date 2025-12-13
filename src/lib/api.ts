@@ -3,6 +3,20 @@
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_TOKEN || '';
 
+// localhost:5173에서 접속하면 자동으로 ADMIN 토큰 사용
+const isLocalhostDev = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
+  window.location.port === '5173';
+
+// ADMIN 토큰 헤더 가져오기 (localhost:5173이면 항상 ADMIN 토큰 반환)
+const getAdminToken = () => {
+  if (isLocalhostDev) {
+    // localhost:5173이면 환경변수나 기본값 사용
+    return ADMIN_TOKEN || 'admin123';
+  }
+  return ADMIN_TOKEN;
+};
+
 export interface ApiChart {
   id: string;
   title: string;
@@ -118,7 +132,7 @@ export const api = {
   },
   async getPendingCharts() {
     const res = await fetch(`${API_BASE}/api/charts/pending`, {
-      headers: { 'x-admin-token': ADMIN_TOKEN },
+      headers: { 'x-admin-token': getAdminToken() },
       credentials: 'include',
     });
     return toJson(res) as Promise<{ charts: ApiChart[] }>;
@@ -128,7 +142,7 @@ export const api = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-admin-token': ADMIN_TOKEN,
+        'x-admin-token': getAdminToken(),
       },
       credentials: 'include',
       body: JSON.stringify({ status, comment }),
@@ -162,7 +176,7 @@ export const api = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-admin-token': ADMIN_TOKEN,
+        'x-admin-token': getAdminToken(),
       },
       credentials: 'include',
       body: JSON.stringify({ title, content }),
@@ -180,7 +194,7 @@ export const api = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-admin-token': ADMIN_TOKEN,
+        'x-admin-token': getAdminToken(),
       },
       credentials: 'include',
       body: JSON.stringify({ version, changelog }),
