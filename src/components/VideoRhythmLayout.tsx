@@ -37,7 +37,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   const lastLayoutSizeRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
   const layoutRafRef = useRef<number | null>(null);
 
-  const applyBackgroundPlayerLayout = useCallback((player: any) => {
+  const applyBackgroundPlayerLayout = useCallback((player: any, isInitial: boolean = false) => {
     const container = backgroundPlayerContainerRef.current;
     if (!container || !player) return;
 
@@ -45,30 +45,46 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     const roundedWidth = Math.max(1, Math.round(rect.width));
     const roundedHeight = Math.max(1, Math.round(rect.height));
 
-    if (
-      lastLayoutSizeRef.current.width === roundedWidth &&
-      lastLayoutSizeRef.current.height === roundedHeight
-    ) {
-      return;
+    if (!isInitial) {
+      // 리사이즈 시에만 크기 체크 (초기 설정은 항상 실행)
+      if (
+        lastLayoutSizeRef.current.width === roundedWidth &&
+        lastLayoutSizeRef.current.height === roundedHeight
+      ) {
+        return;
+      }
     }
     lastLayoutSizeRef.current = { width: roundedWidth, height: roundedHeight };
 
     const iframe = player.getIframe?.();
     if (iframe) {
-      // iframe을 컨테이너보다 크게 만들어서 YouTube UI가 overflow로 잘리게 함
-      // 높이 130%로 키우고 상단을 위로 올려서 중앙 정렬
-      // 상단/하단 15%씩이 컨테이너 밖으로 나가서 YouTube UI가 보이지 않음
-      iframe.style.position = 'absolute';
-      iframe.style.top = '-15%'; // 상단을 위로 올려서 중앙 정렬
-      iframe.style.left = '0';
-      iframe.style.width = '100%';
-      iframe.style.height = '130%'; // 컨테이너보다 크게 만들어서 UI가 잘림
-      iframe.style.transform = 'none';
-      iframe.style.pointerEvents = 'none';
-      iframe.style.transition = 'none';
-      iframe.style.objectFit = 'cover';
-      iframe.style.objectPosition = 'center center';
-      iframe.style.backgroundColor = 'black';
+      if (isInitial) {
+        // 초기: 크게 설정해서 YouTube UI가 컨테이너 밖으로 나가게 함
+        iframe.style.position = 'absolute';
+        iframe.style.top = '-15%';
+        iframe.style.left = '0';
+        iframe.style.width = '100%';
+        iframe.style.height = '130%';
+        iframe.style.transform = 'none';
+        iframe.style.pointerEvents = 'none';
+        iframe.style.transition = 'none'; // 초기에는 transition 없음
+        iframe.style.objectFit = 'cover';
+        iframe.style.objectPosition = 'center center';
+        iframe.style.backgroundColor = 'black';
+      } else {
+        // 최종: 원래 크기로 설정 (transition으로 부드럽게 전환)
+        iframe.style.position = 'absolute';
+        iframe.style.top = '0';
+        iframe.style.left = '0';
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.transform = 'none';
+        iframe.style.pointerEvents = 'none';
+        iframe.style.transition = 'top 300ms ease-out, height 300ms ease-out'; // 부드러운 전환
+        iframe.style.objectFit = 'cover';
+        iframe.style.objectPosition = 'center center';
+        iframe.style.backgroundColor = 'black';
+      }
     }
   }, []);
 
@@ -138,12 +154,21 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
               } catch {
                 // ignore
               }
-              applyBackgroundPlayerLayout(player);
+              
+              // 초기: 크게 설정해서 YouTube UI가 컨테이너 밖으로 나가게 함
+              applyBackgroundPlayerLayout(player, true);
+              
+              // 200ms 후 원래 크기로 부드럽게 전환
+              setTimeout(() => {
+                if (isCancelled) return;
+                applyBackgroundPlayerLayout(player, false);
+              }, 200);
+              
               resizeHandler = () => {
                 if (layoutRafRef.current !== null) return;
                 layoutRafRef.current = requestAnimationFrame(() => {
                   layoutRafRef.current = null;
-                  applyBackgroundPlayerLayout(player);
+                  applyBackgroundPlayerLayout(player, false);
                 });
               };
               window.addEventListener('resize', resizeHandler, { passive: true });
