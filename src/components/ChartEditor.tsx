@@ -637,7 +637,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setSpeedChanges((prev) => prev.filter((c) => c.id !== id));
   }, []);
 
-  // --- BGA 가림 구간 핸들러 ---
+  // --- 간주 구간 (채보 레인 숨김) 핸들러 ---
   const normalizeInterval = useCallback(
     (raw: Partial<BgaVisibilityInterval> & { id: string }) => {
       const start = clampTime(Math.max(0, raw.startTimeMs ?? 0));
@@ -682,7 +682,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   );
 
   const handleDeleteBgaInterval = useCallback((id: string) => {
-    if (!confirm('이 BGA 가림 구간을 삭제할까요?')) return;
+    if (!confirm('이 간주 구간을 삭제할까요?')) return;
     setBgaVisibilityIntervals((prev) => prev.filter((interval) => interval.id !== id));
   }, []);
 

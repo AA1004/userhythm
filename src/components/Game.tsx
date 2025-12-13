@@ -1852,7 +1852,7 @@ const testAudioSettingsRef = useRef<{
             </div>
           ))}
 
-        {/* BGA 가림 오버레이 */}
+        {/* 간주 구간 오버레이 (채보 레인 숨김) */}
         <div
           style={{
             position: 'absolute',
@@ -1869,7 +1869,8 @@ const testAudioSettingsRef = useRef<{
         />
 
         {/* 판정 피드백 - 4개 레인 영역 중앙에 통합 표시 (개별 애니메이션) */}
-        {judgeFeedbacks.map((feedback) => 
+        {/* 간주 구간에서는 판정 피드백 숨김 */}
+        {bgaMaskOpacity < 1 && judgeFeedbacks.map((feedback) => 
           feedback.judge ? (
             <div
               key={feedback.id}
@@ -1899,8 +1900,8 @@ const testAudioSettingsRef = useRef<{
           ) : null
         )}
 
-        {/* 점수 - 게임 중에만 표시 */}
-        {gameState.gameStarted && <ScoreComponent score={gameState.score} />}
+        {/* 점수 - 게임 중에만 표시 (간주 구간에서는 숨김) */}
+        {gameState.gameStarted && bgaMaskOpacity < 1 && <ScoreComponent score={gameState.score} />}
 
         {/* 테스트/플레이 중 나가기 버튼 */}
         {gameState.gameStarted && !gameState.gameEnded && isTestMode && (

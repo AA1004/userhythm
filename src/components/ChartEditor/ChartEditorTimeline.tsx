@@ -339,7 +339,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
           />
         ))}
 
-        {/* BGA 가림 구간 오버레이 */}
+        {/* 간주 구간 오버레이 (채보 레인 숨김) */}
         {visibleBgaIntervals.map(({ interval, top, height }) => {
           const total = Math.max(1, Math.abs(interval.endTimeMs - interval.startTimeMs));
           const fadeInRatio = Math.min(1, Math.max(0, (interval.fadeInMs ?? 0) / total));
@@ -374,7 +374,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
                     : '0 0 12px rgba(74,222,128,0.35)',
                 zIndex: 6,
               }}
-              title={`BGA ${interval.mode === 'hidden' ? '숨김' : '표시'} (${interval.startTimeMs}ms ~ ${interval.endTimeMs}ms)`}
+              title={`간주 구간 (채보 레인 ${interval.mode === 'hidden' ? '숨김' : '표시'}) (${interval.startTimeMs}ms ~ ${interval.endTimeMs}ms)`}
             >
               <span
                 style={{

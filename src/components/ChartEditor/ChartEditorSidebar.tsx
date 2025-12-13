@@ -815,7 +815,7 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
         )}
       </div>
 
-      {/* BGA 가림 구간 */}
+      {/* 채보 레인 숨김 구간 */}
       <div
         style={{
           marginBottom: '18px',
@@ -826,7 +826,7 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>BGA 가림</span>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>간주 구간 (채보 레인 숨김)</span>
           <button
             onClick={onAddBgaInterval}
             style={{
@@ -987,7 +987,7 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
                         fontWeight: 600,
                       }}
                     >
-                      {it.mode === 'hidden' ? '숨김' : '표시'}
+                      {it.mode === 'hidden' ? '레인 숨김' : '레인 표시'}
                     </button>
                     <span style={{ fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>F-in</span>
                     <input
