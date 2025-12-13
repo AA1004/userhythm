@@ -1707,20 +1707,22 @@ const testAudioSettingsRef = useRef<{
               border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
             }}
           >
-        {/* 4개 레인 영역 배경 */}
-        <div
-          style={{
-            position: 'absolute',
-            left: '50px',
-            top: '0',
-            width: '400px',
-            height: '100%',
-            backgroundColor: 'rgba(15, 23, 42, 0.6)', // 네온 톤의 남색 계열
-          }}
-        />
+        {/* 4개 레인 영역 배경 (간주 구간에서는 숨김) */}
+        {bgaMaskOpacity < 1 && (
+          <div
+            style={{
+              position: 'absolute',
+              left: '50px',
+              top: '0',
+              width: '400px',
+              height: '100%',
+              backgroundColor: 'rgba(15, 23, 42, 0.6)', // 네온 톤의 남색 계열
+            }}
+          />
+        )}
         
-        {/* 배경 라인 구분선 - 레인 사이 경계와 양쪽 끝 */}
-        {[50, 150, 250, 350, 450].map((x) => (
+        {/* 배경 라인 구분선 - 레인 사이 경계와 양쪽 끝 (간주 구간에서는 숨김) */}
+        {bgaMaskOpacity < 1 && [50, 150, 250, 350, 450].map((x) => (
           <div
             key={x}
             style={{
@@ -1735,8 +1737,8 @@ const testAudioSettingsRef = useRef<{
           />
         ))}
 
-        {/* 노트 렌더링 */}
-        {gameState.notes.map((note) => {
+        {/* 노트 렌더링 (간주 구간에서는 숨김) */}
+        {bgaMaskOpacity < 1 && gameState.notes.map((note) => {
           const baseDuration = BASE_FALL_DURATION / speed;
           const fallDuration = getNoteFallDuration(
             note.time,
@@ -1759,13 +1761,13 @@ const testAudioSettingsRef = useRef<{
           );
         })}
 
-        {/* 판정선 - 게임 중에만 표시 (4개 레인 영역에만) */}
-        {gameState.gameStarted && (
+        {/* 판정선 - 게임 중에만 표시 (간주 구간에서는 숨김) */}
+        {gameState.gameStarted && bgaMaskOpacity < 1 && (
           <JudgeLine left={JUDGE_LINE_LEFT} width={JUDGE_LINE_WIDTH} />
         )}
 
-        {/* 4개 레인 - 게임 중에만 표시 */}
-        {gameState.gameStarted &&
+        {/* 4개 레인 - 게임 중에만 표시 (간주 구간에서는 숨김) */}
+        {gameState.gameStarted && bgaMaskOpacity < 1 &&
           LANE_POSITIONS.map((x, index) => (
             <KeyLane
               key={index}
@@ -1775,8 +1777,8 @@ const testAudioSettingsRef = useRef<{
             />
           ))}
 
-        {/* 판정선에 나오는 이펙트 - 노트가 있는 위치에서 (게임 중에만 표시) */}
-        {gameState.gameStarted &&
+        {/* 판정선에 나오는 이펙트 - 노트가 있는 위치에서 (간주 구간에서는 숨김) */}
+        {gameState.gameStarted && bgaMaskOpacity < 1 &&
           keyEffects.map((effect) => (
             <div
               key={effect.id}
@@ -2218,7 +2220,8 @@ const testAudioSettingsRef = useRef<{
           </div>
         )}
 
-        {gameState.gameEnded && (
+        {/* 게임 종료 UI - 간주 구간에서는 숨김 */}
+        {gameState.gameEnded && bgaMaskOpacity < 1 && (
           isTestMode ? (
             <div
               style={{
@@ -2431,8 +2434,8 @@ const testAudioSettingsRef = useRef<{
         )}
       </div>
 
-      {/* 자막 레이어 (게임 컨테이너 바깥, 16:9 영역으로 확장) */}
-      <LyricOverlay activeSubtitles={activeSubtitles} subtitleArea={subtitleArea} />
+      {/* 자막 레이어 (게임 컨테이너 바깥, 16:9 영역으로 확장) - 간주 구간에서는 숨김 */}
+      {bgaMaskOpacity < 1 && <LyricOverlay activeSubtitles={activeSubtitles} subtitleArea={subtitleArea} />}
         </div>
       </div>
 

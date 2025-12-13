@@ -38,6 +38,13 @@ interface ChartEditorTimelineProps {
   bpmChanges: BPMChange[];
   beatsPerMeasure: number;
   bgaVisibilityIntervals?: BgaVisibilityInterval[];
+  // 선택 영역 관련
+  selectionStartTime?: number | null;
+  selectionEndTime?: number | null;
+  onSelectionStart?: (timeMs: number) => void;
+  onSelectionUpdate?: (timeMs: number) => void;
+  onSelectionEnd?: () => void;
+  yToTime: (y: number) => number;
 }
 
 export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
@@ -63,6 +70,12 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   bpmChanges,
   beatsPerMeasure,
   bgaVisibilityIntervals = [],
+  selectionStartTime,
+  selectionEndTime,
+  onSelectionStart,
+  onSelectionUpdate,
+  onSelectionEnd,
+  yToTime,
 }) => {
   // 뷰포트 정보 (가시 영역 + 버퍼)
   const [viewTop, setViewTop] = useState(0);
@@ -235,10 +248,79 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
     };
   }, [timelineContentHeight, playheadY]);
 
+  // 드래그 선택 핸들러
+  const isDraggingSelectionRef = useRef(false);
+  
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    // 재생선이나 노트 클릭이면 선택 모드 비활성화
+    if ((e.target as HTMLElement).closest('[data-playhead]') || 
+        (e.target as HTMLElement).closest('[data-note]')) {
+      return;
+    }
+    
+    if (!timelineContentRef.current) return;
+    const rect = timelineContentRef.current.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const time = yToTime(y);
+    
+    isDraggingSelectionRef.current = true;
+    if (onSelectionStart) {
+      onSelectionStart(time);
+    }
+    
+    e.preventDefault();
+  }, [yToTime, onSelectionStart, timelineContentRef]);
+  
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDraggingSelectionRef.current || !onSelectionUpdate) return;
+    if (!timelineContentRef.current) return;
+    
+    const rect = timelineContentRef.current.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const time = yToTime(y);
+    
+    onSelectionUpdate(time);
+  }, [yToTime, onSelectionUpdate, timelineContentRef]);
+  
+  const handleMouseUp = useCallback(() => {
+    if (isDraggingSelectionRef.current && onSelectionEnd) {
+      onSelectionEnd();
+    }
+    isDraggingSelectionRef.current = false;
+  }, [onSelectionEnd]);
+  
+  useEffect(() => {
+    if (isDraggingSelectionRef.current) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [handleMouseMove, handleMouseUp]);
+
+  // 선택 영역 렌더링 계산
+  const selectionBox = useMemo(() => {
+    if (selectionStartTime === null || selectionEndTime === null) return null;
+    
+    const startTime = Math.min(selectionStartTime, selectionEndTime);
+    const endTime = Math.max(selectionStartTime, selectionEndTime);
+    
+    const startY = timeToY(startTime);
+    const endY = timeToY(endTime);
+    
+    return {
+      top: Math.min(startY, endY),
+      height: Math.abs(endY - startY),
+    };
+  }, [selectionStartTime, selectionEndTime, timeToY]);
+
   return (
     <div
       ref={timelineScrollRef}
       onClick={onTimelineClick}
+      onMouseDown={handleMouseDown}
       style={{
         width: '100%',
         height: '100%',
@@ -422,6 +504,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
           return (
             <div
               key={note.id}
+              data-note
               onClick={(e) => {
                 e.stopPropagation();
                 onNoteClick(note.id);
@@ -465,8 +548,27 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
           );
         })}
 
+        {/* 선택 영역 */}
+        {selectionBox && (
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: `${selectionBox.top}px`,
+              width: `${CONTENT_WIDTH}px`,
+              height: `${selectionBox.height}px`,
+              backgroundColor: 'rgba(59, 130, 246, 0.2)',
+              border: '2px dashed rgba(59, 130, 246, 0.6)',
+              borderRadius: 4,
+              pointerEvents: 'none',
+              zIndex: 5,
+            }}
+          />
+        )}
+
         {/* 재생선 */}
         <div
+          data-playhead
           onMouseDown={onPlayheadMouseDown}
           style={{
             position: 'absolute',

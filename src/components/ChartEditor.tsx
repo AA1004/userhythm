@@ -20,6 +20,7 @@ import {
   CHART_EDITOR_THEME,
 } from './ChartEditor/constants';
 import { extractYouTubeVideoId } from '../utils/youtube';
+import { localSubtitleStorage } from '../lib/subtitleAPI';
 
 const KEY_TO_LANE: Record<string, Lane> = {
   a: 0,
@@ -79,6 +80,43 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       window.removeEventListener('subtitle-chart-id-update', handler as EventListener);
     };
   }, []);
+
+  // 키보드 단축키 (Ctrl+C, Ctrl+V, ESC)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+C: 복사
+      if (e.ctrlKey && e.key === 'c' && !e.shiftKey && !e.altKey) {
+        if (selectionStartTime !== null && selectionEndTime !== null) {
+          e.preventDefault();
+          handleCopySelection();
+        }
+        return;
+      }
+      
+      // Ctrl+V: 붙여넣기
+      if (e.ctrlKey && e.key === 'v' && !e.shiftKey && !e.altKey) {
+        if (copiedNotes.length > 0) {
+          e.preventDefault();
+          handlePasteNotes();
+        }
+        return;
+      }
+      
+      // ESC: 선택 해제
+      if (e.key === 'Escape') {
+        if (selectionStartTime !== null || selectionEndTime !== null) {
+          e.preventDefault();
+          handleClearSelection();
+        }
+        return;
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectionStartTime, selectionEndTime, copiedNotes, handleCopySelection, handlePasteNotes, handleClearSelection]);
   
   // --- BPM & Grid 상태 ---
   const [bpm, setBpm] = useState<number>(120);
@@ -91,6 +129,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [gridDivision, setGridDivision] = useState<number>(1);
   const [speedChanges, setSpeedChanges] = useState<SpeedChange[]>([]);
   const [bgaVisibilityIntervals, setBgaVisibilityIntervals] = useState<BgaVisibilityInterval[]>([]);
+  
+  // --- 선택 영역 상태 (복사/붙여넣기) ---
+  const [selectionStartTime, setSelectionStartTime] = useState<number | null>(null);
+  const [selectionEndTime, setSelectionEndTime] = useState<number | null>(null);
+  const [copiedNotes, setCopiedNotes] = useState<Note[]>([]);
+  const isSelectingRef = useRef(false);
   
   // --- UI 상태 ---
   const [isBpmInputOpen, setIsBpmInputOpen] = useState<boolean>(false);
@@ -553,7 +597,18 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setIsPlaying(false);
     setPendingLongNote(null);
     isDraggingPlayheadRef.current = false;
-  }, []);
+
+    // 자막 데이터 복원
+    if (Array.isArray(data.subtitles) && data.subtitles.length > 0) {
+      try {
+        localSubtitleStorage.save(subtitleSessionId, data.subtitles);
+        // 자막 에디터에 알림
+        window.dispatchEvent(new CustomEvent('subtitles-restored', { detail: data.subtitles }));
+      } catch (error) {
+        console.error('Failed to restore subtitles:', error);
+      }
+    }
+  }, [subtitleSessionId]);
 
   useChartAutosave(AUTO_SAVE_KEY, autoSaveData, handleRestore);
 
@@ -684,6 +739,57 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const handleDeleteBgaInterval = useCallback((id: string) => {
     if (!confirm('이 간주 구간을 삭제할까요?')) return;
     setBgaVisibilityIntervals((prev) => prev.filter((interval) => interval.id !== id));
+  }, []);
+
+  // --- 복사/붙여넣기 핸들러 ---
+  const handleCopySelection = useCallback(() => {
+    if (selectionStartTime === null || selectionEndTime === null) return;
+    
+    const startTime = Math.min(selectionStartTime, selectionEndTime);
+    const endTime = Math.max(selectionStartTime, selectionEndTime);
+    
+    // 선택된 시간 범위 내의 노트들 필터링
+    const selectedNotes = notes.filter(
+      (note) => note.time >= startTime && note.time < endTime
+    );
+    
+    if (selectedNotes.length === 0) {
+      alert('선택된 영역에 노트가 없습니다.');
+      return;
+    }
+    
+    // 노트들의 시간을 상대 시간으로 변환 (첫 노트 시간을 0으로)
+    const minTime = Math.min(...selectedNotes.map((n) => n.time));
+    const copiedNotesWithRelativeTime = selectedNotes.map((note) => ({
+      ...note,
+      time: note.time - minTime,
+    }));
+    
+    setCopiedNotes(copiedNotesWithRelativeTime);
+    alert(`${selectedNotes.length}개의 노트를 복사했습니다.`);
+  }, [selectionStartTime, selectionEndTime, notes]);
+
+  const handlePasteNotes = useCallback(() => {
+    if (copiedNotes.length === 0) {
+      alert('복사된 노트가 없습니다.');
+      return;
+    }
+    
+    // 현재 시간 위치에 노트들을 붙여넣기
+    const newNotes = copiedNotes.map((note) => ({
+      ...note,
+      id: noteIdRef.current++,
+      time: note.time + currentTime,
+    }));
+    
+    setNotes((prev) => [...prev, ...newNotes].sort((a, b) => a.time - b.time));
+    alert(`${newNotes.length}개의 노트를 붙여넣었습니다.`);
+  }, [copiedNotes, currentTime]);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectionStartTime(null);
+    setSelectionEndTime(null);
+    isSelectingRef.current = false;
   }, []);
 
 
@@ -947,10 +1053,16 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
   const handleExportJson = useCallback(() => {
     try {
+      // 자막 데이터 가져오기
+      const subtitles = localSubtitleStorage.get(subtitleSessionId);
+      
       const payload = {
         version: 1,
         exportedAt: new Date().toISOString(),
-        chart: autoSaveData,
+        chart: {
+          ...autoSaveData,
+          subtitles: subtitles.length > 0 ? subtitles : undefined,
+        },
       };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -966,7 +1078,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       console.error('JSON 내보내기 실패:', error);
       alert('JSON 내보내기 중 오류가 발생했습니다.');
     }
-  }, [autoSaveData, shareTitle]);
+  }, [autoSaveData, shareTitle, subtitleSessionId]);
 
   const handleImportJsonClick = useCallback(() => {
     importInputRef.current?.click();
@@ -987,7 +1099,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           throw new Error('notes 배열이 포함되지 않은 JSON 파일입니다.');
         }
         handleRestore(chartData);
-        alert(`JSON 파일을 불러왔습니다. (노트 ${chartData.notes.length}개)`);
+        const subtitleCount = Array.isArray(chartData.subtitles) ? chartData.subtitles.length : 0;
+        const subtitleMsg = subtitleCount > 0 ? `, 자막 ${subtitleCount}개` : '';
+        alert(`JSON 파일을 불러왔습니다. (노트 ${chartData.notes.length}개${subtitleMsg})`);
       } catch (error) {
         console.error('JSON 불러오기 실패:', error);
         alert('JSON 파일을 불러오지 못했습니다. 파일 형식을 확인해 주세요.');
@@ -1301,6 +1415,20 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                 bpmChanges={sortedBpmChanges}
                 beatsPerMeasure={beatsPerMeasure}
                 bgaVisibilityIntervals={bgaVisibilityIntervals}
+                selectionStartTime={selectionStartTime}
+                selectionEndTime={selectionEndTime}
+                onSelectionStart={(time) => {
+                  setSelectionStartTime(time);
+                  setSelectionEndTime(time);
+                  isSelectingRef.current = true;
+                }}
+                onSelectionUpdate={(time) => {
+                  setSelectionEndTime(time);
+                }}
+                onSelectionEnd={() => {
+                  isSelectingRef.current = false;
+                }}
+                yToTime={yToTime}
             />
             
             {/* Hidden Youtube Player */}
