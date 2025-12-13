@@ -96,12 +96,15 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   
   // --- 선택 영역 상태 (복사/붙여넣기) ---
   const [isSelectionMode, setIsSelectionMode] = useState<boolean>(false);
-  const [isLaneSelectionMode, setIsLaneSelectionMode] = useState<boolean>(false);
+  const [isMoveMode, setIsMoveMode] = useState<boolean>(false);
   const [selectedLane, setSelectedLane] = useState<Lane | null>(null);
   const [selectionStartTime, setSelectionStartTime] = useState<number | null>(null);
   const [selectionEndTime, setSelectionEndTime] = useState<number | null>(null);
   const [copiedNotes, setCopiedNotes] = useState<Note[]>([]);
+  const [selectedNoteIds, setSelectedNoteIds] = useState<Set<number>>(new Set());
+  const [dragOffset, setDragOffset] = useState<{ time: number; lane: number } | null>(null);
   const isSelectingRef = useRef(false);
+  const dragStartRef = useRef<{ time: number; lane: number } | null>(null);
   
   // --- 실행 취소/다시 실행 상태 ---
   const notesHistoryRef = useRef<Note[][]>([[]]);
@@ -780,14 +783,22 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     const endTime = Math.max(selectionStartTime, selectionEndTime);
     
     // 선택된 시간 범위 내의 노트들 필터링
-    const selectedNotes = notes.filter(
+    let selectedNotes = notes.filter(
       (note) => note.time >= startTime && note.time < endTime
     );
     
+    // 특정 레인에서 드래그를 시작했으면 해당 레인의 노트만 필터링
+    if (selectedLane !== null) {
+      selectedNotes = selectedNotes.filter((note) => note.lane === selectedLane);
+    }
+    
     if (selectedNotes.length === 0) {
-      alert('선택된 영역에 노트가 없습니다.');
       return;
     }
+    
+    // 선택된 노트 ID 저장
+    const noteIds = new Set(selectedNotes.map(n => n.id));
+    setSelectedNoteIds(noteIds);
     
     // 노트들의 시간을 상대 시간으로 변환 (첫 노트 시간을 0으로)
     const minTime = Math.min(...selectedNotes.map((n) => n.time));
@@ -797,7 +808,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }));
     
     setCopiedNotes(copiedNotesWithRelativeTime);
-  }, [selectionStartTime, selectionEndTime, notes]);
+  }, [selectionStartTime, selectionEndTime, notes, selectedLane]);
 
   const handlePasteNotes = useCallback(() => {
     if (copiedNotes.length === 0) {
@@ -817,12 +828,113 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       return newNotesList;
     });
   }, [copiedNotes, currentTime, saveToHistory]);
+  
+  // 선택된 노트들을 이동시키는 핸들러
+  const handleMoveStart = useCallback((time: number, lane: Lane | null, noteId?: number) => {
+    dragStartRef.current = { time, lane: lane ?? 0 };
+    setDragOffset({ time: 0, lane: 0 });
+    
+    // 선택된 노트가 없고 특정 노트 ID가 전달되었으면 해당 노트를 선택
+    if (selectedNoteIds.size === 0 && noteId !== undefined) {
+      setSelectedNoteIds(new Set([noteId]));
+    }
+  }, [selectedNoteIds]);
+  
+  const handleMoveUpdate = useCallback((timeOffset: number, laneOffset: number) => {
+    setDragOffset({ time: timeOffset, lane: laneOffset });
+  }, []);
+  
+  const handleMoveEnd = useCallback(() => {
+    if (dragOffset && selectedNoteIds.size > 0) {
+      // 이동 전 선택된 노트 ID를 저장 (이동 후에도 유지하기 위해)
+      const idsToKeep = new Set(selectedNoteIds);
+      const currentDragOffset = dragOffset; // 클로저로 현재 오프셋 저장
+      
+      setNotes((prev) => {
+        const newNotes = prev.map((note) => {
+          if (idsToKeep.has(note.id)) {
+            const newTime = Math.max(0, note.time + currentDragOffset.time);
+            const newLane = Math.max(0, Math.min(3, note.lane + currentDragOffset.lane)) as Lane;
+            return {
+              ...note,
+              time: newTime,
+              lane: newLane,
+            };
+          }
+          return note;
+        });
+        const sortedNotes = newNotes.sort((a, b) => a.time - b.time);
+        saveToHistory(sortedNotes);
+        
+        // 노트 업데이트 후 오프셋 초기화 (렌더링이 올바른 위치에 표시되도록)
+        setDragOffset(null);
+        dragStartRef.current = null;
+        
+        return sortedNotes;
+      });
+      
+      // 선택 영역도 함께 이동
+      if (selectionStartTime !== null && selectionEndTime !== null) {
+        const newStartTime = Math.max(0, selectionStartTime + currentDragOffset.time);
+        const newEndTime = Math.max(0, selectionEndTime + currentDragOffset.time);
+        setSelectionStartTime(newStartTime);
+        setSelectionEndTime(newEndTime);
+      }
+      
+      // 이동 후에도 선택 상태 명시적으로 유지
+      // 노트 ID는 변경되지 않으므로 같은 ID를 유지
+      setSelectedNoteIds(idsToKeep);
+    } else {
+      // 드래그 오프셋이 없거나 선택된 노트가 없으면 오프셋만 초기화
+      setDragOffset(null);
+      dragStartRef.current = null;
+    }
+  }, [dragOffset, selectedNoteIds, selectionStartTime, selectionEndTime, saveToHistory]);
 
   const handleClearSelection = useCallback(() => {
     setSelectionStartTime(null);
     setSelectionEndTime(null);
+    // 이동 모드가 활성화되어 있으면 선택된 노트 ID는 유지
+    if (!isMoveMode) {
+      setSelectedNoteIds(new Set());
+    }
     isSelectingRef.current = false;
-  }, []);
+  }, [isMoveMode]);
+  
+  // 선택 영역이 변경될 때마다 선택된 노트 ID 업데이트
+  // 단, 이동 모드가 활성화되어 있으면 선택 상태를 유지
+  useEffect(() => {
+    // 이동 모드가 활성화되어 있으면 선택 영역 변경 시에도 선택된 노트 ID를 유지
+    if (isMoveMode) {
+      return;
+    }
+    
+    if (selectionStartTime === null || selectionEndTime === null) {
+      // 선택 모드가 꺼져있을 때만 선택 해제
+      if (!isSelectionMode) {
+        setSelectedNoteIds(new Set());
+      }
+      return;
+    }
+    
+    const startTime = Math.min(selectionStartTime, selectionEndTime);
+    const endTime = Math.max(selectionStartTime, selectionEndTime);
+    
+    // 선택된 시간 범위 내의 노트들 필터링
+    let selectedNotes = notes.filter(
+      (note) => note.time >= startTime && note.time < endTime
+    );
+    
+    // 특정 레인에서 드래그를 시작했으면 해당 레인의 노트만 필터링
+    if (selectedLane !== null) {
+      selectedNotes = selectedNotes.filter((note) => note.lane === selectedLane);
+    }
+    
+    // 선택된 노트 ID 저장
+    const noteIds = new Set(selectedNotes.map(n => n.id));
+    setSelectedNoteIds(noteIds);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectionStartTime, selectionEndTime, selectedLane, isMoveMode, isSelectionMode]);
 
   // 키보드 단축키 (Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y, ESC)
   useEffect(() => {
@@ -899,12 +1011,17 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   }, [saveToHistory]);
 
   const deleteNote = useCallback((id: number) => {
+    // 이동 모드가 활성화되어 있으면 노트 삭제 불가
+    if (isMoveMode) {
+      return;
+    }
+    
     setNotes((prev) => {
       const newNotes = prev.filter((n) => n.id !== id);
       saveToHistory(newNotes);
       return newNotes;
     });
-  }, [saveToHistory]);
+  }, [saveToHistory, isMoveMode]);
 
   // 타임라인 클릭 (재생선 이동)
   const handleTimelineClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -1456,13 +1573,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
               setSelectionEndTime(null);
             }
           }}
-          isLaneSelectionMode={isLaneSelectionMode}
-          onToggleLaneSelectionMode={() => {
-            setIsLaneSelectionMode(prev => !prev);
-            // 레인 선택 모드를 끌 때 선택된 레인 초기화
-            if (isLaneSelectionMode) {
-              setSelectedLane(null);
-            }
+          isMoveMode={isMoveMode}
+          onToggleMoveMode={() => {
+            setIsMoveMode(prev => !prev);
           }}
           testStartInput={testStartInput}
           onTestStartInputChange={setTestStartInput}
@@ -1524,24 +1637,29 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                 bpmChanges={sortedBpmChanges}
                 beatsPerMeasure={beatsPerMeasure}
                 bgaVisibilityIntervals={bgaVisibilityIntervals}
-                isSelectionMode={isSelectionMode}
-                isLaneSelectionMode={isLaneSelectionMode}
-                selectedLane={selectedLane}
-                onLaneSelect={setSelectedLane}
-                selectionStartTime={selectionStartTime}
-                selectionEndTime={selectionEndTime}
-                onSelectionStart={(time) => {
-                  setSelectionStartTime(time);
-                  setSelectionEndTime(time);
-                  isSelectingRef.current = true;
-                }}
-                onSelectionUpdate={(time) => {
-                  setSelectionEndTime(time);
-                }}
-                onSelectionEnd={() => {
-                  isSelectingRef.current = false;
-                }}
-                yToTime={yToTime}
+                 isSelectionMode={isSelectionMode}
+                 selectedLane={selectedLane}
+                 isMoveMode={isMoveMode}
+                 selectedNoteIds={selectedNoteIds}
+                 dragOffset={dragOffset}
+                 selectionStartTime={selectionStartTime}
+                 selectionEndTime={selectionEndTime}
+                 onSelectionStart={(time, lane) => {
+                   setSelectionStartTime(time);
+                   setSelectionEndTime(time);
+                   setSelectedLane(lane);
+                   isSelectingRef.current = true;
+                 }}
+                 onSelectionUpdate={(time) => {
+                   setSelectionEndTime(time);
+                 }}
+                 onSelectionEnd={() => {
+                   isSelectingRef.current = false;
+                 }}
+                 onMoveStart={handleMoveStart}
+                 onMoveUpdate={handleMoveUpdate}
+                 onMoveEnd={handleMoveEnd}
+                 yToTime={yToTime}
             />
             
             {/* Hidden Youtube Player */}

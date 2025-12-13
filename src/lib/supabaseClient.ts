@@ -11,7 +11,12 @@ export type User = {
   profile?: any;
 };
 
-export const isSupabaseConfigured = true;
+// localhost:5173에서는 로그인 없이 사용 가능하도록 설정
+const isLocalhostDev = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
+  window.location.port === '5173';
+
+export const isSupabaseConfigured = !isLocalhostDev;
 
 // supabase 대체: auth 관련 최소 구현
 export const supabase = {

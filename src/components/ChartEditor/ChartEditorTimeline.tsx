@@ -40,14 +40,18 @@ interface ChartEditorTimelineProps {
   bgaVisibilityIntervals?: BgaVisibilityInterval[];
   // 선택 영역 관련
   isSelectionMode?: boolean;
-  isLaneSelectionMode?: boolean;
   selectedLane?: Lane | null;
-  onLaneSelect?: (lane: Lane | null) => void;
+  isMoveMode?: boolean;
+  selectedNoteIds?: Set<number>;
+  dragOffset?: { time: number; lane: number } | null;
   selectionStartTime?: number | null;
   selectionEndTime?: number | null;
-  onSelectionStart?: (timeMs: number) => void;
+  onSelectionStart?: (timeMs: number, lane: Lane | null) => void;
   onSelectionUpdate?: (timeMs: number) => void;
   onSelectionEnd?: () => void;
+  onMoveStart?: (timeMs: number, lane: Lane | null, noteId?: number) => void;
+  onMoveUpdate?: (timeOffset: number, laneOffset: number) => void;
+  onMoveEnd?: () => void;
   yToTime: (y: number) => number;
 }
 
@@ -75,11 +79,18 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   beatsPerMeasure,
   bgaVisibilityIntervals = [],
   isSelectionMode = false,
+  selectedLane = null,
+  isMoveMode = false,
+  selectedNoteIds = new Set(),
+  dragOffset = null,
   selectionStartTime,
   selectionEndTime,
   onSelectionStart,
   onSelectionUpdate,
   onSelectionEnd,
+  onMoveStart,
+  onMoveUpdate,
+  onMoveEnd,
   yToTime,
 }) => {
   // 뷰포트 정보 (가시 영역 + 버퍼)
@@ -158,9 +169,15 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   const preparedNotes = useMemo(
     () =>
       notes.map((note) => {
-        const noteY = getNoteY(note.time);
+        // 이동 모드에서 선택된 노트는 오프셋 적용된 시간 사용
+        const isSelected = selectedNoteIds.has(note.id);
+        const effectiveTime = dragOffset && isSelected ? Math.max(0, note.time + dragOffset.time) : note.time;
+        const effectiveLane = dragOffset && isSelected ? Math.max(0, Math.min(3, note.lane + dragOffset.lane)) as Lane : note.lane;
+        
+        const noteY = getNoteY(effectiveTime);
         const isHold = note.duration > 0 || note.type === 'hold';
-        const endY = isHold ? timeToY(note.endTime || note.time + note.duration) : noteY;
+        const endTime = isHold ? (note.endTime || note.time + note.duration) : effectiveTime;
+        const endY = isHold ? timeToY(endTime) : noteY;
         const topPosition = isHold
           ? Math.min(noteY, endY) - tapNoteHeight / 2
           : noteY - tapNoteHeight / 2;
@@ -169,7 +186,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
           : tapNoteHeight;
 
         return {
-          note,
+          note: { ...note, time: effectiveTime, lane: effectiveLane },
           noteY,
           endY,
           isHold,
@@ -178,7 +195,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
           bottom: topPosition + noteHeight,
         };
       }),
-    [notes, getNoteY, timeToY, tapNoteHeight]
+    [notes, getNoteY, timeToY, tapNoteHeight, selectedNoteIds, dragOffset]
   );
 
   const visibleNotes = useMemo(
@@ -255,8 +272,55 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
 
   // 드래그 선택 핸들러
   const isDraggingSelectionRef = useRef(false);
+  const isDraggingMoveRef = useRef(false);
+  const moveStartRef = useRef<{ time: number; lane: number } | null>(null);
   
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    // 이동 모드이고 노트를 클릭했으면 이동 드래그 시작
+    if (isMoveMode) {
+      // 노트를 클릭했는지 확인
+      const clickedNote = (e.target as HTMLElement).closest('[data-note]');
+      if (clickedNote) {
+        const noteId = parseInt(clickedNote.getAttribute('data-note-id') || '0');
+        // 선택된 노트가 있으면 선택된 노트만 이동, 없으면 클릭한 노트만 이동
+        const shouldMove = selectedNoteIds.size > 0 
+          ? selectedNoteIds.has(noteId)
+          : true; // 선택된 노트가 없으면 클릭한 노트를 선택하고 이동
+        
+        if (shouldMove) {
+          if (!timelineContentRef.current) return;
+          const rect = timelineContentRef.current.getBoundingClientRect();
+          const y = e.clientY - rect.top;
+          const x = e.clientX - rect.left;
+          const time = yToTime(y);
+          
+          // X 좌표로 레인 감지
+          let detectedLane: Lane | null = null;
+          const relativeX = x - rect.left;
+          for (let i = 0; i < LANE_POSITIONS.length; i++) {
+            const laneCenter = LANE_POSITIONS[i];
+            const laneLeft = laneCenter - LANE_WIDTH / 2;
+            const laneRight = laneCenter + LANE_WIDTH / 2;
+            if (relativeX >= laneLeft && relativeX < laneRight) {
+              detectedLane = i as Lane;
+              break;
+            }
+          }
+          
+          isDraggingMoveRef.current = true;
+          moveStartRef.current = { time, lane: detectedLane ?? 0 };
+          if (onMoveStart) {
+            // 선택된 노트가 없으면 클릭한 노트 ID를 전달하여 선택
+            const noteIdToSelect = selectedNoteIds.size === 0 ? noteId : undefined;
+            onMoveStart(time, detectedLane, noteIdToSelect);
+          }
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+      }
+    }
+    
     // 선택 모드가 꺼져있으면 드래그 선택 비활성화
     if (!isSelectionMode) return;
     
@@ -269,17 +333,60 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
     if (!timelineContentRef.current) return;
     const rect = timelineContentRef.current.getBoundingClientRect();
     const y = e.clientY - rect.top;
+    const x = e.clientX - rect.left;
     const time = yToTime(y);
+    
+    // X 좌표로 레인 감지
+    let detectedLane: Lane | null = null;
+    const relativeX = x - rect.left;
+    for (let i = 0; i < LANE_POSITIONS.length; i++) {
+      const laneCenter = LANE_POSITIONS[i];
+      const laneLeft = laneCenter - LANE_WIDTH / 2;
+      const laneRight = laneCenter + LANE_WIDTH / 2;
+      if (relativeX >= laneLeft && relativeX < laneRight) {
+        detectedLane = i as Lane;
+        break;
+      }
+    }
     
     isDraggingSelectionRef.current = true;
     if (onSelectionStart) {
-      onSelectionStart(time);
+      onSelectionStart(time, detectedLane);
     }
     
     e.preventDefault();
-  }, [isSelectionMode, yToTime, onSelectionStart, timelineContentRef]);
+  }, [isSelectionMode, isMoveMode, selectedNoteIds, yToTime, onSelectionStart, onMoveStart, timelineContentRef]);
   
   const handleMouseMove = useCallback((e: MouseEvent) => {
+    // 이동 모드 드래그 처리
+    if (isDraggingMoveRef.current && onMoveUpdate && moveStartRef.current) {
+      if (!timelineContentRef.current) return;
+      const rect = timelineContentRef.current.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const x = e.clientX - rect.left;
+      const currentTime = yToTime(y);
+      
+      // X 좌표로 레인 감지
+      let detectedLane: number = 0;
+      const relativeX = x - rect.left;
+      for (let i = 0; i < LANE_POSITIONS.length; i++) {
+        const laneCenter = LANE_POSITIONS[i];
+        const laneLeft = laneCenter - LANE_WIDTH / 2;
+        const laneRight = laneCenter + LANE_WIDTH / 2;
+        if (relativeX >= laneLeft && relativeX < laneRight) {
+          detectedLane = i;
+          break;
+        }
+      }
+      
+      const timeOffset = currentTime - moveStartRef.current.time;
+      const laneOffset = detectedLane - moveStartRef.current.lane;
+      
+      onMoveUpdate(timeOffset, laneOffset);
+      return;
+    }
+    
+    // 선택 모드 드래그 처리
     if (!isDraggingSelectionRef.current || !onSelectionUpdate) return;
     if (!timelineContentRef.current) return;
     
@@ -288,17 +395,24 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
     const time = yToTime(y);
     
     onSelectionUpdate(time);
-  }, [yToTime, onSelectionUpdate, timelineContentRef]);
+  }, [yToTime, onSelectionUpdate, onMoveUpdate, timelineContentRef]);
   
   const handleMouseUp = useCallback(() => {
+    if (isDraggingMoveRef.current) {
+      if (onMoveEnd) {
+        onMoveEnd();
+      }
+      isDraggingMoveRef.current = false;
+      moveStartRef.current = null;
+    }
     if (isDraggingSelectionRef.current && onSelectionEnd) {
       onSelectionEnd();
     }
     isDraggingSelectionRef.current = false;
-  }, [onSelectionEnd]);
+  }, [onSelectionEnd, onMoveEnd]);
   
   useEffect(() => {
-    if (isDraggingSelectionRef.current) {
+    if (isDraggingSelectionRef.current || isDraggingMoveRef.current) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
       return () => {
@@ -359,41 +473,24 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
             height: '100%',
         }}
       >
-        {/* 레인 배경 */}
-        {LANE_POSITIONS.map((x, index) => {
-          const lane = index as Lane;
-          const isSelected = isLaneSelectionMode && selectedLane === lane;
-          return (
-            <div
-              key={index}
-              onClick={(e) => {
-                if (isLaneSelectionMode && onLaneSelect) {
-                  e.stopPropagation();
-                  onLaneSelect(selectedLane === lane ? null : lane);
-                }
-              }}
-              style={{
-                position: 'absolute',
-                left: `${x - LANE_WIDTH / 2}px`,
-                top: 0,
-                width: `${LANE_WIDTH}px`,
-                height: '100%',
-                background:
-                  isSelected
-                    ? 'linear-gradient(180deg, rgba(139,92,246,0.3) 0%, rgba(139,92,246,0.2) 40%, rgba(139,92,246,0.3) 100%)'
-                    : index % 2 === 0
-                    ? 'linear-gradient(180deg, #020617 0%, #020617 40%, #020617 100%)'
-                    : 'linear-gradient(180deg, #0a0f1a 0%, #0a0f1a 40%, #0a0f1a 100%)',
-                boxShadow:
-                  isSelected
-                    ? 'inset 0 0 0 2px rgba(139,92,246,0.6), inset 1px 0 0 rgba(15,23,42,0.9), inset -1px 0 0 rgba(15,23,42,0.9)'
-                    : 'inset 1px 0 0 rgba(15,23,42,0.9), inset -1px 0 0 rgba(15,23,42,0.9)',
-                cursor: isLaneSelectionMode ? 'pointer' : 'default',
-                transition: 'all 0.2s ease',
-              }}
-            />
-          );
-        })}
+         {/* 레인 배경 */}
+         {LANE_POSITIONS.map((x, index) => (
+           <div
+             key={index}
+             style={{
+               position: 'absolute',
+               left: `${x - LANE_WIDTH / 2}px`,
+               top: 0,
+               width: `${LANE_WIDTH}px`,
+               height: '100%',
+               background:
+                 index % 2 === 0
+                   ? 'linear-gradient(180deg, #020617 0%, #020617 40%, #020617 100%)'
+                   : 'linear-gradient(180deg, #0a0f1a 0%, #0a0f1a 40%, #0a0f1a 100%)',
+               boxShadow: 'inset 1px 0 0 rgba(15,23,42,0.9), inset -1px 0 0 rgba(15,23,42,0.9)',
+             }}
+           />
+         ))}
 
         {/* 레인 경계선 (5개: 0, 100, 200, 300, 400) */}
         {[0, 1, 2, 3, 4].map((i) => (
@@ -514,35 +611,49 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
           }}
         />
 
-        {/* 노트 렌더링 */}
-        {visibleNotes.map(({ note, isHold, topPosition, noteHeight }) => {
-          const isOddLane = note.lane === 0 || note.lane === 2;
-          const tapGradient = isOddLane
-            ? 'linear-gradient(180deg, #FF6B6B 0%, #FF9A8B 100%)'
-            : 'linear-gradient(180deg, #4ECDC4 0%, #4AC8E7 100%)';
-          const tapBorder = isOddLane ? '#EE5A52' : '#45B7B8';
-          const holdGradient = isOddLane
-            ? 'linear-gradient(180deg, rgba(255,231,157,0.95) 0%, rgba(255,193,7,0.65) 100%)'
-            : 'linear-gradient(180deg, rgba(78,205,196,0.9) 0%, rgba(32,164,154,0.7) 100%)';
+         {/* 노트 렌더링 */}
+         {visibleNotes.map(({ note, isHold, topPosition, noteHeight }) => {
+           const isOddLane = note.lane === 0 || note.lane === 2;
+           const tapGradient = isOddLane
+             ? 'linear-gradient(180deg, #FF6B6B 0%, #FF9A8B 100%)'
+             : 'linear-gradient(180deg, #4ECDC4 0%, #4AC8E7 100%)';
+           const tapBorder = isOddLane ? '#EE5A52' : '#45B7B8';
+           const holdGradient = isOddLane
+             ? 'linear-gradient(180deg, rgba(255,231,157,0.95) 0%, rgba(255,193,7,0.65) 100%)'
+             : 'linear-gradient(180deg, rgba(78,205,196,0.9) 0%, rgba(32,164,154,0.7) 100%)';
+           
+           // 이동 모드에서 선택된 노트인지 확인
+           const isSelected = selectedNoteIds.has(note.id);
+           // preparedNotes에서 이미 오프셋이 적용된 note 사용
+           const displayLeft = LANE_POSITIONS[note.lane] - NOTE_HALF;
+           
+           // 선택된 노트는 반투명하게 표시 (드래그 중일 때)
+           const opacity = isSelected && dragOffset ? 0.6 : 1;
 
-          return (
-            <div
-              key={note.id}
-              data-note
-              onClick={(e) => {
-                e.stopPropagation();
-                onNoteClick(note.id);
-              }}
-              style={{
-                position: 'absolute',
-                left: `${LANE_POSITIONS[note.lane] - NOTE_HALF}px`,
-                top: `${topPosition}px`,
-                width: `${NOTE_WIDTH}px`,
-                height: `${noteHeight}px`,
-                cursor: 'pointer',
-                zIndex: 10,
-              }}
-            >
+           return (
+             <div
+               key={note.id}
+               data-note
+               data-note-id={note.id}
+               onClick={(e) => {
+                 e.stopPropagation();
+                 // 이동 모드에서는 노트 클릭 시 삭제하지 않고 드래그만 허용
+                 if (!isMoveMode) {
+                   onNoteClick(note.id);
+                 }
+               }}
+               style={{
+                 position: 'absolute',
+                 left: `${displayLeft}px`,
+                 top: `${topPosition}px`,
+                 width: `${NOTE_WIDTH}px`,
+                 height: `${noteHeight}px`,
+                 cursor: isMoveMode && isSelected ? 'move' : 'pointer',
+                 zIndex: isSelected && dragOffset ? 15 : 10,
+                 opacity,
+                 transition: dragOffset ? 'none' : 'opacity 0.2s',
+               }}
+             >
               {isHold ? (
                 <div
                   style={{

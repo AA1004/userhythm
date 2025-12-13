@@ -26,8 +26,8 @@ interface ChartEditorSidebarProps {
   onToggleLongNoteMode: () => void;
   isSelectionMode: boolean;
   onToggleSelectionMode: () => void;
-  isLaneSelectionMode: boolean;
-  onToggleLaneSelectionMode: () => void;
+  isMoveMode: boolean;
+  onToggleMoveMode: () => void;
   testStartInput: string;
   onTestStartInputChange: (input: string) => void;
   onSetTestStartToCurrent: () => void;
@@ -73,8 +73,8 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
   onToggleLongNoteMode,
   isSelectionMode,
   onToggleSelectionMode,
-  isLaneSelectionMode,
-  onToggleLaneSelectionMode,
+  isMoveMode,
+  onToggleMoveMode,
   testStartInput,
   onTestStartInputChange,
   onSetTestStartToCurrent,
@@ -616,7 +616,7 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
         </button>
       </div>
 
-      {/* 레인별 분할 선택 모드 */}
+      {/* 선택 영역 이동 모드 */}
       <div
         style={{
           marginBottom: '16px',
@@ -628,12 +628,10 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
       >
         <button
           onClick={(e) => {
-            onToggleLaneSelectionMode();
-            // 버튼에 포커스가 남아 키 입력이 막히는 것을 방지
+            onToggleMoveMode();
             e.currentTarget.blur();
           }}
           onMouseDown={(e) => {
-            // 클릭 시 포커스가 버튼에 머무르지 않도록 기본 포커스 행동 차단
             e.preventDefault();
           }}
           style={{
@@ -641,19 +639,19 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
             padding: '10px 12px',
             borderRadius: CHART_EDITOR_THEME.radiusMd,
             border: `1px solid ${
-              isLaneSelectionMode ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.borderSubtle
+              isMoveMode ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.borderSubtle
             }`,
-            background: isLaneSelectionMode
-              ? 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(139,92,246,0.05))'
+            background: isMoveMode
+              ? 'linear-gradient(135deg, rgba(34,197,94,0.2), rgba(34,197,94,0.05))'
               : 'transparent',
-            color: isLaneSelectionMode ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.textPrimary,
+            color: isMoveMode ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.textPrimary,
             fontSize: '13px',
             fontWeight: 600,
             cursor: 'pointer',
             transition: 'all 0.2s ease',
           }}
         >
-          레인별 분할 선택
+          선택 영역 이동 모드
         </button>
       </div>
 
