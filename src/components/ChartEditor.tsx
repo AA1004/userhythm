@@ -81,42 +81,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     };
   }, []);
 
-  // 키보드 단축키 (Ctrl+C, Ctrl+V, ESC)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+C: 복사
-      if (e.ctrlKey && e.key === 'c' && !e.shiftKey && !e.altKey) {
-        if (selectionStartTime !== null && selectionEndTime !== null) {
-          e.preventDefault();
-          handleCopySelection();
-        }
-        return;
-      }
-      
-      // Ctrl+V: 붙여넣기
-      if (e.ctrlKey && e.key === 'v' && !e.shiftKey && !e.altKey) {
-        if (copiedNotes.length > 0) {
-          e.preventDefault();
-          handlePasteNotes();
-        }
-        return;
-      }
-      
-      // ESC: 선택 해제
-      if (e.key === 'Escape') {
-        if (selectionStartTime !== null || selectionEndTime !== null) {
-          e.preventDefault();
-          handleClearSelection();
-        }
-        return;
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [selectionStartTime, selectionEndTime, copiedNotes, handleCopySelection, handlePasteNotes, handleClearSelection]);
   
   // --- BPM & Grid 상태 ---
   const [bpm, setBpm] = useState<number>(120);
@@ -791,6 +755,43 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setSelectionEndTime(null);
     isSelectingRef.current = false;
   }, []);
+
+  // 키보드 단축키 (Ctrl+C, Ctrl+V, ESC)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+C: 복사
+      if (e.ctrlKey && e.key === 'c' && !e.shiftKey && !e.altKey) {
+        if (selectionStartTime !== null && selectionEndTime !== null) {
+          e.preventDefault();
+          handleCopySelection();
+        }
+        return;
+      }
+      
+      // Ctrl+V: 붙여넣기
+      if (e.ctrlKey && e.key === 'v' && !e.shiftKey && !e.altKey) {
+        if (copiedNotes.length > 0) {
+          e.preventDefault();
+          handlePasteNotes();
+        }
+        return;
+      }
+      
+      // ESC: 선택 해제
+      if (e.key === 'Escape') {
+        if (selectionStartTime !== null || selectionEndTime !== null) {
+          e.preventDefault();
+          handleClearSelection();
+        }
+        return;
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectionStartTime, selectionEndTime, copiedNotes, handleCopySelection, handlePasteNotes, handleClearSelection]);
 
 
   // --- 핸들러들 ---

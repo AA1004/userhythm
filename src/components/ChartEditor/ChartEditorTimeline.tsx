@@ -302,7 +302,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
 
   // 선택 영역 렌더링 계산
   const selectionBox = useMemo(() => {
-    if (selectionStartTime === null || selectionEndTime === null) return null;
+    if (selectionStartTime == null || selectionEndTime == null) return null;
     
     const startTime = Math.min(selectionStartTime, selectionEndTime);
     const endTime = Math.max(selectionStartTime, selectionEndTime);
