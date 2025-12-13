@@ -1,5 +1,5 @@
 ﻿import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { GameState, Note, SpeedChange, BgaVisibilityInterval } from '../types/game';
+import { GameState, Note, SpeedChange } from '../types/game';
 import { ChartEditor } from './ChartEditor';
 import { ChartSelect } from './ChartSelect';
 import { ChartAdmin } from './ChartAdmin';
@@ -8,7 +8,6 @@ import { SettingsModal } from './SettingsModal';
 import { useGameLoop } from '../hooks/useGameLoop';
 import { useKeyboard } from '../hooks/useKeyboard';
 import { generateNotes } from '../utils/noteGenerator';
-import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { VideoRhythmLayout } from './VideoRhythmLayout';
 import { LyricOverlay } from './LyricOverlay';
@@ -25,7 +24,7 @@ import { useSubtitles } from '../hooks/useSubtitles';
 import { useBgaMask } from '../hooks/useBgaMask';
 import { useGameViewSize } from '../hooks/useGameViewSize';
 import { useTestYoutubePlayer } from '../hooks/useTestYoutubePlayer';
-import { useTestSession, type EditorTestPayload } from '../hooks/useTestSession';
+import { useTestSession } from '../hooks/useTestSession';
 import { useChartLoader } from '../hooks/useChartLoader';
 import { GameMenu } from './GameMenu';
 import { GamePlayArea } from './GamePlayArea';
@@ -41,12 +40,17 @@ interface SubtitleEditorChartData {
   title?: string;
 }
 
+// 화면 상태 타입 - 여러 boolean을 단일 상태로 통합
+type ViewMode =
+  | { type: 'menu' }
+  | { type: 'chartSelect'; refreshToken?: number }
+  | { type: 'editor' }
+  | { type: 'admin' }
+  | { type: 'subtitleEditor'; data: SubtitleEditorChartData }
+  | { type: 'playing'; isTestMode: boolean; isFromEditor: boolean };
+
 export const Game: React.FC = () => {
-  const [isEditorOpen, setIsEditorOpen] = useState<boolean>(false);
-  const [isChartSelectOpen, setIsChartSelectOpen] = useState<boolean>(false);
-  const [isAdminOpen, setIsAdminOpen] = useState<boolean>(false);
-  const [isSubtitleEditorOpen, setIsSubtitleEditorOpen] = useState<boolean>(false);
-  const [subtitleEditorData, setSubtitleEditorData] = useState<SubtitleEditorChartData | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>({ type: 'menu' });
   const [chartListRefreshToken, setChartListRefreshToken] = useState<number>(0);
   const [baseBpm, setBaseBpm] = useState<number>(120);
   const [speedChanges, setSpeedChanges] = useState<SpeedChange[]>([]);
@@ -101,12 +105,12 @@ export const Game: React.FC = () => {
   }));
 
   // 게임 뷰 크기 훅
-  const { viewSize: gameViewSize, subtitleArea } = useGameViewSize({
+  const { subtitleArea } = useGameViewSize({
     containerRef: gameContainerRef,
   });
 
   // BGA 마스크 훅
-  const { intervals: bgaVisibilityIntervals, setIntervals: setBgaVisibilityIntervals, maskOpacity: bgaMaskOpacity } = useBgaMask({
+  const { setIntervals: setBgaVisibilityIntervals, maskOpacity: bgaMaskOpacity } = useBgaMask({
     currentTime: gameState.currentTime,
   });
 
@@ -160,7 +164,6 @@ export const Game: React.FC = () => {
 
   // 자막 훅
   const {
-    subtitles,
     setSubtitles,
     loadSubtitlesForChart,
     activeSubtitles,
@@ -171,7 +174,6 @@ export const Game: React.FC = () => {
     isTestMode,
     isFromEditor,
     dynamicGameDuration,
-    startTestSession,
     handleEditorTest,
     handleRetest,
     reset: resetTestSession,
@@ -181,7 +183,6 @@ export const Game: React.FC = () => {
     preparedNotesRef: testPreparedNotesRef,
     bgaIntervalsRef: testBgaIntervalsRef,
   } = useTestSession({
-    gameState,
     setGameState,
     onSubtitlesLoad: loadSubtitlesForChart,
     onSubtitlesClear: () => setSubtitles([]),
@@ -190,7 +191,7 @@ export const Game: React.FC = () => {
     onSpeedChangesSet: setSpeedChanges,
     onYoutubeVideoIdSet: setTestYoutubeVideoId,
     onAudioSettingsSet: (settings) => { testAudioSettingsRef.current = settings; },
-    onEditorClose: () => setIsEditorOpen(false),
+    onEditorClose: () => setViewMode({ type: 'menu' }),
     onPressedKeysReset: () => {},
     onHoldingNotesReset: () => {},
     onProcessedMissNotesClear: () => processedMissNotes.current.clear(),
@@ -235,7 +236,7 @@ export const Game: React.FC = () => {
   }, [resetTestSession]);
 
   const handleReturnToEditor = useCallback(() => {
-    setIsEditorOpen(true);
+    setViewMode({ type: 'editor' });
     setIsTestMode(false);
     setIsFromEditor(false);
     testAudioSettingsRef.current = null;
@@ -248,7 +249,7 @@ export const Game: React.FC = () => {
       gameEnded: false,
       currentTime: 0,
     }));
-  }, [destroyYoutubePlayer]);
+  }, [destroyYoutubePlayer, setSubtitles]);
 
   // 플레이 목록으로 돌아가기 핸들러
   const handleReturnToPlayList = useCallback(() => {
@@ -267,8 +268,8 @@ export const Game: React.FC = () => {
       score: buildInitialScore(),
     }));
     setChartListRefreshToken((prev) => prev + 1);
-    setIsChartSelectOpen(true);
-  }, [destroyYoutubePlayer]);
+    setViewMode({ type: 'chartSelect', refreshToken: chartListRefreshToken + 1 });
+  }, [destroyYoutubePlayer, setSubtitles, chartListRefreshToken]);
 
   useEffect(() => {
     if (!isTestMode || !gameState.gameStarted || gameState.gameEnded) return;
@@ -314,12 +315,11 @@ export const Game: React.FC = () => {
   const handleEditorCancel = useCallback(() => {
     setIsTestMode(false);
     testPreparedNotesRef.current = [];
-    setIsEditorOpen(false);
+    setViewMode({ type: 'menu' });
   }, []);
 
   // 채보 로더 훅
   const { loadChart: handleChartSelect } = useChartLoader({
-    gameState,
     setGameState,
     onYoutubeDestroy: destroyYoutubePlayer,
     onYoutubeSetup: (videoId, settings) => {
@@ -342,13 +342,13 @@ export const Game: React.FC = () => {
     onSpeedChangesSet: setSpeedChanges,
     onHoldingNotesReset: () => {},
     onProcessedMissNotesReset: () => processedMissNotes.current.clear(),
-    onChartSelectClose: () => setIsChartSelectOpen(false),
+    onChartSelectClose: () => setViewMode({ type: 'menu' }),
   });
 
   // 관리자 테스트 핸들러
   const handleAdminTest = useCallback((chartData: any) => {
     // 관리자 화면을 먼저 닫고, 다음 렌더링 사이클에서 테스트 시작
-    setIsAdminOpen(false);
+    setViewMode({ type: 'menu' });
     // 상태 업데이트가 완료된 후 테스트 시작 (다음 틱에서 실행)
     setTimeout(() => {
     handleEditorTest({
@@ -366,16 +366,12 @@ export const Game: React.FC = () => {
 
   // Subtitle editor open handler
   const handleOpenSubtitleEditor = useCallback((chartData: SubtitleEditorChartData) => {
-    setSubtitleEditorData(chartData);
-    setIsSubtitleEditorOpen(true);
-    setIsEditorOpen(false);
+    setViewMode({ type: 'subtitleEditor', data: chartData });
   }, []);
 
   // Subtitle editor close handler
   const handleCloseSubtitleEditor = useCallback(() => {
-    setIsSubtitleEditorOpen(false);
-    setSubtitleEditorData(null);
-    setIsEditorOpen(true);
+    setViewMode({ type: 'editor' });
   }, []);
 
   // --- 디버그: 콘솔 명령으로 에디터 강제 오픈 ---
@@ -404,12 +400,8 @@ export const Game: React.FC = () => {
       const flag = localStorage.getItem('force-editor');
       if (flag === '1') {
         localStorage.removeItem('force-editor');
-        setIsSubtitleEditorOpen(false);
-        setSubtitleEditorData(null);
-        setIsChartSelectOpen(false);
-        setIsAdminOpen(false);
+        setViewMode({ type: 'editor' });
         setIsTestMode(false);
-        setIsEditorOpen(true);
         console.info('[debug] ChartEditor auto-opened via force-editor flag');
       }
     } catch {
@@ -417,37 +409,46 @@ export const Game: React.FC = () => {
     }
   }, []);
 
+  // 테스트 모드 시작 시 viewMode 업데이트
+  useEffect(() => {
+    if (isTestMode && gameState.gameStarted && !gameState.gameEnded) {
+      setViewMode((prev) => {
+        if (prev.type === 'playing') return prev;
+        return { type: 'playing', isTestMode, isFromEditor };
+      });
+    } else if (gameState.gameEnded || (!gameState.gameStarted && viewMode.type === 'playing')) {
+      // 게임이 끝나거나 시작 전이면 메뉴로 (단, 명시적으로 다른 화면으로 이동한 경우 제외)
+      // 이 로직은 게임 종료 화면을 보여주기 위해 조건부로 처리
+    }
+  }, [isTestMode, gameState.gameStarted, gameState.gameEnded, isFromEditor, viewMode.type]);
 
-  // Show subtitle editor if open
-  if (isSubtitleEditorOpen && subtitleEditorData) {
+  // 화면 라우팅
+  if (viewMode.type === 'subtitleEditor') {
     return (
       <SubtitleEditor
-        chartId={subtitleEditorData.chartId}
-        chartData={subtitleEditorData}
+        chartId={viewMode.data.chartId}
+        chartData={viewMode.data}
         onClose={handleCloseSubtitleEditor}
       />
     );
   }
 
-  // 에디터가 열려있으면 에디터만 표시
-  if (isEditorOpen) {
+  if (viewMode.type === 'editor') {
     return <ChartEditor onCancel={handleEditorCancel} onTest={handleEditorTest} onOpenSubtitleEditor={handleOpenSubtitleEditor} />;
   }
 
-  // 채보 선택 화면
-  if (isChartSelectOpen) {
+  if (viewMode.type === 'chartSelect') {
     return (
       <ChartSelect
         onSelect={handleChartSelect}
-        onClose={() => setIsChartSelectOpen(false)}
-        refreshToken={chartListRefreshToken}
+        onClose={() => setViewMode({ type: 'menu' })}
+        refreshToken={viewMode.refreshToken ?? chartListRefreshToken}
       />
     );
   }
 
-  // 관리자 화면
-  if (isAdminOpen) {
-    return <ChartAdmin onClose={() => setIsAdminOpen(false)} onTestChart={handleAdminTest} />;
+  if (viewMode.type === 'admin') {
+    return <ChartAdmin onClose={() => setViewMode({ type: 'menu' })} onTestChart={handleAdminTest} />;
   }
 
   const backgroundVideoId = testYoutubeVideoId;
@@ -531,16 +532,15 @@ export const Game: React.FC = () => {
         {!gameState.gameStarted && (
           <GameMenu
             authUser={authUser}
-            remoteProfile={remoteProfile}
             canEditCharts={canEditCharts}
             canSeeAdminMenu={canSeeAdminMenu}
             userDisplayName={userDisplayName}
             roleChessIcon={roleChessIcon}
             isAdmin={isAdmin}
             isModerator={isModerator}
-            onPlay={() => setIsChartSelectOpen(true)}
-            onEdit={() => setIsEditorOpen(true)}
-            onAdmin={() => setIsAdminOpen(true)}
+            onPlay={() => setViewMode({ type: 'chartSelect' })}
+            onEdit={() => setViewMode({ type: 'editor' })}
+            onAdmin={() => setViewMode({ type: 'admin' })}
             onLogin={handleLoginWithGoogle}
             onLogout={handleLogout}
             onSettings={() => setIsSettingsOpen(true)}

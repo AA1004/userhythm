@@ -17,7 +17,6 @@ export interface EditorTestPayload {
 }
 
 export interface UseTestSessionOptions {
-  gameState: GameState;
   setGameState: React.Dispatch<React.SetStateAction<GameState>>;
   onSubtitlesLoad: (chartId: string) => void;
   onSubtitlesClear: () => void;
@@ -48,7 +47,6 @@ export interface UseTestSessionReturn {
 }
 
 export function useTestSession({
-  gameState,
   setGameState,
   onSubtitlesLoad,
   onSubtitlesClear,

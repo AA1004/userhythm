@@ -34,7 +34,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
   const [version, setVersion] = useState<ApiVersion | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isWideScreen = useIsWideScreen();
+  useIsWideScreen();
   const [windowSize, setWindowSize] = useState(() => {
     if (typeof window === 'undefined') return { width: 1920, height: 1080 };
     return { width: window.innerWidth, height: window.innerHeight };

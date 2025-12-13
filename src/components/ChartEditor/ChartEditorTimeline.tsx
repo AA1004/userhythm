@@ -79,7 +79,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   beatsPerMeasure,
   bgaVisibilityIntervals = [],
   isSelectionMode = false,
-  selectedLane = null,
+  selectedLane: _selectedLane = null,
   isMoveMode = false,
   selectedNoteIds = new Set(),
   dragOffset = null,

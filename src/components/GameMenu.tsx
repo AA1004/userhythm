@@ -1,7 +1,6 @@
 import React from 'react';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
-import { UserProfile } from '../lib/supabaseClient';
 
 type AuthUser = {
   id: string;
@@ -12,7 +11,6 @@ type AuthUser = {
 
 interface GameMenuProps {
   authUser: AuthUser | null;
-  remoteProfile: UserProfile | null;
   canEditCharts: boolean;
   canSeeAdminMenu: boolean;
   userDisplayName: string;
@@ -30,7 +28,6 @@ interface GameMenuProps {
 
 export const GameMenu: React.FC<GameMenuProps> = ({
   authUser,
-  remoteProfile,
   canEditCharts,
   canSeeAdminMenu,
   userDisplayName,

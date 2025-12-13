@@ -1,5 +1,5 @@
 import React from 'react';
-import { GameState, Note, Lane, SpeedChange, BgaVisibilityInterval } from '../types/game';
+import { GameState, Note, Lane, SpeedChange } from '../types/game';
 import { Note as NoteComponent } from './Note';
 import { KeyLane } from './KeyLane';
 import { JudgeLine } from './JudgeLine';
@@ -39,7 +39,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   keyEffects,
   laneKeyLabels,
   isTestMode,
-  isFromEditor,
+  isFromEditor: _isFromEditor,
   onExit,
 }) => {
   return (

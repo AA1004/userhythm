@@ -2,11 +2,9 @@ import { useCallback } from 'react';
 import { GameState, Note, BgaVisibilityInterval, SpeedChange } from '../types/game';
 import { buildInitialScore, AudioSettings } from '../utils/gameHelpers';
 import { calculateGameDuration } from '../utils/gameHelpers';
-import { MAX_CHART_DURATION } from '../constants/gameConstants';
 import { START_DELAY_MS } from '../constants/gameConstants';
 
 export interface UseChartLoaderOptions {
-  gameState: GameState;
   setGameState: React.Dispatch<React.SetStateAction<GameState>>;
   onYoutubeDestroy: () => void;
   onYoutubeSetup: (videoId: string | null, settings: AudioSettings | null) => void;
@@ -28,7 +26,6 @@ export interface UseChartLoaderReturn {
 }
 
 export function useChartLoader({
-  gameState,
   setGameState,
   onYoutubeDestroy,
   onYoutubeSetup,

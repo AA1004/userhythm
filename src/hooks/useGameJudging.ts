@@ -34,7 +34,7 @@ export interface UseGameJudgingReturn {
 }
 
 export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingReturn {
-  const { gameState, gameStateRef, setGameState, processedMissNotes } = options;
+  const { gameStateRef, setGameState, processedMissNotes } = options;
 
   const [pressedKeys, setPressedKeys] = useState<Set<Lane>>(new Set());
   const [holdingNotes, setHoldingNotes] = useState<Map<number, Note>>(new Map());
