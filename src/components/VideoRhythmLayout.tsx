@@ -208,6 +208,18 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
               height: '100%',
             }}
           />
+          {/* 여백과 영상 경계를 자연스럽게 블렌딩하는 그라디언트 마스크 */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: `
+                linear-gradient(to right, rgba(15,23,42,0.6) 0%, transparent 8%, transparent 92%, rgba(15,23,42,0.6) 100%),
+                linear-gradient(to bottom, rgba(15,23,42,0.6) 0%, transparent 8%, transparent 92%, rgba(15,23,42,0.6) 100%)
+              `,
+              pointerEvents: 'none',
+            }}
+          />
         </div>
       )}
 
