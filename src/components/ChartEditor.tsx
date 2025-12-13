@@ -1155,16 +1155,16 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       if (!timelineScrollRef.current) return;
-      const rect = timelineScrollRef.current.getBoundingClientRect();
-      // 스크롤된 상태를 고려하여 Y 좌표 계산
+        const rect = timelineScrollRef.current.getBoundingClientRect();
+        // 스크롤된 상태를 고려하여 Y 좌표 계산
       const relativeY =
         moveEvent.clientY - rect.top + timelineScrollRef.current.scrollTop;
-      const newTime = clampTime(yToTime(relativeY));
-      setCurrentTime(newTime);
+        const newTime = clampTime(yToTime(relativeY));
+        setCurrentTime(newTime);
       lastPointerClientYRef.current = moveEvent.clientY;
-
-      // YouTube seek (드래그 중에는 부하 줄이기 위해 throttle 고려 가능하나 여기선 직접 호출)
-      // seekTo(newTime); // 너무 잦은 호출 방지 위해 mouseUp에서만 하거나, throttle 필요
+        
+        // YouTube seek (드래그 중에는 부하 줄이기 위해 throttle 고려 가능하나 여기선 직접 호출)
+        // seekTo(newTime); // 너무 잦은 호출 방지 위해 mouseUp에서만 하거나, throttle 필요
     };
 
     const handleMouseUp = (upEvent: MouseEvent) => {

@@ -357,8 +357,9 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
                 버전 정보가 없습니다.
               </div>
             )}
-          </>
+          </> 
         )}
+      </div>
       </div>
     </>
   );

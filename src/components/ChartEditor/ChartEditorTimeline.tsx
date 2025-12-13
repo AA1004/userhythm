@@ -621,16 +621,16 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
           }}
         />
 
-          {/* 노트 렌더링 */}
+         {/* 노트 렌더링 */}
           {visibleNotes.map(({ note, isHold, topPosition, noteHeight, rawLane, isSquishedLeft, isSquishedRight, squishRatio }) => {
-            const isOddLane = note.lane === 0 || note.lane === 2;
-            const tapGradient = isOddLane
-              ? 'linear-gradient(180deg, #FF6B6B 0%, #FF9A8B 100%)'
-              : 'linear-gradient(180deg, #4ECDC4 0%, #4AC8E7 100%)';
-            const tapBorder = isOddLane ? '#EE5A52' : '#45B7B8';
-            const holdGradient = isOddLane
-              ? 'linear-gradient(180deg, rgba(255,231,157,0.95) 0%, rgba(255,193,7,0.65) 100%)'
-              : 'linear-gradient(180deg, rgba(78,205,196,0.9) 0%, rgba(32,164,154,0.7) 100%)';
+           const isOddLane = note.lane === 0 || note.lane === 2;
+           const tapGradient = isOddLane
+             ? 'linear-gradient(180deg, #FF6B6B 0%, #FF9A8B 100%)'
+             : 'linear-gradient(180deg, #4ECDC4 0%, #4AC8E7 100%)';
+           const tapBorder = isOddLane ? '#EE5A52' : '#45B7B8';
+           const holdGradient = isOddLane
+             ? 'linear-gradient(180deg, rgba(255,231,157,0.95) 0%, rgba(255,193,7,0.65) 100%)'
+             : 'linear-gradient(180deg, rgba(78,205,196,0.9) 0%, rgba(32,164,154,0.7) 100%)';
            
            // 이동 모드에서 선택된 노트인지 확인
            const isSelected = selectedNoteIds.has(note.id);
@@ -691,33 +691,33 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                }}
-              >
-                {isHold ? (
-                  <div
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      background: holdGradient,
-                      borderRadius: 18,
-                      border: '2px solid rgba(255,255,255,0.25)',
-                      boxShadow: isOddLane
-                        ? '0 0 18px rgba(255, 214, 102, 0.8)'
-                        : '0 6px 16px rgba(0,0,0,0.45)',
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      background: tapGradient,
-                      border: `3px solid ${tapBorder}`,
-                      borderRadius: 14,
-                      boxShadow: '0 6px 14px rgba(0, 0, 0, 0.45)',
-                    }}
-                  />
-                )}
+               }}
+             >
+              {isHold ? (
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    background: holdGradient,
+                    borderRadius: 18,
+                    border: '2px solid rgba(255,255,255,0.25)',
+                    boxShadow: isOddLane
+                      ? '0 0 18px rgba(255, 214, 102, 0.8)'
+                      : '0 6px 16px rgba(0,0,0,0.45)',
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    background: tapGradient,
+                    border: `3px solid ${tapBorder}`,
+                    borderRadius: 14,
+                    boxShadow: '0 6px 14px rgba(0, 0, 0, 0.45)',
+                  }}
+                />
+              )}
               </div>
             </div>
           );
