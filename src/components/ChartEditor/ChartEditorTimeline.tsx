@@ -71,6 +71,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   bpmChanges,
   beatsPerMeasure,
   bgaVisibilityIntervals = [],
+  isSelectionMode = false,
   selectionStartTime,
   selectionEndTime,
   onSelectionStart,
