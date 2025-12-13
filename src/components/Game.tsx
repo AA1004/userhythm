@@ -27,6 +27,7 @@ import { supabase, isSupabaseConfigured, profileAPI, UserProfile } from '../lib/
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { VideoRhythmLayout } from './VideoRhythmLayout';
 import { LyricOverlay } from './LyricOverlay';
+import { MainMenuSidebar } from './MainMenuSidebar';
 import { getNoteFallDuration } from '../utils/speedChange';
 import { GAME_VIEW_WIDTH, GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 
@@ -1668,10 +1669,18 @@ const testAudioSettingsRef = useRef<{
     gameState.currentTime >= 0;
 
   return (
-    <VideoRhythmLayout
-      videoId={backgroundVideoId}
-      bgaEnabled={isBgaEnabled}
-      shouldPlayBga={shouldPlayBga}
+    <>
+      {/* 사이드바는 VideoRhythmLayout 밖에 배치 */}
+      {!gameState.gameStarted && (
+        <>
+          <MainMenuSidebar type="version" position="left" />
+          <MainMenuSidebar type="notice" position="right" />
+        </>
+      )}
+      <VideoRhythmLayout
+        videoId={backgroundVideoId}
+        bgaEnabled={isBgaEnabled}
+        shouldPlayBga={shouldPlayBga}
       bgaCurrentSeconds={bgaCurrentSeconds ?? undefined}
     >
       {/* 게임 + 자막 wrapper (자막이 게임 바깥으로 나갈 수 있도록) */}
@@ -1941,15 +1950,15 @@ const testAudioSettingsRef = useRef<{
         {/* 게임 시작/종료 UI */}
         {!gameState.gameStarted && (
           <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              pointerEvents: 'none',
-            }}
-          >
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                pointerEvents: 'none',
+              }}
+            >
             <div
               style={{
                 width: '100%',
@@ -2458,5 +2467,6 @@ const testAudioSettingsRef = useRef<{
         currentRoleLabel={currentRoleLabel}
       />
     </VideoRhythmLayout>
+    </>
   );
 };

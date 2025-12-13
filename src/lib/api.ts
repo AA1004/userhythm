@@ -55,6 +55,18 @@ export interface ApiUserAggregate {
   } | null;
 }
 
+export interface ApiNotice {
+  title: string;
+  content: string;
+  updatedAt: string;
+}
+
+export interface ApiVersion {
+  version: string;
+  changelog: string[];
+  updatedAt: string;
+}
+
 const toJson = async (res: Response) => {
   if (!res.ok) {
     const text = await res.text();
@@ -138,6 +150,42 @@ export const api = {
       body: JSON.stringify({ chartId, accuracy }),
     });
     return toJson(res) as Promise<{ score: ApiScore }>;
+  },
+
+  async getNotice() {
+    const res = await fetch(`${API_BASE}/api/notice`, { credentials: 'include' });
+    return toJson(res) as Promise<ApiNotice>;
+  },
+
+  async updateNotice(title: string, content: string) {
+    const res = await fetch(`${API_BASE}/api/notice`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-token': ADMIN_TOKEN,
+      },
+      credentials: 'include',
+      body: JSON.stringify({ title, content }),
+    });
+    return toJson(res) as Promise<ApiNotice>;
+  },
+
+  async getVersion() {
+    const res = await fetch(`${API_BASE}/api/version`, { credentials: 'include' });
+    return toJson(res) as Promise<ApiVersion>;
+  },
+
+  async updateVersion(version: string, changelog: string[]) {
+    const res = await fetch(`${API_BASE}/api/version`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-token': ADMIN_TOKEN,
+      },
+      credentials: 'include',
+      body: JSON.stringify({ version, changelog }),
+    });
+    return toJson(res) as Promise<ApiVersion>;
   },
 };
 

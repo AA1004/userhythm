@@ -96,10 +96,69 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   
   // --- 선택 영역 상태 (복사/붙여넣기) ---
   const [isSelectionMode, setIsSelectionMode] = useState<boolean>(false);
+  const [isLaneSelectionMode, setIsLaneSelectionMode] = useState<boolean>(false);
+  const [selectedLane, setSelectedLane] = useState<Lane | null>(null);
   const [selectionStartTime, setSelectionStartTime] = useState<number | null>(null);
   const [selectionEndTime, setSelectionEndTime] = useState<number | null>(null);
   const [copiedNotes, setCopiedNotes] = useState<Note[]>([]);
   const isSelectingRef = useRef(false);
+  
+  // --- 실행 취소/다시 실행 상태 ---
+  const notesHistoryRef = useRef<Note[][]>([[]]);
+  const historyIndexRef = useRef<number>(0);
+  const MAX_HISTORY_SIZE = 50;
+  
+  // 히스토리에 현재 상태 저장
+  const saveToHistory = useCallback((newNotes: Note[]) => {
+    const history = notesHistoryRef.current;
+    const index = historyIndexRef.current;
+    
+    // 현재 인덱스 이후의 히스토리 제거 (새로운 변경이 있으면)
+    const newHistory = history.slice(0, index + 1);
+    
+    // 새 상태 추가
+    newHistory.push([...newNotes]);
+    
+    // 최대 크기 제한
+    if (newHistory.length > MAX_HISTORY_SIZE) {
+      newHistory.shift();
+      historyIndexRef.current = newHistory.length - 1;
+    } else {
+      historyIndexRef.current = newHistory.length - 1;
+    }
+    
+    notesHistoryRef.current = newHistory;
+  }, []);
+  
+  // 실행 취소
+  const handleUndo = useCallback(() => {
+    const history = notesHistoryRef.current;
+    const index = historyIndexRef.current;
+    
+    if (index > 0) {
+      historyIndexRef.current = index - 1;
+      setNotes([...history[index - 1]]);
+    }
+  }, []);
+  
+  // 다시 실행
+  const handleRedo = useCallback(() => {
+    const history = notesHistoryRef.current;
+    const index = historyIndexRef.current;
+    
+    if (index < history.length - 1) {
+      historyIndexRef.current = index + 1;
+      setNotes([...history[index + 1]]);
+    }
+  }, []);
+  
+  // 초기 상태를 히스토리에 저장
+  useEffect(() => {
+    if (notesHistoryRef.current.length === 1 && notesHistoryRef.current[0].length === 0 && notes.length > 0) {
+      notesHistoryRef.current = [[...notes]];
+      historyIndexRef.current = 0;
+    }
+  }, [notes]);
   
   // --- UI 상태 ---
   const [isBpmInputOpen, setIsBpmInputOpen] = useState<boolean>(false);
@@ -496,8 +555,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
 
     if (Array.isArray(data.notes)) {
-      setNotes(data.notes);
-      const maxId = data.notes.reduce((max: number, note: Note) => {
+      const restoredNotes = data.notes;
+      setNotes(restoredNotes);
+      // 히스토리 초기화
+      notesHistoryRef.current = [[...restoredNotes]];
+      historyIndexRef.current = 0;
+      const maxId = restoredNotes.reduce((max: number, note: Note) => {
         const noteId = typeof note.id === 'number' ? note.id : 0;
         return Math.max(max, noteId);
       }, 0);
@@ -584,6 +647,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
 
     setNotes([]);
+    // 히스토리 초기화
+    notesHistoryRef.current = [[]];
+    historyIndexRef.current = 0;
     setCurrentTime(0);
     setIsPlaying(false);
     setPlaybackSpeed(1);
@@ -731,12 +797,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }));
     
     setCopiedNotes(copiedNotesWithRelativeTime);
-    alert(`${selectedNotes.length}개의 노트를 복사했습니다.`);
   }, [selectionStartTime, selectionEndTime, notes]);
 
   const handlePasteNotes = useCallback(() => {
     if (copiedNotes.length === 0) {
-      alert('복사된 노트가 없습니다.');
       return;
     }
     
@@ -747,9 +811,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       time: note.time + currentTime,
     }));
     
-    setNotes((prev) => [...prev, ...newNotes].sort((a, b) => a.time - b.time));
-    alert(`${newNotes.length}개의 노트를 붙여넣었습니다.`);
-  }, [copiedNotes, currentTime]);
+    setNotes((prev) => {
+      const newNotesList = [...prev, ...newNotes].sort((a, b) => a.time - b.time);
+      saveToHistory(newNotesList);
+      return newNotesList;
+    });
+  }, [copiedNotes, currentTime, saveToHistory]);
 
   const handleClearSelection = useCallback(() => {
     setSelectionStartTime(null);
@@ -757,9 +824,24 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     isSelectingRef.current = false;
   }, []);
 
-  // 키보드 단축키 (Ctrl+C, Ctrl+V, ESC)
+  // 키보드 단축키 (Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y, ESC)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Z: 실행 취소
+      if (e.ctrlKey && e.key === 'z' && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        handleUndo();
+        return;
+      }
+      
+      // Ctrl+Y 또는 Ctrl+Shift+Z: 다시 실행
+      if ((e.ctrlKey && e.key === 'y' && !e.shiftKey && !e.altKey) ||
+          (e.ctrlKey && e.key === 'z' && e.shiftKey && !e.altKey)) {
+        e.preventDefault();
+        handleRedo();
+        return;
+      }
+      
       // Ctrl+C: 복사
       if (e.ctrlKey && e.key === 'c' && !e.shiftKey && !e.altKey) {
         if (selectionStartTime !== null && selectionEndTime !== null) {
@@ -792,7 +874,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [selectionStartTime, selectionEndTime, copiedNotes, handleCopySelection, handlePasteNotes, handleClearSelection]);
+  }, [selectionStartTime, selectionEndTime, copiedNotes, handleCopySelection, handlePasteNotes, handleClearSelection, handleUndo, handleRedo]);
 
 
   // --- 핸들러들 ---
@@ -809,12 +891,20 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       y: 0, // 렌더링 시 계산
       hit: false,
     };
-    setNotes((prev) => [...prev, newNote]);
-  }, []);
+    setNotes((prev) => {
+      const newNotes = [...prev, newNote];
+      saveToHistory(newNotes);
+      return newNotes;
+    });
+  }, [saveToHistory]);
 
   const deleteNote = useCallback((id: number) => {
-    setNotes((prev) => prev.filter((n) => n.id !== id));
-  }, []);
+    setNotes((prev) => {
+      const newNotes = prev.filter((n) => n.id !== id);
+      saveToHistory(newNotes);
+      return newNotes;
+    });
+  }, [saveToHistory]);
 
   // 타임라인 클릭 (재생선 이동)
   const handleTimelineClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -1366,6 +1456,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
               setSelectionEndTime(null);
             }
           }}
+          isLaneSelectionMode={isLaneSelectionMode}
+          onToggleLaneSelectionMode={() => {
+            setIsLaneSelectionMode(prev => !prev);
+            // 레인 선택 모드를 끌 때 선택된 레인 초기화
+            if (isLaneSelectionMode) {
+              setSelectedLane(null);
+            }
+          }}
           testStartInput={testStartInput}
           onTestStartInputChange={setTestStartInput}
           onSetTestStartToCurrent={() => setTestStartInput(Math.floor(currentTime).toString())}
@@ -1427,6 +1525,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                 beatsPerMeasure={beatsPerMeasure}
                 bgaVisibilityIntervals={bgaVisibilityIntervals}
                 isSelectionMode={isSelectionMode}
+                isLaneSelectionMode={isLaneSelectionMode}
+                selectedLane={selectedLane}
+                onLaneSelect={setSelectedLane}
                 selectionStartTime={selectionStartTime}
                 selectionEndTime={selectionEndTime}
                 onSelectionStart={(time) => {

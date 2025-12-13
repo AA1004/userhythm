@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useRef, useState, useCallback } from 'react';
-import { Note, TimeSignatureEvent, SpeedChange, BPMChange, BgaVisibilityInterval } from '../../types/game';
+import { Note, TimeSignatureEvent, SpeedChange, BPMChange, BgaVisibilityInterval, Lane } from '../../types/game';
 import {
   LANE_POSITIONS,
   LANE_WIDTH,
@@ -40,6 +40,9 @@ interface ChartEditorTimelineProps {
   bgaVisibilityIntervals?: BgaVisibilityInterval[];
   // 선택 영역 관련
   isSelectionMode?: boolean;
+  isLaneSelectionMode?: boolean;
+  selectedLane?: Lane | null;
+  onLaneSelect?: (lane: Lane | null) => void;
   selectionStartTime?: number | null;
   selectionEndTime?: number | null;
   onSelectionStart?: (timeMs: number) => void;
@@ -357,24 +360,40 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
         }}
       >
         {/* 레인 배경 */}
-        {LANE_POSITIONS.map((x, index) => (
-          <div
-            key={index}
-            style={{
-              position: 'absolute',
-              left: `${x - LANE_WIDTH / 2}px`,
-              top: 0,
-              width: `${LANE_WIDTH}px`,
-              height: '100%',
-              background:
-                index % 2 === 0
-                  ? 'linear-gradient(180deg, #020617 0%, #020617 40%, #020617 100%)'
-                  : 'linear-gradient(180deg, #0a0f1a 0%, #0a0f1a 40%, #0a0f1a 100%)',
-              boxShadow:
-                'inset 1px 0 0 rgba(15,23,42,0.9), inset -1px 0 0 rgba(15,23,42,0.9)',
-            }}
-          />
-        ))}
+        {LANE_POSITIONS.map((x, index) => {
+          const lane = index as Lane;
+          const isSelected = isLaneSelectionMode && selectedLane === lane;
+          return (
+            <div
+              key={index}
+              onClick={(e) => {
+                if (isLaneSelectionMode && onLaneSelect) {
+                  e.stopPropagation();
+                  onLaneSelect(selectedLane === lane ? null : lane);
+                }
+              }}
+              style={{
+                position: 'absolute',
+                left: `${x - LANE_WIDTH / 2}px`,
+                top: 0,
+                width: `${LANE_WIDTH}px`,
+                height: '100%',
+                background:
+                  isSelected
+                    ? 'linear-gradient(180deg, rgba(139,92,246,0.3) 0%, rgba(139,92,246,0.2) 40%, rgba(139,92,246,0.3) 100%)'
+                    : index % 2 === 0
+                    ? 'linear-gradient(180deg, #020617 0%, #020617 40%, #020617 100%)'
+                    : 'linear-gradient(180deg, #0a0f1a 0%, #0a0f1a 40%, #0a0f1a 100%)',
+                boxShadow:
+                  isSelected
+                    ? 'inset 0 0 0 2px rgba(139,92,246,0.6), inset 1px 0 0 rgba(15,23,42,0.9), inset -1px 0 0 rgba(15,23,42,0.9)'
+                    : 'inset 1px 0 0 rgba(15,23,42,0.9), inset -1px 0 0 rgba(15,23,42,0.9)',
+                cursor: isLaneSelectionMode ? 'pointer' : 'default',
+                transition: 'all 0.2s ease',
+              }}
+            />
+          );
+        })}
 
         {/* 레인 경계선 (5개: 0, 100, 200, 300, 400) */}
         {[0, 1, 2, 3, 4].map((i) => (
