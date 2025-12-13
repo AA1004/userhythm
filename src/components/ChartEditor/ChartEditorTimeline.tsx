@@ -39,6 +39,7 @@ interface ChartEditorTimelineProps {
   beatsPerMeasure: number;
   bgaVisibilityIntervals?: BgaVisibilityInterval[];
   // 선택 영역 관련
+  isSelectionMode?: boolean;
   selectionStartTime?: number | null;
   selectionEndTime?: number | null;
   onSelectionStart?: (timeMs: number) => void;
@@ -252,6 +253,9 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   const isDraggingSelectionRef = useRef(false);
   
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    // 선택 모드가 꺼져있으면 드래그 선택 비활성화
+    if (!isSelectionMode) return;
+    
     // 재생선이나 노트 클릭이면 선택 모드 비활성화
     if ((e.target as HTMLElement).closest('[data-playhead]') || 
         (e.target as HTMLElement).closest('[data-note]')) {
@@ -269,7 +273,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
     }
     
     e.preventDefault();
-  }, [yToTime, onSelectionStart, timelineContentRef]);
+  }, [isSelectionMode, yToTime, onSelectionStart, timelineContentRef]);
   
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDraggingSelectionRef.current || !onSelectionUpdate) return;

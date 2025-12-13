@@ -24,6 +24,8 @@ interface ChartEditorSidebarProps {
   beatDuration: number;
   isLongNoteMode: boolean;
   onToggleLongNoteMode: () => void;
+  isSelectionMode: boolean;
+  onToggleSelectionMode: () => void;
   testStartInput: string;
   onTestStartInputChange: (input: string) => void;
   onSetTestStartToCurrent: () => void;
@@ -67,6 +69,8 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
   beatDuration,
   isLongNoteMode,
   onToggleLongNoteMode,
+  isSelectionMode,
+  onToggleSelectionMode,
   testStartInput,
   onTestStartInputChange,
   onSetTestStartToCurrent,
@@ -564,6 +568,47 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
           }}
         >
           롱노트 모드
+        </button>
+      </div>
+
+      {/* 선택 모드 */}
+      <div
+        style={{
+          marginBottom: '16px',
+          padding: '10px 12px',
+          borderRadius: CHART_EDITOR_THEME.radiusMd,
+          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+        }}
+      >
+        <button
+          onClick={(e) => {
+            onToggleSelectionMode();
+            // 버튼에 포커스가 남아 키 입력이 막히는 것을 방지
+            e.currentTarget.blur();
+          }}
+          onMouseDown={(e) => {
+            // 클릭 시 포커스가 버튼에 머무르지 않도록 기본 포커스 행동 차단
+            e.preventDefault();
+          }}
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            borderRadius: CHART_EDITOR_THEME.radiusMd,
+            border: `1px solid ${
+              isSelectionMode ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.borderSubtle
+            }`,
+            background: isSelectionMode
+              ? 'linear-gradient(135deg, rgba(59,130,246,0.2), rgba(59,130,246,0.05))'
+              : 'transparent',
+            color: isSelectionMode ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.textPrimary,
+            fontSize: '13px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          영역 선택 모드
         </button>
       </div>
 

@@ -95,6 +95,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [bgaVisibilityIntervals, setBgaVisibilityIntervals] = useState<BgaVisibilityInterval[]>([]);
   
   // --- 선택 영역 상태 (복사/붙여넣기) ---
+  const [isSelectionMode, setIsSelectionMode] = useState<boolean>(false);
   const [selectionStartTime, setSelectionStartTime] = useState<number | null>(null);
   const [selectionEndTime, setSelectionEndTime] = useState<number | null>(null);
   const [copiedNotes, setCopiedNotes] = useState<Note[]>([]);
@@ -1356,6 +1357,15 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           beatDuration={beatDuration}
           isLongNoteMode={isLongNoteMode}
           onToggleLongNoteMode={() => setIsLongNoteMode(prev => !prev)}
+          isSelectionMode={isSelectionMode}
+          onToggleSelectionMode={() => {
+            setIsSelectionMode(prev => !prev);
+            // 선택 모드를 끌 때 선택 영역 초기화
+            if (isSelectionMode) {
+              setSelectionStartTime(null);
+              setSelectionEndTime(null);
+            }
+          }}
           testStartInput={testStartInput}
           onTestStartInputChange={setTestStartInput}
           onSetTestStartToCurrent={() => setTestStartInput(Math.floor(currentTime).toString())}
@@ -1416,6 +1426,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                 bpmChanges={sortedBpmChanges}
                 beatsPerMeasure={beatsPerMeasure}
                 bgaVisibilityIntervals={bgaVisibilityIntervals}
+                isSelectionMode={isSelectionMode}
                 selectionStartTime={selectionStartTime}
                 selectionEndTime={selectionEndTime}
                 onSelectionStart={(time) => {
