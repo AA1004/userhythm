@@ -31,9 +31,11 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
 }) => {
   const backgroundPlayerContainerRef = useRef<HTMLDivElement | null>(null);
   const [backgroundPlayer, setBackgroundPlayer] = useState<any>(null);
+  const [isUIMaskVisible, setIsUIMaskVisible] = useState(true);
   const backgroundPlayerReadyRef = useRef(false);
   const lastBgaSeekRef = useRef<number | null>(null);
   const userInteractedRef = useRef(false);
+  const preloadPlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 배경용 YouTube 플레이어 초기화
   useEffect(() => {
@@ -89,6 +91,8 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
               setBackgroundPlayer(player);
               try {
                 player.mute?.();
+                // 게임 시작 전에 미리 재생해서 UI를 띄워놓기
+                // 사용자 인터랙션이 필요하므로 pointerdown 이벤트에서 처리
               } catch {
                 // ignore
               }
@@ -103,6 +107,10 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     return () => {
       isCancelled = true;
       backgroundPlayerReadyRef.current = false;
+      if (preloadPlayTimeoutRef.current) {
+        clearTimeout(preloadPlayTimeoutRef.current);
+        preloadPlayTimeoutRef.current = null;
+      }
       if (playerInstance) {
         try {
           playerInstance.destroy?.();
@@ -111,6 +119,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
         }
       }
       setBackgroundPlayer(null);
+      setIsUIMaskVisible(true); // 리셋
     };
   }, [videoId, bgaEnabled]);
 
@@ -120,6 +129,8 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
 
     try {
       if (shouldPlayBga && bgaEnabled && videoId) {
+        // 게임 시작 시 마스크 제거하고 재생
+        setIsUIMaskVisible(false);
         backgroundPlayer.playVideo?.();
       } else {
         backgroundPlayer.pauseVideo?.();
@@ -139,9 +150,28 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       if (!bgaEnabled || !videoId) return;
 
       try {
+        // 게임 시작 전에도 미리 재생해서 UI를 띄워놓기
         backgroundPlayer.playVideo?.();
+        
+        // UI가 사라질 때까지 기다린 후 마스크 제거 (1.5초 후)
+        if (!shouldPlayBga && isUIMaskVisible) {
+          if (preloadPlayTimeoutRef.current) {
+            clearTimeout(preloadPlayTimeoutRef.current);
+          }
+          preloadPlayTimeoutRef.current = setTimeout(() => {
+            setIsUIMaskVisible(false);
+            // 마스크 제거 후 일시정지 (게임 시작 전까지)
+            backgroundPlayer.pauseVideo?.();
+          }, 1500);
+        }
+        
         if (!shouldPlayBga) {
-          backgroundPlayer.pauseVideo?.();
+          // 게임 시작 전이면 잠시 후 일시정지
+          setTimeout(() => {
+            if (!shouldPlayBga) {
+              backgroundPlayer.pauseVideo?.();
+            }
+          }, 2000);
         }
       } catch {
         // ignore
@@ -151,8 +181,11 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     window.addEventListener('pointerdown', handlePointerDown, { passive: true });
     return () => {
       window.removeEventListener('pointerdown', handlePointerDown);
+      if (preloadPlayTimeoutRef.current) {
+        clearTimeout(preloadPlayTimeoutRef.current);
+      }
     };
-  }, [backgroundPlayer, shouldPlayBga, bgaEnabled, videoId]);
+  }, [backgroundPlayer, shouldPlayBga, bgaEnabled, videoId, isUIMaskVisible]);
 
   // 게임 타임라인에 맞춰 BGA 위치도 함께 시크
   useEffect(() => {
@@ -220,6 +253,39 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
               pointerEvents: 'none',
             }}
           />
+          {/* 게임 시작 전 YouTube UI 가리는 마스크 (UI가 사라질 때까지) */}
+          {isUIMaskVisible && (
+            <>
+              {/* 상단 UI 마스크 */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: '15%',
+                  background: 'linear-gradient(to bottom, rgba(15,23,42,1) 0%, rgba(15,23,42,0.8) 60%, transparent 100%)',
+                  pointerEvents: 'none',
+                  zIndex: 1,
+                  transition: 'opacity 0.3s ease-out',
+                }}
+              />
+              {/* 하단 UI 마스크 */}
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: '15%',
+                  background: 'linear-gradient(to top, rgba(15,23,42,1) 0%, rgba(15,23,42,0.8) 60%, transparent 100%)',
+                  pointerEvents: 'none',
+                  zIndex: 1,
+                  transition: 'opacity 0.3s ease-out',
+                }}
+              />
+            </>
+          )}
         </div>
       )}
 
