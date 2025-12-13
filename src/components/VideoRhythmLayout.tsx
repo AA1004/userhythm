@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { waitForYouTubeAPI } from '../utils/youtube';
 
@@ -33,48 +33,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   const [backgroundPlayer, setBackgroundPlayer] = useState<any>(null);
   const backgroundPlayerReadyRef = useRef(false);
   const lastBgaSeekRef = useRef<number | null>(null);
-  const lastLayoutSizeRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
-  const layoutRafRef = useRef<number | null>(null);
-
-  const applyBackgroundPlayerLayout = useCallback((player: any) => {
-    const container = backgroundPlayerContainerRef.current;
-    if (!container || !player) return;
-
-    const rect = container.getBoundingClientRect();
-    const roundedWidth = Math.round(rect.width);
-    const roundedHeight = Math.round(rect.height);
-
-    if (
-      lastLayoutSizeRef.current.width === roundedWidth &&
-      lastLayoutSizeRef.current.height === roundedHeight
-    ) {
-      return;
-    }
-    lastLayoutSizeRef.current = { width: roundedWidth, height: roundedHeight };
-
-    const overscan = 1.05;
-    const videoBaseW = 16;
-    const videoBaseH = 9;
-    const scale = Math.max(rect.width / videoBaseW, rect.height / videoBaseH) * overscan;
-    const targetWidth = videoBaseW * scale;
-    const targetHeight = videoBaseH * scale;
-
-    const iframe = player.getIframe?.();
-    if (iframe) {
-      iframe.style.position = 'absolute';
-      iframe.style.top = '50%';
-      iframe.style.left = '50%';
-      iframe.style.width = `${targetWidth}px`;
-      iframe.style.height = `${targetHeight}px`;
-      iframe.style.transform = 'translate(-50%, -50%)';
-      iframe.style.pointerEvents = 'none';
-      iframe.style.objectFit = 'cover';
-    }
-
-    if (player.setSize) {
-      player.setSize(targetWidth, targetHeight);
-    }
-  }, []);
+  const userInteractedRef = useRef(false);
 
   // 배경용 YouTube 플레이어 초기화
   useEffect(() => {
@@ -95,7 +54,6 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
 
     let isCancelled = false;
     let playerInstance: any = null;
-    let resizeHandler: (() => void) | null = null;
 
     waitForYouTubeAPI().then(() => {
       if (isCancelled) return;
@@ -105,14 +63,12 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       if (!container) return;
 
       const playerId = `bga-player-${videoId}`;
-      // React 노드가 교체되지 않도록 컨테이너 내부에 마운트 노드를 생성해 전달
-      const mountNode = document.createElement('div');
-      mountNode.id = `${playerId}-mount`;
-      container.innerHTML = '';
-      container.appendChild(mountNode);
+      if (container.id !== playerId) {
+        container.id = playerId;
+      }
 
       try {
-        playerInstance = new window.YT.Player(mountNode as any, {
+        playerInstance = new window.YT.Player(playerId, {
           videoId,
           playerVars: {
             autoplay: 0,
@@ -136,15 +92,6 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
               } catch {
                 // ignore
               }
-              applyBackgroundPlayerLayout(player);
-              resizeHandler = () => {
-                if (layoutRafRef.current !== null) return;
-                layoutRafRef.current = requestAnimationFrame(() => {
-                  layoutRafRef.current = null;
-                  applyBackgroundPlayerLayout(player);
-                });
-              };
-              window.addEventListener('resize', resizeHandler, { passive: true });
             },
           },
         });
@@ -156,22 +103,12 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     return () => {
       isCancelled = true;
       backgroundPlayerReadyRef.current = false;
-      if (layoutRafRef.current) {
-        cancelAnimationFrame(layoutRafRef.current);
-        layoutRafRef.current = null;
-      }
       if (playerInstance) {
         try {
           playerInstance.destroy?.();
         } catch {
           // ignore
         }
-        if (resizeHandler) {
-          window.removeEventListener('resize', resizeHandler);
-        }
-      }
-      if (backgroundPlayerContainerRef.current) {
-        backgroundPlayerContainerRef.current.innerHTML = '';
       }
       setBackgroundPlayer(null);
     };
@@ -197,6 +134,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     if (!backgroundPlayer) return;
 
     const handlePointerDown = () => {
+      userInteractedRef.current = true;
       if (!backgroundPlayerReadyRef.current) return;
       if (!bgaEnabled || !videoId) return;
 
@@ -244,7 +182,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
         minHeight: '100vh',
         width: '100%',
         display: 'flex',
-        alignItems: 'flex-start', // 맨 위로 붙임
+        alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
         background: CHART_EDITOR_THEME.backgroundGradient,
@@ -261,7 +199,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
             pointerEvents: 'none', // 배경은 클릭 불가, 게임 영역만 인터랙션
           }}
         >
-          {/* 화면에 딱 맞게 배치 */}
+          {/* 약간 확대해서 여백까지 자연스럽게 영상으로 채움 */}
           <div
             ref={backgroundPlayerContainerRef}
             style={{
