@@ -129,16 +129,29 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
 
     try {
       if (shouldPlayBga && bgaEnabled && videoId) {
-        // 게임 시작 시 마스크 제거하고 재생
-        setIsUIMaskVisible(false);
+        // 게임 시작 시 재생하고 UI 제거 대기
         backgroundPlayer.playVideo?.();
+        // UI가 사라질 때까지 기다린 후 마스크 제거 (1.5초 후)
+        if (isUIMaskVisible) {
+          if (preloadPlayTimeoutRef.current) {
+            clearTimeout(preloadPlayTimeoutRef.current);
+          }
+          preloadPlayTimeoutRef.current = setTimeout(() => {
+            setIsUIMaskVisible(false);
+          }, 1500);
+        }
       } else {
         backgroundPlayer.pauseVideo?.();
+        // 게임이 끝나면 마스크 다시 표시 (다음 게임을 위해)
+        setIsUIMaskVisible(true);
+        if (preloadPlayTimeoutRef.current) {
+          clearTimeout(preloadPlayTimeoutRef.current);
+        }
       }
     } catch {
       // ignore
     }
-  }, [shouldPlayBga, bgaEnabled, videoId, backgroundPlayer]);
+  }, [shouldPlayBga, bgaEnabled, videoId, backgroundPlayer, isUIMaskVisible]);
 
   // 자동재생 정책 회피: 사용자 입력(pointerdown)이 들어오면 즉시 재생 시도
   useEffect(() => {
@@ -150,28 +163,18 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       if (!bgaEnabled || !videoId) return;
 
       try {
-        // 게임 시작 전에도 미리 재생해서 UI를 띄워놓기
-        backgroundPlayer.playVideo?.();
-        
-        // UI가 사라질 때까지 기다린 후 마스크 제거 (1.5초 후)
-        if (!shouldPlayBga && isUIMaskVisible) {
-          if (preloadPlayTimeoutRef.current) {
-            clearTimeout(preloadPlayTimeoutRef.current);
-          }
-          preloadPlayTimeoutRef.current = setTimeout(() => {
-            setIsUIMaskVisible(false);
-            // 마스크 제거 후 일시정지 (게임 시작 전까지)
-            backgroundPlayer.pauseVideo?.();
-          }, 1500);
-        }
-        
-        if (!shouldPlayBga) {
-          // 게임 시작 전이면 잠시 후 일시정지
-          setTimeout(() => {
-            if (!shouldPlayBga) {
-              backgroundPlayer.pauseVideo?.();
+        // 게임이 시작되면 재생
+        if (shouldPlayBga) {
+          backgroundPlayer.playVideo?.();
+          // 게임 시작 시 미리 재생해서 UI를 제거 (1.5초 후 마스크 제거)
+          if (isUIMaskVisible) {
+            if (preloadPlayTimeoutRef.current) {
+              clearTimeout(preloadPlayTimeoutRef.current);
             }
-          }, 2000);
+            preloadPlayTimeoutRef.current = setTimeout(() => {
+              setIsUIMaskVisible(false);
+            }, 1500);
+          }
         }
       } catch {
         // ignore
@@ -221,8 +224,8 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
         background: CHART_EDITOR_THEME.backgroundGradient,
       }}
     >
-      {/* 유튜브 배경 레이어 (있을 때만) */}
-      {videoId && bgaEnabled && (
+      {/* 유튜브 배경 레이어 (게임 시작 시에만 표시) */}
+      {videoId && bgaEnabled && shouldPlayBga && (
         <div
           style={{
             position: 'absolute',
