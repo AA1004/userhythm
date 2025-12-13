@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { api, ApiNotice, ApiVersion } from '../lib/api';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
+import { useAuth } from '../hooks/useAuth';
+import { NoticeVersionAdmin } from './NoticeVersionAdmin';
 
 interface MainMenuSidebarProps {
   type: 'notice' | 'version';
@@ -34,6 +36,8 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
   const [version, setVersion] = useState<ApiVersion | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const { isAdmin } = useAuth();
   useIsWideScreen();
   const [windowSize, setWindowSize] = useState(() => {
     if (typeof window === 'undefined') return { width: 1920, height: 1080 };
@@ -151,21 +155,89 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
   }
 
   return (
-    <div style={sidebarStyle}>
-      {/* 제목 */}
-      <h2
-        style={{
-          fontSize: getFontSize(28, 24, 22),
-          fontWeight: 'bold',
-          color: CHART_EDITOR_THEME.textPrimary,
-          marginBottom: '16px',
-          marginTop: 0,
-          borderBottom: `2px solid ${CHART_EDITOR_THEME.borderStrong}`,
-          paddingBottom: '12px',
-        }}
-      >
-        {type === 'notice' ? '📢 공지사항' : '📋 버전 리포트'}
-      </h2>
+    <>
+      {isAdminModalOpen && (
+        <NoticeVersionAdmin
+          onClose={() => {
+            setIsAdminModalOpen(false);
+            // 모달 닫을 때 데이터 새로고침
+            if (type === 'notice') {
+              setIsLoading(true);
+              api
+                .getNotice()
+                .then((data) => {
+                  setNotice(data);
+                  setIsLoading(false);
+                })
+                .catch((err) => {
+                  console.error('Failed to load notice:', err);
+                  setIsLoading(false);
+                });
+            } else if (type === 'version') {
+              setIsLoading(true);
+              api
+                .getVersion()
+                .then((data) => {
+                  setVersion(data);
+                  setIsLoading(false);
+                })
+                .catch((err) => {
+                  console.error('Failed to load version:', err);
+                  setIsLoading(false);
+                });
+            }
+          }}
+        />
+      )}
+      <div style={sidebarStyle}>
+        {/* 제목 및 편집 버튼 */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '16px',
+            borderBottom: `2px solid ${CHART_EDITOR_THEME.borderStrong}`,
+            paddingBottom: '12px',
+          }}
+        >
+          <h2
+            style={{
+              fontSize: getFontSize(28, 24, 22),
+              fontWeight: 'bold',
+              color: CHART_EDITOR_THEME.textPrimary,
+              margin: 0,
+            }}
+          >
+            {type === 'notice' ? '📢 공지사항' : '📋 버전 리포트'}
+          </h2>
+          {isAdmin && (
+            <button
+              onClick={() => setIsAdminModalOpen(true)}
+              style={{
+                padding: '8px 16px',
+                fontSize: getFontSize(14, 13, 12),
+                fontWeight: '600',
+                background: CHART_EDITOR_THEME.buttonGhostBg,
+                color: CHART_EDITOR_THEME.textPrimary,
+                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                borderRadius: CHART_EDITOR_THEME.radiusSm,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = CHART_EDITOR_THEME.buttonPrimaryBg;
+                e.currentTarget.style.color = CHART_EDITOR_THEME.buttonPrimaryText;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = CHART_EDITOR_THEME.buttonGhostBg;
+                e.currentTarget.style.color = CHART_EDITOR_THEME.textPrimary;
+              }}
+            >
+              ✏️ 편집
+            </button>
+          )}
+        </div>
 
       {/* 내용 영역 */}
       <div
@@ -288,7 +360,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
           </>
         )}
       </div>
-    </div>
+    </>
   );
 };
 

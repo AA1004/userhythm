@@ -1,25 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '../../../lib/prisma';
+import { getSessionFromRequest } from '../../../lib/auth';
 
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
+export const runtime = 'nodejs';
 
-// 간단한 인메모리 저장 (프로덕션에서는 DB 사용 권장)
-let versionData = {
-  version: '1.2.2',
-  changelog: [
-    '선택 영역 이동 모드 추가 - 선택된 노트를 드래그하여 시간과 레인을 변경할 수 있는 기능',
-    '노트 이동 시 선택 영역 동기화 - 노트를 이동하면 선택 영역도 함께 이동하여 편집 편의성 향상',
-    '레인별 분할 선택 모드 제거 - 사용 빈도가 낮아 기능 제거 및 UI 간소화',
-    '이동 모드에서 노트 삭제 방지 - 실수로 노트를 삭제하는 것을 방지',
-    '선택 영역 이동 모드 버튼 추가 - 사이드바에서 이동 모드를 쉽게 켜고 끌 수 있음',
-  ],
-  updatedAt: new Date().toISOString(),
-};
+// 단일 버전 ID (항상 같은 레코드를 사용)
+const VERSION_ID = 'main-version';
 
 export async function GET() {
   try {
-    return NextResponse.json(versionData);
-  } catch (error) {
+    // 기존 버전이 있으면 반환, 없으면 기본값 생성
+    let version = await prisma.version.findUnique({
+      where: { id: VERSION_ID },
+    });
+
+    if (!version) {
+      // 기본 버전 생성
+      const defaultChangelog = [
+        '선택 영역 이동 모드 추가 - 선택된 노트를 드래그하여 시간과 레인을 변경할 수 있는 기능',
+        '노트 이동 시 선택 영역 동기화 - 노트를 이동하면 선택 영역도 함께 이동하여 편집 편의성 향상',
+        '레인별 분할 선택 모드 제거 - 사용 빈도가 낮아 기능 제거 및 UI 간소화',
+        '이동 모드에서 노트 삭제 방지 - 실수로 노트를 삭제하는 것을 방지',
+        '선택 영역 이동 모드 버튼 추가 - 사이드바에서 이동 모드를 쉽게 켜고 끌 수 있음',
+      ];
+      version = await prisma.version.create({
+        data: {
+          id: VERSION_ID,
+          version: '1.2.2',
+          changelog: JSON.stringify(defaultChangelog),
+        },
+      });
+    }
+
+    return NextResponse.json({
+      version: version.version,
+      changelog: JSON.parse(version.changelog) as string[],
+      updatedAt: version.updatedAt.toISOString(),
+    });
+  } catch (error: any) {
     console.error('version get error', error);
+    // DB 연결 실패 시 기본값 반환
+    if (error?.name === 'PrismaClientInitializationError' || process.env.NODE_ENV === 'development') {
+      return NextResponse.json({
+        version: '1.0.0',
+        changelog: ['버전 정보를 불러올 수 없습니다.', 'API 서버가 실행 중인지 확인해주세요.'],
+        updatedAt: new Date().toISOString(),
+      });
+    }
     return NextResponse.json(
       { error: 'failed to load version' },
       { status: 500 }
@@ -29,8 +56,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const token = req.headers.get('x-admin-token') || '';
-    if (!ADMIN_TOKEN || token !== ADMIN_TOKEN) {
+    // ADMIN 권한 체크
+    const session = getSessionFromRequest(req);
+    if (!session || session.role !== 'admin') {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
 
@@ -42,14 +70,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    versionData = {
-      version,
-      changelog,
-      updatedAt: new Date().toISOString(),
-    };
+    // upsert로 업데이트 (없으면 생성)
+    const versionData = await prisma.version.upsert({
+      where: { id: VERSION_ID },
+      update: {
+        version,
+        changelog: JSON.stringify(changelog),
+      },
+      create: {
+        id: VERSION_ID,
+        version,
+        changelog: JSON.stringify(changelog),
+      },
+    });
 
-    return NextResponse.json(versionData);
-  } catch (error) {
+    return NextResponse.json({
+      version: versionData.version,
+      changelog: JSON.parse(versionData.changelog) as string[],
+      updatedAt: versionData.updatedAt.toISOString(),
+    });
+  } catch (error: any) {
     console.error('version update error', error);
     return NextResponse.json(
       { error: 'failed to update version' },

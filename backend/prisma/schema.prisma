@@ -66,3 +66,19 @@ model Score {
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   chart Chart @relation(fields: [chartId], references: [id], onDelete: Cascade)
 }
+
+model Notice {
+  id        String   @id @default(uuid())
+  title     String
+  content   String
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}
+
+model Version {
+  id        String   @id @default(uuid())
+  version   String
+  changelog String   @db.Text // JSON array stored as text
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}

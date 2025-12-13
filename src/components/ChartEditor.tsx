@@ -834,11 +834,26 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     dragStartRef.current = { time, lane: lane ?? 0 };
     setDragOffset({ time: 0, lane: 0 });
     
-    // 선택된 노트가 없고 특정 노트 ID가 전달되었으면 해당 노트를 선택
-    if (selectedNoteIds.size === 0 && noteId !== undefined) {
+    // 선택 영역이 있으면 항상 선택 영역의 모든 노트를 사용
+    if (selectionStartTime !== null && selectionEndTime !== null) {
+      const startTime = Math.min(selectionStartTime, selectionEndTime);
+      const endTime = Math.max(selectionStartTime, selectionEndTime);
+      let selectedNotes = notes.filter(
+        (note) => note.time >= startTime && note.time < endTime
+      );
+      if (selectedLane !== null) {
+        selectedNotes = selectedNotes.filter((note) => note.lane === selectedLane);
+      }
+      const noteIds = new Set(selectedNotes.map(n => n.id));
+      if (noteIds.size > 0) {
+        setSelectedNoteIds(noteIds);
+      }
+    } else if (selectedNoteIds.size === 0 && noteId !== undefined) {
+      // 선택 영역이 없고 선택된 노트도 없으면 클릭한 노트만 선택
       setSelectedNoteIds(new Set([noteId]));
     }
-  }, [selectedNoteIds]);
+    // 선택 영역이 없고 이미 선택된 노트가 있으면 그대로 유지
+  }, [selectedNoteIds, selectionStartTime, selectionEndTime, selectedLane, notes]);
   
   const handleMoveUpdate = useCallback((timeOffset: number, laneOffset: number) => {
     setDragOffset({ time: timeOffset, lane: laneOffset });
@@ -853,11 +868,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       setNotes((prev) => {
         const newNotes = prev.map((note) => {
           if (idsToKeep.has(note.id)) {
-            const newTime = Math.max(0, note.time + currentDragOffset.time);
+            // 이동 후 시간을 계산하고 그리드에 스냅
+            const movedTime = Math.max(0, note.time + currentDragOffset.time);
+            const snappedTime = snapToGrid(movedTime);
             const newLane = Math.max(0, Math.min(3, note.lane + currentDragOffset.lane)) as Lane;
             return {
               ...note,
-              time: newTime,
+              time: snappedTime,
               lane: newLane,
             };
           }
@@ -873,23 +890,23 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         return sortedNotes;
       });
       
-      // 선택 영역도 함께 이동
+      // 선택 영역도 함께 이동 (그리드에 스냅)
       if (selectionStartTime !== null && selectionEndTime !== null) {
-        const newStartTime = Math.max(0, selectionStartTime + currentDragOffset.time);
-        const newEndTime = Math.max(0, selectionEndTime + currentDragOffset.time);
+        const newStartTime = snapToGrid(Math.max(0, selectionStartTime + currentDragOffset.time));
+        const newEndTime = snapToGrid(Math.max(0, selectionEndTime + currentDragOffset.time));
         setSelectionStartTime(newStartTime);
         setSelectionEndTime(newEndTime);
       }
       
-      // 이동 후에도 선택 상태 명시적으로 유지
-      // 노트 ID는 변경되지 않으므로 같은 ID를 유지
-      setSelectedNoteIds(idsToKeep);
+      // 이동 후에는 선택 상태를 유지하지 않고 해제
+      // 새로운 선택 영역을 만들 수 있도록 선택 해제
+      setSelectedNoteIds(new Set());
     } else {
       // 드래그 오프셋이 없거나 선택된 노트가 없으면 오프셋만 초기화
       setDragOffset(null);
       dragStartRef.current = null;
     }
-  }, [dragOffset, selectedNoteIds, selectionStartTime, selectionEndTime, saveToHistory]);
+  }, [dragOffset, selectedNoteIds, selectionStartTime, selectionEndTime, saveToHistory, snapToGrid]);
 
   const handleClearSelection = useCallback(() => {
     setSelectionStartTime(null);
@@ -900,15 +917,34 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
     isSelectingRef.current = false;
   }, [isMoveMode]);
-  
-  // 선택 영역이 변경될 때마다 선택된 노트 ID 업데이트
-  // 단, 이동 모드가 활성화되어 있으면 선택 상태를 유지
-  useEffect(() => {
-    // 이동 모드가 활성화되어 있으면 선택 영역 변경 시에도 선택된 노트 ID를 유지
-    if (isMoveMode) {
+
+  // 선대칭 반전: 선택된 노트들을 레인 기준으로 반전 (0↔3, 1↔2)
+  const handleMirrorNotes = useCallback(() => {
+    if (selectedNoteIds.size === 0) {
+      alert('반전할 노트를 먼저 선택해주세요.');
       return;
     }
-    
+
+    setNotes((prev) => {
+      const newNotes = prev.map((note) => {
+        if (selectedNoteIds.has(note.id)) {
+          // 선대칭 반전: 레인 0↔3, 1↔2
+          const mirroredLane = (3 - note.lane) as Lane;
+          return {
+            ...note,
+            lane: mirroredLane,
+          };
+        }
+        return note;
+      });
+      const sortedNotes = newNotes.sort((a, b) => a.time - b.time);
+      saveToHistory(sortedNotes);
+      return sortedNotes;
+    });
+  }, [selectedNoteIds, saveToHistory]);
+  
+  // 선택 영역이 변경될 때마다 선택된 노트 ID 업데이트
+  useEffect(() => {
     if (selectionStartTime === null || selectionEndTime === null) {
       // 선택 모드가 꺼져있을 때만 선택 해제
       if (!isSelectionMode) {
@@ -917,6 +953,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       return;
     }
     
+    // 새로운 선택 영역이 만들어지면 항상 업데이트 (이동 모드여도 새 선택은 반영)
     const startTime = Math.min(selectionStartTime, selectionEndTime);
     const endTime = Math.max(selectionStartTime, selectionEndTime);
     
@@ -930,11 +967,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       selectedNotes = selectedNotes.filter((note) => note.lane === selectedLane);
     }
     
-    // 선택된 노트 ID 저장
+    // 선택된 노트 ID 저장 (새로운 선택 영역에 맞게 업데이트)
     const noteIds = new Set(selectedNotes.map(n => n.id));
     setSelectedNoteIds(noteIds);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectionStartTime, selectionEndTime, selectedLane, isMoveMode, isSelectionMode]);
+  }, [selectionStartTime, selectionEndTime, selectedLane, isSelectionMode]);
 
   // 키보드 단축키 (Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y, ESC)
   useEffect(() => {
@@ -1577,6 +1614,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           onToggleMoveMode={() => {
             setIsMoveMode(prev => !prev);
           }}
+          onMirrorNotes={handleMirrorNotes}
           testStartInput={testStartInput}
           onTestStartInputChange={setTestStartInput}
           onSetTestStartToCurrent={() => setTestStartInput(Math.floor(currentTime).toString())}

@@ -172,7 +172,15 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
         // 이동 모드에서 선택된 노트는 오프셋 적용된 시간 사용
         const isSelected = selectedNoteIds.has(note.id);
         const effectiveTime = dragOffset && isSelected ? Math.max(0, note.time + dragOffset.time) : note.time;
-        const effectiveLane = dragOffset && isSelected ? Math.max(0, Math.min(3, note.lane + dragOffset.lane)) as Lane : note.lane;
+        // 레인을 클램핑하지 않고 실제 계산된 값 사용 (찌그러짐 효과를 위해)
+        const rawLane = dragOffset && isSelected ? note.lane + dragOffset.lane : note.lane;
+        const effectiveLane = Math.max(0, Math.min(3, rawLane)) as Lane;
+        
+        // 찌그러짐 효과 계산 (레인 범위를 벗어나면 너비와 위치 조정)
+        const isSquishedLeft = rawLane < 0;
+        const isSquishedRight = rawLane > 3;
+        const squishAmount = isSquishedLeft ? Math.abs(rawLane) : (isSquishedRight ? rawLane - 3 : 0);
+        const squishRatio = Math.max(0, 1 - squishAmount); // 0~1 사이의 비율
         
         const noteY = getNoteY(effectiveTime);
         const isHold = note.duration > 0 || note.type === 'hold';
@@ -193,6 +201,10 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
           topPosition,
           noteHeight,
           bottom: topPosition + noteHeight,
+          rawLane, // 실제 계산된 레인 (클램핑 전)
+          isSquishedLeft,
+          isSquishedRight,
+          squishRatio,
         };
       }),
     [notes, getNoteY, timeToY, tapNoteHeight, selectedNoteIds, dragOffset]
@@ -294,14 +306,13 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
           const x = e.clientX - rect.left;
           const time = yToTime(y);
           
-          // X 좌표로 레인 감지
+          // X 좌표로 레인 감지 (x는 이미 rect 기준 상대 좌표)
           let detectedLane: Lane | null = null;
-          const relativeX = x - rect.left;
           for (let i = 0; i < LANE_POSITIONS.length; i++) {
             const laneCenter = LANE_POSITIONS[i];
             const laneLeft = laneCenter - LANE_WIDTH / 2;
             const laneRight = laneCenter + LANE_WIDTH / 2;
-            if (relativeX >= laneLeft && relativeX < laneRight) {
+            if (x >= laneLeft && x < laneRight) {
               detectedLane = i as Lane;
               break;
             }
@@ -366,14 +377,13 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
       const x = e.clientX - rect.left;
       const currentTime = yToTime(y);
       
-      // X 좌표로 레인 감지
+      // X 좌표로 레인 감지 (x는 이미 rect 기준 상대 좌표)
       let detectedLane: number = 0;
-      const relativeX = x - rect.left;
       for (let i = 0; i < LANE_POSITIONS.length; i++) {
         const laneCenter = LANE_POSITIONS[i];
         const laneLeft = laneCenter - LANE_WIDTH / 2;
         const laneRight = laneCenter + LANE_WIDTH / 2;
-        if (relativeX >= laneLeft && relativeX < laneRight) {
+        if (x >= laneLeft && x < laneRight) {
           detectedLane = i;
           break;
         }
@@ -611,21 +621,39 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
           }}
         />
 
-         {/* 노트 렌더링 */}
-         {visibleNotes.map(({ note, isHold, topPosition, noteHeight }) => {
-           const isOddLane = note.lane === 0 || note.lane === 2;
-           const tapGradient = isOddLane
-             ? 'linear-gradient(180deg, #FF6B6B 0%, #FF9A8B 100%)'
-             : 'linear-gradient(180deg, #4ECDC4 0%, #4AC8E7 100%)';
-           const tapBorder = isOddLane ? '#EE5A52' : '#45B7B8';
-           const holdGradient = isOddLane
-             ? 'linear-gradient(180deg, rgba(255,231,157,0.95) 0%, rgba(255,193,7,0.65) 100%)'
-             : 'linear-gradient(180deg, rgba(78,205,196,0.9) 0%, rgba(32,164,154,0.7) 100%)';
+          {/* 노트 렌더링 */}
+          {visibleNotes.map(({ note, isHold, topPosition, noteHeight, rawLane, isSquishedLeft, isSquishedRight, squishRatio }) => {
+            const isOddLane = note.lane === 0 || note.lane === 2;
+            const tapGradient = isOddLane
+              ? 'linear-gradient(180deg, #FF6B6B 0%, #FF9A8B 100%)'
+              : 'linear-gradient(180deg, #4ECDC4 0%, #4AC8E7 100%)';
+            const tapBorder = isOddLane ? '#EE5A52' : '#45B7B8';
+            const holdGradient = isOddLane
+              ? 'linear-gradient(180deg, rgba(255,231,157,0.95) 0%, rgba(255,193,7,0.65) 100%)'
+              : 'linear-gradient(180deg, rgba(78,205,196,0.9) 0%, rgba(32,164,154,0.7) 100%)';
            
            // 이동 모드에서 선택된 노트인지 확인
            const isSelected = selectedNoteIds.has(note.id);
-           // preparedNotes에서 이미 오프셋이 적용된 note 사용
-           const displayLeft = LANE_POSITIONS[note.lane] - NOTE_HALF;
+           
+           // 찌그러짐 효과 적용: 레인 범위를 벗어나면 위치와 너비 조정
+           // 클릭 영역은 항상 원래 레인 위치에 유지 (이동 가능하도록)
+           const baseLeft = LANE_POSITIONS[note.lane] - NOTE_HALF;
+           const displayLeft = baseLeft; // 클릭 영역은 항상 원래 위치
+           const displayWidth = NOTE_WIDTH; // 클릭 영역은 항상 원래 크기
+           
+           // 시각적 표현만 찌그러짐 효과 적용
+           let visualLeft = baseLeft;
+           let visualWidth = NOTE_WIDTH;
+           
+           if (isSquishedLeft) {
+             // 왼쪽으로 벗어남: 왼쪽 경계에 맞추고 너비 축소
+             visualLeft = -NOTE_HALF;
+             visualWidth = NOTE_WIDTH * squishRatio;
+           } else if (isSquishedRight) {
+             // 오른쪽으로 벗어남: 오른쪽 경계에 맞추고 너비 축소
+             visualLeft = LANE_POSITIONS[3] + NOTE_HALF - (NOTE_WIDTH * squishRatio);
+             visualWidth = NOTE_WIDTH * squishRatio;
+           }
            
            // 선택된 노트는 반투명하게 표시 (드래그 중일 때)
            const opacity = isSelected && dragOffset ? 0.6 : 1;
@@ -646,7 +674,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
                  position: 'absolute',
                  left: `${displayLeft}px`,
                  top: `${topPosition}px`,
-                 width: `${NOTE_WIDTH}px`,
+                 width: `${displayWidth}px`,
                  height: `${noteHeight}px`,
                  cursor: isMoveMode && isSelected ? 'move' : 'pointer',
                  zIndex: isSelected && dragOffset ? 15 : 10,
@@ -654,31 +682,43 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
                  transition: dragOffset ? 'none' : 'opacity 0.2s',
                }}
              >
-              {isHold ? (
-                <div
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    background: holdGradient,
-                    borderRadius: 18,
-                    border: '2px solid rgba(255,255,255,0.25)',
-                    boxShadow: isOddLane
-                      ? '0 0 18px rgba(255, 214, 102, 0.8)'
-                      : '0 6px 16px rgba(0,0,0,0.45)',
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    background: tapGradient,
-                    border: `3px solid ${tapBorder}`,
-                    borderRadius: 14,
-                    boxShadow: '0 6px 14px rgba(0, 0, 0, 0.45)',
-                  }}
-                />
-              )}
+              <div
+                style={{
+                  position: 'absolute',
+                  left: `${visualLeft - displayLeft}px`,
+                  width: `${visualWidth}px`,
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {isHold ? (
+                  <div
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      background: holdGradient,
+                      borderRadius: 18,
+                      border: '2px solid rgba(255,255,255,0.25)',
+                      boxShadow: isOddLane
+                        ? '0 0 18px rgba(255, 214, 102, 0.8)'
+                        : '0 6px 16px rgba(0,0,0,0.45)',
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      background: tapGradient,
+                      border: `3px solid ${tapBorder}`,
+                      borderRadius: 14,
+                      boxShadow: '0 6px 14px rgba(0, 0, 0, 0.45)',
+                    }}
+                  />
+                )}
+              </div>
             </div>
           );
         })}

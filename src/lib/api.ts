@@ -176,7 +176,6 @@ export const api = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-admin-token': getAdminToken(),
       },
       credentials: 'include',
       body: JSON.stringify({ title, content }),
@@ -194,7 +193,6 @@ export const api = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-admin-token': getAdminToken(),
       },
       credentials: 'include',
       body: JSON.stringify({ version, changelog }),

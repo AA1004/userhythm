@@ -28,6 +28,7 @@ interface ChartEditorSidebarProps {
   onToggleSelectionMode: () => void;
   isMoveMode: boolean;
   onToggleMoveMode: () => void;
+  onMirrorNotes?: () => void;
   testStartInput: string;
   onTestStartInputChange: (input: string) => void;
   onSetTestStartToCurrent: () => void;
@@ -75,6 +76,7 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
   onToggleSelectionMode,
   isMoveMode,
   onToggleMoveMode,
+  onMirrorNotes,
   testStartInput,
   onTestStartInputChange,
   onSetTestStartToCurrent,
@@ -649,10 +651,44 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
             fontWeight: 600,
             cursor: 'pointer',
             transition: 'all 0.2s ease',
+            marginBottom: '8px',
           }}
         >
           선택 영역 이동 모드
         </button>
+        {onMirrorNotes && (
+          <button
+            onClick={(e) => {
+              onMirrorNotes();
+              e.currentTarget.blur();
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+            }}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              borderRadius: CHART_EDITOR_THEME.radiusMd,
+              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+              background: 'transparent',
+              color: CHART_EDITOR_THEME.textPrimary,
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = CHART_EDITOR_THEME.buttonGhostBg;
+              e.currentTarget.style.borderColor = CHART_EDITOR_THEME.accentStrong;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.borderColor = CHART_EDITOR_THEME.borderSubtle;
+            }}
+          >
+            🔄 선대칭 반전
+          </button>
+        )}
       </div>
 
       {/* 변속 (Speed Changes) */}
