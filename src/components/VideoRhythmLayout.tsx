@@ -31,60 +31,48 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
 }) => {
   const backgroundPlayerContainerRef = useRef<HTMLDivElement | null>(null);
   const [backgroundPlayer, setBackgroundPlayer] = useState<any>(null);
-  const [isBgVisible, setIsBgVisible] = useState(false);
   const backgroundPlayerReadyRef = useRef(false);
   const lastBgaSeekRef = useRef<number | null>(null);
   const lastLayoutSizeRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
   const layoutRafRef = useRef<number | null>(null);
 
-  const applyBackgroundPlayerLayout = useCallback((player: any, isInitial: boolean = false) => {
+  const applyBackgroundPlayerLayout = useCallback((player: any) => {
     const container = backgroundPlayerContainerRef.current;
     if (!container || !player) return;
 
     const rect = container.getBoundingClientRect();
-    const roundedWidth = Math.max(1, Math.round(rect.width));
-    const roundedHeight = Math.max(1, Math.round(rect.height));
+    const roundedWidth = Math.round(rect.width);
+    const roundedHeight = Math.round(rect.height);
 
-    if (!isInitial) {
-      // 리사이즈 시에만 크기 체크 (초기 설정은 항상 실행)
-      if (
-        lastLayoutSizeRef.current.width === roundedWidth &&
-        lastLayoutSizeRef.current.height === roundedHeight
-      ) {
-        return;
-      }
+    if (
+      lastLayoutSizeRef.current.width === roundedWidth &&
+      lastLayoutSizeRef.current.height === roundedHeight
+    ) {
+      return;
     }
     lastLayoutSizeRef.current = { width: roundedWidth, height: roundedHeight };
 
+    const overscan = 1.05;
+    const videoBaseW = 16;
+    const videoBaseH = 9;
+    const scale = Math.max(rect.width / videoBaseW, rect.height / videoBaseH) * overscan;
+    const targetWidth = videoBaseW * scale;
+    const targetHeight = videoBaseH * scale;
+
     const iframe = player.getIframe?.();
     if (iframe) {
-      if (isInitial) {
-        // 초기: 크게 설정해서 YouTube UI가 컨테이너 밖으로 나가게 함
-        iframe.style.position = 'absolute';
-        iframe.style.top = '-15%';
-        iframe.style.left = '0';
-        iframe.style.width = '100%';
-        iframe.style.height = '130%';
-        iframe.style.transform = 'none';
-        iframe.style.pointerEvents = 'none';
-        iframe.style.transition = 'none'; // 초기에는 transition 없음
-        iframe.style.objectFit = 'cover';
-        iframe.style.objectPosition = 'center center';
-        iframe.style.backgroundColor = 'black';
-      } else {
-        // 최종: 원래 크기로 설정 (transition으로 부드럽게 전환)
-        iframe.style.position = 'absolute';
-        iframe.style.top = '0';
-        iframe.style.left = '0';
-        iframe.style.width = '100%';
-        iframe.style.height = '100%';
-        iframe.style.transform = 'none';
-        iframe.style.pointerEvents = 'none';
-        iframe.style.transition = 'top 300ms ease-out, height 300ms ease-out'; // 부드러운 전환
-        iframe.style.objectFit = 'cover';
-        iframe.style.objectPosition = 'center center';
-        iframe.style.backgroundColor = 'black';
-      }
+      iframe.style.position = 'absolute';
+      iframe.style.top = '50%';
+      iframe.style.left = '50%';
+      iframe.style.width = `${targetWidth}px`;
+      iframe.style.height = `${targetHeight}px`;
+      iframe.style.transform = 'translate(-50%, -50%)';
+      iframe.style.pointerEvents = 'none';
+      iframe.style.objectFit = 'cover';
+    }
+
+    if (player.setSize) {
+      player.setSize(targetWidth, targetHeight);
     }
   }, []);
 
@@ -128,18 +116,12 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
           videoId,
           playerVars: {
             autoplay: 0,
-                controls: 0,
-                disablekb: 1,
-                fs: 0,
+            controls: 0,
             mute: 1,
             playsinline: 1,
             enablejsapi: 1,
             rel: 0,
             modestbranding: 1,
-                iv_load_policy: 3,
-                showinfo: 0,
-                autohide: 1,
-                origin: typeof window !== 'undefined' ? window.location.origin : undefined,
             loop: 1,
             playlist: videoId,
           } as any,
@@ -154,28 +136,15 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
               } catch {
                 // ignore
               }
-              
-              // 초기: 크게 설정해서 YouTube UI가 컨테이너 밖으로 나가게 함
-              applyBackgroundPlayerLayout(player, true);
-              
-              // 200ms 후 원래 크기로 부드럽게 전환
-              setTimeout(() => {
-                if (isCancelled) return;
-                applyBackgroundPlayerLayout(player, false);
-              }, 200);
-              
+              applyBackgroundPlayerLayout(player);
               resizeHandler = () => {
                 if (layoutRafRef.current !== null) return;
                 layoutRafRef.current = requestAnimationFrame(() => {
                   layoutRafRef.current = null;
-                  applyBackgroundPlayerLayout(player, false);
+                  applyBackgroundPlayerLayout(player);
                 });
               };
               window.addEventListener('resize', resizeHandler, { passive: true });
-
-              // UI 깜빡임 방지: 준비 직후 잠시 숨겼다가 노출
-              setIsBgVisible(false);
-              setTimeout(() => setIsBgVisible(true), 120);
             },
           },
         });
@@ -196,10 +165,6 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
           playerInstance.destroy?.();
         } catch {
           // ignore
-        }
-        if (layoutRafRef.current) {
-          cancelAnimationFrame(layoutRafRef.current);
-          layoutRafRef.current = null;
         }
         if (resizeHandler) {
           window.removeEventListener('resize', resizeHandler);
@@ -301,12 +266,11 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
             ref={backgroundPlayerContainerRef}
             style={{
               position: 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              height: '100%',
-              opacity: isBgVisible ? 1 : 0,
-              transition: 'opacity 180ms ease-out',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '120%',
+              height: '120%',
             }}
           />
         </div>
@@ -340,4 +304,3 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     </div>
   );
 };
-
