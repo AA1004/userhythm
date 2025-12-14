@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { api, ApiNotice, ApiVersion } from '../lib/api';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
+import { useAuth } from '../hooks/useAuth';
 
 interface NoticeVersionAdminProps {
   onClose: () => void;
 }
 
 export const NoticeVersionAdmin: React.FC<NoticeVersionAdminProps> = ({ onClose }) => {
+  const { isAdmin, authUser, remoteProfile } = useAuth();
   const [notice, setNotice] = useState<ApiNotice | null>(null);
   const [version, setVersion] = useState<ApiVersion | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -50,6 +52,12 @@ export const NoticeVersionAdmin: React.FC<NoticeVersionAdminProps> = ({ onClose 
       return;
     }
 
+    // 권한 확인
+    if (!isAdmin) {
+      alert(`관리자 권한이 필요합니다.\n\n현재 사용자: ${authUser?.email || '로그인되지 않음'}\n현재 역할: ${remoteProfile?.role || '없음'}`);
+      return;
+    }
+
     setSaving(true);
     try {
       const updated = await api.updateNotice(noticeTitle, noticeContent);
@@ -59,7 +67,8 @@ export const NoticeVersionAdmin: React.FC<NoticeVersionAdminProps> = ({ onClose 
       console.error('Failed to save notice:', error);
       const errorMessage = error?.message || error?.error || '알 수 없는 오류가 발생했습니다.';
       const errorDetails = error?.details || '';
-      alert(`공지사항 저장에 실패했습니다.\n\n${errorMessage}${errorDetails ? `\n\n상세: ${errorDetails}` : ''}`);
+      const userInfo = `\n\n현재 사용자: ${authUser?.email || '로그인되지 않음'}\n현재 역할: ${remoteProfile?.role || '없음'}`;
+      alert(`공지사항 저장에 실패했습니다.\n\n${errorMessage}${errorDetails ? `\n\n상세: ${errorDetails}` : ''}${userInfo}`);
     } finally {
       setSaving(false);
     }
@@ -68,6 +77,12 @@ export const NoticeVersionAdmin: React.FC<NoticeVersionAdminProps> = ({ onClose 
   const handleSaveVersion = async () => {
     if (!versionNumber.trim() || changelogItems.length === 0) {
       alert('버전 번호와 변경사항을 입력해주세요.');
+      return;
+    }
+
+    // 권한 확인
+    if (!isAdmin) {
+      alert(`관리자 권한이 필요합니다.\n\n현재 사용자: ${authUser?.email || '로그인되지 않음'}\n현재 역할: ${remoteProfile?.role || '없음'}`);
       return;
     }
 
@@ -80,7 +95,8 @@ export const NoticeVersionAdmin: React.FC<NoticeVersionAdminProps> = ({ onClose 
       console.error('Failed to save version:', error);
       const errorMessage = error?.message || error?.error || '알 수 없는 오류가 발생했습니다.';
       const errorDetails = error?.details || '';
-      alert(`버전 정보 저장에 실패했습니다.\n\n${errorMessage}${errorDetails ? `\n\n상세: ${errorDetails}` : ''}`);
+      const userInfo = `\n\n현재 사용자: ${authUser?.email || '로그인되지 않음'}\n현재 역할: ${remoteProfile?.role || '없음'}`;
+      alert(`버전 정보 저장에 실패했습니다.\n\n${errorMessage}${errorDetails ? `\n\n상세: ${errorDetails}` : ''}${userInfo}`);
     } finally {
       setSaving(false);
     }

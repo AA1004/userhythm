@@ -7,8 +7,17 @@ export const runtime = 'nodejs';
 // 단일 버전 ID (항상 같은 레코드를 사용)
 const VERSION_ID = 'main-version';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    // 디버깅: GET 요청 정보 로깅
+    const cookies = req.cookies.getAll();
+    console.log('Version GET request:', {
+      url: req.url,
+      method: req.method,
+      cookieNames: cookies.map(c => c.name),
+      hasUrSession: !!req.cookies.get('ur_session'),
+    });
+    
     // 기존 버전이 있으면 반환, 없으면 기본값 생성
     let version = await prisma.version.findUnique({
       where: { id: VERSION_ID },
@@ -86,9 +95,38 @@ export async function POST(req: NextRequest) {
   try {
     // ADMIN 권한 체크
     const session = getSessionFromRequest(req);
-    if (!session || session.role !== 'admin') {
-      console.warn('Version update unauthorized:', { session: session ? { userId: session.userId, role: session.role } : null });
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    const cookies = req.cookies.getAll();
+    console.log('Version update request:', {
+      hasSession: !!session,
+      sessionRole: session?.role,
+      sessionUserId: session?.userId,
+      cookieNames: cookies.map(c => c.name),
+      hasUrSession: !!req.cookies.get('ur_session'),
+    });
+    
+    if (!session) {
+      console.warn('Version update unauthorized: No session', {
+        cookieNames: cookies.map(c => c.name),
+        allCookies: cookies,
+      });
+      return NextResponse.json({ 
+        error: 'unauthorized',
+        message: '세션이 없습니다. 로그인이 필요합니다.',
+        details: 'Please log in first'
+      }, { status: 401 });
+    }
+    
+    if (session.role !== 'admin') {
+      console.warn('Version update unauthorized: Not admin', {
+        userId: session.userId,
+        role: session.role,
+        expectedRole: 'admin',
+      });
+      return NextResponse.json({ 
+        error: 'unauthorized',
+        message: '관리자 권한이 필요합니다.',
+        details: `Current role: ${session.role}, Required: admin`
+      }, { status: 401 });
     }
 
     const body = await req.json();

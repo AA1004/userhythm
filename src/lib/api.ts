@@ -168,6 +168,17 @@ export const api = {
 
   async getNotice() {
     const res = await fetch(`${API_BASE}/api/notice`, { credentials: 'include' });
+    if (!res.ok) {
+      // GET 요청은 항상 성공해야 하므로, 401이 나와도 기본값 반환
+      if (res.status === 401) {
+        console.warn('Notice GET returned 401, returning default');
+        return {
+          title: '공지사항',
+          content: '공지사항을 불러올 수 없습니다.\n\n로그인이 필요할 수 있습니다.',
+          updatedAt: new Date().toISOString(),
+        } as ApiNotice;
+      }
+    }
     return toJson(res) as Promise<ApiNotice>;
   },
 
@@ -193,6 +204,17 @@ export const api = {
 
   async getVersion() {
     const res = await fetch(`${API_BASE}/api/version`, { credentials: 'include' });
+    if (!res.ok) {
+      // GET 요청은 항상 성공해야 하므로, 401이 나와도 기본값 반환
+      if (res.status === 401) {
+        console.warn('Version GET returned 401, returning default');
+        return {
+          version: '1.0.0',
+          changelog: ['버전 정보를 불러올 수 없습니다.', '로그인이 필요할 수 있습니다.'],
+          updatedAt: new Date().toISOString(),
+        } as ApiVersion;
+      }
+    }
     return toJson(res) as Promise<ApiVersion>;
   },
 
