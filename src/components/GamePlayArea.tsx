@@ -48,7 +48,9 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
     
     const baseDuration = BASE_FALL_DURATION / speed;
     const viewportStart = gameState.currentTime - baseDuration - NOTE_VISIBILITY_BUFFER_MS;
-    const viewportEnd = gameState.currentTime + NOTE_VISIBILITY_BUFFER_MS;
+    // 중요: viewportEnd를 baseDuration + 버퍼로 설정해야 노트가 화면 위(-100)에서 시작함
+    // 기존 NOTE_VISIBILITY_BUFFER_MS만 사용하면 노트가 중간에서 시작하는 버그 발생
+    const viewportEnd = gameState.currentTime + baseDuration + NOTE_VISIBILITY_BUFFER_MS;
     
     // hit된 노트와 화면 밖 노트를 빠르게 스킵
     // 노트 배열이 시간순 정렬되어 있다면 더 효율적으로 필터링 가능

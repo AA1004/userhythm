@@ -88,12 +88,11 @@ export function useGameLoop(
           }
 
           // timeUntilHit < fallDuration이면 이미 화면에 나타나야 하므로 정상 계산
-          // 하지만 노트가 처음 나타날 때는 항상 progress = 0이 되도록 보장
-          // 즉, timeUntilHit을 fallDuration으로 클램핑하여 progress 계산
-          const effectiveTimeUntilHit = Math.min(timeUntilHit, fallDuration);
-          const progress = 1 - effectiveTimeUntilHit / fallDuration;
-          // 중요: progress=0일 때 y가 NOTE_SPAWN_Y(-100)가 되도록 매핑해야
-          // speed(=fallDuration)에 따라 "처음 보이는 위치"가 달라지는 버그가 사라짐.
+          // progress는 0 (화면 맨 위)에서 1 (판정선)까지
+          // timeUntilHit = fallDuration이면 progress = 0 (화면 맨 위)
+          // timeUntilHit = 0이면 progress = 1 (판정선)
+          const progress = 1 - timeUntilHit / fallDuration;
+          // progress=0일 때 y가 NOTE_SPAWN_Y(-100), progress=1일 때 y가 JUDGE_LINE_Y(640)
           const y = NOTE_SPAWN_Y + progress * (JUDGE_LINE_Y - NOTE_SPAWN_Y);
 
           return { ...note, y: Math.max(NOTE_SPAWN_Y, Math.min(GAME_HEIGHT, y)) };
