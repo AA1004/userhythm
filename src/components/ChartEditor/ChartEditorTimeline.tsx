@@ -493,14 +493,22 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
       isDraggingMoveRef.current = false;
       moveStartRef.current = null;
     }
-    if (isDraggingSelectionRef.current && onSelectionEnd) {
-      onSelectionEnd();
+    if (isDraggingSelectionRef.current) {
+      // 드래그가 끝나기 전에 최종 선택 상태를 확정
+      // marqueeRect가 null이 되기 전에 마지막 선택 상태를 전달
+      const finalRect = marqueeRect;
+      if (finalRect && onMarqueeUpdate) {
+        onMarqueeUpdate(computeMarqueeSelectedIds(finalRect));
+      }
+      if (onSelectionEnd) {
+        onSelectionEnd();
+      }
+      if (onMarqueeEnd) onMarqueeEnd();
     }
     isDraggingSelectionRef.current = false;
     marqueeStartRef.current = null;
     setMarqueeRect(null);
-    if (onMarqueeEnd) onMarqueeEnd();
-  }, [onSelectionEnd, onMoveEnd]);
+  }, [onSelectionEnd, onMoveEnd, onMarqueeUpdate, onMarqueeEnd, marqueeRect, computeMarqueeSelectedIds]);
   
   useEffect(() => {
     if (isDraggingSelectionRef.current || isDraggingMoveRef.current) {
