@@ -180,6 +180,14 @@ export const api = {
       credentials: 'include',
       body: JSON.stringify({ title, content }),
     });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+      const error = new Error(errorData.error || errorData.message || 'Failed to update notice');
+      (error as any).status = res.status;
+      (error as any).details = errorData.details;
+      (error as any).code = errorData.code;
+      throw error;
+    }
     return toJson(res) as Promise<ApiNotice>;
   },
 
@@ -197,6 +205,14 @@ export const api = {
       credentials: 'include',
       body: JSON.stringify({ version, changelog }),
     });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+      const error = new Error(errorData.error || errorData.message || 'Failed to update version');
+      (error as any).status = res.status;
+      (error as any).details = errorData.details;
+      (error as any).code = errorData.code;
+      throw error;
+    }
     return toJson(res) as Promise<ApiVersion>;
   },
 };

@@ -55,9 +55,11 @@ export const NoticeVersionAdmin: React.FC<NoticeVersionAdminProps> = ({ onClose 
       const updated = await api.updateNotice(noticeTitle, noticeContent);
       setNotice(updated);
       alert('공지사항이 저장되었습니다!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save notice:', error);
-      alert('공지사항 저장에 실패했습니다.');
+      const errorMessage = error?.message || error?.error || '알 수 없는 오류가 발생했습니다.';
+      const errorDetails = error?.details || '';
+      alert(`공지사항 저장에 실패했습니다.\n\n${errorMessage}${errorDetails ? `\n\n상세: ${errorDetails}` : ''}`);
     } finally {
       setSaving(false);
     }
@@ -74,9 +76,11 @@ export const NoticeVersionAdmin: React.FC<NoticeVersionAdminProps> = ({ onClose 
       const updated = await api.updateVersion(versionNumber, changelogItems);
       setVersion(updated);
       alert('버전 정보가 저장되었습니다!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save version:', error);
-      alert('버전 정보 저장에 실패했습니다.');
+      const errorMessage = error?.message || error?.error || '알 수 없는 오류가 발생했습니다.';
+      const errorDetails = error?.details || '';
+      alert(`버전 정보 저장에 실패했습니다.\n\n${errorMessage}${errorDetails ? `\n\n상세: ${errorDetails}` : ''}`);
     } finally {
       setSaving(false);
     }

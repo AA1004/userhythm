@@ -72,13 +72,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
 
-    const body = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch (parseError: any) {
+      console.error('Failed to parse request body:', parseError);
+      return NextResponse.json(
+        { error: 'invalid request body', details: 'JSON 파싱에 실패했습니다.' },
+        { status: 400 }
+      );
+    }
+
     const { title, content } = body;
     
     if (!title || !content) {
-      console.warn('Notice update missing fields:', { title: !!title, content: !!content });
+      console.warn('Notice update missing fields:', { title: !!title, content: !!content, bodyKeys: Object.keys(body || {}) });
       return NextResponse.json(
-        { error: 'title and content are required' },
+        { error: 'title and content are required', details: `제목: ${!!title}, 내용: ${!!content}` },
+        { status: 400 }
+      );
+    }
+
+    // 문자열 길이 검증
+    if (typeof title !== 'string' || typeof content !== 'string') {
+      console.warn('Notice update invalid field types:', { titleType: typeof title, contentType: typeof content });
+      return NextResponse.json(
+        { error: 'title and content must be strings' },
         { status: 400 }
       );
     }
@@ -87,17 +106,17 @@ export async function POST(req: NextRequest) {
     const notice = await prisma.notice.upsert({
       where: { id: NOTICE_ID },
       update: {
-        title,
-        content,
+        title: title.trim(),
+        content: content.trim(),
       },
       create: {
         id: NOTICE_ID,
-        title,
-        content,
+        title: title.trim(),
+        content: content.trim(),
       },
     });
 
-    console.log('Notice updated successfully:', { id: notice.id, title: notice.title });
+    console.log('Notice updated successfully:', { id: notice.id, title: notice.title, contentLength: notice.content.length });
     return NextResponse.json({
       title: notice.title,
       content: notice.content,
@@ -111,10 +130,17 @@ export async function POST(req: NextRequest) {
       message: error?.message,
       stack: error?.stack,
     });
+    
+    // 더 자세한 에러 메시지 반환
+    const errorMessage = error?.message || '알 수 없는 오류가 발생했습니다.';
+    const errorCode = error?.code || 'UNKNOWN';
+    
     return NextResponse.json(
       { 
         error: 'failed to update notice',
-        details: (process.env.NODE_ENV as string) === 'development' ? error?.message : undefined
+        message: errorMessage,
+        code: errorCode,
+        details: (process.env.NODE_ENV as string) === 'development' ? error?.stack : undefined
       },
       { status: 500 }
     );
