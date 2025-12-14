@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { GameState, Note } from '../types/game';
+import { judgeConfig } from '../config/judgeConfig';
 
 const GAME_HEIGHT = 800;
 const BASE_FALL_DURATION = 2000; // 기본 노트가 떨어지는 시간 (ms)
@@ -12,7 +13,11 @@ export function useGameLoop(
   speed: number = 1.0, // 속도 배율 (1.0 = 기본, 높을수록 빠름)
   startDelayMs: number = 0
 ) {
-  const fallDuration = BASE_FALL_DURATION / speed;
+  // fallDuration을 useMemo로 계산하여 speed 변경 시에만 재계산
+  const fallDuration = useMemo(() => BASE_FALL_DURATION / speed, [speed]);
+  
+  // Miss 판정 기준값을 judgeConfig에서 가져옴
+  const missThreshold = judgeConfig.missThreshold;
   const frameRef = useRef<number>();
   const lastTimeRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
@@ -63,12 +68,12 @@ export function useGameLoop(
 
           // 화면 내 노트 또는 miss 체크가 필요한 노트만 계산
           const isHoldNote = note.duration > 0;
-          const missThreshold = isHoldNote
+          const timeUntilMiss = isHoldNote
             ? note.endTime - elapsedTime
             : timeUntilHit;
 
           // Miss 판정 (화면을 지나간 노트)
-          if (missThreshold < -150) {
+          if (timeUntilMiss < -missThreshold) {
             missCount++;
             missedInFrame.push(note);
             return { ...note, hit: true, y: JUDGE_LINE_Y + 50 };
@@ -116,6 +121,6 @@ export function useGameLoop(
         cancelAnimationFrame(frameRef.current);
       }
     };
-  }, [gameState.gameStarted, setGameState, onNoteMiss, speed]);
+  }, [gameState.gameStarted, setGameState, onNoteMiss, speed, fallDuration, missThreshold]);
 }
 

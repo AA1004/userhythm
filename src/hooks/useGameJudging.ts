@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Lane, Note, JudgeType, GameState } from '../types/game';
 import { judgeTiming, judgeHoldReleaseTiming } from '../utils/judge';
 import { judgeConfig } from '../config/judgeConfig';
@@ -42,6 +42,70 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   const feedbackIdRef = useRef(0);
   const [keyEffects, setKeyEffects] = useState<KeyEffect[]>([]);
   const keyEffectIdRef = useRef(0);
+  // setTimeout 타이머를 추적하여 cleanup 시 정리
+  const keyPressTimersRef = useRef<Map<Lane, NodeJS.Timeout>>(new Map());
+
+  /**
+   * 판정 결과에 따라 점수를 업데이트하는 공통 함수
+   */
+  const updateScoreFromJudge = useCallback((judge: JudgeType, prevScore: GameState['score']): GameState['score'] => {
+    const newScore = { ...prevScore };
+
+    switch (judge) {
+      case 'perfect':
+        newScore.perfect++;
+        newScore.combo++;
+        break;
+      case 'great':
+        newScore.great++;
+        newScore.combo++;
+        break;
+      case 'good':
+        newScore.good++;
+        newScore.combo++;
+        break;
+      case 'miss':
+        newScore.miss++;
+        newScore.combo = 0;
+        break;
+    }
+
+    if (newScore.combo > newScore.maxCombo) {
+      newScore.maxCombo = newScore.combo;
+    }
+
+    return newScore;
+  }, []);
+
+  /**
+   * 판정 피드백과 이펙트를 추가하는 공통 함수
+   */
+  const addJudgeFeedback = useCallback((judge: JudgeType, lane: Lane) => {
+    const feedbackId = feedbackIdRef.current++;
+    setJudgeFeedbacks([{ id: feedbackId, judge }]);
+
+    if (judge !== 'miss') {
+      const effectId = keyEffectIdRef.current++;
+      const effectX = LANE_POSITIONS[lane];
+      const effectY = JUDGE_LINE_Y;
+      setKeyEffects((prev) => [...prev, { id: effectId, lane, x: effectX, y: effectY }]);
+
+      // 피드백 제거와 이펙트 제거를 requestAnimationFrame으로 처리하여 렌더링 최적화
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          setJudgeFeedbacks((prev) => prev.filter((f) => f.id !== feedbackId));
+          setKeyEffects((prev) => prev.filter((e) => e.id !== effectId));
+        }, 800);
+      });
+    } else {
+      // miss인 경우 이펙트 없이 피드백만 제거
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          setJudgeFeedbacks((prev) => prev.filter((f) => f.id !== feedbackId));
+        }, 800);
+      });
+    }
+  }, []);
 
   const handleKeyPress = useCallback(
     (lane: Lane) => {
@@ -52,17 +116,27 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       // 키 프레스 상태 업데이트 - 키를 눌렀을 때만 눌린 상태로 변경
       setPressedKeys((prev) => {
         if (prev.has(lane)) return prev; // 이미 누른 키는 업데이트 스킵
+        
+        // 기존 타이머가 있으면 취소
+        const existingTimer = keyPressTimersRef.current.get(lane);
+        if (existingTimer) {
+          clearTimeout(existingTimer);
+        }
+        
         const next = new Set(prev);
         next.add(lane);
 
         // 키를 뗄 때만 짧게 시간 동안 떼어놓음
-        setTimeout(() => {
+        const timer = setTimeout(() => {
           setPressedKeys((prev) => {
             const next = new Set(prev);
             next.delete(lane);
             return next;
           });
+          keyPressTimersRef.current.delete(lane);
         }, 100); // 100ms 후에 키 떼기
+        
+        keyPressTimersRef.current.set(lane, timer);
 
         return next;
       });
@@ -95,30 +169,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
 
         // 상태 업데이트를 하나로 묶음
         setGameState((prev) => {
-          const newScore = { ...prev.score };
-
-          switch (judge) {
-            case 'perfect':
-              newScore.perfect++;
-              newScore.combo++;
-              break;
-            case 'great':
-              newScore.great++;
-              newScore.combo++;
-              break;
-            case 'good':
-              newScore.good++;
-              newScore.combo++;
-              break;
-            case 'miss':
-              newScore.miss++;
-              newScore.combo = 0;
-              break;
-          }
-
-          if (newScore.combo > newScore.maxCombo) {
-            newScore.maxCombo = newScore.combo;
-          }
+          const newScore = updateScoreFromJudge(judge, prev.score);
 
           // 롱노트가 아닌 경우에만 hit: true로 설정
           const updatedNotes = isHoldNote
@@ -143,36 +194,11 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
           });
         }
 
-        // 새로운 판정 피드백 추가 - 이전 판정은 제거
-        const feedbackId = feedbackIdRef.current++;
-        setJudgeFeedbacks([{ id: feedbackId, judge }]);
-
-        // 판정선에 이펙트 추가 (miss가 아닐 때만) - 노트가 있는 판정선 위치에서
-        if (judge !== 'miss') {
-          const effectId = keyEffectIdRef.current++;
-          // 노트가 판정선에 있는 위치 (판정선 y 좌표: 640px)
-          const effectX = LANE_POSITIONS[lane];
-          const effectY = JUDGE_LINE_Y;
-          setKeyEffects((prev) => [...prev, { id: effectId, lane, x: effectX, y: effectY }]);
-
-          // 피드백 제거와 이펙트 제거를 requestAnimationFrame으로 처리하여 렌더링 최적화
-          requestAnimationFrame(() => {
-            setTimeout(() => {
-              setJudgeFeedbacks((prev) => prev.filter((f) => f.id !== feedbackId));
-              setKeyEffects((prev) => prev.filter((e) => e.id !== effectId));
-            }, 800);
-          });
-        } else {
-          // miss인 경우 이펙트 없이 피드백만 제거
-          requestAnimationFrame(() => {
-            setTimeout(() => {
-              setJudgeFeedbacks((prev) => prev.filter((f) => f.id !== feedbackId));
-            }, 800);
-          });
-        }
+        // 판정 피드백과 이펙트 추가
+        addJudgeFeedback(judge, lane);
       }
     },
-    [gameStateRef, setGameState]
+    [gameStateRef, setGameState, updateScoreFromJudge, addJudgeFeedback]
   );
 
   const handleKeyRelease = useCallback(
@@ -208,30 +234,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
             const judge = judgeHoldReleaseTiming(endTime - currentTime);
 
             setGameState((prevState) => {
-              const newScore = { ...prevState.score };
-
-              switch (judge) {
-                case 'perfect':
-                  newScore.perfect++;
-                  newScore.combo++;
-                  break;
-                case 'great':
-                  newScore.great++;
-                  newScore.combo++;
-                  break;
-                case 'good':
-                  newScore.good++;
-                  newScore.combo++;
-                  break;
-                case 'miss':
-                  newScore.miss++;
-                  newScore.combo = 0;
-                  break;
-              }
-
-              if (newScore.combo > newScore.maxCombo) {
-                newScore.maxCombo = newScore.combo;
-              }
+              const newScore = updateScoreFromJudge(judge, prevState.score);
 
               const updatedNotes = prevState.notes.map((note) =>
                 note.id === holdNote.id ? { ...note, hit: true } : note
@@ -244,32 +247,8 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
               };
             });
 
-            // 판정 피드백 추가
-            const feedbackId = feedbackIdRef.current++;
-            setJudgeFeedbacks([{ id: feedbackId, judge }]);
-
-            if (judge !== 'miss') {
-              const effectId = keyEffectIdRef.current++;
-              const effectX = LANE_POSITIONS[lane];
-              const effectY = JUDGE_LINE_Y;
-              setKeyEffects((prevEffects) => [
-                ...prevEffects,
-                { id: effectId, lane, x: effectX, y: effectY },
-              ]);
-
-              requestAnimationFrame(() => {
-                setTimeout(() => {
-                  setJudgeFeedbacks((prev) => prev.filter((f) => f.id !== feedbackId));
-                  setKeyEffects((prev) => prev.filter((e) => e.id !== effectId));
-                }, 800);
-              });
-            } else {
-              requestAnimationFrame(() => {
-                setTimeout(() => {
-                  setJudgeFeedbacks((prev) => prev.filter((f) => f.id !== feedbackId));
-                }, 800);
-              });
-            }
+            // 판정 피드백과 이펙트 추가
+            addJudgeFeedback(judge, lane);
 
             // holdingNotes에서 제거
             next.delete(holdNote.id);
@@ -278,9 +257,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
             processedMissNotes.current.add(holdNote.id);
 
             setGameState((prevState) => {
-              const newScore = { ...prevState.score };
-              newScore.miss++;
-              newScore.combo = 0;
+              const newScore = updateScoreFromJudge('miss', prevState.score);
 
               const updatedNotes = prevState.notes.map((note) =>
                 note.id === holdNote.id ? { ...note, hit: true } : note
@@ -293,13 +270,8 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
               };
             });
 
-            const feedbackId = feedbackIdRef.current++;
-            setJudgeFeedbacks([{ id: feedbackId, judge: 'miss' }]);
-            requestAnimationFrame(() => {
-              setTimeout(() => {
-                setJudgeFeedbacks((prev) => prev.filter((f) => f.id !== feedbackId));
-              }, 800);
-            });
+            // 판정 피드백 추가 (miss)
+            addJudgeFeedback('miss', lane);
 
             next.delete(holdNote.id);
           }
@@ -308,7 +280,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         return next;
       });
     },
-    [gameStateRef, setGameState, processedMissNotes]
+    [gameStateRef, setGameState, processedMissNotes, updateScoreFromJudge, addJudgeFeedback]
   );
 
   const handleNoteMiss = useCallback(
@@ -330,6 +302,16 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     },
     [processedMissNotes]
   );
+
+  // 컴포넌트 언마운트 시 모든 타이머 정리
+  useEffect(() => {
+    return () => {
+      keyPressTimersRef.current.forEach((timer) => {
+        clearTimeout(timer);
+      });
+      keyPressTimersRef.current.clear();
+    };
+  }, []);
 
   return {
     pressedKeys,

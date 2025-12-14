@@ -183,23 +183,36 @@ export const api = {
   },
 
   async updateNotice(title: string, content: string) {
-    const res = await fetch(`${API_BASE}/api/notice`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({ title, content }),
-    });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
-      const error = new Error(errorData.error || errorData.message || 'Failed to update notice');
-      (error as any).status = res.status;
-      (error as any).details = errorData.details;
-      (error as any).code = errorData.code;
+    try {
+      const res = await fetch(`${API_BASE}/api/notice`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ title, content }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+        const error = new Error(errorData.error || errorData.message || 'Failed to update notice');
+        (error as any).status = res.status;
+        (error as any).details = errorData.details;
+        (error as any).code = errorData.code;
+        throw error;
+      }
+      return toJson(res) as Promise<ApiNotice>;
+    } catch (error: any) {
+      // 네트워크 에러 처리 (CORS, 연결 실패 등)
+      if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
+        console.error('Network error:', error);
+        const networkError = new Error('네트워크 연결에 실패했습니다. API 서버가 실행 중인지 확인해주세요.');
+        (networkError as any).isNetworkError = true;
+        (networkError as any).originalError = error;
+        (networkError as any).url = `${API_BASE}/api/notice`;
+        throw networkError;
+      }
       throw error;
     }
-    return toJson(res) as Promise<ApiNotice>;
   },
 
   async getVersion() {
@@ -219,23 +232,36 @@ export const api = {
   },
 
   async updateVersion(version: string, changelog: string[]) {
-    const res = await fetch(`${API_BASE}/api/version`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({ version, changelog }),
-    });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
-      const error = new Error(errorData.error || errorData.message || 'Failed to update version');
-      (error as any).status = res.status;
-      (error as any).details = errorData.details;
-      (error as any).code = errorData.code;
+    try {
+      const res = await fetch(`${API_BASE}/api/version`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ version, changelog }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+        const error = new Error(errorData.error || errorData.message || 'Failed to update version');
+        (error as any).status = res.status;
+        (error as any).details = errorData.details;
+        (error as any).code = errorData.code;
+        throw error;
+      }
+      return toJson(res) as Promise<ApiVersion>;
+    } catch (error: any) {
+      // 네트워크 에러 처리 (CORS, 연결 실패 등)
+      if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
+        console.error('Network error:', error);
+        const networkError = new Error('네트워크 연결에 실패했습니다. API 서버가 실행 중인지 확인해주세요.');
+        (networkError as any).isNetworkError = true;
+        (networkError as any).originalError = error;
+        (networkError as any).url = `${API_BASE}/api/version`;
+        throw networkError;
+      }
       throw error;
     }
-    return toJson(res) as Promise<ApiVersion>;
   },
 };
 

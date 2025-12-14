@@ -28,6 +28,8 @@ export interface JudgeConfig {
   /** 롱노트를 떼는 판정 윈도우 (일반 판정보다 여유롭게 설정) */
   holdReleaseWindows: JudgeWindowConfig;
   scores: JudgeScoreConfig;
+  /** Miss 판정 기준값 (노트가 판정선을 지나간 후 Miss로 처리되는 시간, ms) */
+  missThreshold: number;
 }
 
 export const judgeConfig: JudgeConfig = {
@@ -48,4 +50,6 @@ export const judgeConfig: JudgeConfig = {
     good: 50,
     miss: 0,
   },
+  /** Miss 판정 기준값: 노트가 판정선을 지나간 후 150ms가 지나면 Miss 처리 */
+  missThreshold: 150,
 };

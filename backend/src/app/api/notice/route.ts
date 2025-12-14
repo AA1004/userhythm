@@ -129,6 +129,24 @@ export async function POST(req: NextRequest) {
     // 세션 role이 admin이 아니지만 DB에서 admin인 경우, 세션을 업데이트해야 함
     if (effectiveRole === 'admin' && session.role !== 'admin') {
       console.warn('Session role mismatch: session has', session.role, 'but DB has', effectiveRole, '- user needs to re-login');
+      // DB에서 admin이 확인되면 권한 허용 (세션은 나중에 재로그인으로 업데이트)
+    }
+    
+    // effectiveRole이 admin이 아니면 거부
+    if (effectiveRole !== 'admin') {
+      console.warn('Notice update unauthorized: Not admin', {
+        userId: session.userId,
+        sessionRole: session.role,
+        dbUserRole: dbUser?.role,
+        dbProfileRole: dbUser?.profile?.role,
+        effectiveRole,
+        expectedRole: 'admin',
+      });
+      return NextResponse.json({ 
+        error: 'unauthorized',
+        message: '관리자 권한이 필요합니다.',
+        details: `Session role: ${session.role}, DB role: ${dbUser?.role || 'N/A'}, Profile role: ${dbUser?.profile?.role || 'N/A'}, Effective: ${effectiveRole}, Required: admin`
+      }, { status: 401 });
     }
 
     let body;
