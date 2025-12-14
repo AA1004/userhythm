@@ -17,7 +17,10 @@ export async function POST(req: NextRequest) {
     if (!isValid) {
       return NextResponse.json({ error: 'invalid credentials' }, { status: 401 });
     }
-    const token = signSession({ userId: user.id, role: user.role });
+    // profile.role이 있으면 우선 사용, 없으면 user.role 사용
+    const effectiveRole = user.profile?.role || user.role;
+    const token = signSession({ userId: user.id, role: effectiveRole });
+    console.log('Session created:', { userId: user.id, userRole: user.role, profileRole: user.profile?.role, effectiveRole });
     setSessionCookie(token);
     return NextResponse.json({ user: { id: user.id, email: user.email, role: user.role, profile: user.profile } });
   } catch (error: any) {

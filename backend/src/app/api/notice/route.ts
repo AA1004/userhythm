@@ -97,17 +97,38 @@ export async function POST(req: NextRequest) {
       }, { status: 401 });
     }
     
-    if (session.role !== 'admin') {
+    // DB에서 실제 role 확인 (세션의 role과 일치하는지 확인)
+    let dbUser = null;
+    try {
+      dbUser = await prisma.user.findUnique({
+        where: { id: session.userId },
+        include: { profile: true },
+      });
+    } catch (dbError) {
+      console.error('Failed to fetch user from DB:', dbError);
+    }
+    
+    const effectiveRole = dbUser?.profile?.role || dbUser?.role || session.role;
+    
+    if (effectiveRole !== 'admin' && session.role !== 'admin') {
       console.warn('Notice update unauthorized: Not admin', {
         userId: session.userId,
-        role: session.role,
+        sessionRole: session.role,
+        dbUserRole: dbUser?.role,
+        dbProfileRole: dbUser?.profile?.role,
+        effectiveRole,
         expectedRole: 'admin',
       });
       return NextResponse.json({ 
         error: 'unauthorized',
         message: '관리자 권한이 필요합니다.',
-        details: `Current role: ${session.role}, Required: admin`
+        details: `Session role: ${session.role}, DB role: ${dbUser?.role || 'N/A'}, Profile role: ${dbUser?.profile?.role || 'N/A'}, Effective: ${effectiveRole}, Required: admin`
       }, { status: 401 });
+    }
+    
+    // 세션 role이 admin이 아니지만 DB에서 admin인 경우, 세션을 업데이트해야 함
+    if (effectiveRole === 'admin' && session.role !== 'admin') {
+      console.warn('Session role mismatch: session has', session.role, 'but DB has', effectiveRole, '- user needs to re-login');
     }
 
     let body;

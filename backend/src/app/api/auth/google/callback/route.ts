@@ -115,7 +115,10 @@ export async function GET(req: NextRequest) {
     }
 
     // 4) 세션 쿠키 발급 + redirect (쿠키를 redirect 응답에 직접 붙여야 함)
-    const token = signSession({ userId: user.id, role: user.role });
+    // profile.role이 있으면 우선 사용, 없으면 user.role 사용
+    const effectiveRole = user.profile?.role || user.role;
+    const token = signSession({ userId: user.id, role: effectiveRole });
+    console.log('Session created:', { userId: user.id, userRole: user.role, profileRole: user.profile?.role, effectiveRole });
     const redirectTarget = state || '/';
     const response = NextResponse.redirect(redirectTarget, { status: 302 });
     
