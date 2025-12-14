@@ -14,6 +14,12 @@ export const BASE_FALL_DURATION = 2000; // 기본 노트 낙하 시간(ms)
 
 export const DEFAULT_KEY_BINDINGS: [string, string, string, string] = ['D', 'F', 'J', 'K'];
 
+// 화면 표시 관련 상수
+/** 화면 위에서 노트가 보이기 시작하는 여유 시간 (ms) */
+export const NOTE_VISIBILITY_BUFFER_MS = 200;
+/** 판정 피드백 표시 시간 (ms) */
+export const JUDGE_FEEDBACK_DURATION_MS = 800;
+
 // localStorage 키 상수들
 export const DISPLAY_NAME_STORAGE_KEY = 'rhythmGameDisplayName';
 export const KEY_BINDINGS_STORAGE_KEY = 'rhythmGameKeyBindings';

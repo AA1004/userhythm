@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Lane, Note, JudgeType, GameState } from '../types/game';
 import { judgeTiming, judgeHoldReleaseTiming } from '../utils/judge';
 import { judgeConfig } from '../config/judgeConfig';
-import { LANE_POSITIONS, JUDGE_LINE_Y } from '../constants/gameConstants';
+import { LANE_POSITIONS, JUDGE_LINE_Y, JUDGE_FEEDBACK_DURATION_MS } from '../constants/gameConstants';
 
 export interface JudgeFeedback {
   id: number;
@@ -44,6 +44,8 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   const keyEffectIdRef = useRef(0);
   // setTimeout 타이머를 추적하여 cleanup 시 정리
   const keyPressTimersRef = useRef<Map<Lane, NodeJS.Timeout>>(new Map());
+  // 판정 피드백 및 이펙트 제거를 위한 타이머 추적
+  const feedbackTimersRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
 
   /**
    * 판정 결과에 따라 점수를 업데이트하는 공통 함수
@@ -82,7 +84,8 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
    */
   const addJudgeFeedback = useCallback((judge: JudgeType, lane: Lane) => {
     const feedbackId = feedbackIdRef.current++;
-    setJudgeFeedbacks([{ id: feedbackId, judge }]);
+    // 기존 배열에 추가 (새 배열 생성 방지)
+    setJudgeFeedbacks((prev) => [...prev, { id: feedbackId, judge }]);
 
     if (judge !== 'miss') {
       const effectId = keyEffectIdRef.current++;
@@ -92,17 +95,21 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
 
       // 피드백 제거와 이펙트 제거를 requestAnimationFrame으로 처리하여 렌더링 최적화
       requestAnimationFrame(() => {
-        setTimeout(() => {
+        const timer = setTimeout(() => {
           setJudgeFeedbacks((prev) => prev.filter((f) => f.id !== feedbackId));
           setKeyEffects((prev) => prev.filter((e) => e.id !== effectId));
-        }, 800);
+          feedbackTimersRef.current.delete(feedbackId);
+        }, JUDGE_FEEDBACK_DURATION_MS);
+        feedbackTimersRef.current.set(feedbackId, timer);
       });
     } else {
       // miss인 경우 이펙트 없이 피드백만 제거
       requestAnimationFrame(() => {
-        setTimeout(() => {
+        const timer = setTimeout(() => {
           setJudgeFeedbacks((prev) => prev.filter((f) => f.id !== feedbackId));
-        }, 800);
+          feedbackTimersRef.current.delete(feedbackId);
+        }, JUDGE_FEEDBACK_DURATION_MS);
+        feedbackTimersRef.current.set(feedbackId, timer);
       });
     }
   }, []);
@@ -157,7 +164,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
 
       for (const note of laneNotes) {
         const timeDiff = Math.abs(note.time - currentTime);
-        if (timeDiff < bestTimeDiff && timeDiff <= 150) {
+        if (timeDiff < bestTimeDiff && timeDiff <= judgeConfig.noteSearchRange) {
           bestTimeDiff = timeDiff;
           bestNote = note;
         }
@@ -306,10 +313,17 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   // 컴포넌트 언마운트 시 모든 타이머 정리
   useEffect(() => {
     return () => {
+      // 키 프레스 타이머 정리
       keyPressTimersRef.current.forEach((timer) => {
         clearTimeout(timer);
       });
       keyPressTimersRef.current.clear();
+      
+      // 판정 피드백 타이머 정리
+      feedbackTimersRef.current.forEach((timer) => {
+        clearTimeout(timer);
+      });
+      feedbackTimersRef.current.clear();
     };
   }, []);
 

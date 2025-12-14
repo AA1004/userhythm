@@ -73,8 +73,11 @@ export const NoticeVersionAdmin: React.FC<NoticeVersionAdminProps> = ({ onClose 
       }
       
       const errorDetails = error?.details || '';
+      const errorCode = error?.code ? `\n에러 코드: ${error.code}` : '';
+      const statusCode = error?.status ? `\n상태 코드: ${error.status}` : '';
       const userInfo = `\n\n현재 사용자: ${authUser?.email || '로그인되지 않음'}\n현재 역할: ${remoteProfile?.role || '없음'}`;
-      alert(`공지사항 저장에 실패했습니다.\n\n${errorMessage}${errorDetails ? `\n\n상세: ${errorDetails}` : ''}${userInfo}`);
+      
+      alert(`공지사항 저장에 실패했습니다.\n\n${errorMessage}${statusCode}${errorCode}${errorDetails ? `\n\n상세: ${errorDetails}` : ''}${userInfo}`);
     } finally {
       setSaving(false);
     }

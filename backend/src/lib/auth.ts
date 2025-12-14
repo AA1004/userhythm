@@ -56,10 +56,22 @@ export const clearSessionCookie = () => {
 
 export const getSessionFromRequest = (req: NextRequest): SessionPayload | null => {
   const cookie = req.cookies.get(SESSION_COOKIE)?.value;
-  if (!cookie) return null;
+  if (!cookie) {
+    console.log('getSessionFromRequest: No cookie found', {
+      cookieName: SESSION_COOKIE,
+      allCookies: req.cookies.getAll().map(c => c.name),
+    });
+    return null;
+  }
   try {
-    return jwt.verify(cookie, SESSION_SECRET) as SessionPayload;
-  } catch {
+    const decoded = jwt.verify(cookie, SESSION_SECRET) as SessionPayload;
+    return decoded;
+  } catch (error: any) {
+    console.warn('getSessionFromRequest: JWT verification failed', {
+      error: error?.name || error?.message,
+      cookieLength: cookie.length,
+      cookiePrefix: cookie.substring(0, 20),
+    });
     return null;
   }
 };

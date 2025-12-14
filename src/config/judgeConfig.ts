@@ -30,6 +30,8 @@ export interface JudgeConfig {
   scores: JudgeScoreConfig;
   /** Miss 판정 기준값 (노트가 판정선을 지나간 후 Miss로 처리되는 시간, ms) */
   missThreshold: number;
+  /** 노트 검색 범위 (키 입력 시 판정 가능한 최대 시간 차이, ms) */
+  noteSearchRange: number;
 }
 
 export const judgeConfig: JudgeConfig = {
@@ -52,4 +54,6 @@ export const judgeConfig: JudgeConfig = {
   },
   /** Miss 판정 기준값: 노트가 판정선을 지나간 후 150ms가 지나면 Miss 처리 */
   missThreshold: 150,
+  /** 노트 검색 범위: 키 입력 시 판정 가능한 최대 시간 차이 (150ms) */
+  noteSearchRange: 150,
 };

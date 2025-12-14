@@ -77,23 +77,38 @@ export async function POST(req: NextRequest) {
     // ADMIN 권한 체크
     const session = getSessionFromRequest(req);
     const cookies = req.cookies.getAll();
+    const urSessionCookie = req.cookies.get('ur_session');
+    
     console.log('Notice update request:', {
       hasSession: !!session,
       sessionRole: session?.role,
       sessionUserId: session?.userId,
       cookieNames: cookies.map(c => c.name),
-      hasUrSession: !!req.cookies.get('ur_session'),
+      hasUrSession: !!urSessionCookie,
+      urSessionValue: urSessionCookie ? `${urSessionCookie.value.substring(0, 20)}...` : 'none',
+      requestHeaders: {
+        host: req.headers.get('host'),
+        origin: req.headers.get('origin'),
+        referer: req.headers.get('referer'),
+        cookie: req.headers.get('cookie') ? 'present' : 'missing',
+      },
     });
     
     if (!session) {
       console.warn('Notice update unauthorized: No session', {
         cookieNames: cookies.map(c => c.name),
-        allCookies: cookies,
+        cookieValues: cookies.map(c => ({ name: c.name, value: c.value.substring(0, 20) + '...' })),
+        urSessionCookie: urSessionCookie ? urSessionCookie.value.substring(0, 20) + '...' : 'missing',
+        requestHeaders: {
+          host: req.headers.get('host'),
+          origin: req.headers.get('origin'),
+          cookie: req.headers.get('cookie'),
+        },
       });
       return NextResponse.json({ 
         error: 'unauthorized',
         message: '세션이 없습니다. 로그인이 필요합니다.',
-        details: 'Please log in first'
+        details: 'Please log in first. Check if ur_session cookie is being sent.'
       }, { status: 401 });
     }
     
@@ -110,27 +125,13 @@ export async function POST(req: NextRequest) {
     
     const effectiveRole = dbUser?.profile?.role || dbUser?.role || session.role;
     
-    if (effectiveRole !== 'admin' && session.role !== 'admin') {
-      console.warn('Notice update unauthorized: Not admin', {
-        userId: session.userId,
-        sessionRole: session.role,
-        dbUserRole: dbUser?.role,
-        dbProfileRole: dbUser?.profile?.role,
-        effectiveRole,
-        expectedRole: 'admin',
-      });
-      return NextResponse.json({ 
-        error: 'unauthorized',
-        message: '관리자 권한이 필요합니다.',
-        details: `Session role: ${session.role}, DB role: ${dbUser?.role || 'N/A'}, Profile role: ${dbUser?.profile?.role || 'N/A'}, Effective: ${effectiveRole}, Required: admin`
-      }, { status: 401 });
-    }
-    
-    // 세션 role이 admin이 아니지만 DB에서 admin인 경우, 세션을 업데이트해야 함
-    if (effectiveRole === 'admin' && session.role !== 'admin') {
-      console.warn('Session role mismatch: session has', session.role, 'but DB has', effectiveRole, '- user needs to re-login');
-      // DB에서 admin이 확인되면 권한 허용 (세션은 나중에 재로그인으로 업데이트)
-    }
+    console.log('Role check:', {
+      userId: session.userId,
+      sessionRole: session.role,
+      dbUserRole: dbUser?.role,
+      dbProfileRole: dbUser?.profile?.role,
+      effectiveRole,
+    });
     
     // effectiveRole이 admin이 아니면 거부
     if (effectiveRole !== 'admin') {
@@ -147,6 +148,11 @@ export async function POST(req: NextRequest) {
         message: '관리자 권한이 필요합니다.',
         details: `Session role: ${session.role}, DB role: ${dbUser?.role || 'N/A'}, Profile role: ${dbUser?.profile?.role || 'N/A'}, Effective: ${effectiveRole}, Required: admin`
       }, { status: 401 });
+    }
+    
+    // 세션 role이 admin이 아니지만 DB에서 admin인 경우 경고 (권한은 허용)
+    if (effectiveRole === 'admin' && session.role !== 'admin') {
+      console.warn('Session role mismatch: session has', session.role, 'but DB has', effectiveRole, '- user needs to re-login');
     }
 
     let body;
@@ -180,18 +186,28 @@ export async function POST(req: NextRequest) {
     }
 
     // upsert로 업데이트 (없으면 생성)
-    const notice = await prisma.notice.upsert({
-      where: { id: NOTICE_ID },
-      update: {
-        title: title.trim(),
-        content: content.trim(),
-      },
-      create: {
-        id: NOTICE_ID,
-        title: title.trim(),
-        content: content.trim(),
-      },
-    });
+    let notice;
+    try {
+      notice = await prisma.notice.upsert({
+        where: { id: NOTICE_ID },
+        update: {
+          title: title.trim(),
+          content: content.trim(),
+        },
+        create: {
+          id: NOTICE_ID,
+          title: title.trim(),
+          content: content.trim(),
+        },
+      });
+    } catch (prismaError: any) {
+      console.error('Prisma upsert error:', {
+        code: prismaError?.code,
+        message: prismaError?.message,
+        meta: prismaError?.meta,
+      });
+      throw prismaError;
+    }
 
     console.log('Notice updated successfully:', { id: notice.id, title: notice.title, contentLength: notice.content.length });
     return NextResponse.json({

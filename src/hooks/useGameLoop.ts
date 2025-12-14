@@ -1,6 +1,7 @@
 import { useEffect, useRef, useMemo } from 'react';
 import { GameState, Note } from '../types/game';
 import { judgeConfig } from '../config/judgeConfig';
+import { NOTE_VISIBILITY_BUFFER_MS } from '../constants/gameConstants';
 
 const GAME_HEIGHT = 800;
 const BASE_FALL_DURATION = 2000; // 기본 노트가 떨어지는 시간 (ms)
@@ -46,15 +47,16 @@ export function useGameLoop(
       let missedInFrame: Note[] = [];
 
       // 화면에 보이는 노트 범위 계산
-      // 노트가 화면 위에서 보이기 시작: elapsedTime - fallDuration - 200ms (여유분)
-      // 노트가 miss 처리되는 시간: elapsedTime + 150ms
-      const visibleTimeWindow = fallDuration + 200; // 화면 위에서 보이기 시작하는 시간
+      // 노트가 화면 위에서 보이기 시작: elapsedTime - fallDuration - 여유분
+      // 노트가 miss 처리되는 시간: elapsedTime + missThreshold
+      const visibleTimeWindow = fallDuration + NOTE_VISIBILITY_BUFFER_MS; // 화면 위에서 보이기 시작하는 시간
 
       setGameState((prev: GameState) => {
         let missCount = 0;
+        let hasChanges = false;
 
         const updatedNotes = prev.notes.map((note) => {
-          // 이미 hit된 노트는 계산하지 않음 (그대로 유지)
+          // 이미 hit된 노트는 계산하지 않음 (그대로 유지 - 불변성 유지)
           if (note.hit) {
             return note;
           }
@@ -63,6 +65,11 @@ export function useGameLoop(
           
           // 화면 밖 노트 (너무 위에 있어서 아직 보이지 않음) - 계산 스킵
           if (timeUntilHit > visibleTimeWindow) {
+            // y가 이미 -100이면 변경 없음
+            if (note.y === -100) {
+              return note;
+            }
+            hasChanges = true;
             return { ...note, y: -100 };
           }
 
@@ -76,15 +83,27 @@ export function useGameLoop(
           if (timeUntilMiss < -missThreshold) {
             missCount++;
             missedInFrame.push(note);
+            hasChanges = true;
             return { ...note, hit: true, y: JUDGE_LINE_Y + 50 };
           }
 
           // 화면 내 노트의 위치 계산
           const progress = 1 - timeUntilHit / fallDuration;
-          const y = progress * JUDGE_LINE_Y;
-
-          return { ...note, y: Math.max(-100, Math.min(GAME_HEIGHT, y)) };
+          const y = Math.max(-100, Math.min(GAME_HEIGHT, progress * JUDGE_LINE_Y));
+          
+          // y 값이 변경되지 않았으면 같은 참조 반환 (불변성 유지, 성능 최적화)
+          if (note.y === y) {
+            return note;
+          }
+          
+          hasChanges = true;
+          return { ...note, y };
         });
+
+        // 변경사항이 없고 miss도 없으면 이전 상태 반환 (불필요한 리렌더링 방지)
+        if (!hasChanges && missCount === 0 && prev.currentTime === elapsedTime) {
+          return prev;
+        }
 
         if (missCount > 0) {
           return {

@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { GameState, Note, Lane, SpeedChange } from '../types/game';
 import { Note as NoteComponent } from './Note';
 import { KeyLane } from './KeyLane';
 import { JudgeLine } from './JudgeLine';
 import { Score as ScoreComponent } from './Score';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
-import { LANE_POSITIONS, JUDGE_LINE_LEFT, JUDGE_LINE_WIDTH, JUDGE_LINE_Y, BASE_FALL_DURATION } from '../constants/gameConstants';
+import { LANE_POSITIONS, JUDGE_LINE_LEFT, JUDGE_LINE_WIDTH, JUDGE_LINE_Y, BASE_FALL_DURATION, NOTE_VISIBILITY_BUFFER_MS } from '../constants/gameConstants';
 import { getNoteFallDuration } from '../utils/speedChange';
 import { JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
 
@@ -42,6 +42,25 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   isFromEditor: _isFromEditor,
   onExit,
 }) => {
+  // 화면에 보이는 노트만 필터링하여 렌더링 성능 최적화
+  const visibleNotes = useMemo(() => {
+    if (bgaMaskOpacity >= 1) return []; // 간주 구간에서는 노트 숨김
+    
+    const baseDuration = BASE_FALL_DURATION / speed;
+    const viewportStart = gameState.currentTime - baseDuration - NOTE_VISIBILITY_BUFFER_MS;
+    const viewportEnd = gameState.currentTime + NOTE_VISIBILITY_BUFFER_MS;
+    
+    return gameState.notes.filter((note) => {
+      // 노트가 화면에 보이는 범위인지 확인
+      const noteEndTime = note.endTime || note.time;
+      return (
+        (note.time >= viewportStart && note.time <= viewportEnd) ||
+        (noteEndTime >= viewportStart && noteEndTime <= viewportEnd) ||
+        (note.time <= viewportStart && noteEndTime >= viewportEnd) // 롱노트가 화면을 가로지르는 경우
+      );
+    });
+  }, [gameState.notes, gameState.currentTime, speed, bgaMaskOpacity]);
+
   return (
     <>
       {/* 4개 레인 영역 배경 (간주 구간에서는 숨김) */}
@@ -75,9 +94,9 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
           />
         ))}
 
-      {/* 노트 렌더링 (간주 구간에서는 숨김) */}
+      {/* 노트 렌더링 (간주 구간에서는 숨김, 화면에 보이는 노트만 렌더링) */}
       {bgaMaskOpacity < 1 &&
-        gameState.notes.map((note) => {
+        visibleNotes.map((note) => {
           const baseDuration = BASE_FALL_DURATION / speed;
           const fallDuration = getNoteFallDuration(
             note.time,
