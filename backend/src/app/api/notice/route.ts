@@ -54,23 +54,12 @@ export async function GET() {
       message: error?.message,
       stack: error?.stack,
     });
-    // DB 연결 실패 시 기본값 반환
-    if (
-      error?.name === 'PrismaClientInitializationError' ||
-      error?.code === 'P1001' ||
-      error?.message?.includes('database') ||
-      (process.env.NODE_ENV as string) === 'development'
-    ) {
-      return NextResponse.json({
-        title: '공지사항',
-        content: '공지사항을 불러올 수 없습니다.\n\nAPI 서버가 실행 중인지 확인해주세요.',
-        updatedAt: new Date().toISOString(),
-      });
-    }
-    return NextResponse.json(
-      { error: 'failed to load notice', details: (process.env.NODE_ENV as string) === 'development' ? error?.message : undefined },
-      { status: 500 }
-    );
+    // 모든 에러에 대해 기본값 반환 (GET 요청은 항상 성공해야 함)
+    return NextResponse.json({
+      title: '공지사항',
+      content: '공지사항을 불러올 수 없습니다.\n\nAPI 서버가 실행 중인지 확인해주세요.',
+      updatedAt: new Date().toISOString(),
+    });
   }
 }
 

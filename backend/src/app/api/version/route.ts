@@ -48,9 +48,21 @@ export async function GET() {
       throw new Error('Failed to create or retrieve version');
     }
 
+    // changelog 파싱 시도 (안전하게)
+    let changelogArray: string[] = [];
+    try {
+      changelogArray = JSON.parse(version.changelog) as string[];
+      if (!Array.isArray(changelogArray)) {
+        changelogArray = ['버전 정보 형식 오류'];
+      }
+    } catch (parseError) {
+      console.error('Failed to parse changelog:', parseError);
+      changelogArray = ['버전 정보를 파싱할 수 없습니다.'];
+    }
+
     return NextResponse.json({
       version: version.version,
-      changelog: JSON.parse(version.changelog) as string[],
+      changelog: changelogArray,
       updatedAt: version.updatedAt.toISOString(),
     });
   } catch (error: any) {
@@ -61,23 +73,12 @@ export async function GET() {
       message: error?.message,
       stack: error?.stack,
     });
-    // DB 연결 실패 시 기본값 반환
-    if (
-      error?.name === 'PrismaClientInitializationError' ||
-      error?.code === 'P1001' ||
-      error?.message?.includes('database') ||
-      (process.env.NODE_ENV as string) === 'development'
-    ) {
-      return NextResponse.json({
-        version: '1.0.0',
-        changelog: ['버전 정보를 불러올 수 없습니다.', 'API 서버가 실행 중인지 확인해주세요.'],
-        updatedAt: new Date().toISOString(),
-      });
-    }
-    return NextResponse.json(
-      { error: 'failed to load version', details: (process.env.NODE_ENV as string) === 'development' ? error?.message : undefined },
-      { status: 500 }
-    );
+    // 모든 에러에 대해 기본값 반환 (GET 요청은 항상 성공해야 함)
+    return NextResponse.json({
+      version: '1.0.0',
+      changelog: ['버전 정보를 불러올 수 없습니다.', 'API 서버가 실행 중인지 확인해주세요.'],
+      updatedAt: new Date().toISOString(),
+    });
   }
 }
 
@@ -115,10 +116,22 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // changelog 파싱 시도 (안전하게)
+    let changelogArray: string[] = [];
+    try {
+      changelogArray = JSON.parse(versionData.changelog) as string[];
+      if (!Array.isArray(changelogArray)) {
+        changelogArray = [];
+      }
+    } catch (parseError) {
+      console.error('Failed to parse changelog:', parseError);
+      changelogArray = [];
+    }
+
     console.log('Version updated successfully:', { id: versionData.id, version: versionData.version });
     return NextResponse.json({
       version: versionData.version,
-      changelog: JSON.parse(versionData.changelog) as string[],
+      changelog: changelogArray,
       updatedAt: versionData.updatedAt.toISOString(),
     });
   } catch (error: any) {
