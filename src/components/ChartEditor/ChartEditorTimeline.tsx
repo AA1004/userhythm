@@ -800,9 +800,14 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
                  width: `${displayWidth}px`,
                  height: `${noteHeight}px`,
                  cursor: isMoveMode && isSelected ? 'move' : 'pointer',
-                 zIndex: isSelected && dragOffset ? 15 : 10,
+                 zIndex: isSelected ? (dragOffset ? 15 : 12) : 10,
                  opacity,
                  transition: dragOffset ? 'none' : 'opacity 0.2s',
+                 // 선택 표시(탭/롱 공통): 윈도우식 마퀴 선택이 눈에 띄도록 글로우 추가
+                 borderRadius: isHold ? 18 : 14,
+                 boxShadow: isSelected
+                   ? '0 0 0 3px rgba(96, 165, 250, 0.95), 0 0 18px rgba(96, 165, 250, 0.45)'
+                   : undefined,
                }}
              >
               <div
