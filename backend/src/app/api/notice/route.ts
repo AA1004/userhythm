@@ -15,14 +15,30 @@ export async function GET() {
     });
 
     if (!notice) {
-      // 기본 공지사항 생성
-      notice = await prisma.notice.create({
-        data: {
-          id: NOTICE_ID,
-          title: 'v1.2.2 업데이트: 선택 영역 이동 모드 추가!',
-          content: '안녕하세요! UseRhythm v1.2.2가 출시되었습니다.\n\n✨ 주요 변경사항\n\n• 선택 영역 이동 모드 추가\n  - 선택된 노트를 드래그하여 시간과 레인을 쉽게 변경할 수 있습니다\n  - 사이드바의 "선택 영역 이동 모드" 버튼을 클릭하여 활성화하세요\n  - 노트를 이동하면 선택 영역도 함께 이동하여 편집이 더욱 편리해집니다\n\n• 레인별 분할 선택 모드 제거\n  - 사용 빈도가 낮아 기능을 제거하고 UI를 간소화했습니다\n\n• 이동 모드에서 노트 삭제 방지\n  - 이동 모드가 활성화되어 있을 때 실수로 노트를 삭제하는 것을 방지합니다\n\n더 나은 채보 편집 경험을 위해 계속 개선하고 있습니다. 피드백은 언제든 환영합니다! 🎵',
-        },
-      });
+      try {
+        // 기본 공지사항 생성 (동시 요청 시 중복 생성 방지)
+        notice = await prisma.notice.create({
+          data: {
+            id: NOTICE_ID,
+            title: 'v1.2.2 업데이트: 선택 영역 이동 모드 추가!',
+            content: '안녕하세요! UseRhythm v1.2.2가 출시되었습니다.\n\n✨ 주요 변경사항\n\n• 선택 영역 이동 모드 추가\n  - 선택된 노트를 드래그하여 시간과 레인을 쉽게 변경할 수 있습니다\n  - 사이드바의 "선택 영역 이동 모드" 버튼을 클릭하여 활성화하세요\n  - 노트를 이동하면 선택 영역도 함께 이동하여 편집이 더욱 편리해집니다\n\n• 레인별 분할 선택 모드 제거\n  - 사용 빈도가 낮아 기능을 제거하고 UI를 간소화했습니다\n\n• 이동 모드에서 노트 삭제 방지\n  - 이동 모드가 활성화되어 있을 때 실수로 노트를 삭제하는 것을 방지합니다\n\n더 나은 채보 편집 경험을 위해 계속 개선하고 있습니다. 피드백은 언제든 환영합니다! 🎵',
+          },
+        });
+      } catch (createError: any) {
+        // 이미 생성되었을 수 있으므로 다시 조회
+        if (createError?.code === 'P2002') {
+          notice = await prisma.notice.findUnique({
+            where: { id: NOTICE_ID },
+          });
+        }
+        if (!notice) {
+          throw createError;
+        }
+      }
+    }
+
+    if (!notice) {
+      throw new Error('Failed to create or retrieve notice');
     }
 
     return NextResponse.json({
@@ -32,8 +48,19 @@ export async function GET() {
     });
   } catch (error: any) {
     console.error('notice get error', error);
+    console.error('Error details:', {
+      name: error?.name,
+      code: error?.code,
+      message: error?.message,
+      stack: error?.stack,
+    });
     // DB 연결 실패 시 기본값 반환
-    if (error?.name === 'PrismaClientInitializationError' || process.env.NODE_ENV === 'development') {
+    if (
+      error?.name === 'PrismaClientInitializationError' ||
+      error?.code === 'P1001' ||
+      error?.message?.includes('database') ||
+      (process.env.NODE_ENV as string) === 'development'
+    ) {
       return NextResponse.json({
         title: '공지사항',
         content: '공지사항을 불러올 수 없습니다.\n\nAPI 서버가 실행 중인지 확인해주세요.',
@@ -41,7 +68,7 @@ export async function GET() {
       });
     }
     return NextResponse.json(
-      { error: 'failed to load notice' },
+      { error: 'failed to load notice', details: (process.env.NODE_ENV as string) === 'development' ? error?.message : undefined },
       { status: 500 }
     );
   }
@@ -52,11 +79,15 @@ export async function POST(req: NextRequest) {
     // ADMIN 권한 체크
     const session = getSessionFromRequest(req);
     if (!session || session.role !== 'admin') {
+      console.warn('Notice update unauthorized:', { session: session ? { userId: session.userId, role: session.role } : null });
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
 
-    const { title, content } = await req.json();
+    const body = await req.json();
+    const { title, content } = body;
+    
     if (!title || !content) {
+      console.warn('Notice update missing fields:', { title: !!title, content: !!content });
       return NextResponse.json(
         { error: 'title and content are required' },
         { status: 400 }
@@ -77,6 +108,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    console.log('Notice updated successfully:', { id: notice.id, title: notice.title });
     return NextResponse.json({
       title: notice.title,
       content: notice.content,
@@ -84,8 +116,17 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error('notice update error', error);
+    console.error('Error details:', {
+      name: error?.name,
+      code: error?.code,
+      message: error?.message,
+      stack: error?.stack,
+    });
     return NextResponse.json(
-      { error: 'failed to update notice' },
+      { 
+        error: 'failed to update notice',
+        details: (process.env.NODE_ENV as string) === 'development' ? error?.message : undefined
+      },
       { status: 500 }
     );
   }
