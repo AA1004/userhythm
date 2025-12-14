@@ -6,7 +6,7 @@ interface KeyLaneProps {
   isPressed: boolean;
 }
 
-export const KeyLane: React.FC<KeyLaneProps> = ({ x, keys, isPressed }) => {
+const KeyLaneComponent: React.FC<KeyLaneProps> = ({ x, keys, isPressed }) => {
   return (
     <div
       style={{
@@ -40,4 +40,15 @@ export const KeyLane: React.FC<KeyLaneProps> = ({ x, keys, isPressed }) => {
     </div>
   );
 };
+
+// React.memo로 불필요한 리렌더링 방지
+export const KeyLane = React.memo(KeyLaneComponent, (prevProps, nextProps) => {
+  // isPressed가 변경될 때만 리렌더링
+  return (
+    prevProps.x === nextProps.x &&
+    prevProps.isPressed === nextProps.isPressed &&
+    prevProps.keys.length === nextProps.keys.length &&
+    prevProps.keys.every((key, i) => key === nextProps.keys[i])
+  );
+});
 

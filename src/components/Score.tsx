@@ -5,7 +5,7 @@ interface ScoreProps {
   score: ScoreType;
 }
 
-export const Score: React.FC<ScoreProps> = ({ score }) => {
+const ScoreComponent: React.FC<ScoreProps> = ({ score }) => {
   const total = score.perfect + score.great + score.good + score.miss;
   const accuracy =
     total > 0
@@ -72,4 +72,17 @@ export const Score: React.FC<ScoreProps> = ({ score }) => {
     </div>
   );
 };
+
+// React.memo로 불필요한 리렌더링 방지
+export const Score = React.memo(ScoreComponent, (prevProps, nextProps) => {
+  // score 객체의 모든 속성이 같으면 리렌더링 방지
+  return (
+    prevProps.score.perfect === nextProps.score.perfect &&
+    prevProps.score.great === nextProps.score.great &&
+    prevProps.score.good === nextProps.score.good &&
+    prevProps.score.miss === nextProps.score.miss &&
+    prevProps.score.combo === nextProps.score.combo &&
+    prevProps.score.maxCombo === nextProps.score.maxCombo
+  );
+});
 

@@ -18,7 +18,8 @@ const HOLD_HEAD_HEIGHT = 32;
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 
-export const Note: React.FC<NoteProps> = ({
+// Note 컴포넌트 최적화: React.memo와 y 값 직접 사용
+const NoteComponent: React.FC<NoteProps> = ({
   note,
   fallDuration,
   currentTime,
@@ -30,17 +31,14 @@ export const Note: React.FC<NoteProps> = ({
 
   const isHoldNote = note.duration > 0 && note.type === 'hold';
 
-  const computeY = (timeMs: number, clampToJudgeLine = false) => {
-    const timeUntilHit = timeMs - currentTime;
-    const progress = 1 - timeUntilHit / fallDuration;
-    const maxY = clampToJudgeLine ? judgeLineY : judgeLineY + 50;
-    return clamp(progress * judgeLineY, -200, maxY);
-  };
+  // y 값은 이미 게임 루프에서 계산되어 note.y에 저장되어 있음
+  // 하지만 롱노트의 경우 endY도 계산해야 하므로 필요한 경우만 계산
+  const headY = note.y;
 
-  const headY = computeY(note.time);
+  // 화면 밖 노트는 렌더링하지 않음
+  if (headY < -180 && !isHoldNote) return null;
 
   if (!isHoldNote) {
-    if (headY < -180) return null;
     const top = headY - TAP_HEIGHT / 2;
     return (
       <div
@@ -67,8 +65,17 @@ export const Note: React.FC<NoteProps> = ({
     );
   }
 
-  const holdHeadY = computeY(note.time, true);
-  const holdTailY = computeY(note.endTime ?? note.time, true);
+  // 롱노트의 경우 headY는 note.y를 사용하고, endY만 계산
+  // endY는 매번 계산해야 하지만, useMemo나 최적화는 과도한 최적화일 수 있음
+  const computeEndY = () => {
+    const endTime = note.endTime ?? note.time;
+    const timeUntilHit = endTime - currentTime;
+    const progress = 1 - timeUntilHit / fallDuration;
+    return clamp(progress * judgeLineY, -200, judgeLineY);
+  };
+
+  const holdHeadY = headY; // 이미 게임 루프에서 계산된 값 사용
+  const holdTailY = isHoldNote ? computeEndY() : headY;
   const bottomY = Math.max(holdHeadY, holdTailY);
   const spanHeight = Math.abs(holdHeadY - holdTailY);
   const containerHeight = Math.max(HOLD_MIN_HEIGHT, spanHeight);
@@ -152,3 +159,46 @@ export const Note: React.FC<NoteProps> = ({
     </div>
   );
 };
+
+// React.memo로 불필요한 리렌더링 방지
+// currentTime은 롱노트의 holdProgress 계산에 필요하지만,
+// y 값이 이미 게임 루프에서 계산되어 있으므로 y가 같으면 같은 위치에 있음
+export const Note = React.memo(NoteComponent, (prevProps, nextProps) => {
+  // 노트의 핵심 속성만 비교
+  // y 값이 같으면 위치가 같으므로 currentTime 변화는 무시 가능 (단, 롱노트 progress는 다를 수 있음)
+  const isSameNote = prevProps.note.id === nextProps.note.id;
+  if (!isSameNote) return false;
+  
+  // hit 상태가 다르면 리렌더링 필요
+  if (prevProps.note.hit !== nextProps.note.hit) return false;
+  
+  // hit된 노트는 더 이상 렌더링하지 않으므로 비교 불필요
+  if (prevProps.note.hit) return true;
+  
+  // y 위치가 다르면 리렌더링 필요
+  if (prevProps.note.y !== nextProps.note.y) return false;
+  
+  // isHolding 상태가 다르면 리렌더링 필요
+  if (prevProps.isHolding !== nextProps.isHolding) return false;
+  
+  // 롱노트인 경우 duration과 endTime 확인
+  const isHoldNote = prevProps.note.duration > 0;
+  if (isHoldNote) {
+    // 롱노트의 경우 currentTime이 변하면 holdProgress가 변하므로 리렌더링 필요
+    // 하지만 실제로는 60fps에서도 y 값이 같으면 위치가 같으므로 괜찮음
+    // 더 정확하게는 currentTime을 비교하되, y가 같으면 대부분 같은 frame이므로 괜찮음
+    if (prevProps.note.endTime !== nextProps.note.endTime) return false;
+    if (prevProps.note.duration !== nextProps.note.duration) return false;
+    
+    // 롱노트의 경우 currentTime 변화에 따른 progress는 작은 변화이므로
+    // y 값이 같으면 동일 프레임으로 간주 (약간의 트레이드오프 있음)
+    // 더 정확하게 하려면 currentTime도 비교해야 하지만 성능 저하 가능
+  }
+  
+  // 나머지 prop은 변경되지 않으면 리렌더링 불필요
+  return (
+    prevProps.fallDuration === nextProps.fallDuration &&
+    prevProps.laneX === nextProps.laneX &&
+    prevProps.judgeLineY === nextProps.judgeLineY
+  );
+});

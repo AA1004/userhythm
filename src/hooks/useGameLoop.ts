@@ -101,8 +101,13 @@ export function useGameLoop(
         });
 
         // 변경사항이 없고 miss도 없으면 이전 상태 반환 (불필요한 리렌더링 방지)
-        if (!hasChanges && missCount === 0 && prev.currentTime === elapsedTime) {
-          return prev;
+        // 고주사율 모니터(165Hz+)에서도 불필요한 업데이트 방지
+        if (!hasChanges && missCount === 0) {
+          // currentTime이 1ms 미만 차이면 업데이트 스킵 (고주사율 최적화)
+          const timeDiff = Math.abs(prev.currentTime - elapsedTime);
+          if (timeDiff < 1) {
+            return prev;
+          }
         }
 
         if (missCount > 0) {

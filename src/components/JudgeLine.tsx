@@ -5,7 +5,7 @@ interface JudgeLineProps {
   width: number;
 }
 
-export const JudgeLine: React.FC<JudgeLineProps> = ({ left, width }) => {
+const JudgeLineComponent: React.FC<JudgeLineProps> = ({ left, width }) => {
   return (
     <div
       style={{
@@ -20,4 +20,7 @@ export const JudgeLine: React.FC<JudgeLineProps> = ({ left, width }) => {
     />
   );
 };
+
+// React.memo로 불필요한 리렌더링 방지
+export const JudgeLine = React.memo(JudgeLineComponent);
 

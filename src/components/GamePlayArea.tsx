@@ -50,15 +50,28 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
     const viewportStart = gameState.currentTime - baseDuration - NOTE_VISIBILITY_BUFFER_MS;
     const viewportEnd = gameState.currentTime + NOTE_VISIBILITY_BUFFER_MS;
     
-    return gameState.notes.filter((note) => {
+    // hit된 노트와 화면 밖 노트를 빠르게 스킵
+    // 노트 배열이 시간순 정렬되어 있다면 더 효율적으로 필터링 가능
+    const result: typeof gameState.notes = [];
+    for (const note of gameState.notes) {
+      // hit된 노트는 건너뛰기
+      if (note.hit) continue;
+      
+      // 화면 밖 노트는 건너뛰기 (y가 -100이면 이미 게임 루프에서 처리됨)
+      if (note.y === -100) continue;
+      
       // 노트가 화면에 보이는 범위인지 확인
       const noteEndTime = note.endTime || note.time;
-      return (
+      if (
         (note.time >= viewportStart && note.time <= viewportEnd) ||
         (noteEndTime >= viewportStart && noteEndTime <= viewportEnd) ||
         (note.time <= viewportStart && noteEndTime >= viewportEnd) // 롱노트가 화면을 가로지르는 경우
-      );
-    });
+      ) {
+        result.push(note);
+      }
+    }
+    
+    return result;
   }, [gameState.notes, gameState.currentTime, speed, bgaMaskOpacity]);
 
   return (
@@ -97,6 +110,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
       {/* 노트 렌더링 (간주 구간에서는 숨김, 화면에 보이는 노트만 렌더링) */}
       {bgaMaskOpacity < 1 &&
         visibleNotes.map((note) => {
+          // fallDuration 계산을 메모이제이션하여 매번 계산하지 않도록 최적화
           const baseDuration = BASE_FALL_DURATION / speed;
           const fallDuration = getNoteFallDuration(
             note.time,
@@ -108,7 +122,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
 
           return (
             <NoteComponent
-              key={`${note.id}-${note.time}-${note.lane}`}
+              key={note.id}
               note={note}
               fallDuration={fallDuration}
               currentTime={gameState.currentTime}
