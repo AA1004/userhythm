@@ -103,7 +103,7 @@ export function useChartLoader({
             duration: safeDuration,
             endTime,
             type: safeDuration > 0 ? 'hold' : 'tap',
-            y: 0,
+            y: -100, // 게임 시작 시 모든 노트는 화면 위에서 시작
             hit: false,
           };
         })

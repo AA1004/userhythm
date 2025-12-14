@@ -53,6 +53,8 @@ interface ChartEditorTimelineProps {
   onMoveUpdate?: (timeOffset: number, laneOffset: number) => void;
   onMoveEnd?: () => void;
   yToTime: (y: number) => number;
+  // 롱노트 모드 관련
+  pendingLongNote?: { lane: Lane; startTime: number } | null;
 }
 
 export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
@@ -74,6 +76,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   timeToY,
   getNoteY,
   currentTime,
+  pendingLongNote,
   bpm,
   bpmChanges,
   beatsPerMeasure,
@@ -449,19 +452,32 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   }, [selectionStartTime, selectionEndTime, timeToY]);
 
   return (
-    <div
-      ref={timelineScrollRef}
-      onClick={onTimelineClick}
-      onMouseDown={handleMouseDown}
-      style={{
-        width: '100%',
-        height: '100%',
-        overflow: 'auto',
-        position: 'relative',
-        background:
-          'radial-gradient(circle at top, rgba(15,23,42,0.9), rgba(15,23,42,1))',
-      }}
-    >
+    <>
+      <style>{`
+        @keyframes pulse {
+          0%, 100% {
+            transform: scale(1);
+            opacity: 1;
+          }
+          50% {
+            transform: scale(1.2);
+            opacity: 0.8;
+          }
+        }
+      `}</style>
+      <div
+        ref={timelineScrollRef}
+        onClick={onTimelineClick}
+        onMouseDown={handleMouseDown}
+        style={{
+          width: '100%',
+          height: '100%',
+          overflow: 'auto',
+          position: 'relative',
+          background:
+            'radial-gradient(circle at top, rgba(15,23,42,0.9), rgba(15,23,42,1))',
+        }}
+      >
       {/* 타임라인 컨텐츠 */}
       <div
         style={{
@@ -606,6 +622,31 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
             </div>
           );
         })}
+
+        {/* 롱노트 시작점 마커 */}
+        {pendingLongNote && (() => {
+          const startY = timeToY(pendingLongNote.startTime);
+          const laneCenter = LANE_POSITIONS[pendingLongNote.lane];
+          return (
+            <div
+              key="pending-long-note-marker"
+              style={{
+                position: 'absolute',
+                left: `${laneCenter - 8}px`,
+                top: `${startY - 8}px`,
+                width: '16px',
+                height: '16px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #38bdf8, #818cf8)',
+                border: '2px solid #ffffff',
+                boxShadow: '0 0 12px rgba(56, 189, 248, 0.8), 0 0 24px rgba(56, 189, 248, 0.4)',
+                zIndex: 20,
+                pointerEvents: 'none',
+                animation: 'pulse 1.5s ease-in-out infinite',
+              }}
+            />
+          );
+        })()}
 
         {/* 판정선 (타임라인 하단에 고정) */}
         <div
@@ -788,5 +829,6 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
         </div>
       </div>
     </div>
+    </>
   );
 };

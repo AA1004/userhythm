@@ -20,6 +20,9 @@ interface SettingsModalProps {
   // BGA 관련
   isBgaEnabled: boolean;
   onBgaChange: (enabled: boolean) => void;
+  // 판정선 위치 관련
+  judgeLineY: number;
+  onJudgeLineYChange: (y: number) => void;
   // 역할 표시
   currentRoleLabel: string;
 }
@@ -39,6 +42,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onNoteSpeedChange,
   isBgaEnabled,
   onBgaChange,
+  judgeLineY,
+  onJudgeLineYChange,
   currentRoleLabel,
 }) => {
   const [isSavingNickname, setIsSavingNickname] = useState(false);
@@ -272,6 +277,41 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               배경 영상 표시
             </span>
           </label>
+        </div>
+
+        {/* 판정선 위치 설정 */}
+        <div style={{ marginBottom: '24px' }}>
+          <h3 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px', marginBottom: '8px' }}>
+            판정선 위치: {judgeLineY}px
+          </h3>
+          <div style={{ position: 'relative', padding: '0 8px' }}>
+            <input
+              type="range"
+              min="200"
+              max="800"
+              step="10"
+              value={judgeLineY}
+              onChange={(e) => onJudgeLineYChange(parseInt(e.target.value))}
+              style={{
+                width: '100%',
+                accentColor: CHART_EDITOR_THEME.accent,
+              }}
+            />
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              color: CHART_EDITOR_THEME.textSecondary, 
+              fontSize: '11px',
+              marginTop: '4px',
+            }}>
+              <span>200px (위)</span>
+              <span>500px</span>
+              <span>800px (아래)</span>
+            </div>
+          </div>
+          <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginTop: '6px' }}>
+            판정선을 위로 올리면 노트가 더 빨리 도착합니다.
+          </p>
         </div>
 
         {/* 역할 표시 */}

@@ -5,6 +5,8 @@ import {
   KEY_BINDINGS_STORAGE_KEY,
   NOTE_SPEED_STORAGE_KEY,
   BGA_ENABLED_STORAGE_KEY,
+  JUDGE_LINE_Y_STORAGE_KEY,
+  JUDGE_LINE_Y,
 } from '../constants/gameConstants';
 import { profileAPI, UserProfile } from '../lib/supabaseClient';
 
@@ -40,6 +42,8 @@ export interface UseGameSettingsReturn {
   setNoteSpeed: (speed: number) => void;
   isBgaEnabled: boolean;
   setIsBgaEnabled: (enabled: boolean) => void;
+  judgeLineY: number;
+  setJudgeLineY: (y: number) => void;
   nextDisplayNameChangeAt: Date | null;
   setNextDisplayNameChangeAt: (date: Date | null) => void;
   handleDisplayNameSave: () => Promise<void>;
@@ -88,6 +92,16 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
     const stored = safeReadLocalStorage(BGA_ENABLED_STORAGE_KEY);
     return stored === 'true';
   });
+  const [judgeLineY, setJudgeLineY] = useState<number>(() => {
+    const stored = safeReadLocalStorage(JUDGE_LINE_Y_STORAGE_KEY);
+    if (stored) {
+      const parsed = parseFloat(stored);
+      if (!isNaN(parsed) && parsed >= 200 && parsed <= 800) {
+        return parsed;
+      }
+    }
+    return JUDGE_LINE_Y;
+  });
   const [nextDisplayNameChangeAt, setNextDisplayNameChangeAt] = useState<Date | null>(null);
 
   // 설정 로컬 스토리지 저장
@@ -106,6 +120,10 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
   useEffect(() => {
     safeWriteLocalStorage(BGA_ENABLED_STORAGE_KEY, String(isBgaEnabled));
   }, [isBgaEnabled]);
+
+  useEffect(() => {
+    safeWriteLocalStorage(JUDGE_LINE_Y_STORAGE_KEY, String(judgeLineY));
+  }, [judgeLineY]);
 
   // 프로필에서 displayName 동기화
   useEffect(() => {
@@ -167,6 +185,8 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
     setNoteSpeed,
     isBgaEnabled,
     setIsBgaEnabled,
+    judgeLineY,
+    setJudgeLineY,
     nextDisplayNameChangeAt,
     setNextDisplayNameChangeAt,
     handleDisplayNameSave,

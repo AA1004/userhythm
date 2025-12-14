@@ -1,11 +1,11 @@
 import { useEffect, useRef, useMemo } from 'react';
 import { GameState, Note } from '../types/game';
 import { judgeConfig } from '../config/judgeConfig';
-import { NOTE_VISIBILITY_BUFFER_MS } from '../constants/gameConstants';
 
 const GAME_HEIGHT = 800;
 const BASE_FALL_DURATION = 2000; // 기본 노트가 떨어지는 시간 (ms)
 const JUDGE_LINE_Y = 640; // 판정선 위치
+const NOTE_SPAWN_Y = -100; // 화면 위(오프스크린)에서 노트가 시작하는 y
 
 export function useGameLoop(
   gameState: GameState,
@@ -47,16 +47,15 @@ export function useGameLoop(
       let missedInFrame: Note[] = [];
 
       // 화면에 보이는 노트 범위 계산
-      // 노트가 화면 위에서 보이기 시작: elapsedTime - fallDuration - 여유분
-      // 노트가 miss 처리되는 시간: elapsedTime + missThreshold
-      const visibleTimeWindow = fallDuration + NOTE_VISIBILITY_BUFFER_MS; // 화면 위에서 보이기 시작하는 시간
+      // 노트가 화면 위에서 보이기 시작: elapsedTime - fallDuration - 200ms (여유분)
+      // 노트가 miss 처리되는 시간: elapsedTime + 150ms
+      const visibleTimeWindow = fallDuration + 200; // 화면 위에서 보이기 시작하는 시간
 
       setGameState((prev: GameState) => {
         let missCount = 0;
-        let hasChanges = false;
 
         const updatedNotes = prev.notes.map((note) => {
-          // 이미 hit된 노트는 계산하지 않음 (그대로 유지 - 불변성 유지)
+          // 이미 hit된 노트는 계산하지 않음 (그대로 유지)
           if (note.hit) {
             return note;
           }
@@ -65,12 +64,7 @@ export function useGameLoop(
           
           // 화면 밖 노트 (너무 위에 있어서 아직 보이지 않음) - 계산 스킵
           if (timeUntilHit > visibleTimeWindow) {
-            // y가 이미 -100이면 변경 없음
-            if (note.y === -100) {
-              return note;
-            }
-            hasChanges = true;
-            return { ...note, y: -100 };
+            return { ...note, y: NOTE_SPAWN_Y };
           }
 
           // 화면 내 노트 또는 miss 체크가 필요한 노트만 계산
@@ -83,32 +77,27 @@ export function useGameLoop(
           if (timeUntilMiss < -missThreshold) {
             missCount++;
             missedInFrame.push(note);
-            hasChanges = true;
             return { ...note, hit: true, y: JUDGE_LINE_Y + 50 };
           }
 
           // 화면 내 노트의 위치 계산
-          const progress = 1 - timeUntilHit / fallDuration;
-          const y = Math.max(-100, Math.min(GAME_HEIGHT, progress * JUDGE_LINE_Y));
-          
-          // y 값이 변경되지 않았으면 같은 참조 반환 (불변성 유지, 성능 최적화)
-          if (note.y === y) {
-            return note;
+          // 노트가 처음 화면에 나타날 때는 항상 화면 위(NOTE_SPAWN_Y)에서 시작해야 함
+          // timeUntilHit >= fallDuration이면 아직 화면 위에 있어야 함
+          if (timeUntilHit >= fallDuration) {
+            return { ...note, y: NOTE_SPAWN_Y };
           }
-          
-          hasChanges = true;
-          return { ...note, y };
-        });
 
-        // 변경사항이 없고 miss도 없으면 이전 상태 반환 (불필요한 리렌더링 방지)
-        // 고주사율 모니터(165Hz+)에서도 불필요한 업데이트 방지
-        if (!hasChanges && missCount === 0) {
-          // currentTime이 1ms 미만 차이면 업데이트 스킵 (고주사율 최적화)
-          const timeDiff = Math.abs(prev.currentTime - elapsedTime);
-          if (timeDiff < 1) {
-            return prev;
-          }
-        }
+          // timeUntilHit < fallDuration이면 이미 화면에 나타나야 하므로 정상 계산
+          // 하지만 노트가 처음 나타날 때는 항상 progress = 0이 되도록 보장
+          // 즉, timeUntilHit을 fallDuration으로 클램핑하여 progress 계산
+          const effectiveTimeUntilHit = Math.min(timeUntilHit, fallDuration);
+          const progress = 1 - effectiveTimeUntilHit / fallDuration;
+          // 중요: progress=0일 때 y가 NOTE_SPAWN_Y(-100)가 되도록 매핑해야
+          // speed(=fallDuration)에 따라 "처음 보이는 위치"가 달라지는 버그가 사라짐.
+          const y = NOTE_SPAWN_Y + progress * (JUDGE_LINE_Y - NOTE_SPAWN_Y);
+
+          return { ...note, y: Math.max(NOTE_SPAWN_Y, Math.min(GAME_HEIGHT, y)) };
+        });
 
         if (missCount > 0) {
           return {

@@ -90,7 +90,7 @@ export function useTestSession({
         notes: preparedNotes.map((note, index) => ({
           ...note,
           id: index + 1,
-          y: 0,
+          y: -100, // 게임 시작 시 모든 노트는 화면 위에서 시작
           hit: false,
         })),
         score: buildInitialScore(),

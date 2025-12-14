@@ -184,14 +184,14 @@ export const api = {
 
   async updateNotice(title: string, content: string) {
     try {
-      const res = await fetch(`${API_BASE}/api/notice`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ title, content }),
-      });
+    const res = await fetch(`${API_BASE}/api/notice`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ title, content }),
+    });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
         const error = new Error(errorData.error || errorData.message || 'Failed to update notice');
@@ -200,7 +200,7 @@ export const api = {
         (error as any).code = errorData.code;
         throw error;
       }
-      return toJson(res) as Promise<ApiNotice>;
+    return toJson(res) as Promise<ApiNotice>;
     } catch (error: any) {
       // 네트워크 에러 처리 (CORS, 연결 실패 등)
       if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {
@@ -233,14 +233,14 @@ export const api = {
 
   async updateVersion(version: string, changelog: string[]) {
     try {
-      const res = await fetch(`${API_BASE}/api/version`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ version, changelog }),
-      });
+    const res = await fetch(`${API_BASE}/api/version`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ version, changelog }),
+    });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
         const error = new Error(errorData.error || errorData.message || 'Failed to update version');
@@ -249,7 +249,7 @@ export const api = {
         (error as any).code = errorData.code;
         throw error;
       }
-      return toJson(res) as Promise<ApiVersion>;
+    return toJson(res) as Promise<ApiVersion>;
     } catch (error: any) {
       // 네트워크 에러 처리 (CORS, 연결 실패 등)
       if (error.name === 'TypeError' && (error.message.includes('fetch') || error.message.includes('Failed to fetch'))) {

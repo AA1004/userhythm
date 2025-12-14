@@ -57,9 +57,6 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
       // hit된 노트는 건너뛰기
       if (note.hit) continue;
       
-      // 화면 밖 노트는 건너뛰기 (y가 -100이면 이미 게임 루프에서 처리됨)
-      if (note.y === -100) continue;
-      
       // 노트가 화면에 보이는 범위인지 확인
       const noteEndTime = note.endTime || note.time;
       if (

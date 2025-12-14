@@ -1,14 +1,14 @@
 ﻿import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Note, BPMChange, TimeSignatureEvent, ChartTestPayload, SubtitleEditorChartData, Lane, SpeedChange, BgaVisibilityInterval, BgaVisibilityMode } from '../types/game';
 import { ChartEditorHeader } from './ChartEditor/ChartEditorHeader';
-import { ChartEditorSidebar } from './ChartEditor/ChartEditorSidebar';
+import { ChartEditorSidebarLeft } from './ChartEditor/ChartEditorSidebarLeft';
 import { ChartEditorTimeline } from './ChartEditor/ChartEditorTimeline';
 import { ChartShareModal } from './ChartEditor/ChartShareModal';
 import { useChartYoutubePlayer } from '../hooks/useChartYoutubePlayer';
 import { useChartTimeline } from '../hooks/useChartTimeline';
 import { useChartAutosave } from '../hooks/useChartAutosave';
 import { TapBPMCalculator, isValidBPM } from '../utils/bpmAnalyzer';
-import { calculateTotalBeatsWithChanges, formatSongLength } from '../utils/bpmUtils';
+import { calculateTotalBeatsWithChanges, formatSongLength, timeToMeasure, beatIndexToTime, timeToBeatIndex } from '../utils/bpmUtils';
 import { chartAPI, supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import {
   AUTO_SAVE_KEY,
@@ -558,7 +558,37 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
 
     if (Array.isArray(data.notes)) {
-      const restoredNotes = data.notes;
+      // 복원 시 잘못된 롱노트 검증 및 수정
+      const restoredNotes = data.notes.map((note: Note) => {
+        // 롱노트 검증: duration이 0 이하이거나 endTime이 time보다 작거나 같으면 탭 노트로 변환
+        if (note.type === 'hold' || note.duration > 0) {
+          if (note.duration <= 0 || (note.endTime !== undefined && note.endTime <= note.time)) {
+            return {
+              ...note,
+              type: 'tap' as const,
+              duration: 0,
+              endTime: note.time,
+            };
+          }
+          // 최소 길이 미만이면 탭 노트로 변환
+          if (note.duration < MIN_LONG_NOTE_DURATION) {
+            return {
+              ...note,
+              type: 'tap' as const,
+              duration: 0,
+              endTime: note.time,
+            };
+          }
+          // endTime이 올바르게 설정되지 않은 경우 수정
+          if (!note.endTime || note.endTime <= note.time) {
+            return {
+              ...note,
+              endTime: note.time + note.duration,
+            };
+          }
+        }
+        return note;
+      });
       setNotes(restoredNotes);
       // 히스토리 초기화
       notesHistoryRef.current = [[...restoredNotes]];
@@ -1030,13 +1060,26 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
   // 노트 추가/삭제
   const addNote = useCallback((lane: Lane, time: number, type: 'tap' | 'hold' = 'tap', duration: number = 0) => {
+    // 롱노트 검증: duration이 0 이하이거나 endTime이 time보다 작거나 같으면 탭 노트로 변환
+    if (type === 'hold') {
+      if (duration <= 0 || time + duration <= time) {
+        // 잘못된 롱노트는 탭 노트로 변환
+        type = 'tap';
+        duration = 0;
+      } else if (duration < MIN_LONG_NOTE_DURATION) {
+        // 최소 길이 미만이면 탭 노트로 변환
+        type = 'tap';
+        duration = 0;
+      }
+    }
+    
     const newNote: Note = {
       id: noteIdRef.current++,
       lane,
       time,
       type,
-      duration,
-      endTime: time + duration,
+      duration: type === 'hold' ? duration : 0,
+      endTime: type === 'hold' ? time + duration : time,
       y: 0, // 렌더링 시 계산
       hit: false,
     };
@@ -1092,10 +1135,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     
       if (isLongNoteMode) {
       if (pendingLongNote && pendingLongNote.lane === lane) {
+        // 같은 레인에서 롱노트 완성
         const startTime = snapToGrid(Math.min(pendingLongNote.startTime, time));
         const endTime = snapToGrid(Math.max(pendingLongNote.startTime, time));
             const duration = endTime - startTime;
-        if (duration > MIN_LONG_NOTE_DURATION) {
+        if (duration >= MIN_LONG_NOTE_DURATION) {
           // 롱노트도 중복 체크 (같은 레인에서 시간이 겹치는 노트가 있는지)
           const hasHoldDuplicate = notes.some((note) => {
             if (note.lane !== lane) return false;
@@ -1113,10 +1157,18 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           }
             }
             setPendingLongNote(null);
+          } else if (pendingLongNote && pendingLongNote.lane !== lane) {
+        // 다른 레인을 클릭하면 기존 pendingLongNote 취소하고 새로 시작
+        setPendingLongNote({ lane, startTime: time });
           } else {
+        // 첫 번째 클릭: 롱노트 시작점 설정
         setPendingLongNote({ lane, startTime: time });
           }
         } else {
+      // 롱노트 모드가 아니면 pendingLongNote 초기화하고 탭 노트 추가
+      if (pendingLongNote) {
+        setPendingLongNote(null);
+      }
       addNote(lane, time);
     }
   }, [addNote, snapToGrid, currentTime, isLongNoteMode, pendingLongNote, setPendingLongNote, notes]);
@@ -1481,6 +1533,20 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         return;
       }
       
+      // Space: 롱노트 모드 토글
+      if (e.key === ' ' || e.key === 'Space') {
+        e.preventDefault();
+        setIsLongNoteMode(prev => {
+          const newMode = !prev;
+          // 롱노트 모드를 끄면 pendingLongNote 초기화
+          if (!newMode && pendingLongNote) {
+            setPendingLongNote(null);
+          }
+          return newMode;
+        });
+        return;
+      }
+      
       const key = e.key.toLowerCase();
       if (KEY_TO_LANE[key as keyof typeof KEY_TO_LANE] !== undefined) {
         e.preventDefault();
@@ -1579,8 +1645,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           boxShadow: CHART_EDITOR_THEME.shadowSoft,
         }}
       >
-        {/* Sidebar */}
-        <ChartEditorSidebar
+        {/* Left Sidebar */}
+        <ChartEditorSidebarLeft
           zoom={zoom}
           onZoomChange={setZoom}
           playbackSpeed={playbackSpeed}
@@ -1599,54 +1665,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           onTimeSignatureOffsetChange={setTimeSignatureOffset}
           onTimelineExtraChange={(updater) => setTimelineExtraMs((prev) => updater(prev))}
           beatDuration={beatDuration}
-          isLongNoteMode={isLongNoteMode}
-          onToggleLongNoteMode={() => setIsLongNoteMode(prev => !prev)}
-          isSelectionMode={isSelectionMode}
-          onToggleSelectionMode={() => {
-            setIsSelectionMode(prev => !prev);
-            // 선택 모드를 끌 때 선택 영역 초기화
-            if (isSelectionMode) {
-              setSelectionStartTime(null);
-              setSelectionEndTime(null);
-            }
-          }}
-          isMoveMode={isMoveMode}
-          onToggleMoveMode={() => {
-            setIsMoveMode(prev => !prev);
-          }}
-          onMirrorNotes={handleMirrorNotes}
-          testStartInput={testStartInput}
-          onTestStartInputChange={setTestStartInput}
-          onSetTestStartToCurrent={() => setTestStartInput(Math.floor(currentTime).toString())}
-          onSetTestStartToZero={() => setTestStartInput('0')}
-          onTestChart={() => {
-            if (onTest) {
-                onTest({
-                    notes,
-                    startTimeMs: parseInt(testStartInput) || 0,
-                    youtubeVideoId,
-                    youtubeUrl,
-                    playbackSpeed,
-                audioOffsetMs: 0,
-                bpm,
-                speedChanges,
-                bgaVisibilityIntervals,
-                chartId: subtitleSessionId,
-                });
-            }
-          }}
-          onShareClick={() => setIsShareModalOpen(true)}
-          currentTimeMs={currentTime}
-          speedChanges={speedChanges}
-          onAddSpeedChangeAtCurrent={handleAddSpeedChangeAtCurrent}
-          onUpdateSpeedChange={handleUpdateSpeedChange}
-          onDeleteSpeedChange={handleDeleteSpeedChange}
-          bpm={bpm}
-          bpmChanges={sortedBpmChanges}
-          bgaVisibilityIntervals={bgaVisibilityIntervals}
-          onAddBgaInterval={handleAddBgaInterval}
-          onUpdateBgaInterval={handleUpdateBgaInterval}
-          onDeleteBgaInterval={handleDeleteBgaInterval}
         />
 
         {/* Main Timeline Canvas */}
@@ -1698,6 +1716,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                  onMoveUpdate={handleMoveUpdate}
                  onMoveEnd={handleMoveEnd}
                  yToTime={yToTime}
+                 pendingLongNote={pendingLongNote}
             />
             
             {/* Hidden Youtube Player */}
@@ -1712,6 +1731,810 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                     zIndex: -1 
                 }}
             />
+        </div>
+
+        {/* Right Sidebar */}
+        <div
+          style={{
+            width: '240px',
+            backgroundColor: CHART_EDITOR_THEME.sidebarBackground,
+            padding: '10px 8px',
+            borderLeft: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            color: CHART_EDITOR_THEME.textPrimary,
+          }}
+        >
+          <h3
+            style={{
+              marginTop: 0,
+              marginBottom: '8px',
+              fontSize: '14px',
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              color: CHART_EDITOR_THEME.textSecondary,
+            }}
+          >
+            편집
+          </h3>
+          
+          {/* 롱노트 모드 */}
+          <div
+            style={{
+              marginBottom: '10px',
+              padding: '6px 8px',
+              borderRadius: CHART_EDITOR_THEME.radiusMd,
+              backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            }}
+          >
+            <button
+              onClick={(e) => {
+                setIsLongNoteMode(prev => {
+                  const newMode = !prev;
+                  // 롱노트 모드를 끄면 pendingLongNote 초기화
+                  if (!newMode && pendingLongNote) {
+                    setPendingLongNote(null);
+                  }
+                  return newMode;
+                });
+                e.currentTarget.blur();
+              }}
+              onMouseDown={(e) => e.preventDefault()}
+              style={{
+                width: '100%',
+                padding: '6px 8px',
+                borderRadius: CHART_EDITOR_THEME.radiusMd,
+                border: `1px solid ${
+                  isLongNoteMode ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.borderSubtle
+                }`,
+                background: isLongNoteMode
+                  ? 'linear-gradient(135deg, rgba(56,189,248,0.2), rgba(56,189,248,0.05))'
+                  : 'transparent',
+                color: isLongNoteMode ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.textPrimary,
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              롱노트 모드
+            </button>
+          </div>
+
+          {/* 선택 모드 */}
+          <div
+            style={{
+              marginBottom: '10px',
+              padding: '6px 8px',
+              borderRadius: CHART_EDITOR_THEME.radiusMd,
+              backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            }}
+          >
+            <button
+              onClick={(e) => {
+                setIsSelectionMode(prev => {
+                  if (prev) {
+                    setSelectionStartTime(null);
+                    setSelectionEndTime(null);
+                  }
+                  return !prev;
+                });
+                e.currentTarget.blur();
+              }}
+              onMouseDown={(e) => e.preventDefault()}
+              style={{
+                width: '100%',
+                padding: '6px 8px',
+                borderRadius: CHART_EDITOR_THEME.radiusMd,
+                border: `1px solid ${
+                  isSelectionMode ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.borderSubtle
+                }`,
+                background: isSelectionMode
+                  ? 'linear-gradient(135deg, rgba(59,130,246,0.2), rgba(59,130,246,0.05))'
+                  : 'transparent',
+                color: isSelectionMode ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.textPrimary,
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              영역 선택 모드
+            </button>
+          </div>
+
+          {/* 선택 영역 이동 모드 */}
+          <div
+            style={{
+              marginBottom: '10px',
+              padding: '6px 8px',
+              borderRadius: CHART_EDITOR_THEME.radiusMd,
+              backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            }}
+          >
+            <button
+              onClick={(e) => {
+                setIsMoveMode(prev => !prev);
+                e.currentTarget.blur();
+              }}
+              onMouseDown={(e) => e.preventDefault()}
+              style={{
+                width: '100%',
+                padding: '6px 8px',
+                borderRadius: CHART_EDITOR_THEME.radiusMd,
+                border: `1px solid ${
+                  isMoveMode ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.borderSubtle
+                }`,
+                background: isMoveMode
+                  ? 'linear-gradient(135deg, rgba(34,197,94,0.2), rgba(34,197,94,0.05))'
+                  : 'transparent',
+                color: isMoveMode ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.textPrimary,
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                marginBottom: '6px',
+              }}
+            >
+              선택 영역 이동 모드
+            </button>
+            <button
+              onClick={(e) => {
+                handleMirrorNotes();
+                e.currentTarget.blur();
+              }}
+              onMouseDown={(e) => e.preventDefault()}
+              style={{
+                width: '100%',
+                padding: '6px 8px',
+                borderRadius: CHART_EDITOR_THEME.radiusMd,
+                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                background: 'transparent',
+                color: CHART_EDITOR_THEME.textPrimary,
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = CHART_EDITOR_THEME.buttonGhostBg;
+                e.currentTarget.style.borderColor = CHART_EDITOR_THEME.accentStrong;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.borderColor = CHART_EDITOR_THEME.borderSubtle;
+              }}
+            >
+              🔄 선대칭 반전
+            </button>
+          </div>
+
+          {/* 변속 (Speed Changes) */}
+          <div
+            style={{
+              marginBottom: '12px',
+              padding: '8px',
+              backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+              borderRadius: CHART_EDITOR_THEME.radiusMd,
+              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '6px',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 600,
+                }}
+              >
+                변속 구간
+              </span>
+              <button
+                onClick={handleAddSpeedChangeAtCurrent}
+                style={{
+                  padding: '3px 6px',
+                  fontSize: '10px',
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
+                  backgroundColor: 'rgba(34,211,238,0.12)',
+                  color: CHART_EDITOR_THEME.accentStrong,
+                  cursor: 'pointer',
+                }}
+              >
+                + 추가
+              </button>
+            </div>
+            <div
+              style={{
+                fontSize: '10px',
+                color: CHART_EDITOR_THEME.textSecondary,
+                marginBottom: '4px',
+              }}
+            >
+              기준 BPM은 상단 BPM 입력값이며, 변속 구간 BPM은 절대값입니다.
+            </div>
+            {speedChanges.length === 0 ? (
+              <div
+                style={{
+                  fontSize: '11px',
+                  color: CHART_EDITOR_THEME.textMuted,
+                }}
+              >
+                아직 변속 구간이 없습니다.
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  maxHeight: 140,
+                  overflowY: 'auto',
+                }}
+              >
+                {speedChanges.map((sc) => {
+                  const startMeasure = timeToMeasure(sc.startTimeMs, bpm, sortedBpmChanges, beatsPerMeasure);
+                  const endMeasure = sc.endTimeMs == null ? null : timeToMeasure(sc.endTimeMs, bpm, sortedBpmChanges, beatsPerMeasure);
+                  const isCurrent =
+                    currentTime >= sc.startTimeMs &&
+                    (sc.endTimeMs == null || currentTime < sc.endTimeMs);
+                  return (
+                    <div
+                      key={sc.id}
+                      style={{
+                        padding: '6px',
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                        border: `1px solid ${
+                          isCurrent
+                            ? CHART_EDITOR_THEME.accentStrong
+                            : CHART_EDITOR_THEME.borderSubtle
+                        }`,
+                        backgroundColor: isCurrent
+                          ? 'rgba(34,211,238,0.12)'
+                          : 'transparent',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '3px',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: '6px',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            color: CHART_EDITOR_THEME.textSecondary,
+                          }}
+                        >
+                          시작
+                        </span>
+                        <input
+                          type="number"
+                          min={1}
+                          step={1}
+                          value={startMeasure}
+                          onChange={(e) => {
+                            const measure = Math.max(1, parseInt(e.target.value || '1'));
+                            const beatIdx = (measure - 1) * beatsPerMeasure;
+                            const timeMs = beatIndexToTime(beatIdx, bpm, sortedBpmChanges);
+                            handleUpdateSpeedChange(sc.id, {
+                              startTimeMs: timeMs,
+                            });
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: '2px 4px',
+                            fontSize: '11px',
+                            backgroundColor: '#020617',
+                            color: CHART_EDITOR_THEME.textPrimary,
+                            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                            borderRadius: CHART_EDITOR_THEME.radiusSm,
+                          }}
+                        />
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            color: CHART_EDITOR_THEME.textSecondary,
+                          }}
+                        >
+                          마디
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: '6px',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            color: CHART_EDITOR_THEME.textSecondary,
+                          }}
+                        >
+                          끝
+                        </span>
+                        <input
+                          type="number"
+                          min={1}
+                          step={1}
+                          value={endMeasure || ''}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            if (!raw) {
+                              handleUpdateSpeedChange(sc.id, { endTimeMs: null });
+                              return;
+                            }
+                            const measure = Math.max(1, parseInt(raw));
+                            const beatIdx = (measure - 1) * beatsPerMeasure;
+                            const timeMs = beatIndexToTime(beatIdx, bpm, sortedBpmChanges);
+                            handleUpdateSpeedChange(sc.id, { endTimeMs: timeMs });
+                          }}
+                          placeholder="끝까지"
+                          style={{
+                            flex: 1,
+                            padding: '2px 4px',
+                            fontSize: '11px',
+                            backgroundColor: '#020617',
+                            color: CHART_EDITOR_THEME.textPrimary,
+                            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                            borderRadius: CHART_EDITOR_THEME.radiusSm,
+                          }}
+                        />
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            color: CHART_EDITOR_THEME.textSecondary,
+                          }}
+                        >
+                          마디
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          gap: '6px',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            color: CHART_EDITOR_THEME.textSecondary,
+                          }}
+                        >
+                          BPM
+                        </span>
+                        <input
+                          type="number"
+                          min={1}
+                          value={sc.bpm}
+                          onChange={(e) =>
+                            handleUpdateSpeedChange(sc.id, {
+                              bpm: Math.max(1, parseFloat(e.target.value || '1')),
+                            })
+                          }
+                          style={{
+                            flex: 1,
+                            padding: '2px 4px',
+                            fontSize: '11px',
+                            backgroundColor: '#020617',
+                            color: CHART_EDITOR_THEME.textPrimary,
+                            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                            borderRadius: CHART_EDITOR_THEME.radiusSm,
+                          }}
+                        />
+                        <button
+                          onClick={() => handleDeleteSpeedChange(sc.id)}
+                          style={{
+                            padding: '2px 6px',
+                            fontSize: '10px',
+                            borderRadius: CHART_EDITOR_THEME.radiusSm,
+                            border: 'none',
+                            backgroundColor: 'rgba(248,113,113,0.18)',
+                            color: '#fecaca',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 채보 레인 숨김 구간 */}
+          <div
+            style={{
+              marginBottom: '12px',
+              padding: '8px',
+              backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+              borderRadius: CHART_EDITOR_THEME.radiusMd,
+              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <span style={{ fontSize: 12, fontWeight: 600 }}>간주 구간 (채보 레인 숨김)</span>
+              <button
+                onClick={handleAddBgaInterval}
+                style={{
+                  padding: '2px 6px',
+                  fontSize: '10px',
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
+                  backgroundColor: 'rgba(34,211,238,0.12)',
+                  color: CHART_EDITOR_THEME.accentStrong,
+                  cursor: 'pointer',
+                }}
+              >
+                +
+              </button>
+            </div>
+            {bgaVisibilityIntervals.length === 0 ? (
+              <div style={{ fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>구간 없음</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 140, overflowY: 'auto' }}>
+                {bgaVisibilityIntervals.map((it) => {
+                  const startBeatIdx = timeToBeatIndex(it.startTimeMs, bpm, sortedBpmChanges);
+                  const endBeatIdx = timeToBeatIndex(it.endTimeMs, bpm, sortedBpmChanges);
+                  
+                  const startMeasureNum = Math.floor(startBeatIdx / beatsPerMeasure);
+                  const startBeat = Math.floor(startBeatIdx % beatsPerMeasure) + 1;
+                  const endMeasureNum = Math.floor(endBeatIdx / beatsPerMeasure);
+                  const endBeat = Math.floor(endBeatIdx % beatsPerMeasure) + 1;
+
+                  return (
+                    <div
+                      key={it.id}
+                      style={{
+                        padding: '6px',
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                        border: `1px solid ${it.mode === 'hidden' ? 'rgba(239,68,68,0.4)' : 'rgba(34,197,94,0.4)'}`,
+                        backgroundColor: 'rgba(15,23,42,0.4)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                        <input
+                          type="text"
+                          placeholder="마디"
+                          value={startMeasureNum + 1}
+                          onChange={(e) => {
+                            const m = Math.max(0, (parseInt(e.target.value) || 1) - 1);
+                            const beatIdx = m * beatsPerMeasure + (startBeat - 1);
+                            const newMs = beatIndexToTime(beatIdx, bpm, sortedBpmChanges);
+                            handleUpdateBgaInterval(it.id, { startTimeMs: newMs });
+                          }}
+                          style={{
+                            width: 32,
+                            padding: '3px 4px',
+                            fontSize: 11,
+                            textAlign: 'center',
+                            backgroundColor: '#020617',
+                            color: CHART_EDITOR_THEME.textPrimary,
+                            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                            borderRadius: CHART_EDITOR_THEME.radiusSm,
+                          }}
+                        />
+                        <span style={{ fontSize: 11, color: CHART_EDITOR_THEME.textSecondary }}>.</span>
+                        <input
+                          type="text"
+                          placeholder="박"
+                          value={startBeat}
+                          onChange={(e) => {
+                            const b = Math.max(1, Math.min(beatsPerMeasure, parseInt(e.target.value) || 1));
+                            const beatIdx = startMeasureNum * beatsPerMeasure + (b - 1);
+                            const newMs = beatIndexToTime(beatIdx, bpm, sortedBpmChanges);
+                            handleUpdateBgaInterval(it.id, { startTimeMs: newMs });
+                          }}
+                          style={{
+                            width: 28,
+                            padding: '3px 4px',
+                            fontSize: 11,
+                            textAlign: 'center',
+                            backgroundColor: '#020617',
+                            color: CHART_EDITOR_THEME.textPrimary,
+                            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                            borderRadius: CHART_EDITOR_THEME.radiusSm,
+                          }}
+                        />
+                        <span style={{ fontSize: 11, color: CHART_EDITOR_THEME.textMuted, margin: '0 2px' }}>~</span>
+                        <input
+                          type="text"
+                          placeholder="마디"
+                          value={endMeasureNum + 1}
+                          onChange={(e) => {
+                            const m = Math.max(0, (parseInt(e.target.value) || 1) - 1);
+                            const beatIdx = m * beatsPerMeasure + (endBeat - 1);
+                            const newMs = beatIndexToTime(beatIdx, bpm, sortedBpmChanges);
+                            handleUpdateBgaInterval(it.id, { endTimeMs: newMs });
+                          }}
+                          style={{
+                            width: 32,
+                            padding: '3px 4px',
+                            fontSize: 11,
+                            textAlign: 'center',
+                            backgroundColor: '#020617',
+                            color: CHART_EDITOR_THEME.textPrimary,
+                            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                            borderRadius: CHART_EDITOR_THEME.radiusSm,
+                          }}
+                        />
+                        <span style={{ fontSize: 11, color: CHART_EDITOR_THEME.textSecondary }}>.</span>
+                        <input
+                          type="text"
+                          placeholder="박"
+                          value={endBeat}
+                          onChange={(e) => {
+                            const b = Math.max(1, Math.min(beatsPerMeasure, parseInt(e.target.value) || 1));
+                            const beatIdx = endMeasureNum * beatsPerMeasure + (b - 1);
+                            const newMs = beatIndexToTime(beatIdx, bpm, sortedBpmChanges);
+                            handleUpdateBgaInterval(it.id, { endTimeMs: newMs });
+                          }}
+                          style={{
+                            width: 28,
+                            padding: '3px 4px',
+                            fontSize: 11,
+                            textAlign: 'center',
+                            backgroundColor: '#020617',
+                            color: CHART_EDITOR_THEME.textPrimary,
+                            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                            borderRadius: CHART_EDITOR_THEME.radiusSm,
+                          }}
+                        />
+                        <div style={{ flex: 1 }} />
+                        <button
+                          onClick={() => handleDeleteBgaInterval(it.id)}
+                          style={{
+                            fontSize: 11,
+                            padding: '2px 6px',
+                            borderRadius: CHART_EDITOR_THEME.radiusSm,
+                            border: `1px solid ${CHART_EDITOR_THEME.danger}`,
+                            backgroundColor: 'rgba(239,68,68,0.12)',
+                            color: CHART_EDITOR_THEME.danger,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <button
+                          onClick={() => handleUpdateBgaInterval(it.id, { mode: it.mode === 'hidden' ? 'visible' : 'hidden' })}
+                          style={{
+                            fontSize: 10,
+                            padding: '2px 6px',
+                            borderRadius: CHART_EDITOR_THEME.radiusSm,
+                            border: `1px solid ${it.mode === 'hidden' ? 'rgba(239,68,68,0.6)' : 'rgba(34,197,94,0.6)'}`,
+                            backgroundColor: it.mode === 'hidden' ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)',
+                            color: it.mode === 'hidden' ? '#fca5a5' : '#86efac',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {it.mode === 'hidden' ? '레인 숨김' : '레인 표시'}
+                        </button>
+                        <span style={{ fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>F-in</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={Math.round(it.fadeInMs ?? 0)}
+                          onChange={(e) =>
+                            handleUpdateBgaInterval(it.id, { fadeInMs: Math.max(0, Number(e.target.value) || 0) })
+                          }
+                          style={{
+                            width: 42,
+                            padding: '2px 4px',
+                            fontSize: 10,
+                            textAlign: 'center',
+                            backgroundColor: '#020617',
+                            color: CHART_EDITOR_THEME.textPrimary,
+                            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                            borderRadius: CHART_EDITOR_THEME.radiusSm,
+                          }}
+                        />
+                        <span style={{ fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>F-out</span>
+                        <input
+                          type="number"
+                          min={0}
+                          value={Math.round(it.fadeOutMs ?? 0)}
+                          onChange={(e) =>
+                            handleUpdateBgaInterval(it.id, { fadeOutMs: Math.max(0, Number(e.target.value) || 0) })
+                          }
+                          style={{
+                            width: 42,
+                            padding: '2px 4px',
+                            fontSize: 10,
+                            textAlign: 'center',
+                            backgroundColor: '#020617',
+                            color: CHART_EDITOR_THEME.textPrimary,
+                            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                            borderRadius: CHART_EDITOR_THEME.radiusSm,
+                          }}
+                        />
+                        <button
+                          onClick={() => handleUpdateBgaInterval(it.id, { fadeInMs: 0, fadeOutMs: 0 })}
+                          title="페이드 제거 (하드컷)"
+                          style={{
+                            fontSize: 10,
+                            padding: '2px 6px',
+                            borderRadius: CHART_EDITOR_THEME.radiusSm,
+                            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                            backgroundColor: 'rgba(148,163,184,0.12)',
+                            color: CHART_EDITOR_THEME.textSecondary,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          즉시
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 테스트 시작 위치 */}
+          <div
+            style={{
+              marginBottom: '12px',
+              padding: '8px',
+              backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+              borderRadius: CHART_EDITOR_THEME.radiusMd,
+              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            }}
+          >
+            <label
+              style={{
+                display: 'block',
+                marginBottom: '4px',
+                fontSize: '12px',
+                fontWeight: 600,
+              }}
+            >
+              테스트 시작 위치
+            </label>
+            <input
+              type="text"
+              value={testStartInput}
+              onChange={(e) => setTestStartInput(e.target.value)}
+              placeholder="ms"
+              style={{
+                width: '100%',
+                padding: '4px 6px',
+                backgroundColor: '#020617',
+                color: CHART_EDITOR_THEME.textPrimary,
+                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                borderRadius: CHART_EDITOR_THEME.radiusSm,
+                marginBottom: '6px',
+                fontSize: '12px',
+              }}
+            />
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                onClick={() => setTestStartInput(Math.floor(currentTime).toString())}
+                style={{
+                  flex: 1,
+                  padding: '4px',
+                  backgroundColor: 'rgba(34,211,238,0.14)',
+                  color: CHART_EDITOR_THEME.accentStrong,
+                  border: 'none',
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                }}
+              >
+                현재 위치
+              </button>
+              <button
+                onClick={() => setTestStartInput('0')}
+                style={{
+                  flex: 1,
+                  padding: '4px',
+                  backgroundColor: 'rgba(148,163,184,0.14)',
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  border: 'none',
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                }}
+              >
+                0
+              </button>
+            </div>
+            <button
+              onClick={() => {
+            if (onTest) {
+                // 테스트 실행 전 잘못된 롱노트 필터링 및 수정
+                const validatedNotes = notes.map((note) => {
+                  // 롱노트 검증: duration이 0 이하이거나 endTime이 time보다 작거나 같으면 탭 노트로 변환
+                  if (note.type === 'hold' || note.duration > 0) {
+                    if (note.duration <= 0 || note.endTime <= note.time) {
+                      return {
+                        ...note,
+                        type: 'tap' as const,
+                        duration: 0,
+                        endTime: note.time,
+                      };
+                    }
+                    // 최소 길이 미만이면 탭 노트로 변환
+                    if (note.duration < MIN_LONG_NOTE_DURATION) {
+                      return {
+                        ...note,
+                        type: 'tap' as const,
+                        duration: 0,
+                        endTime: note.time,
+                      };
+                    }
+                  }
+                  return note;
+                });
+                
+                onTest({
+                    notes: validatedNotes,
+                    startTimeMs: parseInt(testStartInput) || 0,
+                    youtubeVideoId,
+                    youtubeUrl,
+                    playbackSpeed: 1, // 테스트 시 항상 1.0배속으로 강제
+                audioOffsetMs: 0,
+                bpm,
+                speedChanges,
+                    bgaVisibilityIntervals,
+                chartId: subtitleSessionId,
+                });
+            }
+          }}
+              style={{
+                width: '100%',
+                marginTop: '6px',
+                padding: '6px',
+                background:
+                  'linear-gradient(135deg, #22c55e, #4ade80)',
+                color: '#022c22',
+                border: 'none',
+                borderRadius: CHART_EDITOR_THEME.radiusMd,
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '12px',
+              }}
+            >
+              테스트 실행
+            </button>
+          </div>
+
+          {/* 공유 버튼 */}
+          <button
+            onClick={() => setIsShareModalOpen(true)}
+            style={{
+              width: '100%',
+              padding: '6px',
+              background:
+                'linear-gradient(135deg, #38bdf8, #818cf8)',
+              color: '#0b1120',
+              border: 'none',
+              borderRadius: CHART_EDITOR_THEME.radiusLg,
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '12px',
+            }}
+          >
+            공유
+          </button>
         </div>
       </div>
 
