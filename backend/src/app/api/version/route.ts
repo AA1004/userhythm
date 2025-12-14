@@ -104,29 +104,82 @@ export async function POST(req: NextRequest) {
       hasUrSession: !!req.cookies.get('ur_session'),
     });
     
+    const urSessionCookie = req.cookies.get('ur_session');
+    
+    console.log('Version update request:', {
+      hasSession: !!session,
+      sessionRole: session?.role,
+      sessionUserId: session?.userId,
+      cookieNames: cookies.map(c => c.name),
+      hasUrSession: !!urSessionCookie,
+      urSessionValue: urSessionCookie ? `${urSessionCookie.value.substring(0, 20)}...` : 'none',
+      requestHeaders: {
+        host: req.headers.get('host'),
+        origin: req.headers.get('origin'),
+        referer: req.headers.get('referer'),
+        cookie: req.headers.get('cookie') ? 'present' : 'missing',
+      },
+    });
+    
     if (!session) {
       console.warn('Version update unauthorized: No session', {
         cookieNames: cookies.map(c => c.name),
-        allCookies: cookies,
+        cookieValues: cookies.map(c => ({ name: c.name, value: c.value.substring(0, 20) + '...' })),
+        urSessionCookie: urSessionCookie ? urSessionCookie.value.substring(0, 20) + '...' : 'missing',
+        requestHeaders: {
+          host: req.headers.get('host'),
+          origin: req.headers.get('origin'),
+          cookie: req.headers.get('cookie'),
+        },
       });
       return NextResponse.json({ 
         error: 'unauthorized',
         message: '세션이 없습니다. 로그인이 필요합니다.',
-        details: 'Please log in first'
+        details: 'Please log in first. Check if ur_session cookie is being sent.'
       }, { status: 401 });
     }
     
-    if (session.role !== 'admin') {
+    // DB에서 실제 role 확인 (세션의 role과 일치하는지 확인)
+    let dbUser = null;
+    try {
+      dbUser = await prisma.user.findUnique({
+        where: { id: session.userId },
+        include: { profile: true },
+      });
+    } catch (dbError) {
+      console.error('Failed to fetch user from DB:', dbError);
+    }
+    
+    const effectiveRole = dbUser?.profile?.role || dbUser?.role || session.role;
+    
+    console.log('Role check:', {
+      userId: session.userId,
+      sessionRole: session.role,
+      dbUserRole: dbUser?.role,
+      dbProfileRole: dbUser?.profile?.role,
+      effectiveRole,
+    });
+    
+    // effectiveRole이 admin이 아니면 거부
+    if (effectiveRole !== 'admin') {
       console.warn('Version update unauthorized: Not admin', {
         userId: session.userId,
-        role: session.role,
+        sessionRole: session.role,
+        dbUserRole: dbUser?.role,
+        dbProfileRole: dbUser?.profile?.role,
+        effectiveRole,
         expectedRole: 'admin',
       });
       return NextResponse.json({ 
         error: 'unauthorized',
         message: '관리자 권한이 필요합니다.',
-        details: `Current role: ${session.role}, Required: admin`
+        details: `Session role: ${session.role}, DB role: ${dbUser?.role || 'N/A'}, Profile role: ${dbUser?.profile?.role || 'N/A'}, Effective: ${effectiveRole}, Required: admin`
       }, { status: 401 });
+    }
+    
+    // 세션 role이 admin이 아니지만 DB에서 admin인 경우 경고 (권한은 허용)
+    if (effectiveRole === 'admin' && session.role !== 'admin') {
+      console.warn('Session role mismatch: session has', session.role, 'but DB has', effectiveRole, '- user needs to re-login');
     }
 
     const body = await req.json();
