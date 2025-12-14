@@ -105,6 +105,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [dragOffset, setDragOffset] = useState<{ time: number; lane: number } | null>(null);
   const isSelectingRef = useRef(false);
   const dragStartRef = useRef<{ time: number; lane: number } | null>(null);
+  const marqueeInitialSelectedIdsRef = useRef<Set<number>>(new Set());
+  const marqueeOperationRef = useRef<'replace' | 'add' | 'toggle'>('replace');
   
   // --- 실행 취소/다시 실행 상태 ---
   const notesHistoryRef = useRef<Note[][]>([[]]);
@@ -807,28 +809,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
   // --- 복사/붙여넣기 핸들러 ---
   const handleCopySelection = useCallback(() => {
-    if (selectionStartTime === null || selectionEndTime === null) return;
-    
-    const startTime = Math.min(selectionStartTime, selectionEndTime);
-    const endTime = Math.max(selectionStartTime, selectionEndTime);
-    
-    // 선택된 시간 범위 내의 노트들 필터링
-    let selectedNotes = notes.filter(
-      (note) => note.time >= startTime && note.time < endTime
-    );
-    
-    // 특정 레인에서 드래그를 시작했으면 해당 레인의 노트만 필터링
-    if (selectedLane !== null) {
-      selectedNotes = selectedNotes.filter((note) => note.lane === selectedLane);
-    }
+    // 마퀴 선택은 selectedNoteIds를 기준으로 동작
+    const selectedNotes = notes.filter((note) => selectedNoteIds.has(note.id));
     
     if (selectedNotes.length === 0) {
       return;
     }
-    
-    // 선택된 노트 ID 저장
-    const noteIds = new Set(selectedNotes.map(n => n.id));
-    setSelectedNoteIds(noteIds);
     
     // 노트들의 시간을 상대 시간으로 변환 (첫 노트 시간을 0으로)
     const minTime = Math.min(...selectedNotes.map((n) => n.time));
@@ -838,7 +824,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }));
     
     setCopiedNotes(copiedNotesWithRelativeTime);
-  }, [selectionStartTime, selectionEndTime, notes, selectedLane]);
+  }, [notes, selectedNoteIds]);
 
   const handlePasteNotes = useCallback(() => {
     if (copiedNotes.length === 0) {
@@ -864,26 +850,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     dragStartRef.current = { time, lane: lane ?? 0 };
     setDragOffset({ time: 0, lane: 0 });
     
-    // 선택 영역이 있으면 항상 선택 영역의 모든 노트를 사용
-    if (selectionStartTime !== null && selectionEndTime !== null) {
-      const startTime = Math.min(selectionStartTime, selectionEndTime);
-      const endTime = Math.max(selectionStartTime, selectionEndTime);
-      let selectedNotes = notes.filter(
-        (note) => note.time >= startTime && note.time < endTime
-      );
-      if (selectedLane !== null) {
-        selectedNotes = selectedNotes.filter((note) => note.lane === selectedLane);
-      }
-      const noteIds = new Set(selectedNotes.map(n => n.id));
-      if (noteIds.size > 0) {
-        setSelectedNoteIds(noteIds);
-      }
-    } else if (selectedNoteIds.size === 0 && noteId !== undefined) {
+    // 선택된 노트가 없고 클릭한 노트가 있으면 클릭 노트만 선택
+    if (selectedNoteIds.size === 0 && noteId !== undefined) {
       // 선택 영역이 없고 선택된 노트도 없으면 클릭한 노트만 선택
       setSelectedNoteIds(new Set([noteId]));
     }
     // 선택 영역이 없고 이미 선택된 노트가 있으면 그대로 유지
-  }, [selectedNoteIds, selectionStartTime, selectionEndTime, selectedLane, notes]);
+  }, [selectedNoteIds]);
   
   const handleMoveUpdate = useCallback((timeOffset: number, laneOffset: number) => {
     setDragOffset({ time: timeOffset, lane: laneOffset });
@@ -920,23 +893,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         return sortedNotes;
       });
       
-      // 선택 영역도 함께 이동 (그리드에 스냅)
-      if (selectionStartTime !== null && selectionEndTime !== null) {
-        const newStartTime = snapToGrid(Math.max(0, selectionStartTime + currentDragOffset.time));
-        const newEndTime = snapToGrid(Math.max(0, selectionEndTime + currentDragOffset.time));
-        setSelectionStartTime(newStartTime);
-        setSelectionEndTime(newEndTime);
-      }
-      
-      // 이동 후에는 선택 상태를 유지하지 않고 해제
-      // 새로운 선택 영역을 만들 수 있도록 선택 해제
-      setSelectedNoteIds(new Set());
+      // 이동 후에도 선택 상태를 유지 (윈도우 방식)
     } else {
       // 드래그 오프셋이 없거나 선택된 노트가 없으면 오프셋만 초기화
       setDragOffset(null);
       dragStartRef.current = null;
     }
-  }, [dragOffset, selectedNoteIds, selectionStartTime, selectionEndTime, saveToHistory, snapToGrid]);
+  }, [dragOffset, selectedNoteIds, saveToHistory, snapToGrid]);
 
   const handleClearSelection = useCallback(() => {
     setSelectionStartTime(null);
@@ -973,35 +936,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     });
   }, [selectedNoteIds, saveToHistory]);
   
-  // 선택 영역이 변경될 때마다 선택된 노트 ID 업데이트
-  useEffect(() => {
-    if (selectionStartTime === null || selectionEndTime === null) {
-      // 선택 모드가 꺼져있을 때만 선택 해제
-      if (!isSelectionMode) {
-        setSelectedNoteIds(new Set());
-      }
-      return;
-    }
-    
-    // 새로운 선택 영역이 만들어지면 항상 업데이트 (이동 모드여도 새 선택은 반영)
-    const startTime = Math.min(selectionStartTime, selectionEndTime);
-    const endTime = Math.max(selectionStartTime, selectionEndTime);
-    
-    // 선택된 시간 범위 내의 노트들 필터링
-    let selectedNotes = notes.filter(
-      (note) => note.time >= startTime && note.time < endTime
-    );
-    
-    // 특정 레인에서 드래그를 시작했으면 해당 레인의 노트만 필터링
-    if (selectedLane !== null) {
-      selectedNotes = selectedNotes.filter((note) => note.lane === selectedLane);
-    }
-    
-    // 선택된 노트 ID 저장 (새로운 선택 영역에 맞게 업데이트)
-    const noteIds = new Set(selectedNotes.map(n => n.id));
-    setSelectedNoteIds(noteIds);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectionStartTime, selectionEndTime, selectedLane, isSelectionMode]);
+  // 마퀴 선택 도입 후: 선택 집합은 드래그 박스(hit-test) 결과(selectedNoteIds)로만 관리합니다.
+  // (시간 범위 기반 자동 선택은 마퀴와 충돌하므로 제거)
 
   // 키보드 단축키 (Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y, ESC)
   useEffect(() => {
@@ -1023,7 +959,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       
       // Ctrl+C: 복사
       if (e.ctrlKey && e.key === 'c' && !e.shiftKey && !e.altKey) {
-        if (selectionStartTime !== null && selectionEndTime !== null) {
+        if (selectedNoteIds.size > 0) {
           e.preventDefault();
           handleCopySelection();
         }
@@ -1041,7 +977,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       
       // ESC: 선택 해제
       if (e.key === 'Escape') {
-        if (selectionStartTime !== null || selectionEndTime !== null) {
+        if (selectedNoteIds.size > 0 || selectionStartTime !== null || selectionEndTime !== null) {
           e.preventDefault();
           handleClearSelection();
         }
@@ -1053,7 +989,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [selectionStartTime, selectionEndTime, copiedNotes, handleCopySelection, handlePasteNotes, handleClearSelection, handleUndo, handleRedo]);
+  }, [selectionStartTime, selectionEndTime, selectedNoteIds, copiedNotes, handleCopySelection, handlePasteNotes, handleClearSelection, handleUndo, handleRedo]);
 
 
   // --- 핸들러들 ---
@@ -1700,6 +1636,34 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                  dragOffset={dragOffset}
                  selectionStartTime={selectionStartTime}
                  selectionEndTime={selectionEndTime}
+                 onMarqueeStart={(operation) => {
+                   marqueeOperationRef.current = operation;
+                   marqueeInitialSelectedIdsRef.current = new Set(selectedNoteIds);
+                 }}
+                 onMarqueeUpdate={(rectSelectedIds) => {
+                   const op = marqueeOperationRef.current;
+                   const initial = marqueeInitialSelectedIdsRef.current;
+                   let next = new Set<number>();
+
+                   if (op === 'replace') {
+                     next = new Set(rectSelectedIds);
+                   } else if (op === 'add') {
+                     next = new Set(initial);
+                     rectSelectedIds.forEach((id) => next.add(id));
+                   } else {
+                     // toggle (symmetric difference)
+                     next = new Set(initial);
+                     rectSelectedIds.forEach((id) => {
+                       if (next.has(id)) next.delete(id);
+                       else next.add(id);
+                     });
+                   }
+
+                   setSelectedNoteIds(next);
+                 }}
+                 onMarqueeEnd={() => {
+                   // noop: selection 유지
+                 }}
                  onSelectionStart={(time, lane) => {
                    setSelectionStartTime(time);
                    setSelectionEndTime(time);

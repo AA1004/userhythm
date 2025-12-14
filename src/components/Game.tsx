@@ -111,9 +111,17 @@ export const Game: React.FC = () => {
     containerRef: gameContainerRef,
   });
 
-  // BGA 마스크 훅
+  // 현재 게임 시간(ms)을 자막/채보 타임라인 시간(절대 시간)으로 변환
+  // 테스트 시작 위치(startTimeMs)를 더해서 절대 시간으로 변환
+  // 이렇게 해야 자막/BGA가 올바른 시간에 표시됨
+  const currentChartTimeMs = useMemo(
+    () => Math.max(0, gameState.currentTime + (testAudioSettingsRef.current?.startTimeMs ?? 0)),
+    [gameState.currentTime]
+  );
+
+  // BGA 마스크 훅 - 절대 시간 사용
   const { setIntervals: setBgaVisibilityIntervals, maskOpacity: bgaMaskOpacity } = useBgaMask({
-    currentTime: gameState.currentTime,
+    currentTime: currentChartTimeMs,
   });
 
   // gameState를 ref로 유지하여 최신 값을 항상 참조
@@ -157,12 +165,6 @@ export const Game: React.FC = () => {
   );
 
   useGameLoop(gameState, setGameState, handleNoteMiss, speed, START_DELAY_MS);
-
-  // 현재 게임 시간(ms)을 자막/채보 타임라인 시간으로 변환
-  const currentChartTimeMs = useMemo(
-    () => Math.max(0, gameState.currentTime),
-    [gameState.currentTime]
-  );
 
   // 자막 훅
   const {

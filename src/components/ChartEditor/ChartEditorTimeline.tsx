@@ -49,6 +49,10 @@ interface ChartEditorTimelineProps {
   onSelectionStart?: (timeMs: number, lane: Lane | null) => void;
   onSelectionUpdate?: (timeMs: number) => void;
   onSelectionEnd?: () => void;
+  // 마퀴(드래그 박스) 선택 관련
+  onMarqueeStart?: (operation: 'replace' | 'add' | 'toggle') => void;
+  onMarqueeUpdate?: (selectedIds: Set<number>) => void;
+  onMarqueeEnd?: () => void;
   onMoveStart?: (timeMs: number, lane: Lane | null, noteId?: number) => void;
   onMoveUpdate?: (timeOffset: number, laneOffset: number) => void;
   onMoveEnd?: () => void;
@@ -91,6 +95,9 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   onSelectionStart,
   onSelectionUpdate,
   onSelectionEnd,
+  onMarqueeStart,
+  onMarqueeUpdate,
+  onMarqueeEnd,
   onMoveStart,
   onMoveUpdate,
   onMoveEnd,
@@ -221,6 +228,67 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
     [preparedNotes, paddedTop, paddedBottom]
   );
 
+  // -----------------------------
+  // 마퀴(드래그 박스) 선택 상태
+  // -----------------------------
+  const [marqueeRect, setMarqueeRect] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const marqueeStartRef = useRef<{ x: number; y: number } | null>(null);
+  const marqueeOpRef = useRef<'replace' | 'add' | 'toggle'>('replace');
+
+  const normalizeRect = useCallback((x1: number, y1: number, x2: number, y2: number) => {
+    const left = Math.min(x1, x2);
+    const top = Math.min(y1, y2);
+    const width = Math.abs(x2 - x1);
+    const height = Math.abs(y2 - y1);
+    return { left, top, width, height };
+  }, []);
+
+  const rectIntersects = useCallback(
+    (
+      a: { left: number; top: number; width: number; height: number },
+      b: { left: number; top: number; width: number; height: number }
+    ) => {
+      const aRight = a.left + a.width;
+      const aBottom = a.top + a.height;
+      const bRight = b.left + b.width;
+      const bBottom = b.top + b.height;
+      return a.left < bRight && aRight > b.left && a.top < bBottom && aBottom > b.top;
+    },
+    []
+  );
+
+  const computeMarqueeSelectedIds = useCallback(
+    (rect: { left: number; top: number; width: number; height: number }) => {
+      const ids = new Set<number>();
+
+      // selectionRect는 timelineContentRef 좌표계이므로, 노트 박스도 같은 좌표계로 계산
+      for (const n of preparedNotes) {
+        const lane = n.note.lane;
+        const laneCenter = LANE_POSITIONS[lane];
+        const noteLeft = laneCenter - NOTE_HALF;
+        const noteTop = n.topPosition;
+        const noteBox = {
+          left: noteLeft,
+          top: noteTop,
+          width: NOTE_WIDTH,
+          height: n.noteHeight,
+        };
+
+        if (rectIntersects(rect, noteBox)) {
+          ids.add(n.note.id);
+        }
+      }
+
+      return ids;
+    },
+    [preparedNotes, rectIntersects]
+  );
+
   const visibleSpeedChanges = useMemo(
     () =>
       speedChanges
@@ -346,30 +414,30 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
     
     if (!timelineContentRef.current) return;
     const rect = timelineContentRef.current.getBoundingClientRect();
-    const y = e.clientY - rect.top;
     const x = e.clientX - rect.left;
-    const time = yToTime(y);
-    
-    // X 좌표로 레인 감지
-    let detectedLane: Lane | null = null;
-    const relativeX = x - rect.left;
-    for (let i = 0; i < LANE_POSITIONS.length; i++) {
-      const laneCenter = LANE_POSITIONS[i];
-      const laneLeft = laneCenter - LANE_WIDTH / 2;
-      const laneRight = laneCenter + LANE_WIDTH / 2;
-      if (relativeX >= laneLeft && relativeX < laneRight) {
-        detectedLane = i as Lane;
-        break;
-      }
-    }
-    
+    const y = e.clientY - rect.top;
+
+    // modifier는 mousedown 시점으로 고정
+    const op: 'replace' | 'add' | 'toggle' =
+      e.ctrlKey ? 'toggle' : e.shiftKey ? 'add' : 'replace';
+    marqueeOpRef.current = op;
+
     isDraggingSelectionRef.current = true;
+    marqueeStartRef.current = { x, y };
+
+    const normalized = normalizeRect(x, y, x, y);
+    setMarqueeRect(normalized);
+
+    if (onMarqueeStart) onMarqueeStart(op);
+    if (onMarqueeUpdate) onMarqueeUpdate(computeMarqueeSelectedIds(normalized));
+
+    // 기존 API(시간 선택)는 일단 유지하되, 드래그 박스 모드에서는 lane 제한을 사용하지 않음
     if (onSelectionStart) {
-      onSelectionStart(time, detectedLane);
+      onSelectionStart(yToTime(y), null);
     }
     
     e.preventDefault();
-  }, [isSelectionMode, isMoveMode, selectedNoteIds, yToTime, onSelectionStart, onMoveStart, timelineContentRef]);
+  }, [isSelectionMode, isMoveMode, selectedNoteIds, yToTime, onSelectionStart, onMoveStart, timelineContentRef, normalizeRect, onMarqueeStart, onMarqueeUpdate, computeMarqueeSelectedIds]);
   
   const handleMouseMove = useCallback((e: MouseEvent) => {
     // 이동 모드 드래그 처리
@@ -399,16 +467,23 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
       return;
     }
     
-    // 선택 모드 드래그 처리
-    if (!isDraggingSelectionRef.current || !onSelectionUpdate) return;
+    // 선택 모드 드래그 처리 (마퀴 선택은 onSelectionUpdate 없이도 동작)
+    if (!isDraggingSelectionRef.current) return;
     if (!timelineContentRef.current) return;
     
     const rect = timelineContentRef.current.getBoundingClientRect();
     const y = e.clientY - rect.top;
-    const time = yToTime(y);
-    
-    onSelectionUpdate(time);
-  }, [yToTime, onSelectionUpdate, onMoveUpdate, timelineContentRef]);
+    const x = e.clientX - rect.left;
+
+    const start = marqueeStartRef.current;
+    if (start) {
+      const normalized = normalizeRect(start.x, start.y, x, y);
+      setMarqueeRect(normalized);
+      if (onMarqueeUpdate) onMarqueeUpdate(computeMarqueeSelectedIds(normalized));
+    }
+
+    if (onSelectionUpdate) onSelectionUpdate(yToTime(y));
+  }, [yToTime, onSelectionUpdate, onMoveUpdate, timelineContentRef, normalizeRect, onMarqueeUpdate, computeMarqueeSelectedIds]);
   
   const handleMouseUp = useCallback(() => {
     if (isDraggingMoveRef.current) {
@@ -422,6 +497,9 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
       onSelectionEnd();
     }
     isDraggingSelectionRef.current = false;
+    marqueeStartRef.current = null;
+    setMarqueeRect(null);
+    if (onMarqueeEnd) onMarqueeEnd();
   }, [onSelectionEnd, onMoveEnd]);
   
   useEffect(() => {
@@ -435,21 +513,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
     }
   }, [handleMouseMove, handleMouseUp]);
 
-  // 선택 영역 렌더링 계산
-  const selectionBox = useMemo(() => {
-    if (selectionStartTime == null || selectionEndTime == null) return null;
-    
-    const startTime = Math.min(selectionStartTime, selectionEndTime);
-    const endTime = Math.max(selectionStartTime, selectionEndTime);
-    
-    const startY = timeToY(startTime);
-    const endY = timeToY(endTime);
-    
-    return {
-      top: Math.min(startY, endY),
-      height: Math.abs(endY - startY),
-    };
-  }, [selectionStartTime, selectionEndTime, timeToY]);
+  // 기존 세로 선택(selectionBox)은 마퀴 선택으로 대체됨
 
   return (
     <>
@@ -499,6 +563,24 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
             height: '100%',
         }}
       >
+        {/* 마퀴(드래그 박스) 선택 오버레이 */}
+        {isSelectionMode && marqueeRect && (
+          <div
+            style={{
+              position: 'absolute',
+              left: `${marqueeRect.left}px`,
+              top: `${marqueeRect.top}px`,
+              width: `${marqueeRect.width}px`,
+              height: `${marqueeRect.height}px`,
+              border: '2px solid rgba(96, 165, 250, 0.95)',
+              backgroundColor: 'rgba(96, 165, 250, 0.18)',
+              boxShadow: '0 0 12px rgba(96, 165, 250, 0.25)',
+              borderRadius: '6px',
+              pointerEvents: 'none',
+              zIndex: 900,
+            }}
+          />
+        )}
          {/* 레인 배경 */}
          {LANE_POSITIONS.map((x, index) => (
            <div
@@ -764,23 +846,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
           );
         })}
 
-        {/* 선택 영역 */}
-        {selectionBox && (
-          <div
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: `${selectionBox.top}px`,
-              width: `${CONTENT_WIDTH}px`,
-              height: `${selectionBox.height}px`,
-              backgroundColor: 'rgba(59, 130, 246, 0.2)',
-              border: '2px dashed rgba(59, 130, 246, 0.6)',
-              borderRadius: 4,
-              pointerEvents: 'none',
-              zIndex: 5,
-            }}
-          />
-        )}
+        {/* (removed) 세로 선택 영역 */}
 
         {/* 재생선 */}
         <div
