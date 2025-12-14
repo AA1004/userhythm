@@ -85,6 +85,8 @@ export const Game: React.FC = () => {
     setNoteSpeed,
     isBgaEnabled,
     setIsBgaEnabled,
+    judgeLineY,
+    setJudgeLineY,
     nextDisplayNameChangeAt,
     handleDisplayNameSave,
     handleKeyBindingChange,
@@ -602,6 +604,8 @@ export const Game: React.FC = () => {
         onNoteSpeedChange={setNoteSpeed}
         isBgaEnabled={isBgaEnabled}
         onBgaChange={setIsBgaEnabled}
+        judgeLineY={judgeLineY}
+        onJudgeLineYChange={setJudgeLineY}
         currentRoleLabel={currentRoleLabel}
       />
     </VideoRhythmLayout>
