@@ -126,7 +126,8 @@ export async function GET(req: NextRequest) {
       secure: isProd,
       path: '/',
       maxAge: SESSION_MAX_AGE_SEC,
-      domain: COOKIE_DOMAIN || undefined,
+      // 프로덕션에서는 .userhythm.kr 형태로 설정하여 모든 서브도메인에서 사용 가능하도록
+      domain: COOKIE_DOMAIN || (isProd ? '.userhythm.kr' : undefined),
     });
     
     return response;

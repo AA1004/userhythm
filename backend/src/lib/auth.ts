@@ -18,6 +18,9 @@ export const signSession = (payload: SessionPayload) =>
 
 export const setSessionCookie = (token: string) => {
   const cookieStore = cookies();
+  // 프로덕션에서는 .userhythm.kr 형태로 설정하여 모든 서브도메인에서 사용 가능하도록
+  const cookieDomain = COOKIE_DOMAIN || (isProd ? '.userhythm.kr' : undefined);
+  
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
     // 서로 다른 서브도메인(userhythm.kr vs api.userhythm.kr) 간 쿠키 전달을 위해 None/secure 사용
@@ -25,19 +28,29 @@ export const setSessionCookie = (token: string) => {
     secure: isProd,
     path: '/',
     maxAge: SESSION_MAX_AGE_SEC,
-    domain: COOKIE_DOMAIN || undefined,
+    domain: cookieDomain,
+  });
+  
+  console.log('Session cookie set:', {
+    domain: cookieDomain,
+    sameSite: isProd ? 'none' : 'lax',
+    secure: isProd,
+    isProd,
   });
 };
 
 export const clearSessionCookie = () => {
   const cookieStore = cookies();
+  // 프로덕션에서는 .userhythm.kr 형태로 설정하여 모든 서브도메인에서 사용 가능하도록
+  const cookieDomain = COOKIE_DOMAIN || (isProd ? '.userhythm.kr' : undefined);
+  
   cookieStore.set(SESSION_COOKIE, '', {
     httpOnly: true,
     sameSite: isProd ? 'none' : 'lax',
     secure: isProd,
     path: '/',
     maxAge: 0,
-    domain: COOKIE_DOMAIN || undefined,
+    domain: cookieDomain,
   });
 };
 
