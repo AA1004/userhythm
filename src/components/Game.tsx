@@ -493,8 +493,9 @@ export const Game: React.FC = () => {
         videoId={backgroundVideoId}
         bgaEnabled={isBgaEnabled}
         shouldPlayBga={shouldPlayBga}
-      bgaCurrentSeconds={bgaCurrentSeconds ?? undefined}
-    >
+        bgaCurrentSeconds={bgaCurrentSeconds ?? undefined}
+        bgaMaskOpacity={bgaMaskOpacity}
+      >
       {/* 게임 + 자막 wrapper (자막이 게임 바깥으로 나갈 수 있도록) */}
       <div
         style={{

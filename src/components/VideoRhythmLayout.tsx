@@ -10,6 +10,8 @@ type VideoRhythmLayoutProps = {
   shouldPlayBga?: boolean;
   /** 게임 진행 시간에 맞춘 BGA 재생 위치(초) */
   bgaCurrentSeconds?: number | null;
+  /** 간주 구간 오버레이 투명도 (0~1, 1이면 완전히 간주 구간) */
+  bgaMaskOpacity?: number;
   children: React.ReactNode;
 };
 
@@ -27,6 +29,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   bgaEnabled = true,
   shouldPlayBga = false,
   bgaCurrentSeconds = null,
+  bgaMaskOpacity = 0,
   children,
 }) => {
   const backgroundPlayerContainerRef = useRef<HTMLDivElement | null>(null);
@@ -226,16 +229,19 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       )}
 
       {/* 배경 위에 덮는 그라디언트/딤 레이어 (가독성 확보용) */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          zIndex: 1,
-          background: videoId && bgaEnabled
-            ? 'radial-gradient(circle at top, rgba(15,23,42,0.35), rgba(15,23,42,0.92))'
-            : CHART_EDITOR_THEME.backgroundGradient,
-        }}
-      />
+      {/* 간주 구간(bgaMaskOpacity >= 1)에서는 완전히 숨김 */}
+      {bgaMaskOpacity < 1 && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 1,
+            background: videoId && bgaEnabled
+              ? 'radial-gradient(circle at top, rgba(15,23,42,0.35), rgba(15,23,42,0.92))'
+              : CHART_EDITOR_THEME.backgroundGradient,
+          }}
+        />
+      )}
 
       {/* 실제 게임/채보/자막 오버레이 콘텐츠 */}
       <div
