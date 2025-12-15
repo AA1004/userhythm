@@ -51,16 +51,21 @@ export const GameMenu: React.FC<GameMenuProps> = ({
         alignItems: 'center',
         justifyContent: 'center',
         pointerEvents: 'none',
+        zIndex: 1001, // 사이드바(zIndex: 1000) 위에 표시
       }}
     >
       <div
         style={{
           width: '100%',
           maxWidth: 520,
-          padding: '0 24px',
+          padding: '32px 24px',
           boxSizing: 'border-box',
           textAlign: 'center',
           pointerEvents: 'auto',
+          backgroundColor: 'rgba(11, 17, 32, 0.95)', // 배경 추가로 선명하게
+          borderRadius: CHART_EDITOR_THEME.radiusLg,
+          boxShadow: CHART_EDITOR_THEME.shadowSoft,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
         }}
       >
         {/* 히어로 영역 */}
