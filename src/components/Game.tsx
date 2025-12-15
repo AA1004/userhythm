@@ -318,9 +318,22 @@ export const Game: React.FC = () => {
   // 에디터 닫기 핸들러
   const handleEditorCancel = useCallback(() => {
     setIsTestMode(false);
+    setIsFromEditor(false);
     testPreparedNotesRef.current = [];
+    testAudioSettingsRef.current = null;
+    setTestYoutubeVideoId(null);
+    setSubtitles([]);
+    destroyYoutubePlayer();
+    setGameState((prev) => ({
+      ...prev,
+      gameStarted: false,
+      gameEnded: false,
+      currentTime: 0,
+      notes: [],
+      score: buildInitialScore(),
+    }));
     setViewMode({ type: 'menu' });
-  }, []);
+  }, [destroyYoutubePlayer, setSubtitles]);
 
   // 채보 로더 훅
   const { loadChart: handleChartSelect } = useChartLoader({
@@ -507,12 +520,13 @@ export const Game: React.FC = () => {
             style={{
               width: '100%',
               height: '100%',
-              backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+              backgroundColor: bgaMaskOpacity >= 1 ? 'transparent' : CHART_EDITOR_THEME.surfaceElevated,
               position: 'relative',
               overflow: 'hidden',
-              borderRadius: CHART_EDITOR_THEME.radiusLg,
-              boxShadow: CHART_EDITOR_THEME.shadowSoft,
-              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+              borderRadius: bgaMaskOpacity >= 1 ? 0 : CHART_EDITOR_THEME.radiusLg,
+              boxShadow: bgaMaskOpacity >= 1 ? 'none' : CHART_EDITOR_THEME.shadowSoft,
+              border: bgaMaskOpacity >= 1 ? 'none' : `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+              transition: 'background-color 80ms linear, border 80ms linear, box-shadow 80ms linear, border-radius 80ms linear',
             }}
           >
         <GamePlayArea
