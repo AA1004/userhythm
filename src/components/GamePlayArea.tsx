@@ -77,7 +77,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
     <>
       {/* 4개 레인 영역 배경 (간주 구간에서는 숨김) */}
       {/* 간주 구간(bgaMaskOpacity >= 1)에서는 완전히 숨김 */}
-      {bgaMaskOpacity < 0.99 && (
+      {bgaMaskOpacity < 1 && (
         <div
           style={{
             position: 'absolute',
@@ -93,7 +93,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
 
       {/* 배경 라인 구분선 - 레인 사이 경계와 양쪽 끝 (간주 구간에서는 숨김) */}
       {/* 간주 구간(bgaMaskOpacity >= 1)에서는 완전히 숨김 */}
-      {bgaMaskOpacity < 0.99 &&
+      {bgaMaskOpacity < 1 &&
         [50, 150, 250, 350, 450].map((x) => (
           <div
             key={x}
@@ -234,21 +234,20 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
 
       {/* 간주 구간 오버레이 (채보 레인 숨김) */}
       {/* 간주 구간에서는 모든 레인 UI를 완전히 가림 */}
-      <div
-        style={{
-          position: 'absolute',
-          left: '50px',
-          top: 0,
-          width: '400px',
-          height: '100%',
-          // 간주 구간(bgaMaskOpacity >= 1)에서는 완전히 불투명하게, 그 외에는 투명도 조절
-          backgroundColor: bgaMaskOpacity >= 1 ? 'rgba(8,12,24,1)' : 'rgba(8,12,24,0.94)',
-          opacity: bgaMaskOpacity >= 1 ? 1 : bgaMaskOpacity,
-          transition: 'opacity 80ms linear',
-          pointerEvents: 'none',
-          zIndex: 1000, // 모든 레인 UI 위에 표시 (KeyLane, 판정선, 노트 등)
-        }}
-      />
+      {bgaMaskOpacity >= 1 && (
+        <div
+          style={{
+            position: 'absolute',
+            left: '50px',
+            top: 0,
+            width: '400px',
+            height: '100%',
+            backgroundColor: 'rgba(8,12,24,1)', // 완전히 불투명
+            pointerEvents: 'none',
+            zIndex: 999, // 나가기 버튼(zIndex: 1000) 아래, 모든 레인 UI 위
+          }}
+        />
+      )}
 
       {/* 판정 피드백 - 4개 레인 영역 중앙에 통합 표시 (개별 애니메이션) */}
       {/* 간주 구간에서는 판정 피드백 숨김 */}
@@ -302,7 +301,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
             borderRadius: CHART_EDITOR_THEME.radiusMd,
             cursor: 'pointer',
             fontWeight: 'bold',
-            zIndex: 1000,
+            zIndex: 1001, // 간주 구간 오버레이(zIndex: 999) 위에 표시
             boxShadow: CHART_EDITOR_THEME.shadowSoft,
             transition: 'all 0.2s',
           }}

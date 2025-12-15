@@ -226,13 +226,16 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       )}
 
       {/* 배경 위에 덮는 그라디언트/딤 레이어 (가독성 확보용) */}
+      {/* 게임 플레이 중(shouldPlayBga)에는 더 밝게, 메뉴 화면에서는 어둡게 */}
       <div
         style={{
           position: 'absolute',
           inset: 0,
           zIndex: 1,
           background: videoId && bgaEnabled
-            ? 'radial-gradient(circle at top, rgba(15,23,42,0.35), rgba(15,23,42,0.92))'
+            ? shouldPlayBga
+              ? 'radial-gradient(circle at top, rgba(15,23,42,0.15), rgba(15,23,42,0.5))' // 게임 중: 더 밝게
+              : 'radial-gradient(circle at top, rgba(15,23,42,0.35), rgba(15,23,42,0.92))' // 메뉴: 어둡게
             : CHART_EDITOR_THEME.backgroundGradient,
         }}
       />
