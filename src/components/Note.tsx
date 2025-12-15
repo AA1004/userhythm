@@ -14,7 +14,6 @@ const NOTE_WIDTH = 90;
 const TAP_HEIGHT = 42;
 const HOLD_MIN_HEIGHT = 60;
 const HOLD_HEAD_HEIGHT = 32;
-const NOTE_SPAWN_Y = -100; // useGameLoop.ts와 동일한 값
 
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
