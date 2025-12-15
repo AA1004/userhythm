@@ -76,7 +76,6 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   return (
     <>
       {/* 4개 레인 영역 배경 (간주 구간에서는 숨김) */}
-      {/* 간주 구간(bgaMaskOpacity >= 1)에서는 완전히 숨김 */}
       {bgaMaskOpacity < 1 && (
         <div
           style={{
@@ -86,13 +85,11 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
             width: '400px',
             height: '100%',
             backgroundColor: 'rgba(15, 23, 42, 0.6)', // 네온 톤의 남색 계열
-            zIndex: 1, // 간주 구간 오버레이보다 아래
           }}
         />
       )}
 
       {/* 배경 라인 구분선 - 레인 사이 경계와 양쪽 끝 (간주 구간에서는 숨김) */}
-      {/* 간주 구간(bgaMaskOpacity >= 1)에서는 완전히 숨김 */}
       {bgaMaskOpacity < 1 &&
         [50, 150, 250, 350, 450].map((x) => (
           <div
@@ -105,7 +102,6 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
               height: '100%',
               backgroundColor: 'rgba(255,255,255,0.1)',
               transform: 'translateX(-50%)',
-              zIndex: 2, // 간주 구간 오버레이보다 아래
             }}
           />
         ))}
@@ -234,20 +230,20 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
 
       {/* 간주 구간 오버레이 (채보 레인 숨김) */}
       {/* 간주 구간에서는 모든 레인 UI를 완전히 가림 */}
-      {bgaMaskOpacity >= 1 && (
-        <div
-          style={{
-            position: 'absolute',
-            left: '50px',
-            top: 0,
-            width: '400px',
-            height: '100%',
-            backgroundColor: 'rgba(8,12,24,1)', // 완전히 불투명
-            pointerEvents: 'none',
-            zIndex: 999, // 나가기 버튼(zIndex: 1000) 아래, 모든 레인 UI 위
-          }}
-        />
-      )}
+      <div
+        style={{
+          position: 'absolute',
+          left: '50px',
+          top: 0,
+          width: '400px',
+          height: '100%',
+          backgroundColor: 'rgba(8,12,24,0.94)',
+          opacity: bgaMaskOpacity,
+          transition: 'opacity 80ms linear',
+          pointerEvents: 'none',
+          zIndex: 1000, // 모든 레인 UI 위에 표시 (KeyLane, 판정선, 노트 등)
+        }}
+      />
 
       {/* 판정 피드백 - 4개 레인 영역 중앙에 통합 표시 (개별 애니메이션) */}
       {/* 간주 구간에서는 판정 피드백 숨김 */}
@@ -301,7 +297,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
             borderRadius: CHART_EDITOR_THEME.radiusMd,
             cursor: 'pointer',
             fontWeight: 'bold',
-            zIndex: 1001, // 간주 구간 오버레이(zIndex: 999) 위에 표시
+            zIndex: 1000,
             boxShadow: CHART_EDITOR_THEME.shadowSoft,
             transition: 'all 0.2s',
           }}
