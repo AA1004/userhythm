@@ -53,8 +53,9 @@ type ViewMode =
 export const Game: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>({ type: 'menu' });
   const [chartListRefreshToken, setChartListRefreshToken] = useState<number>(0);
-  const [baseBpm, setBaseBpm] = useState<number>(120);
-  const [speedChanges, setSpeedChanges] = useState<SpeedChange[]>([]);
+  // Canvas 렌더러로 전환하면서 더 이상 사용하지 않지만, useTestSession에서 설정하므로 유지
+  const [_baseBpm, setBaseBpm] = useState<number>(120);
+  const [_speedChanges, setSpeedChanges] = useState<SpeedChange[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const gameContainerRef = useRef<HTMLDivElement | null>(null);
   const processedMissNotes = useRef<Set<number>>(new Set());
