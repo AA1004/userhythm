@@ -85,7 +85,9 @@ const NoteComponent: React.FC<NoteProps> = ({
     return clamp(y, NOTE_SPAWN_Y, judgeLineY);
   };
 
-  const holdHeadY = headY; // 이미 게임 루프에서 계산된 값 사용
+  // 롱노트의 머리는 판정선 아래로 내려가지 않음 (판정선에 고정)
+  // 이렇게 해야 머리가 판정선에 닿은 후에도 꼬리가 계속 내려옴
+  const holdHeadY = Math.min(headY, judgeLineY);
   const holdTailY = isHoldNote ? computeEndY() : headY;
   const bottomY = Math.max(holdHeadY, holdTailY);
   const spanHeight = Math.abs(holdHeadY - holdTailY);
