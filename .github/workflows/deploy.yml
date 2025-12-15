@@ -27,6 +27,16 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
+      
+      - name: Cache Vite build
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules/.vite
+            dist
+          key: ${{ runner.os }}-vite-${{ hashFiles('**/package-lock.json') }}-${{ hashFiles('**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx') }}
+          restore-keys: |
+            ${{ runner.os }}-vite-${{ hashFiles('**/package-lock.json') }}-
 
       - name: Install dependencies
         run: npm ci
@@ -50,46 +60,20 @@ jobs:
           npm run build
           echo "=== Build Completed ==="
           echo ""
-          echo "=== Immediate Build Verification ==="
+          echo "=== Quick Build Verification ==="
           if [ ! -f dist/index.html ]; then
             echo "❌ CRITICAL: dist/index.html not found after build!"
             exit 1
           fi
-          echo "dist/index.html exists"
-          echo ""
-          echo "=== Checking dist/index.html content ==="
-          cat dist/index.html
-          echo ""
-          echo "=== Checking for /src/main.tsx reference ==="
-          if grep -q "/src/main.tsx" dist/index.html; then
-            echo "❌ CRITICAL ERROR: dist/index.html still references /src/main.tsx!"
-            echo "This means Vite did not properly transform the HTML during build."
-            echo "Build output:"
-            cat dist/index.html
-            exit 1
-          else
-            echo "✅ dist/index.html correctly transformed - no /src/main.tsx found"
-          fi
-          echo ""
-          echo "=== Checking for built JavaScript files ==="
-          if [ ! -d dist/assets ]; then
-            echo "❌ CRITICAL: dist/assets directory not found!"
-            exit 1
-          fi
-          JS_FILES=$(find dist/assets -name "*.js" -type f)
-          if [ -z "$JS_FILES" ]; then
+          if [ ! -d dist/assets ] || [ -z "$(find dist/assets -name '*.js' -type f)" ]; then
             echo "❌ CRITICAL: No JavaScript files found in dist/assets!"
             exit 1
-          else
-            echo "✅ JavaScript files found:"
-            echo "$JS_FILES"
           fi
-          echo ""
-          echo "=== Verifying script tags in index.html ==="
-          if grep -q 'type="module"' dist/index.html; then
-            echo "Module script tags found:"
-            grep 'type="module"' dist/index.html
+          if grep -q "/src/main.tsx" dist/index.html; then
+            echo "❌ CRITICAL ERROR: dist/index.html still references /src/main.tsx!"
+            exit 1
           fi
+          echo "✅ Build verification passed"
         env:
           VITE_API_BASE: ${{ secrets.VITE_API_BASE }}
           VITE_ADMIN_TOKEN: ${{ secrets.VITE_ADMIN_TOKEN }}
@@ -102,48 +86,6 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
-
-      - name: List dist contents
-        run: |
-          echo "=== Dist folder structure ==="
-          find dist -type f -o -type d | sort
-          echo ""
-          echo "=== Dist/index.html ==="
-          cat dist/index.html
-
-      - name: Final verification before upload
-        run: |
-          echo "=== Final verification before upload ==="
-          echo "Checking dist/index.html content:"
-          cat dist/index.html
-          echo ""
-          echo "=== CRITICAL: Checking for /src/main.tsx reference ==="
-          if grep -q "/src/main.tsx" dist/index.html; then
-            echo "❌ CRITICAL ERROR: dist/index.html still has /src/main.tsx!"
-            echo "This should have been caught in the build step. Aborting deployment."
-            exit 1
-          fi
-          echo "✅ No /src/main.tsx found - build is correct"
-          echo ""
-          echo "=== Files to be uploaded ==="
-          find dist -type f | sort
-          echo ""
-          echo "=== Script tags in index.html ==="
-          grep -E '<script[^>]*>' dist/index.html || echo "No script tags found (this is an error!)"
-          echo ""
-          echo "=== Asset file paths in index.html ==="
-          grep -o 'src="[^"]*"' dist/index.html || true
-          grep -o 'href="[^"]*"' dist/index.html || true
-          echo ""
-          echo "=== Verifying JavaScript files exist ==="
-          JS_FILES=$(find dist/assets -name "*.js" -type f | head -5)
-          if [ -z "$JS_FILES" ]; then
-            echo "❌ CRITICAL: No JavaScript files found!"
-            exit 1
-          else
-            echo "✅ JavaScript files found:"
-            echo "$JS_FILES"
-          fi
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
