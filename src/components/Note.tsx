@@ -14,6 +14,7 @@ const NOTE_WIDTH = 90;
 const TAP_HEIGHT = 42;
 const HOLD_MIN_HEIGHT = 60;
 const HOLD_HEAD_HEIGHT = 32;
+const NOTE_SPAWN_Y = -100; // useGameLoop.ts와 동일한 값
 
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
@@ -66,12 +67,22 @@ const NoteComponent: React.FC<NoteProps> = ({
   }
 
   // 롱노트의 경우 headY는 note.y를 사용하고, endY만 계산
-  // endY는 매번 계산해야 하지만, useMemo나 최적화는 과도한 최적화일 수 있음
+  // endY는 useGameLoop.ts와 동일한 방식으로 계산해야 함
   const computeEndY = () => {
     const endTime = note.endTime ?? note.time;
     const timeUntilHit = endTime - currentTime;
+    
+    // useGameLoop.ts와 동일한 로직:
+    // timeUntilHit >= fallDuration이면 아직 화면 위에 있어야 함
+    if (timeUntilHit >= fallDuration) {
+      return NOTE_SPAWN_Y;
+    }
+    
+    // progress: 0 (화면 맨 위) ~ 1 (판정선)
     const progress = 1 - timeUntilHit / fallDuration;
-    return clamp(progress * judgeLineY, -200, judgeLineY);
+    // progress=0일 때 NOTE_SPAWN_Y(-100), progress=1일 때 judgeLineY(640)
+    const y = NOTE_SPAWN_Y + progress * (judgeLineY - NOTE_SPAWN_Y);
+    return clamp(y, NOTE_SPAWN_Y, judgeLineY);
   };
 
   const holdHeadY = headY; // 이미 게임 루프에서 계산된 값 사용

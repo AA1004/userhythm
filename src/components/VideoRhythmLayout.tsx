@@ -252,6 +252,9 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
           boxSizing: 'border-box',
           width: '100%',
           maxWidth: 1280,
+          opacity: bgaMaskOpacity >= 1 ? 0 : 1,
+          transition: 'opacity 80ms linear',
+          pointerEvents: bgaMaskOpacity >= 1 ? 'none' : 'auto',
         }}
       >
         {children}

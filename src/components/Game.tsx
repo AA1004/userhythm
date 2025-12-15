@@ -489,6 +489,40 @@ export const Game: React.FC = () => {
           <MainMenuSidebar type="notice" position="right" />
         </>
       )}
+      
+      {/* 테스트/플레이 중 나가기 버튼 (간주 구간에서도 표시, VideoRhythmLayout 밖에 배치) */}
+      {gameState.gameStarted && !gameState.gameEnded && isTestMode && (
+        <button
+          onClick={isFromEditor ? handleReturnToEditor : handleReturnToPlayList}
+          style={{
+            position: 'fixed',
+            top: '16px',
+            right: '16px',
+            padding: '8px 16px',
+            fontSize: '14px',
+            backgroundColor: CHART_EDITOR_THEME.danger,
+            color: CHART_EDITOR_THEME.textPrimary,
+            border: `1px solid ${CHART_EDITOR_THEME.danger}`,
+            borderRadius: CHART_EDITOR_THEME.radiusMd,
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            zIndex: 10000, // 모든 레이어 위에 표시
+            boxShadow: CHART_EDITOR_THEME.shadowSoft,
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#ef4444';
+            e.currentTarget.style.transform = 'scale(1.05)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = CHART_EDITOR_THEME.danger;
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        >
+          ✕ 나가기
+        </button>
+      )}
+      
       <VideoRhythmLayout
         videoId={backgroundVideoId}
         bgaEnabled={isBgaEnabled}
@@ -503,6 +537,9 @@ export const Game: React.FC = () => {
           display: 'flex',
           justifyContent: 'center',
           fontFamily: 'Arial, sans-serif',
+          opacity: bgaMaskOpacity >= 1 ? 0 : 1,
+          transition: 'opacity 80ms linear',
+          pointerEvents: bgaMaskOpacity >= 1 ? 'none' : 'auto',
         }}
       >
         <div
@@ -566,6 +603,7 @@ export const Game: React.FC = () => {
             ensureEditorAccess={ensureEditorAccess}
           />
         )}
+
 
         {/* 게임 종료 UI */}
         {gameState.gameEnded && (

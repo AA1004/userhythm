@@ -281,38 +281,6 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
       {/* 점수 - 게임 중에만 표시 (간주 구간에서는 숨김) */}
       {gameStarted && bgaMaskOpacity < 1 && <ScoreComponent score={gameState.score} />}
 
-      {/* 테스트/플레이 중 나가기 버튼 */}
-      {gameStarted && !gameState.gameEnded && isTestMode && (
-        <button
-          onClick={onExit}
-          style={{
-            position: 'absolute',
-            top: '16px',
-            right: '16px',
-            padding: '8px 16px',
-            fontSize: '14px',
-            backgroundColor: CHART_EDITOR_THEME.danger,
-            color: CHART_EDITOR_THEME.textPrimary,
-            border: `1px solid ${CHART_EDITOR_THEME.danger}`,
-            borderRadius: CHART_EDITOR_THEME.radiusMd,
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            zIndex: 1000,
-            boxShadow: CHART_EDITOR_THEME.shadowSoft,
-            transition: 'all 0.2s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#ef4444';
-            e.currentTarget.style.transform = 'scale(1.05)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = CHART_EDITOR_THEME.danger;
-            e.currentTarget.style.transform = 'scale(1)';
-          }}
-        >
-          ✕ 나가기
-        </button>
-      )}
     </>
   );
 };
