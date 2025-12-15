@@ -67,11 +67,21 @@ const NoteComponent: React.FC<NoteProps> = ({
 
   // 롱노트의 경우 headY는 note.y를 사용하고, endY만 계산
   // endY는 매번 계산해야 하지만, useMemo나 최적화는 과도한 최적화일 수 있음
+  // useGameLoop.ts와 동일한 로직 사용 (NOTE_SPAWN_Y 기준)
+  const NOTE_SPAWN_Y = -100; // useGameLoop.ts와 동일한 값
   const computeEndY = () => {
     const endTime = note.endTime ?? note.time;
     const timeUntilHit = endTime - currentTime;
+    
+    // useGameLoop.ts와 동일한 로직
+    if (timeUntilHit >= fallDuration) {
+      return NOTE_SPAWN_Y;
+    }
+    
     const progress = 1 - timeUntilHit / fallDuration;
-    return clamp(progress * judgeLineY, -200, judgeLineY);
+    // progress=0일 때 y가 NOTE_SPAWN_Y(-100), progress=1일 때 y가 judgeLineY
+    const y = NOTE_SPAWN_Y + progress * (judgeLineY - NOTE_SPAWN_Y);
+    return clamp(y, NOTE_SPAWN_Y, judgeLineY);
   };
 
   const holdHeadY = headY; // 이미 게임 루프에서 계산된 값 사용
