@@ -4,7 +4,6 @@ import { Note as NoteComponent } from './Note';
 import { KeyLane } from './KeyLane';
 import { JudgeLine } from './JudgeLine';
 import { Score as ScoreComponent } from './Score';
-import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { LANE_POSITIONS, JUDGE_LINE_LEFT, JUDGE_LINE_WIDTH, JUDGE_LINE_Y, BASE_FALL_DURATION, NOTE_VISIBILITY_BUFFER_MS } from '../constants/gameConstants';
 import { getNoteFallDuration } from '../utils/speedChange';
 import { JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
@@ -21,9 +20,7 @@ interface GamePlayAreaProps {
   judgeFeedbacks: JudgeFeedback[];
   keyEffects: KeyEffect[];
   laneKeyLabels: string[][];
-  isTestMode: boolean;
   isFromEditor: boolean;
-  onExit: () => void;
 }
 
 export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
@@ -38,9 +35,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   judgeFeedbacks,
   keyEffects,
   laneKeyLabels,
-  isTestMode,
   isFromEditor: _isFromEditor,
-  onExit,
 }) => {
   // 화면에 보이는 노트만 필터링하여 렌더링 성능 최적화
   const visibleNotes = useMemo(() => {

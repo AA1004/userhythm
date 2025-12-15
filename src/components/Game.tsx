@@ -579,9 +579,7 @@ export const Game: React.FC = () => {
           judgeFeedbacks={judgeFeedbacks}
           keyEffects={keyEffects}
           laneKeyLabels={laneKeyLabels}
-          isTestMode={isTestMode}
           isFromEditor={isFromEditor}
-          onExit={isFromEditor ? handleReturnToEditor : handleReturnToPlayList}
         />
 
         {/* 게임 시작 UI */}
