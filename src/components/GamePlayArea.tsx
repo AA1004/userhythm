@@ -138,8 +138,8 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
       )}
 
       {/* 4개 레인 - 게임 중에만 표시 (간주 구간에서는 숨김) */}
-      {gameStarted &&
-        bgaMaskOpacity < 1 &&
+      {/* 간주 구간(bgaMaskOpacity >= 1)에서는 KeyLane을 완전히 숨김 */}
+      {gameStarted && bgaMaskOpacity < 1 && (
         LANE_POSITIONS.map((x, index) => (
           <KeyLane
             key={index}
@@ -147,7 +147,8 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
             keys={laneKeyLabels[index]}
             isPressed={pressedKeys.has(index as Lane)}
           />
-        ))}
+        ))
+      )}
 
       {/* 판정선에 나오는 이펙트 - 노트가 있는 위치에서 (간주 구간에서는 숨김) */}
       {gameStarted &&
@@ -228,6 +229,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
         ))}
 
       {/* 간주 구간 오버레이 (채보 레인 숨김) */}
+      {/* 간주 구간에서는 모든 레인 UI를 완전히 가림 */}
       <div
         style={{
           position: 'absolute',
@@ -239,7 +241,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
           opacity: bgaMaskOpacity,
           transition: 'opacity 80ms linear',
           pointerEvents: 'none',
-          zIndex: 520,
+          zIndex: 1000, // 모든 레인 UI 위에 표시 (KeyLane, 판정선, 노트 등)
         }}
       />
 
