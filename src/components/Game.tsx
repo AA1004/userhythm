@@ -507,12 +507,12 @@ export const Game: React.FC = () => {
             style={{
               width: '100%',
               height: '100%',
-              backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+              backgroundColor: bgaMaskOpacity >= 1 ? 'transparent' : CHART_EDITOR_THEME.surfaceElevated,
               position: 'relative',
               overflow: 'hidden',
               borderRadius: CHART_EDITOR_THEME.radiusLg,
-              boxShadow: CHART_EDITOR_THEME.shadowSoft,
-              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+              boxShadow: bgaMaskOpacity >= 1 ? 'none' : CHART_EDITOR_THEME.shadowSoft,
+              border: bgaMaskOpacity >= 1 ? 'none' : `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
             }}
           >
         <GamePlayArea
