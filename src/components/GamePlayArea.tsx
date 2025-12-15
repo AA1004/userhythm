@@ -1,12 +1,10 @@
 import React, { useMemo, useRef, useEffect } from 'react';
-import { GameState, Note, Lane, SpeedChange } from '../types/game';
-import { Note as NoteComponent } from './Note';
+import { GameState, Note, Lane } from '../types/game';
 import { KeyLane } from './KeyLane';
 import { JudgeLine } from './JudgeLine';
 import { Score as ScoreComponent } from './Score';
 import { NoteRenderer } from './NoteRenderer';
-import { LANE_POSITIONS, JUDGE_LINE_LEFT, JUDGE_LINE_WIDTH, JUDGE_LINE_Y, BASE_FALL_DURATION, NOTE_VISIBILITY_BUFFER_MS } from '../constants/gameConstants';
-import { getNoteFallDuration } from '../utils/speedChange';
+import { LANE_POSITIONS, JUDGE_LINE_LEFT, JUDGE_LINE_WIDTH, BASE_FALL_DURATION, NOTE_VISIBILITY_BUFFER_MS } from '../constants/gameConstants';
 import { JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
 
 interface GamePlayAreaProps {
@@ -14,8 +12,6 @@ interface GamePlayAreaProps {
   gameStarted: boolean;
   bgaMaskOpacity: number;
   speed: number;
-  baseBpm: number;
-  speedChanges: SpeedChange[];
   pressedKeys: Set<Lane>;
   holdingNotes: Map<number, Note>;
   judgeFeedbacks: JudgeFeedback[];
@@ -31,8 +27,6 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   gameStarted,
   bgaMaskOpacity,
   speed,
-  baseBpm,
-  speedChanges,
   pressedKeys,
   holdingNotes,
   judgeFeedbacks,

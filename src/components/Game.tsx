@@ -582,8 +582,6 @@ export const Game: React.FC = () => {
           gameStarted={gameState.gameStarted}
           bgaMaskOpacity={bgaMaskOpacity}
           speed={speed}
-          baseBpm={baseBpm}
-          speedChanges={speedChanges}
           pressedKeys={pressedKeys}
           holdingNotes={holdingNotes}
           judgeFeedbacks={judgeFeedbacks}
