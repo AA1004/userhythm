@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import { GameState, Note, Lane, SpeedChange } from '../types/game';
 import { Note as NoteComponent } from './Note';
 import { KeyLane } from './KeyLane';
 import { JudgeLine } from './JudgeLine';
 import { Score as ScoreComponent } from './Score';
+import { NoteRenderer } from './NoteRenderer';
 import { LANE_POSITIONS, JUDGE_LINE_LEFT, JUDGE_LINE_WIDTH, JUDGE_LINE_Y, BASE_FALL_DURATION, NOTE_VISIBILITY_BUFFER_MS } from '../constants/gameConstants';
 import { getNoteFallDuration } from '../utils/speedChange';
 import { JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
@@ -21,6 +22,8 @@ interface GamePlayAreaProps {
   keyEffects: KeyEffect[];
   laneKeyLabels: string[][];
   isFromEditor: boolean;
+  currentTimeRef: React.MutableRefObject<number>;
+  fallDuration: number;
 }
 
 export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
@@ -36,7 +39,22 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   keyEffects,
   laneKeyLabels,
   isFromEditor: _isFromEditor,
+  currentTimeRef,
+  fallDuration,
 }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const holdingNotesSet = useMemo(() => new Set(Array.from(holdingNotes.keys())), [holdingNotes]);
+
+  // Canvas 크기 조정
+  useEffect(() => {
+    if (canvasRef.current) {
+      const canvas = canvasRef.current;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    }
+  }, []);
+
   // 화면에 보이는 노트만 필터링하여 렌더링 성능 최적화
   const visibleNotes = useMemo(() => {
     if (bgaMaskOpacity >= 1) return []; // 간주 구간에서는 노트 숨김
@@ -101,31 +119,31 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
           />
         ))}
 
-      {/* 노트 렌더링 (간주 구간에서는 숨김, 화면에 보이는 노트만 렌더링) */}
-      {bgaMaskOpacity < 1 &&
-        visibleNotes.map((note) => {
-          // fallDuration 계산을 메모이제이션하여 매번 계산하지 않도록 최적화
-          const baseDuration = BASE_FALL_DURATION / speed;
-          const fallDuration = getNoteFallDuration(
-            note.time,
-            gameState.currentTime,
-            baseBpm,
-            speedChanges,
-            baseDuration
-          );
-
-          return (
-            <NoteComponent
-              key={note.id}
-              note={note}
-              fallDuration={fallDuration}
-              currentTime={gameState.currentTime}
-              judgeLineY={JUDGE_LINE_Y}
-              laneX={LANE_POSITIONS[note.lane]}
-              isHolding={holdingNotes.has(note.id)}
-            />
-          );
-        })}
+      {/* Canvas 기반 노트 렌더링 (165Hz 최적화) */}
+      {bgaMaskOpacity < 1 && (
+        <>
+          <canvas
+            ref={canvasRef}
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              width: '100%',
+              height: '100%',
+              pointerEvents: 'none',
+              zIndex: 100,
+            }}
+          />
+          <NoteRenderer
+            canvasRef={canvasRef}
+            notes={visibleNotes}
+            currentTimeRef={currentTimeRef}
+            fallDuration={fallDuration}
+            holdingNotes={holdingNotesSet}
+            visible={bgaMaskOpacity < 1}
+          />
+        </>
+      )}
 
       {/* 판정선 - 게임 중에만 표시 (간주 구간에서는 숨김) */}
       {gameStarted && bgaMaskOpacity < 1 && (

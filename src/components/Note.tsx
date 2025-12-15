@@ -32,9 +32,24 @@ const NoteComponent: React.FC<NoteProps> = ({
 
   const isHoldNote = note.duration > 0 && note.type === 'hold';
 
-  // y 값은 이미 게임 루프에서 계산되어 note.y에 저장되어 있음
-  // 하지만 롱노트의 경우 endY도 계산해야 하므로 필요한 경우만 계산
-  const headY = note.y;
+  // y 값은 렌더링 시점에 currentTime과 fallDuration으로 직접 계산
+  // useGameLoop에서 매 프레임 setState를 제거하여 성능 최적화
+  const computeHeadY = () => {
+    const timeUntilHit = note.time - currentTime;
+    
+    // timeUntilHit >= fallDuration이면 아직 화면 위에 있어야 함
+    if (timeUntilHit >= fallDuration) {
+      return NOTE_SPAWN_Y;
+    }
+    
+    // progress: 0 (화면 맨 위) ~ 1 (판정선)
+    const progress = 1 - timeUntilHit / fallDuration;
+    // progress=0일 때 NOTE_SPAWN_Y(-100), progress=1일 때 judgeLineY(640)
+    const y = NOTE_SPAWN_Y + progress * (judgeLineY - NOTE_SPAWN_Y);
+    return Math.max(NOTE_SPAWN_Y, Math.min(judgeLineY, y));
+  };
+  
+  const headY = computeHeadY();
 
   // 화면 밖 노트는 렌더링하지 않음
   if (headY < -180 && !isHoldNote) return null;

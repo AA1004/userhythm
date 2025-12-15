@@ -2,10 +2,12 @@ import { useEffect, useRef, useMemo } from 'react';
 import { GameState, Note } from '../types/game';
 import { judgeConfig } from '../config/judgeConfig';
 
-const GAME_HEIGHT = 800;
 const BASE_FALL_DURATION = 2000; // 기본 노트가 떨어지는 시간 (ms)
-const JUDGE_LINE_Y = 640; // 판정선 위치
-const NOTE_SPAWN_Y = -100; // 화면 위(오프스크린)에서 노트가 시작하는 y
+
+export interface GameLoopState {
+  currentTime: number; // 게임 시간 (ms)
+  gameStarted: boolean;
+}
 
 export function useGameLoop(
   gameState: GameState,
@@ -23,6 +25,17 @@ export function useGameLoop(
   const lastTimeRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
   const delayRef = useRef<number>(startDelayMs);
+  
+  // 게임 시간을 ref에 저장 (렌더링 루프에서 사용)
+  const currentTimeRef = useRef<number>(0);
+  
+  // 게임 상태 ref (미스 판정 시 최신 상태 참조용)
+  const gameStateRef = useRef<GameState>(gameState);
+
+  // gameState를 ref로 유지하여 최신 값 참조
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
 
   useEffect(() => {
     delayRef.current = startDelayMs;
@@ -32,6 +45,7 @@ export function useGameLoop(
     if (!gameState.gameStarted) {
       startTimeRef.current = 0;
       lastTimeRef.current = 0;
+      currentTimeRef.current = 0;
       return;
     }
 
@@ -41,82 +55,77 @@ export function useGameLoop(
     }
 
     const animate = (currentTime: number) => {
-      if (!gameState.gameStarted) return;
+      if (!gameStateRef.current.gameStarted) return;
 
       const elapsedTime = currentTime - startTimeRef.current;
+      
+      // 게임 시간을 ref에 저장 (렌더링 루프에서 사용)
+      currentTimeRef.current = elapsedTime;
+
+      // Miss 판정만 수행 (게임 규칙에 필요한 최소 상태 업데이트)
+      const state = gameStateRef.current;
       let missedInFrame: Note[] = [];
+      let hasMiss = false;
 
-      // 화면에 보이는 노트 범위 계산
-      // 노트가 화면 위에서 보이기 시작: elapsedTime - fallDuration - 200ms (여유분)
-      // 노트가 miss 처리되는 시간: elapsedTime + 150ms
-      const visibleTimeWindow = fallDuration + 200; // 화면 위에서 보이기 시작하는 시간
+      for (const note of state.notes) {
+        if (note.hit) continue;
 
-      setGameState((prev: GameState) => {
-        let missCount = 0;
+        const isHoldNote = note.duration > 0;
+        const timeUntilMiss = isHoldNote
+          ? note.endTime - elapsedTime
+          : note.time - elapsedTime;
 
-        const updatedNotes = prev.notes.map((note) => {
-          // 이미 hit된 노트는 계산하지 않음 (그대로 유지)
-          if (note.hit) {
-            return note;
-          }
-
-          const timeUntilHit = note.time - elapsedTime;
-          
-          // 화면 밖 노트 (너무 위에 있어서 아직 보이지 않음) - 계산 스킵
-          if (timeUntilHit > visibleTimeWindow) {
-            return { ...note, y: NOTE_SPAWN_Y };
-          }
-
-          // 화면 내 노트 또는 miss 체크가 필요한 노트만 계산
-          const isHoldNote = note.duration > 0;
-          const timeUntilMiss = isHoldNote
-            ? note.endTime - elapsedTime
-            : timeUntilHit;
-
-          // Miss 판정 (화면을 지나간 노트)
-          if (timeUntilMiss < -missThreshold) {
-            missCount++;
-            missedInFrame.push(note);
-            return { ...note, hit: true, y: JUDGE_LINE_Y + 50 };
-          }
-
-          // 화면 내 노트의 위치 계산
-          // 노트가 처음 화면에 나타날 때는 항상 화면 위(NOTE_SPAWN_Y)에서 시작해야 함
-          // timeUntilHit >= fallDuration이면 아직 화면 위에 있어야 함
-          if (timeUntilHit >= fallDuration) {
-            return { ...note, y: NOTE_SPAWN_Y };
-          }
-
-          // timeUntilHit < fallDuration이면 이미 화면에 나타나야 하므로 정상 계산
-          // progress는 0 (화면 맨 위)에서 1 (판정선)까지
-          // timeUntilHit = fallDuration이면 progress = 0 (화면 맨 위)
-          // timeUntilHit = 0이면 progress = 1 (판정선)
-          const progress = 1 - timeUntilHit / fallDuration;
-          // progress=0일 때 y가 NOTE_SPAWN_Y(-100), progress=1일 때 y가 JUDGE_LINE_Y(640)
-          const y = NOTE_SPAWN_Y + progress * (JUDGE_LINE_Y - NOTE_SPAWN_Y);
-
-          return { ...note, y: Math.max(NOTE_SPAWN_Y, Math.min(GAME_HEIGHT, y)) };
-        });
-
-        if (missCount > 0) {
-          return {
-            ...prev,
-            notes: updatedNotes,
-            currentTime: elapsedTime,
-            score: {
-              ...prev.score,
-              miss: prev.score.miss + missCount,
-              combo: 0,
-            },
-          };
+        // Miss 판정 (화면을 지나간 노트)
+        if (timeUntilMiss < -missThreshold) {
+          missedInFrame.push(note);
+          hasMiss = true;
         }
+      }
 
-        return {
-          ...prev,
-          notes: updatedNotes,
-          currentTime: elapsedTime,
-        };
-      });
+      // currentTime 업데이트 주기 (자막/BGA 등에 필요하지만 매 프레임 업데이트는 성능 저하)
+      // 60Hz 기준으로 약 16ms마다 업데이트 (약 60Hz)
+      const TIME_UPDATE_INTERVAL_MS = 16;
+      const timeSinceLastUpdate = elapsedTime - (gameStateRef.current.currentTime || 0);
+      const shouldUpdateTime = timeSinceLastUpdate >= TIME_UPDATE_INTERVAL_MS || hasMiss;
+
+      // 미스가 발생한 경우 또는 주기적으로 currentTime 업데이트
+      if (shouldUpdateTime) {
+        if (hasMiss) {
+          setGameState((prev: GameState) => {
+            const updatedNotes = prev.notes.map((note) => {
+              if (note.hit) return note;
+              
+              const isHoldNote = note.duration > 0;
+              const timeUntilMiss = isHoldNote
+                ? note.endTime - elapsedTime
+                : note.time - elapsedTime;
+
+              if (timeUntilMiss < -missThreshold) {
+                return { ...note, hit: true };
+              }
+              return note;
+            });
+
+            const missCount = missedInFrame.length;
+            return {
+              ...prev,
+              notes: updatedNotes,
+              currentTime: elapsedTime,
+              score: {
+                ...prev.score,
+                miss: prev.score.miss + missCount,
+                combo: 0,
+              },
+            };
+          });
+        } else {
+          // 미스는 없지만 currentTime만 업데이트 (자막/BGA 동기화용)
+          setGameState((prev: GameState) => ({
+            ...prev,
+            currentTime: elapsedTime,
+          }));
+        }
+      }
 
       if (missedInFrame.length && onNoteMiss) {
         missedInFrame.forEach((note) => onNoteMiss(note));
@@ -134,5 +143,11 @@ export function useGameLoop(
       }
     };
   }, [gameState.gameStarted, setGameState, onNoteMiss, speed, fallDuration, missThreshold]);
+
+  // currentTime ref를 반환하여 렌더링 루프에서 사용
+  return {
+    currentTimeRef,
+    fallDuration,
+  };
 }
 

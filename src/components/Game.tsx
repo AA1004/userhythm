@@ -29,6 +29,7 @@ import { useChartLoader } from '../hooks/useChartLoader';
 import { GameMenu } from './GameMenu';
 import { GamePlayArea } from './GamePlayArea';
 import { GameEndScreen } from './GameEndScreen';
+import { FpsHud } from './FpsHud';
 
 // Subtitle editor chart data
 interface SubtitleEditorChartData {
@@ -164,7 +165,13 @@ export const Game: React.FC = () => {
     keyBindings
   );
 
-  useGameLoop(gameState, setGameState, handleNoteMiss, speed, START_DELAY_MS);
+  const { currentTimeRef, fallDuration } = useGameLoop(
+    gameState,
+    setGameState,
+    handleNoteMiss,
+    speed,
+    START_DELAY_MS
+  );
 
   // 자막 훅
   const {
@@ -490,6 +497,9 @@ export const Game: React.FC = () => {
         </>
       )}
       
+      {/* FPS HUD - 게임 중에만 표시 */}
+      {gameState.gameStarted && !gameState.gameEnded && <FpsHud enabled={true} />}
+      
       {/* 테스트/플레이 중 나가기 버튼 (간주 구간에서도 표시, VideoRhythmLayout 밖에 배치) */}
       {gameState.gameStarted && !gameState.gameEnded && isTestMode && (
         <button
@@ -580,6 +590,8 @@ export const Game: React.FC = () => {
           keyEffects={keyEffects}
           laneKeyLabels={laneKeyLabels}
           isFromEditor={isFromEditor}
+          currentTimeRef={currentTimeRef}
+          fallDuration={fallDuration}
         />
 
         {/* 게임 시작 UI */}
