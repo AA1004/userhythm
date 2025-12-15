@@ -76,7 +76,8 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   return (
     <>
       {/* 4개 레인 영역 배경 (간주 구간에서는 숨김) */}
-      {bgaMaskOpacity < 1 && (
+      {/* 간주 구간(bgaMaskOpacity >= 1)에서는 완전히 숨김 */}
+      {bgaMaskOpacity < 0.99 && (
         <div
           style={{
             position: 'absolute',
@@ -85,12 +86,14 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
             width: '400px',
             height: '100%',
             backgroundColor: 'rgba(15, 23, 42, 0.6)', // 네온 톤의 남색 계열
+            zIndex: 1, // 간주 구간 오버레이보다 아래
           }}
         />
       )}
 
       {/* 배경 라인 구분선 - 레인 사이 경계와 양쪽 끝 (간주 구간에서는 숨김) */}
-      {bgaMaskOpacity < 1 &&
+      {/* 간주 구간(bgaMaskOpacity >= 1)에서는 완전히 숨김 */}
+      {bgaMaskOpacity < 0.99 &&
         [50, 150, 250, 350, 450].map((x) => (
           <div
             key={x}
@@ -102,6 +105,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
               height: '100%',
               backgroundColor: 'rgba(255,255,255,0.1)',
               transform: 'translateX(-50%)',
+              zIndex: 2, // 간주 구간 오버레이보다 아래
             }}
           />
         ))}
@@ -237,8 +241,9 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
           top: 0,
           width: '400px',
           height: '100%',
-          backgroundColor: 'rgba(8,12,24,0.94)',
-          opacity: bgaMaskOpacity,
+          // 간주 구간(bgaMaskOpacity >= 1)에서는 완전히 불투명하게, 그 외에는 투명도 조절
+          backgroundColor: bgaMaskOpacity >= 1 ? 'rgba(8,12,24,1)' : 'rgba(8,12,24,0.94)',
+          opacity: bgaMaskOpacity >= 1 ? 1 : bgaMaskOpacity,
           transition: 'opacity 80ms linear',
           pointerEvents: 'none',
           zIndex: 1000, // 모든 레인 UI 위에 표시 (KeyLane, 판정선, 노트 등)
