@@ -1247,7 +1247,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   }, []);
 
   // 박자 변경 핸들러
-  const handleAddTimeSignatureChange = useCallback(() => {
+  const _handleAddTimeSignatureChange = useCallback(() => {
     const beatInput = prompt('박자 변경 시작 비트(Beat Index)를 입력하세요:', '0');
     if (beatInput === null) return;
     const beatIndex = parseFloat(beatInput);
