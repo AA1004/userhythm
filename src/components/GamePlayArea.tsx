@@ -172,34 +172,8 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
               } as React.CSSProperties
             }
           >
-            {/* 네온 플래시 + 링 */}
-            <div className="key-hit__flash" />
-            <div className="key-hit__ring key-hit__ring--outer" />
-            <div className="key-hit__ring key-hit__ring--inner" />
-
-            {/* 스파크 (가벼운 연출 + 성능 고려해 10개로 제한) */}
-            {[...Array(10)].map((_, i) => {
-              const angle = (i * 360) / 10;
-              const radians = (angle * Math.PI) / 180;
-              const distance = 54;
-              const x = Math.cos(radians) * distance;
-              const y = Math.sin(radians) * distance - 26; // 살짝 위로
-
-              return (
-                <div
-                  key={i}
-                  className="key-hit__spark"
-                  style={
-                    {
-                      animationDelay: `${i * 0.02}s`,
-                      '--end-x': `${x}px`,
-                      '--end-y': `${y}px`,
-                      transform: `translate(-50%, -50%) rotate(${angle}deg)`,
-                    } as React.CSSProperties
-                  }
-                />
-              );
-            })}
+            {/* 십자가(+) 느낌: 천천히 커지며 살짝 회전했다가 훅 사라짐 */}
+            <div className="key-hit__cross" />
           </div>
         ))}
 
