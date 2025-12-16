@@ -137,6 +137,56 @@ export const FONT_PRESETS = [
 export const FONT_SIZE_PRESETS = [12, 14, 16, 18, 20, 24, 28, 32, 36, 42, 48, 56, 64];
 
 /**
+ * 사용자 폰트 저장/로드 유틸리티
+ */
+const CUSTOM_FONTS_STORAGE_KEY = 'subtitleCustomFonts';
+
+export interface CustomFont {
+  label: string;
+  value: string;
+}
+
+export const getCustomFonts = (): CustomFont[] => {
+  try {
+    const stored = localStorage.getItem(CUSTOM_FONTS_STORAGE_KEY);
+    if (!stored) return [];
+    return JSON.parse(stored) as CustomFont[];
+  } catch {
+    return [];
+  }
+};
+
+export const saveCustomFonts = (fonts: CustomFont[]): void => {
+  try {
+    localStorage.setItem(CUSTOM_FONTS_STORAGE_KEY, JSON.stringify(fonts));
+  } catch (error) {
+    console.error('Failed to save custom fonts:', error);
+  }
+};
+
+export const addCustomFont = (label: string, value: string): void => {
+  const fonts = getCustomFonts();
+  // 중복 체크
+  if (fonts.some((f) => f.value === value)) return;
+  fonts.push({ label, value });
+  saveCustomFonts(fonts);
+};
+
+export const removeCustomFont = (value: string): void => {
+  const fonts = getCustomFonts();
+  const filtered = fonts.filter((f) => f.value !== value);
+  saveCustomFonts(filtered);
+};
+
+/**
+ * 모든 폰트 목록 (프리셋 + 사용자 폰트)
+ */
+export const getAllFonts = (): CustomFont[] => {
+  const customFonts = getCustomFonts();
+  return [...FONT_PRESETS, ...customFonts];
+};
+
+/**
  * 색상 프리셋
  */
 export const COLOR_PRESETS = [

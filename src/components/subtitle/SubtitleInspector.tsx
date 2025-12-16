@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   SubtitleCue,
   SubtitleStyle,
@@ -6,6 +6,10 @@ import {
   FONT_PRESETS,
   FONT_SIZE_PRESETS,
   COLOR_PRESETS,
+  getAllFonts,
+  addCustomFont,
+  removeCustomFont,
+  CustomFont,
 } from '../../types/subtitle';
 import { CHART_EDITOR_THEME } from '../ChartEditor/constants';
 
@@ -43,6 +47,37 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
   beatsPerMeasure = 4,
   gridOffsetMs = 0,
 }) => {
+  const [allFonts, setAllFonts] = useState<CustomFont[]>(getAllFonts());
+  const [newFontName, setNewFontName] = useState('');
+  const [newFontValue, setNewFontValue] = useState('');
+
+  // 폰트 목록 업데이트
+  useEffect(() => {
+    setAllFonts(getAllFonts());
+  }, []);
+
+  const handleAddFont = () => {
+    if (!newFontName.trim() || !newFontValue.trim()) return;
+    
+    addCustomFont(newFontName.trim(), newFontValue.trim());
+    setAllFonts(getAllFonts());
+    setNewFontName('');
+    setNewFontValue('');
+  };
+
+  const handleRemoveFont = (fontValue: string) => {
+    removeCustomFont(fontValue);
+    setAllFonts(getAllFonts());
+    // 현재 선택된 폰트가 삭제된 폰트면 기본 폰트로 변경
+    if (selectedCue?.style.fontFamily === fontValue) {
+      const defaultFont = FONT_PRESETS[0].value;
+      onChangeCue({
+        ...selectedCue,
+        style: { ...selectedCue.style, fontFamily: defaultFont },
+      });
+    }
+  };
+
   if (!selectedCue) {
     return (
       <div
@@ -323,13 +358,134 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
                 border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
               }}
             >
-              {FONT_PRESETS.map((font) => (
+              {allFonts.map((font) => (
                 <option key={font.value} value={font.value}>
                   {font.label}
                 </option>
               ))}
             </select>
           </label>
+
+          {/* 사용자 폰트 추가 */}
+          <div
+            style={{
+              padding: 12,
+              backgroundColor: CHART_EDITOR_THEME.surface,
+              borderRadius: CHART_EDITOR_THEME.radiusSm,
+              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            }}
+          >
+            <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 600 }}>
+              사용자 폰트 추가
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <input
+                type="text"
+                placeholder="폰트 이름 (예: 나눔고딕)"
+                value={newFontName}
+                onChange={(e) => setNewFontName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newFontName.trim() && newFontValue.trim()) {
+                    handleAddFont();
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '6px 8px',
+                  backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                  fontSize: 13,
+                }}
+              />
+              <input
+                type="text"
+                placeholder="CSS 폰트 값 (예: Nanum Gothic, sans-serif)"
+                value={newFontValue}
+                onChange={(e) => setNewFontValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newFontName.trim() && newFontValue.trim()) {
+                    handleAddFont();
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '6px 8px',
+                  backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                  fontSize: 13,
+                }}
+              />
+              <button
+                onClick={handleAddFont}
+                disabled={!newFontName.trim() || !newFontValue.trim()}
+                style={{
+                  padding: '6px 12px',
+                  backgroundColor:
+                    newFontName.trim() && newFontValue.trim()
+                      ? CHART_EDITOR_THEME.accent
+                      : CHART_EDITOR_THEME.surfaceElevated,
+                  color:
+                    newFontName.trim() && newFontValue.trim()
+                      ? CHART_EDITOR_THEME.textOnAccent
+                      : CHART_EDITOR_THEME.textSecondary,
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  border: 'none',
+                  cursor:
+                    newFontName.trim() && newFontValue.trim() ? 'pointer' : 'not-allowed',
+                  fontSize: 13,
+                  fontWeight: 500,
+                }}
+              >
+                추가
+              </button>
+            </div>
+            {/* 추가된 사용자 폰트 목록 */}
+            {allFonts.filter((f) => !FONT_PRESETS.some((pf) => pf.value === f.value))
+              .length > 0 && (
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${CHART_EDITOR_THEME.borderSubtle}` }}>
+                <div style={{ marginBottom: 6, fontSize: 12, color: CHART_EDITOR_THEME.textSecondary }}>
+                  추가된 폰트
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {allFonts
+                    .filter((f) => !FONT_PRESETS.some((pf) => pf.value === f.value))
+                    .map((font) => (
+                      <div
+                        key={font.value}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '4px 8px',
+                          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+                          borderRadius: CHART_EDITOR_THEME.radiusSm,
+                        }}
+                      >
+                        <span style={{ fontSize: 12 }}>{font.label}</span>
+                        <button
+                          onClick={() => handleRemoveFont(font.value)}
+                          style={{
+                            padding: '2px 8px',
+                            backgroundColor: 'transparent',
+                            color: CHART_EDITOR_THEME.textSecondary,
+                            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                            borderRadius: CHART_EDITOR_THEME.radiusSm,
+                            cursor: 'pointer',
+                            fontSize: 11,
+                          }}
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
 
           <div style={{ display: 'flex', gap: 8 }}>
             <label style={{ flex: 1 }}>
