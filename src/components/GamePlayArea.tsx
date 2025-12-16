@@ -155,72 +155,48 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
         keyEffects.map((effect) => (
           <div
             key={effect.id}
-            style={{
-              position: 'absolute',
-              left: `${effect.x}px`,
-              top: `${effect.y}px`,
-              transform: 'translate(-50%, -50%)',
-              width: '120px',
-              height: '120px',
-              pointerEvents: 'none',
-              zIndex: 500,
-            }}
+            className="key-hit"
+            style={
+              {
+                left: `${effect.x}px`,
+                top: `${effect.y}px`,
+                // lane별 네온 컬러 (현재 테마에 맞게 시안/블루/바이올렛/핑크)
+                '--hit-color':
+                  (['rgba(34,211,238,1)', 'rgba(96,165,250,1)', 'rgba(167,139,250,1)', 'rgba(251,113,133,1)'] as const)[
+                    effect.lane
+                  ],
+                '--hit-color-soft':
+                  (['rgba(34,211,238,0.35)', 'rgba(96,165,250,0.30)', 'rgba(167,139,250,0.30)', 'rgba(251,113,133,0.28)'] as const)[
+                    effect.lane
+                  ],
+              } as React.CSSProperties
+            }
           >
-            {/* 파티클 이펙트 */}
-            <div
-              style={{
-                position: 'absolute',
-                left: '50%',
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: '100%',
-                height: '100%',
-                animation: 'keyEffectRipple 0.6s ease-out forwards',
-                borderRadius: '50%',
-                border: '3px solid rgba(255, 255, 255, 0.8)',
-                boxShadow: '0 0 20px rgba(255, 255, 255, 0.6), 0 0 40px rgba(255, 255, 255, 0.4)',
-              }}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                left: '50%',
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: '80%',
-                height: '80%',
-                animation: 'keyEffectRipple 0.6s 0.1s ease-out forwards',
-                borderRadius: '50%',
-                border: '2px solid rgba(255, 255, 255, 0.6)',
-                boxShadow: '0 0 15px rgba(255, 255, 255, 0.5)',
-              }}
-            />
-            {/* 사방으로 날아가는 파티클 */}
-            {[...Array(8)].map((_, i) => {
-              const angle = (i * 360) / 8;
+            {/* 네온 플래시 + 링 */}
+            <div className="key-hit__flash" />
+            <div className="key-hit__ring key-hit__ring--outer" />
+            <div className="key-hit__ring key-hit__ring--inner" />
+
+            {/* 스파크 (가벼운 연출 + 성능 고려해 10개로 제한) */}
+            {[...Array(10)].map((_, i) => {
+              const angle = (i * 360) / 10;
               const radians = (angle * Math.PI) / 180;
-              const distance = 40;
+              const distance = 54;
               const x = Math.cos(radians) * distance;
-              const y = Math.sin(radians) * distance - 40; // 위로 좀 날아가도록
+              const y = Math.sin(radians) * distance - 26; // 살짝 위로
 
               return (
                 <div
                   key={i}
-                  style={{
-                    position: 'absolute',
-                    left: '50%',
-                    top: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '50%',
-                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                    boxShadow: '0 0 10px rgba(255, 255, 255, 0.8)',
-                    animation: `keyEffectParticle 0.6s ease-out forwards`,
-                    animationDelay: `${i * 0.05}s`,
-                    '--end-x': `${x}px`,
-                    '--end-y': `${y}px`,
-                  } as React.CSSProperties & { '--end-x': string; '--end-y': string }}
+                  className="key-hit__spark"
+                  style={
+                    {
+                      animationDelay: `${i * 0.02}s`,
+                      '--end-x': `${x}px`,
+                      '--end-y': `${y}px`,
+                      transform: `translate(-50%, -50%) rotate(${angle}deg)`,
+                    } as React.CSSProperties
+                  }
                 />
               );
             })}
