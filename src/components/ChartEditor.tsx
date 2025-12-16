@@ -813,10 +813,16 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     
     // 노트들의 시간을 상대 시간으로 변환 (첫 노트 시간을 0으로)
     const minTime = Math.min(...selectedNotes.map((n) => n.time));
-    const copiedNotesWithRelativeTime = selectedNotes.map((note) => ({
-      ...note,
-      time: note.time - minTime,
-    }));
+    const copiedNotesWithRelativeTime = selectedNotes.map((note) => {
+      const relativeTime = note.time - minTime;
+      // 롱노트의 경우 endTime도 상대 시간으로 변환
+      const relativeEndTime = note.endTime ? note.endTime - minTime : undefined;
+      return {
+        ...note,
+        time: relativeTime,
+        endTime: relativeEndTime,
+      };
+    });
     
     setCopiedNotes(copiedNotesWithRelativeTime);
   }, [notes, selectedNoteIds]);
@@ -827,11 +833,17 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
     
     // 현재 시간 위치에 노트들을 붙여넣기
-    const newNotes = copiedNotes.map((note) => ({
-      ...note,
-      id: noteIdRef.current++,
-      time: note.time + currentTime,
-    }));
+    const newNotes = copiedNotes.map((note) => {
+      const newTime = note.time + currentTime;
+      // 롱노트의 경우 endTime도 함께 조정
+      const newEndTime = note.endTime ? note.endTime + currentTime : undefined;
+      return {
+        ...note,
+        id: noteIdRef.current++,
+        time: newTime,
+        endTime: newEndTime,
+      };
+    });
     
     setNotes((prev) => {
       const newNotesList = [...prev, ...newNotes].sort((a, b) => a.time - b.time);
