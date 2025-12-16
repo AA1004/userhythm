@@ -555,37 +555,66 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
 
     if (Array.isArray(data.notes)) {
-      // 복원 시 잘못된 롱노트 검증 및 수정
-      const restoredNotes = data.notes.map((note: Note) => {
-        // 롱노트 검증: duration이 0 이하이거나 endTime이 time보다 작거나 같으면 탭 노트로 변환
-        if (note.type === 'hold' || note.duration > 0) {
-          if (note.duration <= 0 || (note.endTime !== undefined && note.endTime <= note.time)) {
+      // 복원 시 잘못된 롱노트 검증 및 수정 + 유령노트 정리
+      const restoredNotes = data.notes
+        .map((note: Note) => {
+          // 유령노트 정리: hit 상태를 리셋 (에디터에서는 항상 false)
+          const cleanedNote = {
+            ...note,
+            hit: false,
+          };
+          
+          // 롱노트 검증: duration이 0 이하이거나 endTime이 time보다 작거나 같으면 탭 노트로 변환
+          if (cleanedNote.type === 'hold' || cleanedNote.duration > 0) {
+            if (cleanedNote.duration <= 0 || (cleanedNote.endTime !== undefined && cleanedNote.endTime <= cleanedNote.time)) {
+              return {
+                ...cleanedNote,
+                type: 'tap' as const,
+                duration: 0,
+                endTime: cleanedNote.time,
+              };
+            }
+            // 최소 길이 미만이면 탭 노트로 변환
+            if (cleanedNote.duration < MIN_LONG_NOTE_DURATION) {
+              return {
+                ...cleanedNote,
+                type: 'tap' as const,
+                duration: 0,
+                endTime: cleanedNote.time,
+              };
+            }
+            // endTime이 올바르게 설정되지 않은 경우 수정
+            if (!cleanedNote.endTime || cleanedNote.endTime <= cleanedNote.time) {
+              return {
+                ...cleanedNote,
+                endTime: cleanedNote.time + cleanedNote.duration,
+              };
+            }
+            // endTime과 duration이 일치하지 않는 경우 수정
+            const expectedEndTime = cleanedNote.time + cleanedNote.duration;
+            if (cleanedNote.endTime !== expectedEndTime) {
+              return {
+                ...cleanedNote,
+                endTime: expectedEndTime,
+              };
+            }
+          } else {
+            // 탭 노트의 경우 endTime을 time과 동일하게 설정
             return {
-              ...note,
-              type: 'tap' as const,
-              duration: 0,
-              endTime: note.time,
+              ...cleanedNote,
+              endTime: cleanedNote.time,
             };
           }
-          // 최소 길이 미만이면 탭 노트로 변환
-          if (note.duration < MIN_LONG_NOTE_DURATION) {
-            return {
-              ...note,
-              type: 'tap' as const,
-              duration: 0,
-              endTime: note.time,
-            };
-          }
-          // endTime이 올바르게 설정되지 않은 경우 수정
-          if (!note.endTime || note.endTime <= note.time) {
-            return {
-              ...note,
-              endTime: note.time + note.duration,
-            };
-          }
-        }
-        return note;
-      });
+          return cleanedNote;
+        })
+        .filter((note: Note) => {
+          // 유효하지 않은 노트 필터링
+          // time이 음수이거나 NaN인 경우 제거
+          if (note.time < 0 || isNaN(note.time)) return false;
+          // endTime이 time보다 작은 경우 제거
+          if (note.endTime < note.time) return false;
+          return true;
+        });
       setNotes(restoredNotes);
       // 히스토리 초기화
       notesHistoryRef.current = [[...restoredNotes]];

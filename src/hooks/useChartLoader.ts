@@ -84,28 +84,61 @@ export function useChartLoader({
           : null);
       }
       
-      // 선택된 채보 데이터로 게임 상태 초기화 (키 중복 방지 및 기본 필드 보정)
+      // 선택된 채보 데이터로 게임 상태 초기화 (키 중복 방지 및 기본 필드 보정 + 유령노트 정리)
       const preparedNotes = chartData.notes
         .map((note: Note, index: number) => {
+          // 유령노트 정리: hit 상태를 항상 false로 리셋
+          const cleanedNote = {
+            ...note,
+            hit: false,
+          };
+          
           const safeDuration =
-            typeof note.duration === 'number'
-              ? Math.max(0, note.duration)
+            typeof cleanedNote.duration === 'number'
+              ? Math.max(0, cleanedNote.duration)
               : Math.max(
                   0,
-                  (typeof note.endTime === 'number' ? note.endTime : note.time) - note.time
+                  (typeof cleanedNote.endTime === 'number' ? cleanedNote.endTime : cleanedNote.time) - cleanedNote.time
                 );
-          const endTime =
-            typeof note.endTime === 'number' ? note.endTime : note.time + safeDuration;
+          
+          // endTime 계산 및 검증
+          let endTime: number;
+          if (typeof cleanedNote.endTime === 'number') {
+            // endTime이 time보다 작거나 같으면 수정
+            if (cleanedNote.endTime <= cleanedNote.time) {
+              endTime = cleanedNote.time + safeDuration;
+            } else {
+              endTime = cleanedNote.endTime;
+              // endTime과 duration이 일치하지 않으면 duration 기준으로 수정
+              const expectedEndTime = cleanedNote.time + safeDuration;
+              if (Math.abs(endTime - expectedEndTime) > 1) { // 1ms 오차 허용
+                endTime = expectedEndTime;
+              }
+            }
+          } else {
+            endTime = cleanedNote.time + safeDuration;
+          }
+          
           return {
-            ...note,
+            ...cleanedNote,
             id: index + 1, // React key/게임 로직 모두에서 고유 ID 보장
-            time: Math.max(0, note.time),
+            time: Math.max(0, cleanedNote.time),
             duration: safeDuration,
             endTime,
             type: safeDuration > 0 ? 'hold' : 'tap',
             y: -100, // 게임 시작 시 모든 노트는 화면 위에서 시작
             hit: false,
           };
+        })
+        .filter((note: Note) => {
+          // 유효하지 않은 노트 필터링 (유령노트 제거)
+          // time이 음수이거나 NaN인 경우 제거
+          if (note.time < 0 || isNaN(note.time)) return false;
+          // endTime이 time보다 작거나 같은 경우 제거
+          if (note.endTime <= note.time) return false;
+          // endTime이 NaN인 경우 제거
+          if (isNaN(note.endTime)) return false;
+          return true;
         })
         .sort((a: Note, b: Note) => a.time - b.time);
       
