@@ -545,7 +545,10 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
         >
           <option value={1}>1/1</option>
           <option value={2}>1/2</option>
+          <option value={3}>1/3 (셋잇단)</option>
           <option value={4}>1/4</option>
+          <option value={6}>1/6</option>
+          <option value={7}>1/7 (일곱잇단)</option>
           <option value={8}>1/8</option>
           <option value={16}>1/16</option>
         </select>
