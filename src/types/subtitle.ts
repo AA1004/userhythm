@@ -173,9 +173,12 @@ export const addCustomFont = async (label: string, value: string, src?: string):
   // 웹 폰트 URL이 있으면 FontFace API로 동적 로드
   if (src) {
     try {
-      const fontFace = new FontFace(label, `url(${src})`);
+      // value에서 첫 번째 폰트 이름 추출 (예: "Nanum Gothic, sans-serif" -> "Nanum Gothic")
+      const fontFamilyName = value.split(',')[0].trim();
+      const fontFace = new FontFace(fontFamilyName, `url(${src})`);
       await fontFace.load();
       document.fonts.add(fontFace);
+      console.log(`Web font loaded: ${fontFamilyName}`);
     } catch (error) {
       console.error('Failed to load web font:', error);
       // 폰트 로드 실패해도 저장은 진행 (나중에 다시 시도 가능)
@@ -200,15 +203,22 @@ export const loadStoredWebFonts = async (): Promise<void> => {
   for (const font of customFonts) {
     if (font.src) {
       try {
+        // value에서 첫 번째 폰트 이름 추출 (예: "Nanum Gothic, sans-serif" -> "Nanum Gothic")
+        const fontFamilyName = font.value.split(',')[0].trim();
+        
         // 이미 로드된 폰트인지 확인
         const existing = Array.from(document.fonts).find(
-          (f) => f.family === font.label
+          (f) => f.family === fontFamilyName
         );
-        if (existing) continue;
+        if (existing) {
+          console.log(`Web font already loaded: ${fontFamilyName}`);
+          continue;
+        }
 
-        const fontFace = new FontFace(font.label, `url(${font.src})`);
+        const fontFace = new FontFace(fontFamilyName, `url(${font.src})`);
         await fontFace.load();
         document.fonts.add(fontFace);
+        console.log(`Web font loaded: ${fontFamilyName}`);
       } catch (error) {
         console.error(`Failed to load web font ${font.label}:`, error);
       }
