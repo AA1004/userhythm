@@ -1247,27 +1247,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   }, []);
 
   // 박자 변경 핸들러
-  const _handleAddTimeSignatureChange = useCallback(() => {
-    const beatInput = prompt('박자 변경 시작 비트(Beat Index)를 입력하세요:', '0');
-    if (beatInput === null) return;
-    const beatIndex = parseFloat(beatInput);
-    if (isNaN(beatIndex) || beatIndex < 0) {
-      alert('유효한 비트 인덱스를 입력해주세요.');
-      return;
-    }
-
-    const beatsInput = prompt('새 박자 (마디당 비트 수)를 입력하세요:\n예: 3(3/4), 4(4/4), 6(6/8), 7(7/8)', '4');
-    if (beatsInput === null) return;
-    const beatsPerMeasure = parseInt(beatsInput);
-    if (isNaN(beatsPerMeasure) || beatsPerMeasure < 1) {
-      alert('유효한 박자를 입력해주세요.');
-      return;
-    }
-
-    const newId = Math.max(...timeSignatures.map(ts => ts.id), 0) + 1;
-    setTimeSignatures(prev => [...prev, { id: newId, beatIndex, beatsPerMeasure }]);
-  }, [timeSignatures]);
-
   const handleAddTimeSignatureChangeAtCurrent = useCallback(() => {
     const currentBeat = timeToBeatIndex(currentTime, bpm, sortedBpmChanges);
     
