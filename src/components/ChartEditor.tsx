@@ -599,9 +599,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
               };
             }
           } else {
-            // 탭 노트의 경우 endTime을 time과 동일하게 설정
+            // 탭 노트의 경우 endTime을 time과 동일하게 설정 (endTime이 잘못 설정된 경우 강제 수정)
+            // duration이 0이면 무조건 탭 노트
             return {
               ...cleanedNote,
+              type: 'tap' as const,
+              duration: 0,
               endTime: cleanedNote.time,
             };
           }
@@ -611,8 +614,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           // 유효하지 않은 노트 필터링
           // time이 음수이거나 NaN인 경우 제거
           if (note.time < 0 || isNaN(note.time)) return false;
-          // endTime이 time보다 작은 경우 제거
+          // endTime이 time보다 작은 경우 제거 (이미 위에서 수정했지만 이중 체크)
           if (note.endTime < note.time) return false;
+          // endTime이 NaN인 경우 제거
+          if (isNaN(note.endTime)) return false;
+          // duration이 0인데 endTime이 time과 다른 경우도 제거 (탭 노트는 endTime === time이어야 함)
+          if (note.duration === 0 && note.endTime !== note.time) return false;
           return true;
         });
       setNotes(restoredNotes);

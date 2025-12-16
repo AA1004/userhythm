@@ -93,30 +93,37 @@ export function useChartLoader({
             hit: false,
           };
           
-          const safeDuration =
-            typeof cleanedNote.duration === 'number'
-              ? Math.max(0, cleanedNote.duration)
-              : Math.max(
-                  0,
-                  (typeof cleanedNote.endTime === 'number' ? cleanedNote.endTime : cleanedNote.time) - cleanedNote.time
-                );
+          // duration이 0이거나 음수면 무조건 탭 노트로 처리
+          const isTapNote = (cleanedNote.duration ?? 0) <= 0 || cleanedNote.type === 'tap';
+          
+          const safeDuration = isTapNote
+            ? 0
+            : (typeof cleanedNote.duration === 'number'
+                ? Math.max(0, cleanedNote.duration)
+                : Math.max(
+                    0,
+                    (typeof cleanedNote.endTime === 'number' && cleanedNote.endTime > cleanedNote.time
+                      ? cleanedNote.endTime - cleanedNote.time
+                      : 0)
+                  ));
           
           // endTime 계산 및 검증
           let endTime: number;
-          if (typeof cleanedNote.endTime === 'number') {
-            // endTime이 time보다 작거나 같으면 수정
-            if (cleanedNote.endTime <= cleanedNote.time) {
-              endTime = cleanedNote.time + safeDuration;
-            } else {
+          if (isTapNote) {
+            // 탭 노트는 항상 endTime === time
+            endTime = cleanedNote.time;
+          } else {
+            // 롱노트의 경우
+            if (typeof cleanedNote.endTime === 'number' && cleanedNote.endTime > cleanedNote.time) {
               endTime = cleanedNote.endTime;
               // endTime과 duration이 일치하지 않으면 duration 기준으로 수정
               const expectedEndTime = cleanedNote.time + safeDuration;
               if (Math.abs(endTime - expectedEndTime) > 1) { // 1ms 오차 허용
                 endTime = expectedEndTime;
               }
+            } else {
+              endTime = cleanedNote.time + safeDuration;
             }
-          } else {
-            endTime = cleanedNote.time + safeDuration;
           }
           
           return {
