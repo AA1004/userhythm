@@ -1,6 +1,6 @@
 import React from 'react';
 import { CHART_EDITOR_THEME } from './constants';
-import { SpeedChange, BPMChange, BgaVisibilityInterval } from '../../types/game';
+import { SpeedChange, BPMChange, BgaVisibilityInterval, TimeSignatureEvent } from '../../types/game';
 import { timeToMeasure, beatIndexToTime, timeToBeatIndex } from '../../utils/bpmUtils';
 
 interface ChartEditorSidebarProps {
@@ -44,6 +44,12 @@ interface ChartEditorSidebarProps {
   // 마디 계산을 위한 추가 props
   bpm: number;
   bpmChanges: BPMChange[];
+  // 박자 변경
+  timeSignatures: TimeSignatureEvent[];
+  onAddTimeSignatureChange: () => void;
+  onAddTimeSignatureChangeAtCurrent: () => void;
+  onEditTimeSignatureChange: (ts: TimeSignatureEvent) => void;
+  onDeleteTimeSignatureChange: (id: number) => void;
   // BGA 가림 구간
   bgaVisibilityIntervals: BgaVisibilityInterval[];
   onAddBgaInterval: () => void;
@@ -341,7 +347,163 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
           <option value={3}>3/4</option>
           <option value={4}>4/4</option>
           <option value={6}>6/8</option>
+          <option value={7}>7/8</option>
         </select>
+        <div style={{ marginTop: 8, fontSize: 11, color: CHART_EDITOR_THEME.textSecondary }}>
+          기본 박자입니다. 마디별 박자 변경은 아래에서 관리하세요.
+        </div>
+      </div>
+
+      {/* 박자 변경 구간 */}
+      <div
+        style={{
+          marginBottom: '16px',
+          padding: '10px 12px',
+          borderRadius: CHART_EDITOR_THEME.radiusMd,
+          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '8px',
+          }}
+        >
+          <span
+            style={{
+              fontSize: '13px',
+              fontWeight: 600,
+            }}
+          >
+            박자 변경 구간
+          </span>
+          <button
+            onClick={onAddTimeSignatureChangeAtCurrent}
+            style={{
+              padding: '4px 8px',
+              fontSize: '11px',
+              borderRadius: CHART_EDITOR_THEME.radiusSm,
+              border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
+              backgroundColor: 'rgba(251,191,36,0.12)',
+              color: '#fbbf24',
+              cursor: 'pointer',
+            }}
+          >
+            + 현재 위치에 추가
+          </button>
+        </div>
+        <div
+          style={{
+            fontSize: '11px',
+            color: CHART_EDITOR_THEME.textSecondary,
+            marginBottom: '6px',
+          }}
+        >
+          각 마디별로 다른 박자를 설정할 수 있습니다.
+        </div>
+        {timeSignatures.length <= 1 ? (
+          <div
+            style={{
+              fontSize: '12px',
+              color: CHART_EDITOR_THEME.textMuted,
+            }}
+          >
+            아직 박자 변경 구간이 없습니다.
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              maxHeight: 180,
+              overflowY: 'auto',
+            }}
+          >
+            {timeSignatures.slice(1).map((ts) => {
+              const timeMs = beatIndexToTime(ts.beatIndex, bpm, bpmChanges);
+              const measure = timeToMeasure(timeMs, bpm, bpmChanges, beatsPerMeasure);
+              return (
+                <div
+                  key={ts.id}
+                  style={{
+                    padding: '8px 8px',
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                    backgroundColor: 'transparent',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '6px',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        color: CHART_EDITOR_THEME.textSecondary,
+                      }}
+                    >
+                      비트 {ts.beatIndex} ({measure}마디)부터
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        color: '#fbbf24',
+                      }}
+                    >
+                      {ts.beatsPerMeasure}/4
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '4px',
+                    }}
+                  >
+                    <button
+                      onClick={() => onEditTimeSignatureChange(ts)}
+                      style={{
+                        padding: '2px 6px',
+                        fontSize: '10px',
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                        backgroundColor: 'transparent',
+                        color: CHART_EDITOR_THEME.textSecondary,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      수정
+                    </button>
+                    <button
+                      onClick={() => onDeleteTimeSignatureChange(ts.id)}
+                      style={{
+                        padding: '2px 6px',
+                        fontSize: '10px',
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                        border: `1px solid ${CHART_EDITOR_THEME.danger}`,
+                        backgroundColor: 'transparent',
+                        color: CHART_EDITOR_THEME.danger,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      삭제
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* 그리드 분할 */}

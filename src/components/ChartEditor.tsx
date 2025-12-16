@@ -1246,6 +1246,69 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
   }, []);
 
+  // 박자 변경 핸들러
+  const handleAddTimeSignatureChange = useCallback(() => {
+    const beatInput = prompt('박자 변경 시작 비트(Beat Index)를 입력하세요:', '0');
+    if (beatInput === null) return;
+    const beatIndex = parseFloat(beatInput);
+    if (isNaN(beatIndex) || beatIndex < 0) {
+      alert('유효한 비트 인덱스를 입력해주세요.');
+      return;
+    }
+
+    const beatsInput = prompt('새 박자 (마디당 비트 수)를 입력하세요:\n예: 3(3/4), 4(4/4), 6(6/8), 7(7/8)', '4');
+    if (beatsInput === null) return;
+    const beatsPerMeasure = parseInt(beatsInput);
+    if (isNaN(beatsPerMeasure) || beatsPerMeasure < 1) {
+      alert('유효한 박자를 입력해주세요.');
+      return;
+    }
+
+    const newId = Math.max(...timeSignatures.map(ts => ts.id), 0) + 1;
+    setTimeSignatures(prev => [...prev, { id: newId, beatIndex, beatsPerMeasure }]);
+  }, [timeSignatures]);
+
+  const handleAddTimeSignatureChangeAtCurrent = useCallback(() => {
+    const currentBeat = timeToBeatIndex(currentTime, bpm, sortedBpmChanges);
+    
+    const beatsInput = prompt('새 박자 (마디당 비트 수)를 입력하세요:\n예: 3(3/4), 4(4/4), 6(6/8), 7(7/8)', '4');
+    if (beatsInput === null) return;
+    const beatsPerMeasure = parseInt(beatsInput);
+    if (isNaN(beatsPerMeasure) || beatsPerMeasure < 1) {
+      alert('유효한 박자를 입력해주세요.');
+      return;
+    }
+
+    const newId = Math.max(...timeSignatures.map(ts => ts.id), 0) + 1;
+    setTimeSignatures(prev => [...prev, { id: newId, beatIndex: Math.floor(currentBeat), beatsPerMeasure }]);
+  }, [currentTime, bpm, sortedBpmChanges, timeSignatures]);
+
+  const handleEditTimeSignatureChange = useCallback((ts: TimeSignatureEvent) => {
+    const beatsInput = prompt('새 박자 (마디당 비트 수)를 입력하세요:\n예: 3(3/4), 4(4/4), 6(6/8), 7(7/8)', ts.beatsPerMeasure.toString());
+    if (beatsInput === null) return;
+    const beatsPerMeasure = parseInt(beatsInput);
+    if (isNaN(beatsPerMeasure) || beatsPerMeasure < 1) {
+      alert('유효한 박자를 입력해주세요.');
+      return;
+    }
+
+    const beatInput = prompt('새 비트 인덱스:', ts.beatIndex.toString());
+    if (beatInput === null) return;
+    const beatIndex = parseFloat(beatInput);
+    if (isNaN(beatIndex) || beatIndex < 0) {
+      alert('유효한 비트 인덱스를 입력해주세요.');
+      return;
+    }
+
+    setTimeSignatures(prev => prev.map(t => t.id === ts.id ? { ...t, beatsPerMeasure, beatIndex } : t));
+  }, []);
+
+  const handleDeleteTimeSignatureChange = useCallback((id: number) => {
+    if (confirm('정말 삭제하시겠습니까?')) {
+      setTimeSignatures(prev => prev.filter(t => t.id !== id));
+    }
+  }, []);
+
   // 공유/업로드
   const handleShare = useCallback(async () => {
     if (!user) {
@@ -1601,6 +1664,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           onTimeSignatureOffsetChange={setTimeSignatureOffset}
           onTimelineExtraChange={(updater) => setTimelineExtraMs((prev) => updater(prev))}
           beatDuration={beatDuration}
+          timeSignatures={timeSignatures}
+          bpm={bpm}
+          bpmChanges={sortedBpmChanges}
+          onAddTimeSignatureChangeAtCurrent={handleAddTimeSignatureChangeAtCurrent}
+          onEditTimeSignatureChange={handleEditTimeSignatureChange}
+          onDeleteTimeSignatureChange={handleDeleteTimeSignatureChange}
         />
 
         {/* Main Timeline Canvas */}

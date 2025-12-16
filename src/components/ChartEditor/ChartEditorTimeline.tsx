@@ -6,7 +6,7 @@ import {
   TAP_NOTE_HEIGHT,
   TIMELINE_BOTTOM_PADDING,
 } from './constants';
-import { timeToMeasure } from '../../utils/bpmUtils';
+import { timeToMeasure, beatIndexToTime } from '../../utils/bpmUtils';
 
 // 노트가 레인 경계선 안에 딱 맞게 들어가도록 레인 너비에서 약간의 여백만 남김
 const NOTE_WIDTH = LANE_WIDTH - 4;
@@ -145,20 +145,40 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
     };
   }, [updateViewport, timelineScrollRef]);
 
-  // 그리드 라인 생성
+  // 그리드 라인 생성 (박자 변경 고려)
   const gridLines = useMemo(() => {
     const lines: Array<{ y: number; isMeasure: boolean }> = [];
-    const beatsPerMeasure = sortedTimeSignatures[0]?.beatsPerMeasure || 4;
     const safeBeatDuration = Math.max(1, beatDuration);
-    const beatsPerSecond = 1000 / safeBeatDuration; // beatDuration(ms) ⇒ beats/sec
+    const beatsPerSecond = 1000 / safeBeatDuration;
     const totalBeats = (timelineDurationMs / 1000) * beatsPerSecond;
 
+    // 박자 변경 이벤트를 beatIndex 기준으로 정렬
+    const sortedTS = [...sortedTimeSignatures].sort((a, b) => a.beatIndex - b.beatIndex);
+    
+    let currentBeatsPerMeasure = sortedTS[0]?.beatsPerMeasure || 4;
+    let currentMeasureStartBeat = 0;
+
     for (let beat = 0; beat <= totalBeats; beat += 1 / gridDivision) {
+      // 현재 비트 위치에서 적용되는 박자 확인
+      const activeTS = sortedTS.filter(ts => ts.beatIndex <= beat);
+      if (activeTS.length > 0) {
+        const latestTS = activeTS[activeTS.length - 1];
+        if (latestTS.beatIndex === beat) {
+          // 박자 변경 지점
+          currentBeatsPerMeasure = latestTS.beatsPerMeasure;
+          currentMeasureStartBeat = beat;
+        } else {
+          currentBeatsPerMeasure = latestTS.beatsPerMeasure;
+        }
+      }
+
       const timeMs = (beat * beatDuration) + timeSignatureOffset;
       if (timeMs < 0 || timeMs > timelineDurationMs) continue;
 
       const y = timeToY(timeMs);
-      const isMeasure = beat % beatsPerMeasure === 0;
+      // 현재 마디 내에서의 비트 위치
+      const beatInMeasure = beat - currentMeasureStartBeat;
+      const isMeasure = beatInMeasure % currentBeatsPerMeasure === 0;
       lines.push({ y, isMeasure });
     }
 
@@ -296,6 +316,21 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
         .filter(({ y }) => y >= paddedTop && y <= paddedBottom),
     [speedChanges, timeToY, paddedTop, paddedBottom]
   );
+
+  // 박자 변경 마커 표시 (beatIndex를 시간으로 변환 필요)
+  const visibleTimeSignatures = useMemo(() => {
+    if (!sortedTimeSignatures || sortedTimeSignatures.length <= 1) return [];
+    
+    // beatIndex를 시간으로 변환 (BPM 변경 고려)
+    return sortedTimeSignatures
+      .slice(1) // 첫 번째는 기본 박자이므로 제외
+      .map((ts) => {
+        // beatIndex를 시간으로 변환 (BPM 변경 고려)
+        const timeMs = beatIndexToTime(ts.beatIndex, bpm, bpmChanges) + timeSignatureOffset;
+        return { ts, y: timeToY(timeMs) };
+      })
+      .filter(({ y }) => y >= paddedTop && y <= paddedBottom);
+  }, [sortedTimeSignatures, bpm, bpmChanges, timeSignatureOffset, timeToY, paddedTop, paddedBottom]);
 
   const visibleBgaIntervals = useMemo(
     () =>
@@ -655,6 +690,24 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
               boxShadow: '0 0 10px rgba(56,189,248,0.6)',
             }}
             title={`Speed BPM ${sc.bpm}`}
+          />
+        ))}
+
+        {/* 박자 변경 마커 (TimeSignatureEvent) */}
+        {visibleTimeSignatures.map(({ ts, y }) => (
+          <div
+            key={`timesig-${ts.id}`}
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: `${y}px`,
+              width: `${CONTENT_WIDTH}px`,
+              height: 2,
+              background:
+                'linear-gradient(90deg, rgba(251,191,36,0.1), rgba(251,191,36,0.9), rgba(251,191,36,0.1))',
+              boxShadow: '0 0 10px rgba(251,191,36,0.6)',
+            }}
+            title={`박자 변경: ${ts.beatsPerMeasure}/4`}
           />
         ))}
 
