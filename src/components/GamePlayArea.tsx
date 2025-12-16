@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useEffect } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { GameState, Note, Lane } from '../types/game';
 import { KeyLane } from './KeyLane';
 import { JudgeLine } from './JudgeLine';
