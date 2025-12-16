@@ -231,16 +231,16 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       {/* 배경 위에 덮는 그라디언트/딤 레이어 (가독성 확보용) */}
       {/* 간주 구간(bgaMaskOpacity >= 1)에서는 완전히 숨김 */}
       {bgaMaskOpacity < 1 && (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            zIndex: 1,
-            background: videoId && bgaEnabled
-              ? 'radial-gradient(circle at top, rgba(15,23,42,0.35), rgba(15,23,42,0.92))'
-              : CHART_EDITOR_THEME.backgroundGradient,
-          }}
-        />
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 1,
+          background: videoId && bgaEnabled
+            ? 'radial-gradient(circle at top, rgba(15,23,42,0.35), rgba(15,23,42,0.92))'
+            : CHART_EDITOR_THEME.backgroundGradient,
+        }}
+      />
       )}
 
       {/* 실제 게임/채보/자막 오버레이 콘텐츠 */}

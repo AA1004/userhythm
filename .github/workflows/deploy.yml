@@ -27,7 +27,7 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-      
+
       - name: Cache Vite build
         uses: actions/cache@v4
         with:
