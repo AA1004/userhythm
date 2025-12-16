@@ -83,9 +83,16 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
    * 판정 피드백과 이펙트를 추가하는 공통 함수
    */
   const addJudgeFeedback = useCallback((judge: JudgeType, lane: Lane) => {
+    // 새로운 판정이 나타날 때 기존 피드백 모두 제거 (겹침 방지)
+    feedbackTimersRef.current.forEach((timer) => {
+      clearTimeout(timer);
+    });
+    feedbackTimersRef.current.clear();
+    setJudgeFeedbacks([]);
+    
     const feedbackId = feedbackIdRef.current++;
-    // 기존 배열에 추가 (새 배열 생성 방지)
-    setJudgeFeedbacks((prev) => [...prev, { id: feedbackId, judge }]);
+    // 새로운 판정 피드백 추가
+    setJudgeFeedbacks([{ id: feedbackId, judge }]);
 
     if (judge !== 'miss') {
       const effectId = keyEffectIdRef.current++;
