@@ -1597,8 +1597,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           onTimeSignatureOffsetChange={setTimeSignatureOffset}
           onTimelineExtraChange={(updater) => setTimelineExtraMs((prev) => updater(prev))}
           beatDuration={beatDuration}
-          bpm={bpm}
-          bpmChanges={sortedBpmChanges}
         />
 
         {/* Main Timeline Canvas */}
