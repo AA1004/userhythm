@@ -44,13 +44,34 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Canvas 크기 조정 (devicePixelRatio 고려)
+    // visible이 true가 될 때마다 (간주 구간 후 복귀 시) 재설정
+    const setupCanvas = () => {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      
+      // 실제 크기 (물리적 픽셀)
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      
+      // 스케일 리셋 후 재적용
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
+    };
+
+    setupCanvas();
+
+    // 논리적 크기 (CSS 픽셀) 저장
+    const logicalWidth = canvas.getBoundingClientRect().width;
+    const logicalHeight = canvas.getBoundingClientRect().height;
+
     const render = () => {
       if (!visible || !canvasRef.current) return;
 
       const currentTime = currentTimeRef.current;
       
-      // Canvas 클리어
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Canvas 클리어 (논리적 크기 기준)
+      ctx.clearRect(0, 0, logicalWidth, logicalHeight);
 
       // 노트 렌더링
       for (const note of notes) {

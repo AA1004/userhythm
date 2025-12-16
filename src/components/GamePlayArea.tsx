@@ -39,28 +39,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const holdingNotesSet = useMemo(() => new Set(Array.from(holdingNotes.keys())), [holdingNotes]);
 
-  // Canvas 크기 조정 (devicePixelRatio 고려)
-  useEffect(() => {
-    if (canvasRef.current) {
-      const canvas = canvasRef.current;
-      const rect = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      
-      // 논리적 크기 (CSS 픽셀)
-      const logicalWidth = rect.width;
-      const logicalHeight = rect.height;
-      
-      // 실제 크기 (물리적 픽셀)
-      canvas.width = logicalWidth * dpr;
-      canvas.height = logicalHeight * dpr;
-      
-      // 스케일 조정
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.scale(dpr, dpr);
-      }
-    }
-  }, []);
+  // Canvas 크기 조정은 NoteRenderer에서 처리 (visible 상태 변경 시 재설정)
 
   // 화면에 보이는 노트만 필터링하여 렌더링 성능 최적화
   const visibleNotes = useMemo(() => {
