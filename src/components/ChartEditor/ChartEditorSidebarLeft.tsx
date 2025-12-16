@@ -1,7 +1,5 @@
 import React from 'react';
 import { CHART_EDITOR_THEME } from './constants';
-import { TimeSignatureEvent } from '../../types/game';
-import { timeToMeasure, beatIndexToTime } from '../../utils/bpmUtils';
 
 interface ChartEditorSidebarLeftProps {
   zoom: number;
@@ -22,13 +20,6 @@ interface ChartEditorSidebarLeftProps {
   onTimeSignatureOffsetChange: (offset: number) => void;
   onTimelineExtraChange: (updater: (prev: number) => number) => void;
   beatDuration: number;
-  // 박자 변경
-  timeSignatures?: TimeSignatureEvent[];
-  bpm?: number;
-  bpmChanges?: any[];
-  onAddTimeSignatureChangeAtCurrent?: () => void;
-  onEditTimeSignatureChange?: (ts: TimeSignatureEvent) => void;
-  onDeleteTimeSignatureChange?: (id: number) => void;
 }
 
 export const ChartEditorSidebarLeft: React.FC<ChartEditorSidebarLeftProps> = ({
@@ -50,12 +41,6 @@ export const ChartEditorSidebarLeft: React.FC<ChartEditorSidebarLeftProps> = ({
   onTimeSignatureOffsetChange,
   onTimelineExtraChange,
   beatDuration,
-  timeSignatures = [],
-  bpm = 120,
-  bpmChanges = [],
-  onAddTimeSignatureChangeAtCurrent,
-  onEditTimeSignatureChange,
-  onDeleteTimeSignatureChange,
 }) => {
   const gridCellMs = beatDuration / Math.max(1, gridDivision);
   const offsetInCells = timeSignatureOffset / gridCellMs;
@@ -304,82 +289,6 @@ export const ChartEditorSidebarLeft: React.FC<ChartEditorSidebarLeftProps> = ({
           <option value={6}>6/8</option>
           <option value={7}>7/8</option>
         </select>
-        {onAddTimeSignatureChangeAtCurrent && (
-          <div style={{ marginTop: 6 }}>
-            <button
-              onClick={onAddTimeSignatureChangeAtCurrent}
-              style={{
-                width: '100%',
-                padding: '4px 8px',
-                fontSize: '11px',
-                borderRadius: CHART_EDITOR_THEME.radiusSm,
-                border: `1px solid #fbbf24`,
-                backgroundColor: 'rgba(251,191,36,0.12)',
-                color: '#fbbf24',
-                cursor: 'pointer',
-              }}
-            >
-              + 현재 위치에 박자 변경 추가
-            </button>
-          </div>
-        )}
-        {timeSignatures && timeSignatures.length > 1 && onEditTimeSignatureChange && onDeleteTimeSignatureChange && (
-          <div style={{ marginTop: 8, maxHeight: 120, overflowY: 'auto' }}>
-            {timeSignatures.slice(1).map((ts) => {
-              const timeMs = beatIndexToTime(ts.beatIndex, bpm, bpmChanges);
-              const measure = timeToMeasure(timeMs, bpm, bpmChanges, beatsPerMeasure);
-              return (
-                <div
-                  key={ts.id}
-                  style={{
-                    padding: '4px 6px',
-                    marginBottom: 4,
-                    borderRadius: CHART_EDITOR_THEME.radiusSm,
-                    border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                    fontSize: '10px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <span style={{ color: CHART_EDITOR_THEME.textSecondary }}>
-                    {measure}마디: {ts.beatsPerMeasure}/4
-                  </span>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    <button
-                      onClick={() => onEditTimeSignatureChange(ts)}
-                      style={{
-                        padding: '2px 4px',
-                        fontSize: '9px',
-                        borderRadius: 3,
-                        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                        backgroundColor: 'transparent',
-                        color: CHART_EDITOR_THEME.textSecondary,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      수정
-                    </button>
-                    <button
-                      onClick={() => onDeleteTimeSignatureChange(ts.id)}
-                      style={{
-                        padding: '2px 4px',
-                        fontSize: '9px',
-                        borderRadius: 3,
-                        border: `1px solid ${CHART_EDITOR_THEME.danger}`,
-                        backgroundColor: 'transparent',
-                        color: CHART_EDITOR_THEME.danger,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      삭제
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       {/* 그리드 분할 */}

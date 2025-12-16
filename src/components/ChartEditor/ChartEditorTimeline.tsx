@@ -1,12 +1,12 @@
 import React, { useMemo, useEffect, useRef, useState, useCallback } from 'react';
-import { Note, TimeSignatureEvent, SpeedChange, BPMChange, BgaVisibilityInterval, Lane } from '../../types/game';
+import { Note, SpeedChange, BPMChange, BgaVisibilityInterval, Lane } from '../../types/game';
 import {
   LANE_POSITIONS,
   LANE_WIDTH,
   TAP_NOTE_HEIGHT,
   TIMELINE_BOTTOM_PADDING,
 } from './constants';
-import { timeToMeasure, beatIndexToTime } from '../../utils/bpmUtils';
+import { timeToMeasure } from '../../utils/bpmUtils';
 
 // 노트가 레인 경계선 안에 딱 맞게 들어가도록 레인 너비에서 약간의 여백만 남김
 const NOTE_WIDTH = LANE_WIDTH - 4;
@@ -16,7 +16,7 @@ const CONTENT_WIDTH = LANE_WIDTH * 4;
 
 interface ChartEditorTimelineProps {
   notes: Note[];
-  sortedTimeSignatures: TimeSignatureEvent[];
+  beatsPerMeasure: number;
   beatDuration: number;
   timelineDurationMs: number;
   gridDivision: number;
@@ -63,7 +63,7 @@ interface ChartEditorTimelineProps {
 
 export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   notes,
-  sortedTimeSignatures,
+  beatsPerMeasure,
   beatDuration,
   timelineDurationMs,
   gridDivision,
@@ -145,44 +145,24 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
     };
   }, [updateViewport, timelineScrollRef]);
 
-  // 그리드 라인 생성 (박자 변경 고려)
+  // 그리드 라인 생성
   const gridLines = useMemo(() => {
     const lines: Array<{ y: number; isMeasure: boolean }> = [];
     const safeBeatDuration = Math.max(1, beatDuration);
     const beatsPerSecond = 1000 / safeBeatDuration;
     const totalBeats = (timelineDurationMs / 1000) * beatsPerSecond;
 
-    // 박자 변경 이벤트를 beatIndex 기준으로 정렬
-    const sortedTS = [...sortedTimeSignatures].sort((a, b) => a.beatIndex - b.beatIndex);
-    
-    // 각 박자 변경 구간별로 마디 시작 위치 계산
-    let currentBeatsPerMeasure = sortedTS[0]?.beatsPerMeasure || 4;
-    let currentMeasureStartBeat = 0;
-    let nextTSIndex = 1;
-
     for (let beat = 0; beat <= totalBeats; beat += 1 / gridDivision) {
-      // 박자 변경 지점 확인
-      if (nextTSIndex < sortedTS.length && beat >= sortedTS[nextTSIndex].beatIndex) {
-        // 박자 변경 발생: 새로운 박자가 적용되는 지점부터 새로운 마디 시작
-        currentBeatsPerMeasure = sortedTS[nextTSIndex].beatsPerMeasure;
-        currentMeasureStartBeat = sortedTS[nextTSIndex].beatIndex;
-        nextTSIndex++;
-      }
-
       const timeMs = (beat * beatDuration) + timeSignatureOffset;
       if (timeMs < 0 || timeMs > timelineDurationMs) continue;
 
       const y = timeToY(timeMs);
-      // 현재 마디 내에서의 비트 위치 (소수점 고려)
-      const beatInMeasure = beat - currentMeasureStartBeat;
-      // 마디 경계인지 확인 (소수점 오차 고려)
-      const isMeasure = Math.abs(beatInMeasure % currentBeatsPerMeasure) < 0.01 || 
-                        Math.abs(beatInMeasure % currentBeatsPerMeasure - currentBeatsPerMeasure) < 0.01;
+      const isMeasure = beat % beatsPerMeasure === 0;
       lines.push({ y, isMeasure });
     }
 
     return lines;
-  }, [timelineDurationMs, beatDuration, gridDivision, timeSignatureOffset, sortedTimeSignatures, timeToY]);
+  }, [timelineDurationMs, beatDuration, gridDivision, timeSignatureOffset, beatsPerMeasure, timeToY]);
 
   const paddedTop = Math.max(0, viewTop - VIRTUAL_BUFFER);
   const paddedBottom = viewBottom + VIRTUAL_BUFFER;
@@ -316,20 +296,6 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
     [speedChanges, timeToY, paddedTop, paddedBottom]
   );
 
-  // 박자 변경 마커 표시 (beatIndex를 시간으로 변환 필요)
-  const visibleTimeSignatures = useMemo(() => {
-    if (!sortedTimeSignatures || sortedTimeSignatures.length <= 1) return [];
-    
-    // beatIndex를 시간으로 변환 (BPM 변경 고려)
-    return sortedTimeSignatures
-      .slice(1) // 첫 번째는 기본 박자이므로 제외
-      .map((ts) => {
-        // beatIndex를 시간으로 변환 (BPM 변경 고려)
-        const timeMs = beatIndexToTime(ts.beatIndex, bpm, bpmChanges) + timeSignatureOffset;
-        return { ts, y: timeToY(timeMs) };
-      })
-      .filter(({ y }) => y >= paddedTop && y <= paddedBottom);
-  }, [sortedTimeSignatures, bpm, bpmChanges, timeSignatureOffset, timeToY, paddedTop, paddedBottom]);
 
   const visibleBgaIntervals = useMemo(
     () =>
@@ -692,23 +658,6 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
           />
         ))}
 
-        {/* 박자 변경 마커 (TimeSignatureEvent) */}
-        {visibleTimeSignatures.map(({ ts, y }) => (
-          <div
-            key={`timesig-${ts.id}`}
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: `${y}px`,
-              width: `${CONTENT_WIDTH}px`,
-              height: 2,
-              background:
-                'linear-gradient(90deg, rgba(251,191,36,0.1), rgba(251,191,36,0.9), rgba(251,191,36,0.1))',
-              boxShadow: '0 0 10px rgba(251,191,36,0.6)',
-            }}
-            title={`박자 변경: ${ts.beatsPerMeasure}/4`}
-          />
-        ))}
 
         {/* 간주 구간 오버레이 (채보 레인 숨김) */}
         {visibleBgaIntervals.map(({ interval, top, height }) => {

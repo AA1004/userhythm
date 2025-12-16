@@ -85,9 +85,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   // --- BPM & Grid 상태 ---
   const [bpm, setBpm] = useState<number>(120);
   const [bpmChanges, setBpmChanges] = useState<BPMChange[]>([]);
-  const [timeSignatures, setTimeSignatures] = useState<TimeSignatureEvent[]>([
-    { id: 0, beatIndex: 0, beatsPerMeasure: 4 },
-  ]);
+  // 기본 박자표만 유지 (마디별 박자 변경 기능 제거)
+  const [beatsPerMeasure, setBeatsPerMeasure] = useState<number>(4);
   const [timeSignatureOffset, setTimeSignatureOffset] = useState<number>(0);
   const [timelineExtraMs, setTimelineExtraMs] = useState<number>(0);
   const [gridDivision, setGridDivision] = useState<number>(1);
@@ -375,9 +374,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     return [...bpmChanges].sort((a, b) => a.beatIndex - b.beatIndex);
   }, [bpmChanges]);
 
-  const sortedTimeSignatures = useMemo(() => {
-    return [...timeSignatures].sort((a, b) => a.beatIndex - b.beatIndex);
-  }, [timeSignatures]);
 
   const timelineDurationMs = useMemo(() => {
     const lastNoteTime = notes.length > 0 
@@ -408,7 +404,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     timelineContentHeight,
   });
 
-  const beatsPerMeasure = timeSignatures[0]?.beatsPerMeasure || 4;
   const sortedNotesByTime = useMemo(() => {
     return [...notes].sort((a, b) => a.time - b.time);
   }, [notes]);
@@ -510,7 +505,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       bpm,
       youtubeUrl,
       youtubeVideoId,
-      timeSignatures,
+      beatsPerMeasure,
       timeSignatureOffset,
       timelineExtraMs,
       bpmChanges,
@@ -533,7 +528,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     bpm,
     youtubeUrl,
     youtubeVideoId,
-    timeSignatures,
+    beatsPerMeasure,
     timeSignatureOffset,
     bpmChanges,
       speedChanges,
@@ -604,7 +599,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
     if (typeof data.bpm === 'number') setBpm(data.bpm);
     if (typeof data.youtubeUrl === 'string') setYoutubeUrl(data.youtubeUrl);
-    if (Array.isArray(data.timeSignatures)) setTimeSignatures(data.timeSignatures);
+    if (typeof data.beatsPerMeasure === 'number') setBeatsPerMeasure(data.beatsPerMeasure);
     if (data.timeSignatureOffset !== undefined) setTimeSignatureOffset(data.timeSignatureOffset);
     if (typeof data.timelineExtraMs === 'number') setTimelineExtraMs(data.timelineExtraMs);
     if (Array.isArray(data.bpmChanges)) setBpmChanges(data.bpmChanges);
@@ -693,7 +688,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setHitSoundVolume(60);
     setBpm(120);
     setBpmChanges([]);
-    setTimeSignatures([{ id: 0, beatIndex: 0, beatsPerMeasure: 4 }]);
+    setBeatsPerMeasure(4);
     setTimeSignatureOffset(0);
     setTimelineExtraMs(0);
     setGridDivision(1);
@@ -1246,66 +1241,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
   }, []);
 
-  // 박자 변경 핸들러
-  const handleAddTimeSignatureChangeAtCurrent = useCallback(() => {
-    const currentBeat = timeToBeatIndex(currentTime, bpm, sortedBpmChanges);
-    
-    const beatsInput = prompt('새 박자 (마디당 비트 수)를 입력하세요:\n예: 3(3/4), 4(4/4), 6(6/8), 7(7/8)', '4');
-    if (beatsInput === null) return;
-    const beatsPerMeasure = parseInt(beatsInput);
-    if (isNaN(beatsPerMeasure) || beatsPerMeasure < 1) {
-      alert('유효한 박자를 입력해주세요.');
-      return;
-    }
-
-    // 현재 위치에서 적용되는 박자 찾기
-    const sortedTS = [...timeSignatures].sort((a, b) => a.beatIndex - b.beatIndex);
-    let currentBeatsPerMeasure = sortedTS[0]?.beatsPerMeasure || 4;
-    let currentMeasureStartBeat = 0;
-    
-    for (const ts of sortedTS) {
-      if (ts.beatIndex <= currentBeat) {
-        currentBeatsPerMeasure = ts.beatsPerMeasure;
-        currentMeasureStartBeat = ts.beatIndex;
-      } else {
-        break;
-      }
-    }
-    
-    // 현재 마디의 다음 마디 시작 위치로 정렬 (박자 변경은 마디 경계에서만 발생)
-    const beatInCurrentMeasure = currentBeat - currentMeasureStartBeat;
-    const beatsUntilNextMeasure = currentBeatsPerMeasure - (beatInCurrentMeasure % currentBeatsPerMeasure);
-    const alignedBeatIndex = Math.ceil(currentBeat / currentBeatsPerMeasure) * currentBeatsPerMeasure;
-
-    const newId = Math.max(...timeSignatures.map(ts => ts.id), 0) + 1;
-    setTimeSignatures(prev => [...prev, { id: newId, beatIndex: alignedBeatIndex, beatsPerMeasure }]);
-  }, [currentTime, bpm, sortedBpmChanges, timeSignatures]);
-
-  const handleEditTimeSignatureChange = useCallback((ts: TimeSignatureEvent) => {
-    const beatsInput = prompt('새 박자 (마디당 비트 수)를 입력하세요:\n예: 3(3/4), 4(4/4), 6(6/8), 7(7/8)', ts.beatsPerMeasure.toString());
-    if (beatsInput === null) return;
-    const beatsPerMeasure = parseInt(beatsInput);
-    if (isNaN(beatsPerMeasure) || beatsPerMeasure < 1) {
-      alert('유효한 박자를 입력해주세요.');
-      return;
-    }
-
-    const beatInput = prompt('새 비트 인덱스:', ts.beatIndex.toString());
-    if (beatInput === null) return;
-    const beatIndex = parseFloat(beatInput);
-    if (isNaN(beatIndex) || beatIndex < 0) {
-      alert('유효한 비트 인덱스를 입력해주세요.');
-      return;
-    }
-
-    setTimeSignatures(prev => prev.map(t => t.id === ts.id ? { ...t, beatsPerMeasure, beatIndex } : t));
-  }, []);
-
-  const handleDeleteTimeSignatureChange = useCallback((id: number) => {
-    if (confirm('정말 삭제하시겠습니까?')) {
-      setTimeSignatures(prev => prev.filter(t => t.id !== id));
-    }
-  }, []);
 
   // 공유/업로드
   const handleShare = useCallback(async () => {
@@ -1654,7 +1589,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           hitSoundVolume={hitSoundVolume}
           onHitSoundVolumeChange={setHitSoundVolume}
           beatsPerMeasure={beatsPerMeasure}
-          onTimeSignatureChange={(beats) => setTimeSignatures([{ id: 0, beatIndex: 0, beatsPerMeasure: beats }])}
+          onTimeSignatureChange={setBeatsPerMeasure}
           gridDivision={gridDivision}
           onGridDivisionChange={setGridDivision}
           timeSignatureOffset={timeSignatureOffset}
@@ -1662,19 +1597,15 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           onTimeSignatureOffsetChange={setTimeSignatureOffset}
           onTimelineExtraChange={(updater) => setTimelineExtraMs((prev) => updater(prev))}
           beatDuration={beatDuration}
-          timeSignatures={timeSignatures}
           bpm={bpm}
           bpmChanges={sortedBpmChanges}
-          onAddTimeSignatureChangeAtCurrent={handleAddTimeSignatureChangeAtCurrent}
-          onEditTimeSignatureChange={handleEditTimeSignatureChange}
-          onDeleteTimeSignatureChange={handleDeleteTimeSignatureChange}
         />
 
         {/* Main Timeline Canvas */}
         <div style={{ flex: 1, position: 'relative', backgroundColor: '#1f1f1f', overflow: 'hidden' }}>
             <ChartEditorTimeline
                 notes={notes}
-                sortedTimeSignatures={sortedTimeSignatures}
+                beatsPerMeasure={beatsPerMeasure}
                 beatDuration={beatDuration}
                 timelineDurationMs={timelineDurationMs}
                 gridDivision={gridDivision}
