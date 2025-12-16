@@ -603,28 +603,97 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
             </label>
           </div>
 
-          <div style={{ display: 'flex', gap: 8 }}>
-            <label style={{ flex: 1 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label>
               <span style={{ display: 'block', marginBottom: 4 }}>글자 색</span>
-              <select
-                value={style.color}
-                onChange={(e) => updateStyle({ color: e.target.value })}
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {/* 색상 피커 */}
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <input
+                    type="color"
+                    value={style.color.startsWith('#') ? style.color : `#${style.color.replace('#', '')}`}
+                    onChange={(e) => updateStyle({ color: e.target.value })}
+                    style={{
+                      width: '48px',
+                      height: '36px',
+                      padding: 0,
+                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      cursor: 'pointer',
+                      backgroundColor: 'transparent',
+                    }}
+                  />
+                  {/* 색상 미리보기 */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: '32px',
+                      height: '24px',
+                      borderRadius: 4,
+                      backgroundColor: style.color,
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                </div>
+                {/* 색상 값 입력 */}
+                <input
+                  type="text"
+                  value={style.color}
+                  onChange={(e) => updateStyle({ color: e.target.value })}
+                  placeholder="#FFFFFF"
+                  style={{
+                    flex: 1,
+                    padding: '6px 8px',
+                    backgroundColor: CHART_EDITOR_THEME.surface,
+                    color: CHART_EDITOR_THEME.textPrimary,
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                    fontSize: 13,
+                  }}
+                />
+              </div>
+            </label>
+            {/* 프리셋 색상 빠른 선택 */}
+            <div>
+              <div style={{ marginBottom: 6, fontSize: 12, color: CHART_EDITOR_THEME.textSecondary }}>
+                빠른 선택
+              </div>
+              <div
                 style={{
-                  width: '100%',
-                  padding: '6px 8px',
-                  backgroundColor: CHART_EDITOR_THEME.surface,
-                  color: CHART_EDITOR_THEME.textPrimary,
-                  borderRadius: CHART_EDITOR_THEME.radiusSm,
-                  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(8, 1fr)',
+                  gap: 6,
                 }}
               >
                 {COLOR_PRESETS.map((color) => (
-                  <option key={color} value={color}>
-                    {color}
-                  </option>
+                  <button
+                    key={color}
+                    onClick={() => updateStyle({ color })}
+                    style={{
+                      width: '100%',
+                      aspectRatio: '1',
+                      backgroundColor: color,
+                      border:
+                        style.color === color
+                          ? `2px solid ${CHART_EDITOR_THEME.accentStrong}`
+                          : `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      cursor: 'pointer',
+                      boxShadow:
+                        style.color === color
+                          ? `0 0 8px ${CHART_EDITOR_THEME.accent}`
+                          : 'none',
+                      transition: 'all 0.15s',
+                    }}
+                    title={color}
+                  />
                 ))}
-              </select>
-            </label>
+              </div>
+            </div>
           </div>
 
           {/* 배경 설정 */}
