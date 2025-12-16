@@ -119,24 +119,18 @@ body {
   );
 }
 
-/* 가로 바 */
+/* 대각선 바 (왼쪽 위 → 오른쪽 아래) */
 .key-hit__cross::before {
   width: 92px;
   height: 6px;
+  transform: translate(-50%, -50%) rotate(45deg);
 }
 
-/* 세로 바 */
+/* 대각선 바 (오른쪽 위 → 왼쪽 아래) */
 .key-hit__cross::after {
-  width: 6px;
-  height: 92px;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0) 0%,
-    color-mix(in oklab, var(--hit-color) 70%, white 30%) 22%,
-    rgba(255, 255, 255, 0.95) 50%,
-    color-mix(in oklab, var(--hit-color) 70%, white 30%) 78%,
-    rgba(255, 255, 255, 0) 100%
-  );
+  width: 92px;
+  height: 6px;
+  transform: translate(-50%, -50%) rotate(-45deg);
 }
 
 @keyframes keyHitCross {
