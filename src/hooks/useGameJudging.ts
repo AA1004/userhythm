@@ -14,6 +14,7 @@ export interface KeyEffect {
   lane: Lane;
   x: number;
   y: number;
+  judge: JudgeType;
 }
 
 export interface UseGameJudgingOptions {
@@ -98,7 +99,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       const effectId = keyEffectIdRef.current++;
       const effectX = LANE_POSITIONS[lane];
       const effectY = JUDGE_LINE_Y;
-      setKeyEffects((prev) => [...prev, { id: effectId, lane, x: effectX, y: effectY }]);
+      setKeyEffects((prev) => [...prev, { id: effectId, lane, x: effectX, y: effectY, judge }]);
 
       // 피드백 제거와 이펙트 제거를 requestAnimationFrame으로 처리하여 렌더링 최적화
       requestAnimationFrame(() => {

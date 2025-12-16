@@ -152,30 +152,34 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
       {/* 판정선에 나오는 이펙트 - 노트가 있는 위치에서 (간주 구간에서는 숨김) */}
       {gameStarted &&
         bgaMaskOpacity < 1 &&
-        keyEffects.map((effect) => (
-          <div
-            key={effect.id}
-            className="key-hit"
-            style={
-              {
-                left: `${effect.x}px`,
-                top: `${effect.y}px`,
-                // lane별 네온 컬러 (현재 테마에 맞게 시안/블루/바이올렛/핑크)
-                '--hit-color':
-                  (['rgba(34,211,238,1)', 'rgba(96,165,250,1)', 'rgba(167,139,250,1)', 'rgba(251,113,133,1)'] as const)[
-                    effect.lane
-                  ],
-                '--hit-color-soft':
-                  (['rgba(34,211,238,0.35)', 'rgba(96,165,250,0.30)', 'rgba(167,139,250,0.30)', 'rgba(251,113,133,0.28)'] as const)[
-                    effect.lane
-                  ],
-              } as React.CSSProperties
-            }
-          >
-            {/* 십자가(+) 느낌: 천천히 커지며 살짝 회전했다가 훅 사라짐 */}
-            <div className="key-hit__cross" />
-          </div>
-        ))}
+        keyEffects.map((effect) => {
+          // 판정별 색상
+          const judgeColors = {
+            perfect: { main: '#FFD700', soft: 'rgba(255, 215, 0, 0.4)' },
+            great: { main: '#00FF00', soft: 'rgba(0, 255, 0, 0.4)' },
+            good: { main: '#00BFFF', soft: 'rgba(0, 191, 255, 0.4)' },
+            miss: { main: '#FF4500', soft: 'rgba(255, 69, 0, 0.4)' },
+          };
+          const colors = judgeColors[effect.judge];
+
+          return (
+            <div
+              key={effect.id}
+              className="key-hit"
+              style={
+                {
+                  left: `${effect.x}px`,
+                  top: `${effect.y}px`,
+                  '--hit-color': colors.main,
+                  '--hit-color-soft': colors.soft,
+                } as React.CSSProperties
+              }
+            >
+              {/* 십자가(X) 느낌: 천천히 커지며 살짝 회전했다가 훅 사라짐 */}
+              <div className="key-hit__cross" />
+            </div>
+          );
+        })}
 
       {/* 간주 구간 오버레이 (채보 레인 숨김) */}
       {/* 간주 구간에서는 모든 레인 UI를 완전히 가림 */}
