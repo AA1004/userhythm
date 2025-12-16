@@ -36,7 +36,6 @@ interface ChartEditorTimelineProps {
   currentTime: number;
   bpm: number;
   bpmChanges: BPMChange[];
-  beatsPerMeasure: number;
   bgaVisibilityIntervals?: BgaVisibilityInterval[];
   // 선택 영역 관련
   isSelectionMode?: boolean;
@@ -83,7 +82,6 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   pendingLongNote,
   bpm,
   bpmChanges,
-  beatsPerMeasure,
   bgaVisibilityIntervals = [],
   isSelectionMode = false,
   selectedLane: _selectedLane = null,
