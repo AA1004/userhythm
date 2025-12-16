@@ -9,6 +9,7 @@ import {
   getAllFonts,
   addCustomFont,
   removeCustomFont,
+  loadStoredWebFonts,
   CustomFont,
 } from '../../types/subtitle';
 import { CHART_EDITOR_THEME } from '../ChartEditor/constants';
@@ -50,19 +51,29 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
   const [allFonts, setAllFonts] = useState<CustomFont[]>(getAllFonts());
   const [newFontName, setNewFontName] = useState('');
   const [newFontValue, setNewFontValue] = useState('');
+  const [newFontSrc, setNewFontSrc] = useState('');
 
-  // 폰트 목록 업데이트
+  // 폰트 목록 업데이트 및 저장된 웹 폰트 로드
   useEffect(() => {
-    setAllFonts(getAllFonts());
+    const loadFonts = async () => {
+      await loadStoredWebFonts();
+      setAllFonts(getAllFonts());
+    };
+    loadFonts();
   }, []);
 
-  const handleAddFont = () => {
+  const handleAddFont = async () => {
     if (!newFontName.trim() || !newFontValue.trim()) return;
     
-    addCustomFont(newFontName.trim(), newFontValue.trim());
+    await addCustomFont(
+      newFontName.trim(),
+      newFontValue.trim(),
+      newFontSrc.trim() || undefined
+    );
     setAllFonts(getAllFonts());
     setNewFontName('');
     setNewFontValue('');
+    setNewFontSrc('');
   };
 
   const handleRemoveFont = (fontValue: string) => {
@@ -419,6 +430,26 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
                   fontSize: 13,
                 }}
               />
+              <input
+                type="text"
+                placeholder="웹 폰트 URL (선택사항, 예: https://fonts.gstatic.com/.../font.woff2)"
+                value={newFontSrc}
+                onChange={(e) => setNewFontSrc(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newFontName.trim() && newFontValue.trim()) {
+                    handleAddFont();
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '6px 8px',
+                  backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                  fontSize: 13,
+                }}
+              />
               <button
                 onClick={handleAddFont}
                 disabled={!newFontName.trim() || !newFontValue.trim()}
@@ -465,7 +496,22 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
                           borderRadius: CHART_EDITOR_THEME.radiusSm,
                         }}
                       >
-                        <span style={{ fontSize: 12 }}>{font.label}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 12 }}>{font.label}</span>
+                          {font.src && (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                color: CHART_EDITOR_THEME.accent,
+                                padding: '1px 4px',
+                                backgroundColor: CHART_EDITOR_THEME.accentSoft,
+                                borderRadius: 3,
+                              }}
+                            >
+                              웹 폰트
+                            </span>
+                          )}
+                        </div>
                         <button
                           onClick={() => handleRemoveFont(font.value)}
                           style={{

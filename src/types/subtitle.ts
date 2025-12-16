@@ -144,6 +144,7 @@ const CUSTOM_FONTS_STORAGE_KEY = 'subtitleCustomFonts';
 export interface CustomFont {
   label: string;
   value: string;
+  src?: string; // 웹 폰트 URL (선택적)
 }
 
 export const getCustomFonts = (): CustomFont[] => {
@@ -164,11 +165,24 @@ export const saveCustomFonts = (fonts: CustomFont[]): void => {
   }
 };
 
-export const addCustomFont = (label: string, value: string): void => {
+export const addCustomFont = async (label: string, value: string, src?: string): Promise<void> => {
   const fonts = getCustomFonts();
   // 중복 체크
   if (fonts.some((f) => f.value === value)) return;
-  fonts.push({ label, value });
+  
+  // 웹 폰트 URL이 있으면 FontFace API로 동적 로드
+  if (src) {
+    try {
+      const fontFace = new FontFace(label, `url(${src})`);
+      await fontFace.load();
+      document.fonts.add(fontFace);
+    } catch (error) {
+      console.error('Failed to load web font:', error);
+      // 폰트 로드 실패해도 저장은 진행 (나중에 다시 시도 가능)
+    }
+  }
+  
+  fonts.push({ label, value, src });
   saveCustomFonts(fonts);
 };
 
@@ -176,6 +190,30 @@ export const removeCustomFont = (value: string): void => {
   const fonts = getCustomFonts();
   const filtered = fonts.filter((f) => f.value !== value);
   saveCustomFonts(filtered);
+};
+
+/**
+ * 저장된 웹 폰트들을 다시 로드
+ */
+export const loadStoredWebFonts = async (): Promise<void> => {
+  const customFonts = getCustomFonts();
+  for (const font of customFonts) {
+    if (font.src) {
+      try {
+        // 이미 로드된 폰트인지 확인
+        const existing = Array.from(document.fonts).find(
+          (f) => f.family === font.label
+        );
+        if (existing) continue;
+
+        const fontFace = new FontFace(font.label, `url(${font.src})`);
+        await fontFace.load();
+        document.fonts.add(fontFace);
+      } catch (error) {
+        console.error(`Failed to load web font ${font.label}:`, error);
+      }
+    }
+  }
 };
 
 /**
