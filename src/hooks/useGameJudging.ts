@@ -35,7 +35,7 @@ export interface UseGameJudgingReturn {
 }
 
 export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingReturn {
-  const { gameStateRef, setGameState, processedMissNotes } = options;
+  const { gameState, gameStateRef, setGameState, processedMissNotes } = options;
 
   const [pressedKeys, setPressedKeys] = useState<Set<Lane>>(new Set());
   const [holdingNotes, setHoldingNotes] = useState<Map<number, Note>>(new Map());
@@ -84,6 +84,10 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
    * 판정 피드백과 이펙트를 추가하는 공통 함수
    */
   const addJudgeFeedback = useCallback((judge: JudgeType, lane: Lane) => {
+    // 게임이 시작되지 않았거나 종료된 경우 이펙트 생성하지 않음
+    const currentState = gameStateRef.current;
+    if (!currentState.gameStarted || currentState.gameEnded) return;
+
     // 새로운 판정이 나타날 때 기존 피드백 모두 제거 (겹침 방지)
     feedbackTimersRef.current.forEach((timer) => {
       clearTimeout(timer);
@@ -317,6 +321,21 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     },
     [processedMissNotes]
   );
+
+  // 게임이 시작될 때 기존 이펙트와 피드백 초기화
+  useEffect(() => {
+    if (!gameState.gameStarted) {
+      // 게임이 시작되지 않았을 때 모든 이펙트와 피드백 제거
+      feedbackTimersRef.current.forEach((timer) => {
+        clearTimeout(timer);
+      });
+      feedbackTimersRef.current.clear();
+      setJudgeFeedbacks([]);
+      setKeyEffects([]);
+      setPressedKeys(new Set());
+      setHoldingNotes(new Map());
+    }
+  }, [gameState.gameStarted]);
 
   // 컴포넌트 언마운트 시 모든 타이머 정리
   useEffect(() => {
