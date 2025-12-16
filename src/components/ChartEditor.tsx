@@ -1,5 +1,5 @@
 ﻿import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Note, BPMChange, TimeSignatureEvent, ChartTestPayload, SubtitleEditorChartData, Lane, SpeedChange, BgaVisibilityInterval, BgaVisibilityMode } from '../types/game';
+import { Note, BPMChange, ChartTestPayload, SubtitleEditorChartData, Lane, SpeedChange, BgaVisibilityInterval, BgaVisibilityMode } from '../types/game';
 import { ChartEditorHeader } from './ChartEditor/ChartEditorHeader';
 import { ChartEditorSidebarLeft } from './ChartEditor/ChartEditorSidebarLeft';
 import { ChartEditorTimeline } from './ChartEditor/ChartEditorTimeline';
@@ -1625,7 +1625,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                 currentTime={currentTime}
                 bpm={bpm}
                 bpmChanges={sortedBpmChanges}
-                beatsPerMeasure={beatsPerMeasure}
                 bgaVisibilityIntervals={bgaVisibilityIntervals}
                  isSelectionMode={isSelectionMode}
                  selectedLane={selectedLane}

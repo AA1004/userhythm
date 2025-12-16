@@ -1,6 +1,7 @@
 import React from 'react';
 import { CHART_EDITOR_THEME } from './constants';
 import { SpeedChange, BPMChange, BgaVisibilityInterval } from '../../types/game';
+import { timeToMeasure, beatIndexToTime, timeToBeatIndex } from '../../utils/bpmUtils';
 
 interface ChartEditorSidebarProps {
   zoom: number;
