@@ -845,7 +845,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     const copiedNotesWithRelativeTime = selectedNotes.map((note) => {
       const relativeTime = note.time - minTime;
       // 롱노트의 경우 endTime도 상대 시간으로 변환
-      const relativeEndTime = note.endTime ? note.endTime - minTime : undefined;
+      const relativeEndTime = note.endTime ? note.endTime - minTime : relativeTime;
       return {
         ...note,
         time: relativeTime,
@@ -865,7 +865,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     const newNotes = copiedNotes.map((note) => {
       const newTime = note.time + currentTime;
       // 롱노트의 경우 endTime도 함께 조정
-      const newEndTime = note.endTime ? note.endTime + currentTime : undefined;
+      const newEndTime = note.endTime ? note.endTime + currentTime : newTime;
       return {
         ...note,
         id: noteIdRef.current++,
