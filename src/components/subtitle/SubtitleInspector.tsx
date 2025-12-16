@@ -430,7 +430,7 @@ export const SubtitleInspector: React.FC<SubtitleInspectorProps> = ({
                       : CHART_EDITOR_THEME.surfaceElevated,
                   color:
                     newFontName.trim() && newFontValue.trim()
-                      ? CHART_EDITOR_THEME.textOnAccent
+                      ? CHART_EDITOR_THEME.buttonPrimaryText
                       : CHART_EDITOR_THEME.textSecondary,
                   borderRadius: CHART_EDITOR_THEME.radiusSm,
                   border: 'none',
