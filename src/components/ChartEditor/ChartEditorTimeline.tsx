@@ -155,30 +155,29 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
     // 박자 변경 이벤트를 beatIndex 기준으로 정렬
     const sortedTS = [...sortedTimeSignatures].sort((a, b) => a.beatIndex - b.beatIndex);
     
+    // 각 박자 변경 구간별로 마디 시작 위치 계산
     let currentBeatsPerMeasure = sortedTS[0]?.beatsPerMeasure || 4;
     let currentMeasureStartBeat = 0;
+    let nextTSIndex = 1;
 
     for (let beat = 0; beat <= totalBeats; beat += 1 / gridDivision) {
-      // 현재 비트 위치에서 적용되는 박자 확인
-      const activeTS = sortedTS.filter(ts => ts.beatIndex <= beat);
-      if (activeTS.length > 0) {
-        const latestTS = activeTS[activeTS.length - 1];
-        if (latestTS.beatIndex === beat) {
-          // 박자 변경 지점
-          currentBeatsPerMeasure = latestTS.beatsPerMeasure;
-          currentMeasureStartBeat = beat;
-        } else {
-          currentBeatsPerMeasure = latestTS.beatsPerMeasure;
-        }
+      // 박자 변경 지점 확인
+      if (nextTSIndex < sortedTS.length && beat >= sortedTS[nextTSIndex].beatIndex) {
+        // 박자 변경 발생: 새로운 박자가 적용되는 지점부터 새로운 마디 시작
+        currentBeatsPerMeasure = sortedTS[nextTSIndex].beatsPerMeasure;
+        currentMeasureStartBeat = sortedTS[nextTSIndex].beatIndex;
+        nextTSIndex++;
       }
 
       const timeMs = (beat * beatDuration) + timeSignatureOffset;
       if (timeMs < 0 || timeMs > timelineDurationMs) continue;
 
       const y = timeToY(timeMs);
-      // 현재 마디 내에서의 비트 위치
+      // 현재 마디 내에서의 비트 위치 (소수점 고려)
       const beatInMeasure = beat - currentMeasureStartBeat;
-      const isMeasure = beatInMeasure % currentBeatsPerMeasure === 0;
+      // 마디 경계인지 확인 (소수점 오차 고려)
+      const isMeasure = Math.abs(beatInMeasure % currentBeatsPerMeasure) < 0.01 || 
+                        Math.abs(beatInMeasure % currentBeatsPerMeasure - currentBeatsPerMeasure) < 0.01;
       lines.push({ y, isMeasure });
     }
 

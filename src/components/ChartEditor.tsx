@@ -1258,8 +1258,27 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       return;
     }
 
+    // 현재 위치에서 적용되는 박자 찾기
+    const sortedTS = [...timeSignatures].sort((a, b) => a.beatIndex - b.beatIndex);
+    let currentBeatsPerMeasure = sortedTS[0]?.beatsPerMeasure || 4;
+    let currentMeasureStartBeat = 0;
+    
+    for (const ts of sortedTS) {
+      if (ts.beatIndex <= currentBeat) {
+        currentBeatsPerMeasure = ts.beatsPerMeasure;
+        currentMeasureStartBeat = ts.beatIndex;
+      } else {
+        break;
+      }
+    }
+    
+    // 현재 마디의 다음 마디 시작 위치로 정렬 (박자 변경은 마디 경계에서만 발생)
+    const beatInCurrentMeasure = currentBeat - currentMeasureStartBeat;
+    const beatsUntilNextMeasure = currentBeatsPerMeasure - (beatInCurrentMeasure % currentBeatsPerMeasure);
+    const alignedBeatIndex = Math.ceil(currentBeat / currentBeatsPerMeasure) * currentBeatsPerMeasure;
+
     const newId = Math.max(...timeSignatures.map(ts => ts.id), 0) + 1;
-    setTimeSignatures(prev => [...prev, { id: newId, beatIndex: Math.floor(currentBeat), beatsPerMeasure }]);
+    setTimeSignatures(prev => [...prev, { id: newId, beatIndex: alignedBeatIndex, beatsPerMeasure }]);
   }, [currentTime, bpm, sortedBpmChanges, timeSignatures]);
 
   const handleEditTimeSignatureChange = useCallback((ts: TimeSignatureEvent) => {
