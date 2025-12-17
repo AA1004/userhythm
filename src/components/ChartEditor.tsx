@@ -995,6 +995,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   // 키보드 단축키 (Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y, ESC)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // 입력 필드(input, textarea)에 포커스가 있으면 기본 동작 허용
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+        // 입력 필드에서는 기본 브라우저 동작 사용
+        return;
+      }
+      
       // Ctrl+Z: 실행 취소
       if (e.ctrlKey && e.key === 'z' && !e.shiftKey && !e.altKey) {
         e.preventDefault();
