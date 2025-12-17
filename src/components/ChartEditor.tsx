@@ -871,13 +871,23 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     // 현재 시간 위치에 노트들을 붙여넣기
     const newNotes = copiedNotes.map((note) => {
       const newTime = note.time + currentTime;
-      // 롱노트의 경우 endTime도 함께 조정
-      const newEndTime = note.endTime ? note.endTime + currentTime : newTime;
+      const isTapNote = (note.duration ?? 0) <= 0 || note.type === 'tap';
+      
+      // 탭 노트는 항상 endTime === time, 롱노트는 endTime도 함께 조정
+      const newEndTime = isTapNote 
+        ? newTime 
+        : (note.endTime && note.endTime > note.time 
+            ? note.endTime + currentTime 
+            : newTime + (note.duration ?? 0));
+      
       return {
         ...note,
         id: noteIdRef.current++,
         time: newTime,
         endTime: newEndTime,
+        // 탭 노트는 duration을 0으로 강제
+        duration: isTapNote ? 0 : (note.duration ?? 0),
+        type: isTapNote ? 'tap' as const : (note.type || 'hold'),
       };
     });
     
