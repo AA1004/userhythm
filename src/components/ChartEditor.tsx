@@ -851,12 +851,22 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     const minTime = Math.min(...selectedNotes.map((n) => n.time));
     const copiedNotesWithRelativeTime = selectedNotes.map((note) => {
       const relativeTime = note.time - minTime;
-      // 롱노트의 경우 endTime도 상대 시간으로 변환
-      const relativeEndTime = note.endTime ? note.endTime - minTime : relativeTime;
+      const isTapNote = (note.duration ?? 0) <= 0 || note.type === 'tap';
+      
+      // 탭 노트는 항상 endTime === time, 롱노트는 endTime도 상대 시간으로 변환
+      const relativeEndTime = isTapNote
+        ? relativeTime
+        : (note.endTime && note.endTime > note.time
+            ? note.endTime - minTime
+            : relativeTime + (note.duration ?? 0));
+      
       return {
         ...note,
         time: relativeTime,
         endTime: relativeEndTime,
+        // 탭 노트는 duration을 0으로 강제
+        duration: isTapNote ? 0 : (note.duration ?? 0),
+        type: isTapNote ? 'tap' as const : (note.type || 'hold'),
       };
     });
     
@@ -869,27 +879,44 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
     
     // 현재 시간 위치에 노트들을 붙여넣기
-    const newNotes = copiedNotes.map((note) => {
-      const newTime = note.time + currentTime;
-      const isTapNote = (note.duration ?? 0) <= 0 || note.type === 'tap';
-      
-      // 탭 노트는 항상 endTime === time, 롱노트는 endTime도 함께 조정
-      const newEndTime = isTapNote 
-        ? newTime 
-        : (note.endTime && note.endTime > note.time 
-            ? note.endTime + currentTime 
-            : newTime + (note.duration ?? 0));
-      
-      return {
-        ...note,
-        id: noteIdRef.current++,
-        time: newTime,
-        endTime: newEndTime,
-        // 탭 노트는 duration을 0으로 강제
-        duration: isTapNote ? 0 : (note.duration ?? 0),
-        type: isTapNote ? 'tap' as const : (note.type || 'hold'),
-      };
-    });
+    const newNotes = copiedNotes
+      .map((note) => {
+        const newTime = note.time + currentTime;
+        const isTapNote = (note.duration ?? 0) <= 0 || note.type === 'tap';
+        
+        // 탭 노트는 항상 endTime === time, 롱노트는 endTime도 함께 조정
+        const newEndTime = isTapNote 
+          ? newTime 
+          : (note.endTime && note.endTime > note.time 
+              ? note.endTime + currentTime 
+              : newTime + (note.duration ?? 0));
+        
+        // 유효성 검증: endTime이 time보다 작거나 같으면 탭 노트로 변환
+        const finalEndTime = newEndTime > newTime ? newEndTime : newTime;
+        const finalIsTapNote = isTapNote || finalEndTime <= newTime;
+        
+        return {
+          ...note,
+          id: noteIdRef.current++,
+          time: newTime,
+          endTime: finalEndTime,
+          // 탭 노트는 duration을 0으로 강제
+          duration: finalIsTapNote ? 0 : (note.duration ?? 0),
+          type: finalIsTapNote ? 'tap' as const : (note.type || 'hold'),
+          hit: false, // 붙여넣은 노트는 항상 hit: false
+        };
+      })
+      .filter((note) => {
+        // 유효하지 않은 노트 필터링
+        if (note.time < 0 || isNaN(note.time)) return false;
+        if (note.endTime < note.time || isNaN(note.endTime)) return false;
+        if (note.duration === 0 && note.endTime !== note.time) return false;
+        return true;
+      });
+    
+    if (newNotes.length === 0) {
+      return;
+    }
     
     setNotes((prev) => {
       const newNotesList = [...prev, ...newNotes].sort((a, b) => a.time - b.time);
