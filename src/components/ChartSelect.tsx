@@ -808,6 +808,34 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
               {selectedChart.title}
             </h2>
 
+            <button
+              onClick={() => handleSelectChart(selectedChart)}
+              style={{
+                width: '100%',
+                padding: '15px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                background: CHART_EDITOR_THEME.buttonPrimaryBg,
+                color: CHART_EDITOR_THEME.buttonPrimaryText,
+                border: 'none',
+                borderRadius: CHART_EDITOR_THEME.radiusMd,
+                cursor: 'pointer',
+                boxShadow: CHART_EDITOR_THEME.shadowSoft,
+                marginBottom: '20px',
+                transition: 'all 0.15s ease-out',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = CHART_EDITOR_THEME.buttonPrimaryBgHover;
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = CHART_EDITOR_THEME.buttonPrimaryBg;
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              🎮 이 채보로 플레이
+            </button>
+
             {selectedChart.preview_image && (
               <div
                 style={{
@@ -913,24 +941,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                 </div>
               </div>
             </div>
-
-            <button
-              onClick={() => handleSelectChart(selectedChart)}
-              style={{
-                width: '100%',
-                padding: '15px',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                background: CHART_EDITOR_THEME.buttonPrimaryBg,
-                color: CHART_EDITOR_THEME.buttonPrimaryText,
-                border: 'none',
-                borderRadius: CHART_EDITOR_THEME.radiusMd,
-                cursor: 'pointer',
-                boxShadow: CHART_EDITOR_THEME.shadowSoft,
-              }}
-            >
-              🎮 이 채보로 플레이
-            </button>
 
             <div style={{ marginTop: '20px' }}>
               <h3 style={{ color: CHART_EDITOR_THEME.textPrimary, marginBottom: '10px' }}>정확도 리더보드</h3>

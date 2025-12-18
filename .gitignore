@@ -30,3 +30,8 @@ Thumbs.db
 server/downloads/*
 !server/downloads/.gitkeep
 
+# Temporary files
+temp_*.ts
+temp_*.tsx
+temp_*.js
+*.tmp
