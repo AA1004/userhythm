@@ -17,6 +17,11 @@
   align-items: center;
 }
 
+.ur-brand__grid--overlap {
+  grid-template-columns: auto;
+  justify-items: center;
+}
+
 .ur-brand__mark {
   grid-column: 1;
   grid-row: 1;
@@ -32,6 +37,25 @@
   grid-row: 1;
   display: flex;
   align-items: center;
+  position: relative;
+}
+
+.ur-brand__grid--overlap .ur-brand__titleWrap {
+  grid-column: 1;
+  justify-content: center;
+}
+
+.ur-brand__mark--overlap {
+  position: absolute;
+  left: -18px;
+  top: 50%;
+  transform: translateY(-54%) scale(1.06);
+  opacity: 0.62;
+  z-index: 1;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.32))
+    drop-shadow(0 0 28px rgba(129, 140, 248, 0.22));
 }
 
 .ur-logo {
@@ -45,6 +69,8 @@
   line-height: 1.05;
   font-size: var(--ur-logo-size, 48px);
   text-shadow: var(--ur-logo-glow, 0 0 24px rgba(56, 189, 248, 0.35));
+  position: relative;
+  z-index: 2; /* overlap 심볼 위에 텍스트가 오도록 */
 }
 
 .ur-logo__fill {
@@ -69,6 +95,10 @@
   color: rgba(226, 232, 240, 0.78);
   white-space: pre-line;
   text-align: center;
+}
+
+.ur-brand__grid--overlap .ur-tagline {
+  grid-column: 1;
 }
 
 @keyframes urShimmer {

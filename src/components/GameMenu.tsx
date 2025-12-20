@@ -70,6 +70,7 @@ export const GameMenu: React.FC<GameMenuProps> = ({
             title="UseRhythm"
             tagline={'누구나 리듬게임 채보를 만들고,\n친구들과 플레이를 공유해 보세요.'}
             size="lg"
+            markStyle="overlap"
             gradient={CHART_EDITOR_THEME.titleGradient}
             strokeColor={CHART_EDITOR_THEME.rootBackground}
             glow={CHART_EDITOR_THEME.titleGlow}

@@ -35,6 +35,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
           title="UseRhythm"
           tagline="누구나 리듬게임 채보를 만들고 공유하세요"
           size="md"
+          markStyle="overlap"
           gradient="linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)"
           strokeColor="rgba(2, 6, 23, 0.95)"
           glow="0 0 40px rgba(102, 126, 234, 0.5)"
