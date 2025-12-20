@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { SubtitleCue, SubtitleStyle } from '../types/subtitle';
+import { SubtitleCue, SubtitleStyle, loadStoredWebFonts } from '../types/subtitle';
 import { subtitleAPI, localSubtitleStorage } from '../lib/subtitleAPI';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { GameState } from '../types/game';
@@ -23,6 +23,9 @@ export function useSubtitles(gameState: GameState, currentChartTimeMs: number): 
   // 자막 불러오기
   const loadSubtitlesForChart = useCallback(async (chartId: string) => {
     try {
+      // 커스텀 폰트를 먼저 로드 (자막이 커스텀 폰트를 사용할 수 있도록)
+      await loadStoredWebFonts();
+
       let cues: SubtitleCue[] = [];
 
       const shouldForceLocal = !chartId || chartId.startsWith('local-');

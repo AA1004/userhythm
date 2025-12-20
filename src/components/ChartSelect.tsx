@@ -252,6 +252,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         timeSignatures: chartData.timeSignatures || [{ id: 0, beatIndex: 0, beatsPerMeasure: 4 }],
         timeSignatureOffset: chartData.timeSignatureOffset || 0,
         speedChanges: chartData.speedChanges || [],
+        bgaVisibilityIntervals: chartData.bgaVisibilityIntervals || [],
+        subtitles: chartData.subtitles || [],
         youtubeVideoId,
         youtubeUrl,
         playbackSpeed: chartData.playbackSpeed || 1,

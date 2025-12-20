@@ -1359,6 +1359,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
     try {
       // 공유 시에는 채보 데이터만 포함 (에디터 상태 제외)
+      const subtitles = localSubtitleStorage.get(subtitleSessionId);
       const chartData = {
         notes,
         bpm,
@@ -1370,6 +1371,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         bpmChanges,
         speedChanges,
         bgaVisibilityIntervals,
+        subtitles: subtitles.length > 0 ? subtitles : undefined,
         chartTitle: shareTitle,
         chartAuthor: shareAuthor,
         gridDivision,
@@ -1397,7 +1399,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     } finally {
       setIsUploading(false);
     }
-  }, [shareTitle, shareAuthor, shareDifficulty, shareDescription, bpm, youtubeUrl, youtubeVideoId, youtubeThumbnailUrl, notes, beatsPerMeasure, timeSignatureOffset, timelineExtraMs, bpmChanges, speedChanges, bgaVisibilityIntervals, gridDivision, isLongNoteMode, user]);
+  }, [shareTitle, shareAuthor, shareDifficulty, shareDescription, bpm, youtubeUrl, youtubeVideoId, youtubeThumbnailUrl, notes, beatsPerMeasure, timeSignatureOffset, timelineExtraMs, bpmChanges, speedChanges, bgaVisibilityIntervals, gridDivision, isLongNoteMode, user, subtitleSessionId]);
 
   const handleExportJson = useCallback(() => {
     try {

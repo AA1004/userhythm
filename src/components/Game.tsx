@@ -359,6 +359,7 @@ export const Game: React.FC = () => {
         setSubtitles([]);
       }
     },
+    onSubtitlesSet: setSubtitles,
     onSubtitlesClear: () => setSubtitles([]),
     onBgaIntervalsSet: setBgaVisibilityIntervals,
     onBgaIntervalsRefSet: (intervals) => { testBgaIntervalsRef.current = intervals; },
