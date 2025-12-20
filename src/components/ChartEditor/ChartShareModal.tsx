@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 
 interface ChartShareModalProps {
   isOpen: boolean;
@@ -16,6 +16,11 @@ interface ChartShareModalProps {
   onUpload: () => void;
   user: any;
   onLogin: () => void;
+  previewStartMeasure: number;
+  previewEndMeasure: number;
+  onPreviewStartMeasureChange: (value: number) => void;
+  onPreviewEndMeasureChange: (value: number) => void;
+  beatsPerMeasure: number;
 }
 
 export const ChartShareModal: React.FC<ChartShareModalProps> = ({
@@ -34,7 +39,14 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
   onUpload,
   user,
   onLogin,
+  previewStartMeasure,
+  previewEndMeasure,
+  onPreviewStartMeasureChange,
+  onPreviewEndMeasureChange,
+  beatsPerMeasure,
 }) => {
+  const shouldCloseRef = useRef(false);
+
   if (!isOpen) return null;
 
   return (
@@ -51,7 +63,14 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
         justifyContent: 'center',
         zIndex: 10000,
       }}
-      onClick={onClose}
+      onPointerDown={(e) => {
+        shouldCloseRef.current = e.target === e.currentTarget;
+      }}
+      onPointerUp={(e) => {
+        if (shouldCloseRef.current && e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
     >
       <div
         style={{
@@ -64,6 +83,7 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
           overflow: 'auto',
           color: '#fff',
         }}
+        onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
         <h2 style={{ marginTop: 0, marginBottom: '20px' }}>채보 공유</h2>
@@ -185,6 +205,62 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
             }}
             placeholder="채보에 대한 설명을 입력하세요"
           />
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+            하이라이트 (자막 마디 기준, 박자표: {beatsPerMeasure}/4)
+          </label>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', color: '#bbb' }}>시작 마디</label>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={previewStartMeasure}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  const n = Math.max(1, parseInt(raw || '1', 10));
+                  onPreviewStartMeasureChange(n);
+                  // end가 start 이하이면 자동 보정
+                  if (previewEndMeasure <= n) {
+                    onPreviewEndMeasureChange(n + 1);
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  backgroundColor: '#2a2a2a',
+                  color: '#fff',
+                  border: '1px solid #444',
+                  borderRadius: '6px',
+                }}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontSize: '12px', color: '#bbb' }}>끝 마디</label>
+              <input
+                type="number"
+                min={2}
+                step={1}
+                value={previewEndMeasure}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  const n = Math.max(previewStartMeasure + 1, parseInt(raw || String(previewStartMeasure + 1), 10));
+                  onPreviewEndMeasureChange(n);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  backgroundColor: '#2a2a2a',
+                  color: '#fff',
+                  border: '1px solid #444',
+                  borderRadius: '6px',
+                }}
+              />
+            </div>
+          </div>
         </div>
 
         <div style={{ marginBottom: '16px' }}>

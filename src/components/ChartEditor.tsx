@@ -195,6 +195,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [shareAuthor, setShareAuthor] = useState<string>('');
   const [shareDifficulty, setShareDifficulty] = useState<string>('Normal');
   const [shareDescription, setShareDescription] = useState<string>('');
+  const [sharePreviewStartMeasure, setSharePreviewStartMeasure] = useState<number>(1);
+  const [sharePreviewEndMeasure, setSharePreviewEndMeasure] = useState<number>(5);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadStatus, setUploadStatus] = useState<string>('');
   const [user, setUser] = useState<any>(null);
@@ -1228,7 +1230,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     handleYouTubeUrlSubmit(trimmed);
   }, [handleYouTubeUrlSubmit, youtubeUrl]);
 
-  // 재생선 드래그
+  // 재생선 드래그 (성능 최적화: throttle 적용)
   const handlePlayheadMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault(); // 기본 드래그 동작 방지 (텍스트 선택 등)
     e.stopPropagation();
@@ -1236,18 +1238,25 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     lastPointerClientYRef.current = e.clientY;
     setIsPlaying(false); // 드래그 시 일시정지
 
+    // throttle 변수: 마지막 업데이트 시간 추적
+    let lastUpdateTime = 0;
+    const THROTTLE_MS = 16; // ~60fps
+
     const handleMouseMove = (moveEvent: MouseEvent) => {
       if (!timelineScrollRef.current) return;
-        const rect = timelineScrollRef.current.getBoundingClientRect();
-        // 스크롤된 상태를 고려하여 Y 좌표 계산
+
+      // throttle 적용: 16ms 간격으로만 업데이트
+      const now = performance.now();
+      if (now - lastUpdateTime < THROTTLE_MS) return;
+      lastUpdateTime = now;
+
+      const rect = timelineScrollRef.current.getBoundingClientRect();
+      // 스크롤된 상태를 고려하여 Y 좌표 계산
       const relativeY =
         moveEvent.clientY - rect.top + timelineScrollRef.current.scrollTop;
-        const newTime = clampTime(yToTime(relativeY));
-        setCurrentTime(newTime);
+      const newTime = clampTime(yToTime(relativeY));
+      setCurrentTime(newTime);
       lastPointerClientYRef.current = moveEvent.clientY;
-        
-        // YouTube seek (드래그 중에는 부하 줄이기 위해 throttle 고려 가능하나 여기선 직접 호출)
-        // seekTo(newTime); // 너무 잦은 호출 방지 위해 mouseUp에서만 하거나, throttle 필요
     };
 
     const handleMouseUp = (upEvent: MouseEvent) => {
@@ -1376,6 +1385,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         chartAuthor: shareAuthor,
         gridDivision,
         isLongNoteMode,
+        previewStartMeasure: sharePreviewStartMeasure,
+        previewEndMeasure: sharePreviewEndMeasure,
       };
 
       await chartAPI.uploadChart({
@@ -1412,6 +1423,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         chart: {
           ...autoSaveData,
           subtitles: subtitles.length > 0 ? subtitles : undefined,
+          previewStartMeasure: sharePreviewStartMeasure,
+          previewEndMeasure: sharePreviewEndMeasure,
         },
       };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -2598,7 +2611,22 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
           {/* 공유 버튼 */}
           <button
-            onClick={() => setIsShareModalOpen(true)}
+            onClick={() => {
+              // 자막 기준으로 하이라이트 기본값 자동 설정
+              const subtitles = localSubtitleStorage.get(subtitleSessionId);
+              if (subtitles.length > 0) {
+                const firstCue = subtitles[0];
+                const startMeasure = timeToMeasure(firstCue.startTimeMs, bpm, bpmChanges, beatsPerMeasure);
+                const endMeasure = startMeasure + 4;
+                setSharePreviewStartMeasure(startMeasure);
+                setSharePreviewEndMeasure(endMeasure);
+              } else {
+                // 자막이 없으면 기본값 유지
+                setSharePreviewStartMeasure(1);
+                setSharePreviewEndMeasure(5);
+              }
+              setIsShareModalOpen(true);
+            }}
             style={{
               width: '100%',
               padding: '6px',
@@ -2634,6 +2662,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         onUpload={handleShare}
         user={user}
         onLogin={handleLoginWithGoogle}
+        previewStartMeasure={sharePreviewStartMeasure}
+        previewEndMeasure={sharePreviewEndMeasure}
+        onPreviewStartMeasureChange={setSharePreviewStartMeasure}
+        onPreviewEndMeasureChange={setSharePreviewEndMeasure}
+        beatsPerMeasure={beatsPerMeasure}
       />
       <input
         type="file"

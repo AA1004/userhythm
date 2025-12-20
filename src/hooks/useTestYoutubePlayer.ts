@@ -8,6 +8,7 @@ export interface UseTestYoutubePlayerOptions {
   currentTime: number;
   videoId: string | null;
   audioSettings: AudioSettings | null;
+  externalPlayer?: any | null;
 }
 
 export interface UseTestYoutubePlayerReturn {
@@ -23,16 +24,43 @@ export function useTestYoutubePlayer({
   currentTime,
   videoId,
   audioSettings,
+  externalPlayer,
 }: UseTestYoutubePlayerOptions): UseTestYoutubePlayerReturn {
   const [player, setPlayer] = useState<any>(null);
   const playerRef = useRef<HTMLDivElement>(null);
   const playerReadyRef = useRef(false);
   const audioHasStartedRef = useRef(false);
   const lastResyncTimeRef = useRef(0);
+  const isExternalPlayerRef = useRef(false);
+
+  // External player가 있으면 재사용
+  useEffect(() => {
+    if (externalPlayer && isTestMode && videoId) {
+      setPlayer(externalPlayer);
+      playerReadyRef.current = true;
+      isExternalPlayerRef.current = true;
+      
+      // External player 설정
+      if (audioSettings) {
+        try {
+          const { playbackSpeed } = audioSettings;
+          const startTimeSec = getAudioBaseSeconds(audioSettings);
+          externalPlayer.setPlaybackRate?.(playbackSpeed);
+          externalPlayer.seekTo(startTimeSec, true);
+        } catch (e) {
+          console.warn('External player 설정 실패:', e);
+        }
+      }
+      return;
+    } else {
+      isExternalPlayerRef.current = false;
+    }
+  }, [externalPlayer, isTestMode, videoId, audioSettings]);
 
   // YouTube 플레이어 초기화
   useEffect(() => {
     if (!isTestMode || !videoId) return;
+    if (externalPlayer && isExternalPlayerRef.current) return; // External player 사용 중이면 skip
     if (!playerRef.current) return;
 
     let playerInstance: any = null;
@@ -214,15 +242,22 @@ export function useTestYoutubePlayer({
   const destroy = () => {
     if (player) {
       try {
-        player.destroy?.();
+        // External player는 destroy하지 않고 pause만
+        if (isExternalPlayerRef.current) {
+          player.pauseVideo?.();
+        } else {
+          player.destroy?.();
+        }
       } catch (e) {
         console.warn('테스트 플레이어 정리 실패:', e);
       }
     }
-    setPlayer(null);
-    playerReadyRef.current = false;
-    if (playerRef.current) {
-      playerRef.current.innerHTML = '';
+    if (!isExternalPlayerRef.current) {
+      setPlayer(null);
+      playerReadyRef.current = false;
+      if (playerRef.current) {
+        playerRef.current.innerHTML = '';
+      }
     }
   };
 

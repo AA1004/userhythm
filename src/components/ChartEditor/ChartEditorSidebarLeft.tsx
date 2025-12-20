@@ -117,6 +117,8 @@ export const ChartEditorSidebarLeft: React.FC<ChartEditorSidebarLeftProps> = ({
           step="0.1"
           value={zoom}
           onChange={(e) => onZoomChange(parseFloat(e.target.value))}
+          onMouseUp={(e) => e.currentTarget.blur()}
+          onTouchEnd={(e) => e.currentTarget.blur()}
           style={{ width: '100%' }}
         />
       </div>
@@ -148,6 +150,8 @@ export const ChartEditorSidebarLeft: React.FC<ChartEditorSidebarLeftProps> = ({
           step={0.05}
           value={playbackSpeed}
           onChange={(e) => onPlaybackSpeedChange(parseFloat(e.target.value))}
+          onMouseUp={(e) => e.currentTarget.blur()}
+          onTouchEnd={(e) => e.currentTarget.blur()}
           style={{ width: '100%' }}
         />
         <div
@@ -216,6 +220,8 @@ export const ChartEditorSidebarLeft: React.FC<ChartEditorSidebarLeftProps> = ({
           step="1"
           value={volume}
           onChange={(e) => onVolumeChange(parseInt(e.target.value))}
+          onMouseUp={(e) => e.currentTarget.blur()}
+          onTouchEnd={(e) => e.currentTarget.blur()}
           style={{ width: '100%' }}
         />
       </div>
@@ -247,6 +253,8 @@ export const ChartEditorSidebarLeft: React.FC<ChartEditorSidebarLeftProps> = ({
           step="1"
           value={hitSoundVolume}
           onChange={(e) => onHitSoundVolumeChange(parseInt(e.target.value))}
+          onMouseUp={(e) => e.currentTarget.blur()}
+          onTouchEnd={(e) => e.currentTarget.blur()}
           style={{ width: '100%' }}
         />
       </div>
@@ -273,7 +281,10 @@ export const ChartEditorSidebarLeft: React.FC<ChartEditorSidebarLeftProps> = ({
         </label>
         <select
           value={beatsPerMeasure}
-          onChange={(e) => onTimeSignatureChange(parseInt(e.target.value))}
+          onChange={(e) => {
+            e.currentTarget.blur();
+            onTimeSignatureChange(parseInt(e.target.value));
+          }}
           style={{
             width: '100%',
             padding: '4px 6px',
@@ -313,7 +324,10 @@ export const ChartEditorSidebarLeft: React.FC<ChartEditorSidebarLeftProps> = ({
         </label>
         <select
           value={gridDivision}
-          onChange={(e) => onGridDivisionChange(parseInt(e.target.value))}
+          onChange={(e) => {
+            e.currentTarget.blur();
+            onGridDivisionChange(parseInt(e.target.value));
+          }}
           style={{
             width: '100%',
             padding: '4px 6px',
@@ -363,7 +377,10 @@ export const ChartEditorSidebarLeft: React.FC<ChartEditorSidebarLeftProps> = ({
           }}
         >
           <button
-            onClick={() => handleOffsetAdjust(-1)}
+            onClick={(e) => {
+              e.currentTarget.blur();
+              handleOffsetAdjust(-1);
+            }}
             style={{
               flex: 1,
               padding: '6px',
@@ -390,7 +407,10 @@ export const ChartEditorSidebarLeft: React.FC<ChartEditorSidebarLeftProps> = ({
             {displayOffset}칸
           </div>
           <button
-            onClick={() => handleOffsetAdjust(1)}
+            onClick={(e) => {
+              e.currentTarget.blur();
+              handleOffsetAdjust(1);
+            }}
             style={{
               flex: 1,
               padding: '6px',
@@ -452,7 +472,10 @@ export const ChartEditorSidebarLeft: React.FC<ChartEditorSidebarLeftProps> = ({
           }}
         >
           <button
-            onClick={() => onTimelineExtraChange((prev) => prev - 5000)}
+            onClick={(e) => {
+              e.currentTarget.blur();
+              onTimelineExtraChange((prev) => prev - 5000);
+            }}
             style={{
               flex: 1,
               padding: '6px',
@@ -468,7 +491,10 @@ export const ChartEditorSidebarLeft: React.FC<ChartEditorSidebarLeftProps> = ({
             -5초
           </button>
           <button
-            onClick={() => onTimelineExtraChange((prev) => prev + 5000)}
+            onClick={(e) => {
+              e.currentTarget.blur();
+              onTimelineExtraChange((prev) => prev + 5000);
+            }}
             style={{
               flex: 1,
               padding: '6px',

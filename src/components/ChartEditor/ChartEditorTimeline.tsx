@@ -5,6 +5,7 @@ import {
   LANE_WIDTH,
   TAP_NOTE_HEIGHT,
   TIMELINE_BOTTOM_PADDING,
+  PIXELS_PER_SECOND,
 } from './constants';
 import { timeToMeasure } from '../../utils/bpmUtils';
 
@@ -60,7 +61,8 @@ interface ChartEditorTimelineProps {
   pendingLongNote?: { lane: Lane; startTime: number } | null;
 }
 
-export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
+// 성능 최적화: currentTime이 변경되어도 노트 렌더링이 재계산되지 않도록 memo 적용
+export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.memo(({
   notes,
   beatsPerMeasure,
   beatDuration,
@@ -173,26 +175,51 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
   // 노트 높이는 줌과 무관하게 고정 (타임라인 스케일만 줌에 따라 변함)
   const tapNoteHeight = TAP_NOTE_HEIGHT;
 
-  const preparedNotes = useMemo(
-    () =>
-      notes.map((note) => {
+  // 성능 최적화: 가시 영역 노트만 계산 (timeToY 의존성 제거)
+  // 1. 시간 범위로 빠르게 필터링 후 계산
+  // 2. timeToY 대신 직접 계산하여 currentTime 변경시 재계산 방지
+  const visibleNotes = useMemo(() => {
+    // 뷰포트의 시간 범위 계산 (Y좌표 → 시간 변환)
+    // timeToY 공식: y = timelineContentHeight - TIMELINE_BOTTOM_PADDING - (timeMs / 1000) * PIXELS_PER_SECOND * zoom
+    // 역변환: timeMs = ((timelineContentHeight - TIMELINE_BOTTOM_PADDING - y) / (PIXELS_PER_SECOND * zoom)) * 1000
+    const zoom = _zoom;
+    const yToTimeLocal = (y: number): number => {
+      const relativeY = timelineContentHeight - TIMELINE_BOTTOM_PADDING - y;
+      return (relativeY / (PIXELS_PER_SECOND * zoom)) * 1000;
+    };
+    const timeToYLocal = (timeMs: number): number => {
+      return timelineContentHeight - TIMELINE_BOTTOM_PADDING - (timeMs / 1000) * PIXELS_PER_SECOND * zoom;
+    };
+
+    // 가시 영역의 시간 범위 (버퍼 포함)
+    const viewStartTime = yToTimeLocal(paddedBottom);
+    const viewEndTime = yToTimeLocal(paddedTop);
+
+    // 시간 범위 내 노트만 필터링 후 계산
+    return notes
+      .filter((note) => {
+        const endTime = note.endTime || note.time + (note.duration || 0);
+        return endTime >= viewStartTime && note.time <= viewEndTime;
+      })
+      .map((note) => {
         // 이동 모드에서 선택된 노트는 오프셋 적용된 시간 사용
         const isSelected = selectedNoteIds.has(note.id);
         const effectiveTime = dragOffset && isSelected ? Math.max(0, note.time + dragOffset.time) : note.time;
         // 레인을 클램핑하지 않고 실제 계산된 값 사용 (찌그러짐 효과를 위해)
         const rawLane = dragOffset && isSelected ? note.lane + dragOffset.lane : note.lane;
         const effectiveLane = Math.max(0, Math.min(3, rawLane)) as Lane;
-        
+
         // 찌그러짐 효과 계산 (레인 범위를 벗어나면 너비와 위치 조정)
         const isSquishedLeft = rawLane < 0;
         const isSquishedRight = rawLane > 3;
         const squishAmount = isSquishedLeft ? Math.abs(rawLane) : (isSquishedRight ? rawLane - 3 : 0);
         const squishRatio = Math.max(0, 1 - squishAmount); // 0~1 사이의 비율
-        
-        const noteY = getNoteY(effectiveTime);
+
+        // timeToY 대신 로컬 함수 사용 (의존성 제거)
+        const noteY = timeToYLocal(effectiveTime);
         const isHold = note.duration > 0 || note.type === 'hold';
         const endTime = isHold ? (note.endTime || note.time + note.duration) : effectiveTime;
-        const endY = isHold ? timeToY(endTime) : noteY;
+        const endY = isHold ? timeToYLocal(endTime) : noteY;
         const topPosition = isHold
           ? Math.min(noteY, endY) - tapNoteHeight / 2
           : noteY - tapNoteHeight / 2;
@@ -213,16 +240,36 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
           isSquishedRight,
           squishRatio,
         };
+      });
+  }, [notes, _zoom, timelineContentHeight, paddedTop, paddedBottom, tapNoteHeight, selectedNoteIds, dragOffset]);
+
+  // 마퀴 선택용 preparedNotes (모든 노트 필요)
+  const preparedNotes = useMemo(
+    () =>
+      notes.map((note) => {
+        const isSelected = selectedNoteIds.has(note.id);
+        const effectiveTime = dragOffset && isSelected ? Math.max(0, note.time + dragOffset.time) : note.time;
+        const rawLane = dragOffset && isSelected ? note.lane + dragOffset.lane : note.lane;
+        const effectiveLane = Math.max(0, Math.min(3, rawLane)) as Lane;
+
+        const noteY = getNoteY(effectiveTime);
+        const isHold = note.duration > 0 || note.type === 'hold';
+        const endTime = isHold ? (note.endTime || note.time + note.duration) : effectiveTime;
+        const endY = isHold ? timeToY(endTime) : noteY;
+        const topPosition = isHold
+          ? Math.min(noteY, endY) - tapNoteHeight / 2
+          : noteY - tapNoteHeight / 2;
+        const noteHeight = isHold
+          ? Math.max(tapNoteHeight, Math.abs(endY - noteY) + tapNoteHeight)
+          : tapNoteHeight;
+
+        return {
+          note: { ...note, time: effectiveTime, lane: effectiveLane },
+          topPosition,
+          noteHeight,
+        };
       }),
     [notes, getNoteY, timeToY, tapNoteHeight, selectedNoteIds, dragOffset]
-  );
-
-  const visibleNotes = useMemo(
-    () =>
-      preparedNotes.filter(
-        (n) => n.bottom >= paddedTop && n.topPosition <= paddedBottom
-      ),
-    [preparedNotes, paddedTop, paddedBottom]
   );
 
   // -----------------------------
@@ -912,4 +959,4 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
     </div>
     </>
   );
-};
+});

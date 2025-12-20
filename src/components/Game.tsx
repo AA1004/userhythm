@@ -61,6 +61,7 @@ export const Game: React.FC = () => {
   const processedMissNotes = useRef<Set<number>>(new Set());
   const [testYoutubeVideoId, setTestYoutubeVideoId] = useState<string | null>(null);
   const testAudioSettingsRef = useRef<AudioSettings | null>(null);
+  const chartSelectYoutubePlayerRef = useRef<any>(null);
 
   // 인증 훅
   const {
@@ -221,6 +222,7 @@ export const Game: React.FC = () => {
     currentTime: gameState.currentTime,
     videoId: testYoutubeVideoId,
     audioSettings: testAudioSettingsRef.current,
+    externalPlayer: chartSelectYoutubePlayerRef.current,
   });
 
   // 게임 종료 체크
@@ -469,6 +471,9 @@ export const Game: React.FC = () => {
         onSelect={handleChartSelect}
         onClose={() => setViewMode({ type: 'menu' })}
         refreshToken={viewMode.refreshToken ?? chartListRefreshToken}
+        onPreviewPlayerReady={(player) => {
+          chartSelectYoutubePlayerRef.current = player;
+        }}
       />
     );
   }

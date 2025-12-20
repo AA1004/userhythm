@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { api, ApiChart, ApiScore, ApiUserAggregate } from '../lib/api';
-import { extractYouTubeVideoId } from '../utils/youtube';
+import { extractYouTubeVideoId, waitForYouTubeAPI } from '../utils/youtube';
+import { measureToTime } from '../utils/bpmUtils';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 
 interface ChartSelectProps {
   onSelect: (chartData: any) => void;
   onClose: () => void;
   refreshToken?: number; // 외부에서 강제 새로고침 트리거
+  onPreviewPlayerReady?: (player: any) => void;
 }
 
-export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, refreshToken }) => {
+export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, refreshToken, onPreviewPlayerReady }) => {
   const requestControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
 
@@ -35,6 +37,12 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
   const [globalScores, setGlobalScores] = useState<ApiScore[]>([]);
   const [perUserScores, setPerUserScores] = useState<ApiUserAggregate[]>([]);
 
+  // YouTube preview player
+  const previewPlayerHostRef = useRef<HTMLDivElement | null>(null);
+  const previewPlayerRef = useRef<any>(null);
+  const previewLoopTimerRef = useRef<number | NodeJS.Timeout | null>(null);
+  const [previewVolume, setPreviewVolume] = useState<number>(30);
+
   useEffect(() => {
     // React 18 StrictMode에서 effect가 즉시 clean-up 되더라도 다시 true로 세팅
     isMountedRef.current = true;
@@ -42,6 +50,22 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
       isMountedRef.current = false;
       if (requestControllerRef.current) {
         requestControllerRef.current.abort();
+      }
+      // Preview player cleanup
+      if (previewLoopTimerRef.current) {
+        clearInterval(previewLoopTimerRef.current);
+        previewLoopTimerRef.current = null;
+      }
+      if (previewPlayerRef.current) {
+        try {
+          previewPlayerRef.current.pauseVideo?.();
+          previewPlayerRef.current.destroy?.();
+        } catch (e) {
+          // 무시
+        }
+      }
+      if (previewPlayerHostRef.current && previewPlayerHostRef.current.parentNode) {
+        previewPlayerHostRef.current.parentNode.removeChild(previewPlayerHostRef.current);
       }
     };
   }, []);
@@ -222,6 +246,134 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
     }
   }, [selectedChart, fetchLeaderboards]);
 
+  // YouTube preview player 초기화 및 하이라이트 루프
+  useEffect(() => {
+    // 기존 타이머 정리
+    if (previewLoopTimerRef.current) {
+      clearInterval(previewLoopTimerRef.current);
+      previewLoopTimerRef.current = null;
+    }
+
+    // 기존 재생 정지
+    if (previewPlayerRef.current) {
+      try {
+        previewPlayerRef.current.pauseVideo?.();
+      } catch (e) {
+        // 무시
+      }
+    }
+
+    if (!selectedChart) return;
+
+    try {
+      const chartData = JSON.parse(selectedChart.data_json);
+      const youtubeVideoId = chartData.youtubeVideoId || (chartData.youtubeUrl ? extractYouTubeVideoId(chartData.youtubeUrl) : null);
+      
+      if (!youtubeVideoId) return;
+
+      // 하이라이트 구간 파싱
+      const beatsPerMeasure = Number(chartData.beatsPerMeasure ?? chartData.timeSignatures?.[0]?.beatsPerMeasure ?? 4);
+      const bpmChanges = Array.isArray(chartData.bpmChanges) ? chartData.bpmChanges : [];
+      const previewStartMeasure = Math.max(1, Number(chartData.previewStartMeasure ?? 1));
+      const previewEndMeasure = Math.max(previewStartMeasure + 1, Number(chartData.previewEndMeasure ?? (previewStartMeasure + 4)));
+
+      // measure를 ms로 변환
+      const previewStartMs = measureToTime(previewStartMeasure, selectedChart.bpm, bpmChanges, beatsPerMeasure);
+      let previewEndMs = measureToTime(previewEndMeasure, selectedChart.bpm, bpmChanges, beatsPerMeasure);
+      if (previewEndMs <= previewStartMs) {
+        previewEndMs = previewStartMs + 15000;
+      }
+
+      const previewStartSec = previewStartMs / 1000;
+      const previewEndSec = previewEndMs / 1000;
+
+      // YouTube API 대기 후 플레이어 초기화
+      waitForYouTubeAPI().then(() => {
+        if (!window.YT || !window.YT.Player) {
+          console.error('YouTube IFrame API를 로드하지 못했습니다.');
+          return;
+        }
+
+        if (!previewPlayerHostRef.current) {
+          // 숨김 host div 생성
+          const hostDiv = document.createElement('div');
+          hostDiv.style.position = 'absolute';
+          hostDiv.style.width = '0';
+          hostDiv.style.height = '0';
+          hostDiv.style.overflow = 'hidden';
+          document.body.appendChild(hostDiv);
+          previewPlayerHostRef.current = hostDiv;
+        }
+
+        const mountNode = document.createElement('div');
+        mountNode.id = `preview-youtube-player-${Date.now()}`;
+        previewPlayerHostRef.current.innerHTML = '';
+        previewPlayerHostRef.current.appendChild(mountNode);
+
+        try {
+          const playerInstance = new window.YT.Player(mountNode as any, {
+            videoId: youtubeVideoId,
+            playerVars: {
+              autoplay: 0,
+              controls: 0,
+              enablejsapi: 1,
+            } as any,
+            events: {
+              onReady: (event: any) => {
+                const player = event.target;
+                previewPlayerRef.current = player;
+                
+                // Game으로 플레이어 전달 (재사용용)
+                if (onPreviewPlayerReady) {
+                  onPreviewPlayerReady(player);
+                }
+                
+                try {
+                  player.setVolume(previewVolume);
+                  player.seekTo(previewStartSec, true);
+                  player.playVideo();
+                  
+                  // 루프 타이머 시작
+                  previewLoopTimerRef.current = setInterval(() => {
+                    try {
+                      const currentTime = player.getCurrentTime?.();
+                      if (currentTime !== undefined && currentTime >= previewEndSec - 0.05) {
+                        player.seekTo(previewStartSec, true);
+                      }
+                    } catch (e) {
+                      // 무시
+                    }
+                  }, 200);
+                } catch (e) {
+                  console.warn('Preview player 설정 실패:', e);
+                }
+              },
+            },
+          });
+        } catch (e) {
+          console.error('Preview player 생성 실패:', e);
+        }
+      });
+    } catch (error) {
+      console.error('Preview 초기화 실패:', error);
+    }
+
+    return () => {
+      // cleanup
+      if (previewLoopTimerRef.current) {
+        clearInterval(previewLoopTimerRef.current);
+        previewLoopTimerRef.current = null;
+      }
+      if (previewPlayerRef.current) {
+        try {
+          previewPlayerRef.current.pauseVideo?.();
+        } catch (e) {
+          // 무시
+        }
+      }
+    };
+  }, [selectedChart, previewVolume]);
+
   const toggleInsaneMode = () => {
     setIsInsaneMode((prev) => !prev);
     setInsaneOnly((prev) => !prev);
@@ -234,6 +386,19 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
   }, [currentPage, hasMore, isLoadingMore]);
 
   const handleSelectChart = (chart: ApiChart) => {
+    // Preview 정지
+    if (previewLoopTimerRef.current) {
+      clearInterval(previewLoopTimerRef.current);
+      previewLoopTimerRef.current = null;
+    }
+    if (previewPlayerRef.current) {
+      try {
+        previewPlayerRef.current.pauseVideo?.();
+      } catch (e) {
+        // 무시
+      }
+    }
+
     try {
       const chartData = JSON.parse(chart.data_json);
 
@@ -804,8 +969,30 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
               overflowY: 'auto',
               padding: '20px',
               boxShadow: CHART_EDITOR_THEME.shadowSoft,
+              position: 'relative',
             }}
           >
+            {/* 블러 배경 */}
+            {selectedChart.preview_image && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundImage: `url(${selectedChart.preview_image})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  filter: 'blur(18px)',
+                  transform: 'scale(1.12)',
+                  opacity: 0.3,
+                  zIndex: 0,
+                  pointerEvents: 'none',
+                }}
+              />
+            )}
+            <div style={{ position: 'relative', zIndex: 1 }}>
             <h2 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '20px', marginBottom: '20px' }}>
               {selectedChart.title}
             </h2>
@@ -966,6 +1153,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                   <UserLeaderboardList entries={perUserScores} emptyText="데이터 없음" />
                 </div>
               </div>
+            </div>
             </div>
           </div>
         )}
