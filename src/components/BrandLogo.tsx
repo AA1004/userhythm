@@ -27,8 +27,8 @@ const SIZE_STYLES: Record<
   { titlePx: number; markPx: number; letterSpacingEm: number; strokePx: number }
 > =
   {
-    lg: { titlePx: 52, markPx: 44, letterSpacingEm: 0.12, strokePx: 2 },
-    md: { titlePx: 44, markPx: 38, letterSpacingEm: 0.1, strokePx: 2 },
+    lg: { titlePx: 58, markPx: 50, letterSpacingEm: 0.12, strokePx: 2 },
+    md: { titlePx: 48, markPx: 42, letterSpacingEm: 0.1, strokePx: 2 },
   };
 
 export const BrandLogo: React.FC<BrandLogoProps> = ({
