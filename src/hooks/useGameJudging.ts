@@ -99,31 +99,21 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     // 새로운 판정 피드백 추가
     setJudgeFeedbacks([{ id: feedbackId, judge }]);
 
-    if (judge !== 'miss') {
-      const effectId = keyEffectIdRef.current++;
-      const effectX = LANE_POSITIONS[lane];
-      const effectY = JUDGE_LINE_Y;
-      setKeyEffects((prev) => [...prev, { id: effectId, lane, x: effectX, y: effectY, judge }]);
+    // 모든 판정(perfect, great, good, miss)에 대해 레인 이펙트 추가
+    const effectId = keyEffectIdRef.current++;
+    const effectX = LANE_POSITIONS[lane];
+    const effectY = JUDGE_LINE_Y;
+    setKeyEffects((prev) => [...prev, { id: effectId, lane, x: effectX, y: effectY, judge }]);
 
-      // 피드백 제거와 이펙트 제거를 requestAnimationFrame으로 처리하여 렌더링 최적화
-      requestAnimationFrame(() => {
-        const timer = setTimeout(() => {
-          setJudgeFeedbacks((prev) => prev.filter((f) => f.id !== feedbackId));
-          setKeyEffects((prev) => prev.filter((e) => e.id !== effectId));
-          feedbackTimersRef.current.delete(feedbackId);
-        }, JUDGE_FEEDBACK_DURATION_MS);
-        feedbackTimersRef.current.set(feedbackId, timer);
-      });
-    } else {
-      // miss인 경우 이펙트 없이 피드백만 제거
-      requestAnimationFrame(() => {
-        const timer = setTimeout(() => {
-          setJudgeFeedbacks((prev) => prev.filter((f) => f.id !== feedbackId));
-          feedbackTimersRef.current.delete(feedbackId);
-        }, JUDGE_FEEDBACK_DURATION_MS);
-        feedbackTimersRef.current.set(feedbackId, timer);
-      });
-    }
+    // 피드백 제거와 이펙트 제거를 requestAnimationFrame으로 처리하여 렌더링 최적화
+    requestAnimationFrame(() => {
+      const timer = setTimeout(() => {
+        setJudgeFeedbacks((prev) => prev.filter((f) => f.id !== feedbackId));
+        setKeyEffects((prev) => prev.filter((e) => e.id !== effectId));
+        feedbackTimersRef.current.delete(feedbackId);
+      }, JUDGE_FEEDBACK_DURATION_MS);
+      feedbackTimersRef.current.set(feedbackId, timer);
+    });
   }, []);
 
   const handleKeyPress = useCallback(
@@ -318,8 +308,11 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         next.delete(note.id);
         return next;
       });
+
+      // MISS 피드백 추가 (노트가 지나가서 자동으로 MISS가 된 경우)
+      addJudgeFeedback('miss', note.lane);
     },
-    [processedMissNotes]
+    [processedMissNotes, addJudgeFeedback]
   );
 
   // 게임이 시작될 때 기존 이펙트와 피드백 초기화
