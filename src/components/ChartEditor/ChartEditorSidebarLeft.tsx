@@ -113,7 +113,7 @@ export const ChartEditorSidebarLeft: React.FC<ChartEditorSidebarLeftProps> = ({
         <input
           type="range"
           min="0.5"
-          max="3"
+          max="10"
           step="0.1"
           value={zoom}
           onChange={(e) => onZoomChange(parseFloat(e.target.value))}
