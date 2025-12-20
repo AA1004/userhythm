@@ -37,14 +37,14 @@ export interface JudgeConfig {
 export const judgeConfig: JudgeConfig = {
   windows: {
     perfect: 80, // 기본값: ±50ms
-    great: 120,  // 기본값: ±100ms
-    good: 160,   // 기본값: ±150ms
+    great: 160,  // 기본값: ±100ms
+    good: 240,   // 기본값: ±150ms
   },
   // 롱노트 떼기 판정은 일반 판정보다 1.5배 더 여유롭게
   holdReleaseWindows: {
     perfect: 100,  // ±75ms (기존 50ms의 1.5배)
-    great: 180,   // ±150ms (기존 100ms의 1.5배)
-    good: 260,    // ±225ms (기존 150ms의 1.5배)
+    great: 200,   // ±150ms (기존 100ms의 1.5배)
+    good: 300,    // ±225ms (기존 150ms의 1.5배)
   },
   scores: {
     perfect: 100,
@@ -53,7 +53,7 @@ export const judgeConfig: JudgeConfig = {
     miss: 0,
   },
   /** Miss 판정 기준값: 노트가 판정선을 지나간 후 150ms가 지나면 Miss 처리 */
-  missThreshold: 150,
+  missThreshold: 240,
   /** 노트 검색 범위: 키 입력 시 판정 가능한 최대 시간 차이 (150ms) */
-  noteSearchRange: 150,
+  noteSearchRange: 240,
 };

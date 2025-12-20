@@ -141,10 +141,10 @@ export function useChartLoader({
           // 유효하지 않은 노트 필터링 (유령노트 제거)
           // time이 음수이거나 NaN인 경우 제거
           if (note.time < 0 || isNaN(note.time)) return false;
-          // endTime이 time보다 작거나 같은 경우 제거
-          if (note.endTime <= note.time) return false;
           // endTime이 NaN인 경우 제거
           if (isNaN(note.endTime)) return false;
+          // 롱노트인데 endTime이 time보다 작은 경우만 제거 (단노트는 endTime === time이 정상)
+          if (note.duration > 0 && note.endTime < note.time) return false;
           return true;
         })
         .sort((a: Note, b: Note) => a.time - b.time);
