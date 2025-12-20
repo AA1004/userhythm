@@ -1356,14 +1356,32 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     
     setIsUploading(true);
     setUploadStatus('업로드 중...');
-    
+
     try {
+      // 공유 시에는 채보 데이터만 포함 (에디터 상태 제외)
+      const chartData = {
+        notes,
+        bpm,
+        youtubeUrl,
+        youtubeVideoId,
+        beatsPerMeasure,
+        timeSignatureOffset,
+        timelineExtraMs,
+        bpmChanges,
+        speedChanges,
+        bgaVisibilityIntervals,
+        chartTitle: shareTitle,
+        chartAuthor: shareAuthor,
+        gridDivision,
+        isLongNoteMode,
+      };
+
       await chartAPI.uploadChart({
         title: shareTitle,
         bpm,
         difficulty: shareDifficulty || undefined,
         description: shareDescription || undefined,
-        dataJson: JSON.stringify(autoSaveData),
+        dataJson: JSON.stringify(chartData),
         youtubeUrl: youtubeUrl || undefined,
         previewImage: youtubeThumbnailUrl || undefined,
       });
@@ -1379,7 +1397,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     } finally {
       setIsUploading(false);
     }
-  }, [shareTitle, shareDifficulty, shareDescription, bpm, youtubeUrl, youtubeThumbnailUrl, autoSaveData, user]);
+  }, [shareTitle, shareAuthor, shareDifficulty, shareDescription, bpm, youtubeUrl, youtubeVideoId, youtubeThumbnailUrl, notes, beatsPerMeasure, timeSignatureOffset, timelineExtraMs, bpmChanges, speedChanges, bgaVisibilityIntervals, gridDivision, isLongNoteMode, user]);
 
   const handleExportJson = useCallback(() => {
     try {

@@ -5,7 +5,7 @@ import { Chart } from '@prisma/client';
 
 const DEFAULT_LIMIT = 12;
 const MAX_LIMIT = 50;
-const MAX_DATA_JSON_LENGTH = 200_000; // ~200KB
+const MAX_DATA_JSON_LENGTH = 1_000_000; // ~1MB
 const MAX_TITLE_LENGTH = 200;
 const MAX_DESCRIPTION_LENGTH = 1000;
 const MAX_DIFFICULTY_LENGTH = 50;
