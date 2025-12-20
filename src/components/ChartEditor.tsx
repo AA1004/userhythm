@@ -188,6 +188,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const hitSoundBufferRef = useRef<AudioBuffer | null>(null);
   const lastHitCheckTimeRef = useRef<number>(0);
   const playedNoteIdsRef = useRef<Set<number>>(new Set());
+  const lastCheckedNoteIndexRef = useRef<number>(0); // 성능 최적화: 마지막으로 확인한 노트 인덱스
 
   // --- 공유 모달 상태 ---
   const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
@@ -353,16 +354,23 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       return;
     }
 
+    const MAX_DELTA_MS = 100; // 백그라운드 복귀 시 큰 점프 방지 (100ms 상한)
+
     const tick = (timestamp: number) => {
       if (!isPlaying) return;
 
       if (lastTickTimestampRef.current === null) {
         lastTickTimestampRef.current = timestamp;
       }
-      const deltaMs = (timestamp - lastTickTimestampRef.current) * playbackSpeed;
+      const rawDeltaMs = (timestamp - lastTickTimestampRef.current) * playbackSpeed;
+      // 탭이 백그라운드에 있다가 돌아오면 delta가 매우 커질 수 있음
+      // 이 경우 타임스탬프만 리셋하고 시간은 점프하지 않음 (키음 폭발 방지)
+      const deltaMs = rawDeltaMs > MAX_DELTA_MS ? 0 : rawDeltaMs;
       lastTickTimestampRef.current = timestamp;
 
-      setCurrentTime((prev) => Math.max(0, prev + deltaMs));
+      if (deltaMs > 0) {
+        setCurrentTime((prev) => Math.max(0, prev + deltaMs));
+      }
       playheadRafIdRef.current = requestAnimationFrame(tick);
     };
 
@@ -454,58 +462,76 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     [beatDuration, gridDivision, timeSignatureOffset, clampTime]
   );
 
-  // --- 재생선이 지나간 노트에 키음 재생 (ID 기반 중복 방지) ---
-  // 재생이 멈춰 있는 동안 재생선을 옮기면,
-  // 해당 시점 이전 노트들은 이미 재생된 것으로 간주하도록 Set을 재구성한다.
+  // --- 재생선이 지나간 노트에 키음 재생 (인덱스 기반 최적화) ---
+  // 이진 탐색으로 현재 시간에 해당하는 노트 인덱스를 찾는 헬퍼
+  const findNoteIndexAtTime = useCallback((time: number): number => {
+    const notes = sortedNotesByTime;
+    if (notes.length === 0) return 0;
+
+    let left = 0;
+    let right = notes.length;
+    while (left < right) {
+      const mid = Math.floor((left + right) / 2);
+      if (notes[mid].time < time) {
+        left = mid + 1;
+      } else {
+        right = mid;
+      }
+    }
+    return left;
+  }, [sortedNotesByTime]);
+
+  // 재생이 멈춰 있는 동안 재생선을 옮기면 인덱스 재설정
   useEffect(() => {
     if (!isPlaying) {
+      // 현재 시간 이전의 노트는 이미 재생된 것으로 간주
+      const newIndex = findNoteIndexAtTime(currentTime);
+      lastCheckedNoteIndexRef.current = newIndex;
+
+      // Set도 재구성 (필요시)
       const rebuilt = new Set<number>();
-      if (currentTime > 0) {
-        for (const note of sortedNotesByTime) {
-          if (note.time < currentTime) {
-            rebuilt.add(note.id);
-          } else {
-            break;
-          }
-        }
+      for (let i = 0; i < newIndex; i++) {
+        rebuilt.add(sortedNotesByTime[i].id);
       }
       playedNoteIdsRef.current = rebuilt;
       lastHitCheckTimeRef.current = currentTime;
     }
-  }, [isPlaying, currentTime, sortedNotesByTime]);
+  }, [isPlaying, currentTime, sortedNotesByTime, findNoteIndexAtTime]);
 
-  // 재생 중에 재생선이 뒤로 크게 이동하면,
-  // 해당 시점 이전 노트들을 이미 재생된 것으로 간주하도록 Set을 재구성한다.
+  // 재생 중에 재생선이 뒤로 이동하면 인덱스 재설정
   useEffect(() => {
     if (!isPlaying) return;
     const lastTime = lastHitCheckTimeRef.current;
     if (currentTime < lastTime) {
+      // 뒤로 이동했으면 인덱스 재설정
+      const newIndex = findNoteIndexAtTime(currentTime);
+      lastCheckedNoteIndexRef.current = newIndex;
+
       const rebuilt = new Set<number>();
-      if (currentTime > 0) {
-        for (const note of sortedNotesByTime) {
-          if (note.time < currentTime) {
-            rebuilt.add(note.id);
-          } else {
-            break;
-          }
-        }
+      for (let i = 0; i < newIndex; i++) {
+        rebuilt.add(sortedNotesByTime[i].id);
       }
       playedNoteIdsRef.current = rebuilt;
     }
     lastHitCheckTimeRef.current = currentTime;
-  }, [isPlaying, currentTime, sortedNotesByTime]);
+  }, [isPlaying, currentTime, sortedNotesByTime, findNoteIndexAtTime]);
 
-  // 노트가 currentTime을 지나면 재생 (ID로 중복 방지)
+  // 노트가 currentTime을 지나면 재생 (인덱스 기반으로 O(1)~O(k) 최적화)
   useEffect(() => {
     if (!isPlaying) return;
 
-    for (const note of sortedNotesByTime) {
-      if (note.time > currentTime) break;
-      if (!playedNoteIdsRef.current.has(note.id)) {
-        playedNoteIdsRef.current.add(note.id);
+    const notes = sortedNotesByTime;
+    let idx = lastCheckedNoteIndexRef.current;
+
+    // 현재 시간까지의 노트만 확인 (이미 지나간 인덱스부터 시작)
+    while (idx < notes.length && notes[idx].time <= currentTime) {
+      if (!playedNoteIdsRef.current.has(notes[idx].id)) {
+        playedNoteIdsRef.current.add(notes[idx].id);
         playHitSound();
       }
+      idx++;
     }
+    lastCheckedNoteIndexRef.current = idx;
   }, [currentTime, isPlaying, sortedNotesByTime, playHitSound]);
 
   // --- 자동 저장 ---
