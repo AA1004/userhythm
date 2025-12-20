@@ -185,6 +185,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const lastTickTimestampRef = useRef<number | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const hitGainRef = useRef<GainNode | null>(null);
+  const hitSoundBufferRef = useRef<AudioBuffer | null>(null);
   const lastHitCheckTimeRef = useRef<number>(0);
   const playedNoteIdsRef = useRef<Set<number>>(new Set());
 
@@ -282,26 +283,33 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     gain.gain.setValueAtTime(value, ctx.currentTime);
   }, [hitSoundVolume]);
 
-  const playHitSound = useCallback(async () => {
-    const ctx = await ensureAudioContext();
+  const playHitSound = useCallback(() => {
+    const ctx = audioCtxRef.current;
     const masterGain = hitGainRef.current;
     if (!ctx || !masterGain) return;
 
-    const now = ctx.currentTime;
-    const duration = 0.1; // 아주 짧은 드럼/클릭 느낌
+    // 컨텍스트가 중지된 경우 재개 시도 (비동기지만 재생에는 영향 없음)
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
 
-    // 노이즈 버퍼 생성 (하이햇/스네어 느낌의 어택)
-    const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * duration));
-    const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = noiseBuffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i += 1) {
-      // 앞부분은 강하고 뒤로 갈수록 빠르게 줄어드는 노이즈
-      const env = Math.exp(-i / (bufferSize * 0.4));
-      data[i] = (Math.random() * 2 - 1) * env;
+    const now = ctx.currentTime;
+    const duration = 0.1;
+
+    // 노이즈 버퍼가 없으면 한 번만 생성
+    if (!hitSoundBufferRef.current) {
+      const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * duration));
+      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i += 1) {
+        const env = Math.exp(-i / (bufferSize * 0.4));
+        data[i] = (Math.random() * 2 - 1) * env;
+      }
+      hitSoundBufferRef.current = noiseBuffer;
     }
 
     const noiseSource = ctx.createBufferSource();
-    noiseSource.buffer = noiseBuffer;
+    noiseSource.buffer = hitSoundBufferRef.current;
 
     // 대역 통과 필터로 중고역만 살려서 울림 없는 드럼/클릭 느낌
     const filter = ctx.createBiquadFilter();
@@ -310,7 +318,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     filter.Q.setValueAtTime(0.9, now);
 
     const envGain = ctx.createGain();
-    const baseLevel = Math.max(0.0001, masterGain.gain.value * 0.6); // 전체적으로 약간 더 작게
+    const baseLevel = Math.max(0.0001, masterGain.gain.value * 0.6);
     envGain.gain.setValueAtTime(baseLevel, now);
     envGain.gain.exponentialRampToValueAtTime(
       Math.max(0.0001, baseLevel * 0.04),
@@ -330,7 +338,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         // ignore
       }
     };
-  }, [ensureAudioContext]);
+  }, []);
 
   // --- 에디터 전용 타이머(재생선 시간 소스) ---
   useEffect(() => {

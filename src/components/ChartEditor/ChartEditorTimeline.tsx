@@ -867,13 +867,15 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
           style={{
             position: 'absolute',
             left: 0,
-            top: `${playheadY - 10}px`, // 클릭 영역 확장을 위해 위로 올림
+            top: 0,
+            transform: `translateY(${playheadY - 10}px)`,
             width: `${CONTENT_WIDTH}px`,
             height: '20px', // 클릭 영역 높이 확장
             cursor: 'ns-resize',
             zIndex: 100,
             display: 'flex',
             alignItems: 'center', // 내부 선 중앙 정렬
+            willChange: 'transform',
           }}
         >
           {/* 시각적인 재생선 (빨간 선) */}
@@ -892,14 +894,15 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = ({
           style={{
             position: 'absolute',
             left: `${CONTENT_WIDTH + 8}px`,
-            top: `${playheadY}px`,
-            transform: 'translateY(-50%)',
+            top: 0,
+            transform: `translateY(${playheadY - 6}px)`,
             fontSize: '11px',
             color: '#FF0000',
             fontWeight: 'bold',
             textShadow: '0 0 4px rgba(255, 0, 0, 0.8)',
             pointerEvents: 'none',
             whiteSpace: 'nowrap',
+            willChange: 'transform',
           }}
         >
           {timeToMeasure(currentTime, bpm, bpmChanges, beatsPerMeasure)}마디
