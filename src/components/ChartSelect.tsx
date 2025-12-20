@@ -41,7 +41,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
   const previewPlayerHostRef = useRef<HTMLDivElement | null>(null);
   const previewPlayerRef = useRef<any>(null);
   const previewLoopTimerRef = useRef<number | NodeJS.Timeout | null>(null);
-  const [previewVolume, setPreviewVolume] = useState<number>(30);
+  const previewVolume = 30; // 미리듣기 볼륨 (0-100)
 
   useEffect(() => {
     // React 18 StrictMode에서 effect가 즉시 clean-up 되더라도 다시 true로 세팅
@@ -311,7 +311,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         previewPlayerHostRef.current.appendChild(mountNode);
 
         try {
-          const playerInstance = new window.YT.Player(mountNode as any, {
+          new window.YT.Player(mountNode as any, {
             videoId: youtubeVideoId,
             playerVars: {
               autoplay: 0,
