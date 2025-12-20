@@ -3,6 +3,7 @@ import { api, ApiChart, ApiScore, ApiUserAggregate } from '../lib/api';
 import { extractYouTubeVideoId, waitForYouTubeAPI } from '../utils/youtube';
 import { measureToTime } from '../utils/bpmUtils';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
+import { PREVIEW_FADE_DURATION_MS, PREVIEW_VOLUME, PREVIEW_BGA_OPACITY } from '../constants/gameConstants';
 
 interface ChartSelectProps {
   onSelect: (chartData: any) => void;
@@ -41,7 +42,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
   const previewPlayerHostRef = useRef<HTMLDivElement | null>(null);
   const previewPlayerRef = useRef<any>(null);
   const previewLoopTimerRef = useRef<number | NodeJS.Timeout | null>(null);
-  const previewVolume = 30; // 미리듣기 볼륨 (0-100)
+  const fadeIntervalRef = useRef<number | NodeJS.Timeout | null>(null);
+  const [previewBgaUrl, setPreviewBgaUrl] = useState<string | null>(null);
 
   useEffect(() => {
     // React 18 StrictMode에서 effect가 즉시 clean-up 되더라도 다시 true로 세팅
@@ -263,13 +265,22 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
       }
     }
 
-    if (!selectedChart) return;
+    if (!selectedChart) {
+      setPreviewBgaUrl(null);
+      return;
+    }
 
     try {
       const chartData = JSON.parse(selectedChart.data_json);
       const youtubeVideoId = chartData.youtubeVideoId || (chartData.youtubeUrl ? extractYouTubeVideoId(chartData.youtubeUrl) : null);
       
-      if (!youtubeVideoId) return;
+      if (!youtubeVideoId) {
+        setPreviewBgaUrl(null);
+        return;
+      }
+
+      // BGA 배경 이미지 설정 (YouTube 썸네일)
+      setPreviewBgaUrl(`https://i.ytimg.com/vi/${youtubeVideoId}/maxresdefault.jpg`);
 
       // 하이라이트 구간 파싱
       const beatsPerMeasure = Number(chartData.beatsPerMeasure ?? chartData.timeSignatures?.[0]?.beatsPerMeasure ?? 4);
@@ -329,21 +340,58 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                 }
                 
                 try {
-                  player.setVolume(previewVolume);
+                  // 페이드 인: 볼륨 0에서 시작
+                  player.setVolume(0);
                   player.seekTo(previewStartSec, true);
                   player.playVideo();
-                  
-                  // 루프 타이머 시작
+
+                  // 페이드 인 애니메이션
+                  const fadeSteps = 10;
+                  const fadeStepDuration = PREVIEW_FADE_DURATION_MS / fadeSteps;
+                  let currentStep = 0;
+                  const fadeInInterval = setInterval(() => {
+                    currentStep++;
+                    const volume = (currentStep / fadeSteps) * PREVIEW_VOLUME;
+                    try { player.setVolume(volume); } catch (e) { /* 무시 */ }
+                    if (currentStep >= fadeSteps) {
+                      clearInterval(fadeInInterval);
+                    }
+                  }, fadeStepDuration);
+
+                  // 루프 타이머 시작 (페이드 아웃/인 포함)
+                  const fadeOutStartSec = previewEndSec - (PREVIEW_FADE_DURATION_MS / 1000);
+
                   previewLoopTimerRef.current = setInterval(() => {
                     try {
                       const currentTime = player.getCurrentTime?.();
-                      if (currentTime !== undefined && currentTime >= previewEndSec - 0.05) {
+                      if (currentTime === undefined) return;
+
+                      // 페이드 아웃 시작 시점 체크
+                      if (currentTime >= fadeOutStartSec && currentTime < previewEndSec) {
+                        const remaining = previewEndSec - currentTime;
+                        const fadeProgress = 1 - (remaining / (PREVIEW_FADE_DURATION_MS / 1000));
+                        const volume = PREVIEW_VOLUME * (1 - fadeProgress);
+                        player.setVolume(Math.max(0, volume));
+                      }
+
+                      // 루프 시점
+                      if (currentTime >= previewEndSec - 0.05) {
                         player.seekTo(previewStartSec, true);
+                        player.setVolume(0);
+
+                        // 페이드 인 다시 시작
+                        let step = 0;
+                        const fadeIn = setInterval(() => {
+                          step++;
+                          const vol = (step / fadeSteps) * PREVIEW_VOLUME;
+                          try { player.setVolume(vol); } catch (e) { /* 무시 */ }
+                          if (step >= fadeSteps) clearInterval(fadeIn);
+                        }, fadeStepDuration);
                       }
                     } catch (e) {
                       // 무시
                     }
-                  }, 200);
+                  }, 50); // 더 자주 체크하여 부드러운 페이드
                 } catch (e) {
                   console.warn('Preview player 설정 실패:', e);
                 }
@@ -364,6 +412,10 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         clearInterval(previewLoopTimerRef.current);
         previewLoopTimerRef.current = null;
       }
+      if (fadeIntervalRef.current) {
+        clearInterval(fadeIntervalRef.current);
+        fadeIntervalRef.current = null;
+      }
       if (previewPlayerRef.current) {
         try {
           previewPlayerRef.current.pauseVideo?.();
@@ -372,7 +424,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         }
       }
     };
-  }, [selectedChart, previewVolume]);
+  }, [selectedChart, onPreviewPlayerReady]);
 
   const toggleInsaneMode = () => {
     setIsInsaneMode((prev) => !prev);
@@ -447,6 +499,23 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         overflow: 'hidden',
       }}
     >
+      {/* 미리듣기 BGA 배경 */}
+      {previewBgaUrl && (
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: `url(${previewBgaUrl})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            opacity: PREVIEW_BGA_OPACITY,
+            transition: 'opacity 0.3s ease-in-out',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+
       {/* 백그라운드 네온 패턴 */}
       <div
         aria-hidden
