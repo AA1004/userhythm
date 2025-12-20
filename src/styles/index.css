@@ -151,3 +151,81 @@ body {
   }
 }
 
+/* =========================
+   Brand logo (UseRhythm)
+   ========================= */
+
+.ur-brand {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.ur-brand__row {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ur-brand__mark {
+  flex: 0 0 auto;
+  filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.25))
+    drop-shadow(0 0 22px rgba(129, 140, 248, 0.18));
+}
+
+.ur-brand__text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ur-logo {
+  margin: 0;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: var(--ur-logo-letter-spacing, 0.18em);
+  font-family: Arial Black, sans-serif;
+  text-transform: uppercase;
+  line-height: 1.05;
+  font-size: var(--ur-logo-size, 48px);
+  text-shadow: var(--ur-logo-glow, 0 0 24px rgba(56, 189, 248, 0.35));
+}
+
+.ur-logo__fill {
+  display: inline-block;
+  background: var(--ur-logo-gradient, linear-gradient(135deg, #22d3ee, #818cf8, #f0abfc));
+  background-size: 220% 220%;
+  background-position: 20% 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  /* 외곽선으로 가독성 강화 */
+  -webkit-text-stroke: 3px var(--ur-logo-stroke, rgba(2, 6, 23, 0.95));
+  animation: urShimmer 2600ms ease-in-out infinite;
+}
+
+.ur-tagline {
+  margin-top: 10px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: rgba(226, 232, 240, 0.78);
+  white-space: pre-line;
+}
+
+@keyframes urShimmer {
+  0% {
+    background-position: 18% 50%;
+  }
+  50% {
+    background-position: 82% 50%;
+  }
+  100% {
+    background-position: 18% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ur-logo__fill {
+    animation: none;
+  }
+}
