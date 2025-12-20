@@ -40,13 +40,18 @@ export async function GET(req: NextRequest) {
 
     const where: any = search
       ? {
-          OR: [
-            { title: { contains: search, mode: 'insensitive' } },
-            { author: { contains: search, mode: 'insensitive' } },
-            { description: { contains: search, mode: 'insensitive' } },
+          AND: [
+            { status: 'approved' },
+            {
+              OR: [
+                { title: { contains: search, mode: 'insensitive' } },
+                { author: { contains: search, mode: 'insensitive' } },
+                { description: { contains: search, mode: 'insensitive' } },
+              ],
+            },
           ],
         }
-      : {};
+      : { status: 'approved' };
 
     const orderBy =
       sortBy === 'play_count'
