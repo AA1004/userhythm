@@ -2,6 +2,13 @@
    Brand logo (UseRhythm)
    ========================= */
 
+@font-face {
+  font-family: 'GeekbleMalrangiche';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2302_01@1.0/GeekbleMalang2WOFF2.woff2') format('woff2');
+  font-weight: normal;
+  font-display: swap;
+}
+
 .ur-brand {
   width: 100%;
   display: flex;
@@ -60,10 +67,10 @@
 
 .ur-logo {
   margin: 0;
-  font-weight: 900;
-  font-style: italic;
+  font-weight: normal;
+  font-style: normal;
   letter-spacing: var(--ur-logo-letter-spacing, 0.18em);
-  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'Pretendard',
+  font-family: 'GeekbleMalrangiche', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'Pretendard',
     'Apple SD Gothic Neo', 'Noto Sans KR', Arial, sans-serif;
   text-transform: uppercase;
   line-height: 1.05;
