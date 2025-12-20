@@ -20,10 +20,13 @@ export interface BrandLogoProps {
   glow?: string;
 }
 
-const SIZE_STYLES: Record<BrandLogoSize, { titlePx: number; markPx: number; letterSpacingEm: number }> =
+const SIZE_STYLES: Record<
+  BrandLogoSize,
+  { titlePx: number; markPx: number; letterSpacingEm: number; strokePx: number }
+> =
   {
-    lg: { titlePx: 48, markPx: 44, letterSpacingEm: 0.18 },
-    md: { titlePx: 40, markPx: 38, letterSpacingEm: 0.16 },
+    lg: { titlePx: 52, markPx: 44, letterSpacingEm: 0.12, strokePx: 2 },
+    md: { titlePx: 44, markPx: 38, letterSpacingEm: 0.1, strokePx: 2 },
   };
 
 export const BrandLogo: React.FC<BrandLogoProps> = ({
@@ -39,7 +42,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   return (
     <div className="ur-brand">
       <div
-        className="ur-brand__row"
+        className="ur-brand__grid"
         style={
           {
             // CSS 변수로 넘겨서 스타일을 컴포넌트 밖(CSS)에서도 재사용
@@ -48,6 +51,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
             '--ur-logo-glow': glow,
             '--ur-logo-size': `${s.titlePx}px`,
             '--ur-logo-letter-spacing': `${s.letterSpacingEm}em`,
+            '--ur-logo-stroke-width': `${s.strokePx}px`,
           } as React.CSSProperties
         }
       >
@@ -79,12 +83,12 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
           />
         </svg>
 
-        <div className="ur-brand__text">
+        <div className="ur-brand__titleWrap">
           <h1 className="ur-logo" aria-label={title}>
             <span className="ur-logo__fill">{title}</span>
           </h1>
-          {tagline ? <p className="ur-tagline">{tagline}</p> : null}
         </div>
+        {tagline ? <p className="ur-tagline">{tagline}</p> : null}
       </div>
     </div>
   );

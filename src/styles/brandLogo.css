@@ -8,21 +8,29 @@
   justify-content: center;
 }
 
-.ur-brand__row {
-  display: inline-flex;
+.ur-brand__grid {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  column-gap: 14px;
+  row-gap: 10px;
   align-items: center;
-  gap: 14px;
 }
 
 .ur-brand__mark {
+  grid-column: 1;
+  grid-row: 1;
   flex: 0 0 auto;
   filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.25))
     drop-shadow(0 0 22px rgba(129, 140, 248, 0.18));
+  /* 타이틀 행에만 정렬되도록 살짝 올림 */
+  transform: translateY(-1px);
 }
 
-.ur-brand__text {
+.ur-brand__titleWrap {
+  grid-column: 2;
+  grid-row: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
 }
 
@@ -31,7 +39,8 @@
   font-weight: 900;
   font-style: italic;
   letter-spacing: var(--ur-logo-letter-spacing, 0.18em);
-  font-family: Arial Black, sans-serif;
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'Pretendard',
+    'Apple SD Gothic Neo', 'Noto Sans KR', Arial, sans-serif;
   text-transform: uppercase;
   line-height: 1.05;
   font-size: var(--ur-logo-size, 48px);
@@ -46,16 +55,20 @@
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  -webkit-text-stroke: 3px var(--ur-logo-stroke, rgba(2, 6, 23, 0.95));
+  -webkit-text-stroke: var(--ur-logo-stroke-width, 2px) var(--ur-logo-stroke, rgba(2, 6, 23, 0.95));
+  filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.14));
   animation: urShimmer 2600ms ease-in-out infinite;
 }
 
 .ur-tagline {
+  grid-column: 1 / span 2;
+  grid-row: 2;
   margin-top: 10px;
   font-size: 15px;
   line-height: 1.6;
   color: rgba(226, 232, 240, 0.78);
   white-space: pre-line;
+  text-align: center;
 }
 
 @keyframes urShimmer {
