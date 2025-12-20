@@ -1,4 +1,5 @@
 import React from 'react';
+import { BrandLogo } from './BrandLogo';
 
 interface MainMenuProps {
   onPlay: () => void;
@@ -29,29 +30,16 @@ export const MainMenu: React.FC<MainMenuProps> = ({
       }}
     >
       {/* 첫 화면 표시 */}
-      <h1
-        style={{
-          fontSize: '50px',
-          marginBottom: '24px',
-          marginTop: '-40px',
-          fontWeight: '900',
-          fontStyle: 'italic',
-          letterSpacing: '4px',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-          textShadow: '0 0 40px rgba(102, 126, 234, 0.5)',
-          fontFamily: 'Arial Black, sans-serif',
-          textTransform: 'uppercase',
-          lineHeight: '1.1',
-        }}
-      >
-        UseRhythm
-      </h1>
-      <p style={{ fontSize: '18px', marginBottom: '48px', color: '#aaa' }}>
-        누구나 리듬게임 채보를 만들고 공유하세요
-      </p>
+      <div style={{ marginBottom: '24px', marginTop: '-28px' }}>
+        <BrandLogo
+          title="UseRhythm"
+          tagline="누구나 리듬게임 채보를 만들고 공유하세요"
+          size="md"
+          gradient="linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)"
+          strokeColor="rgba(2, 6, 23, 0.95)"
+          glow="0 0 40px rgba(102, 126, 234, 0.5)"
+        />
+      </div>
 
       {/* 메인 메뉴 */}
       <div

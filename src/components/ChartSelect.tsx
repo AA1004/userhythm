@@ -3,7 +3,7 @@ import { api, ApiChart, ApiScore, ApiUserAggregate } from '../lib/api';
 import { extractYouTubeVideoId, waitForYouTubeAPI } from '../utils/youtube';
 import { measureToTime } from '../utils/bpmUtils';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
-import { PREVIEW_FADE_DURATION_MS, PREVIEW_VOLUME, PREVIEW_BGA_OPACITY } from '../constants/gameConstants';
+import { PREVIEW_FADE_DURATION_MS, PREVIEW_TRANSITION_DURATION_MS, PREVIEW_VOLUME, PREVIEW_BGA_OPACITY } from '../constants/gameConstants';
 
 interface ChartSelectProps {
   onSelect: (chartData: any) => void;
@@ -38,11 +38,13 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
   const [globalScores, setGlobalScores] = useState<ApiScore[]>([]);
   const [perUserScores, setPerUserScores] = useState<ApiUserAggregate[]>([]);
 
-  // YouTube preview player
+  // YouTube preview player (BGA용)
+  const bgaContainerRef = useRef<HTMLDivElement | null>(null);
   const previewPlayerHostRef = useRef<HTMLDivElement | null>(null);
   const previewPlayerRef = useRef<any>(null);
   const previewLoopTimerRef = useRef<number | NodeJS.Timeout | null>(null);
   const fadeIntervalRef = useRef<number | NodeJS.Timeout | null>(null);
+  const [bgaOpacity, setBgaOpacity] = useState<number>(0);
   const [previewBgaUrl, setPreviewBgaUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -266,6 +268,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
     }
 
     if (!selectedChart) {
+      // 페이드 아웃 후 정리
+      setBgaOpacity(0);
       setPreviewBgaUrl(null);
       return;
     }
@@ -273,13 +277,14 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
     try {
       const chartData = JSON.parse(selectedChart.data_json);
       const youtubeVideoId = chartData.youtubeVideoId || (chartData.youtubeUrl ? extractYouTubeVideoId(chartData.youtubeUrl) : null);
-      
+
       if (!youtubeVideoId) {
+        setBgaOpacity(0);
         setPreviewBgaUrl(null);
         return;
       }
 
-      // BGA 배경 이미지 설정 (YouTube 썸네일)
+      // BGA 배경 이미지 설정 (YouTube 썸네일) - 영상 로딩 전 fallback
       setPreviewBgaUrl(`https://i.ytimg.com/vi/${youtubeVideoId}/maxresdefault.jpg`);
 
       // 하이라이트 구간 파싱
@@ -305,47 +310,69 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
           return;
         }
 
-        if (!previewPlayerHostRef.current) {
-          // 숨김 host div 생성
-          const hostDiv = document.createElement('div');
-          hostDiv.style.position = 'absolute';
-          hostDiv.style.width = '0';
-          hostDiv.style.height = '0';
-          hostDiv.style.overflow = 'hidden';
-          document.body.appendChild(hostDiv);
-          previewPlayerHostRef.current = hostDiv;
+        // BGA 컨테이너가 있으면 그 안에 플레이어 생성
+        if (!bgaContainerRef.current) {
+          // fallback: 숨김 host div 생성
+          if (!previewPlayerHostRef.current) {
+            const hostDiv = document.createElement('div');
+            hostDiv.style.position = 'absolute';
+            hostDiv.style.width = '0';
+            hostDiv.style.height = '0';
+            hostDiv.style.overflow = 'hidden';
+            document.body.appendChild(hostDiv);
+            previewPlayerHostRef.current = hostDiv;
+          }
         }
+
+        const container = bgaContainerRef.current || previewPlayerHostRef.current;
+        if (!container) return;
 
         const mountNode = document.createElement('div');
         mountNode.id = `preview-youtube-player-${Date.now()}`;
-        previewPlayerHostRef.current.innerHTML = '';
-        previewPlayerHostRef.current.appendChild(mountNode);
+        container.innerHTML = '';
+        container.appendChild(mountNode);
 
         try {
           new window.YT.Player(mountNode as any, {
             videoId: youtubeVideoId,
+            width: '100%',
+            height: '100%',
             playerVars: {
               autoplay: 0,
               controls: 0,
               enablejsapi: 1,
-            } as any,
+              modestbranding: 1,
+              rel: 0,
+              showinfo: 0,
+              iv_load_policy: 3, // 주석 숨기기
+            },
             events: {
               onReady: (event: any) => {
                 const player = event.target;
                 previewPlayerRef.current = player;
-                
+
+                // iframe 크기 100%로 설정
+                const iframe = player.getIframe?.();
+                if (iframe) {
+                  iframe.style.width = '100%';
+                  iframe.style.height = '100%';
+                }
+
                 // Game으로 플레이어 전달 (재사용용)
                 if (onPreviewPlayerReady) {
                   onPreviewPlayerReady(player);
                 }
-                
+
                 try {
                   // 페이드 인: 볼륨 0에서 시작
                   player.setVolume(0);
                   player.seekTo(previewStartSec, true);
                   player.playVideo();
 
-                  // 페이드 인 애니메이션
+                  // BGA 페이드 인 (360ms)
+                  setBgaOpacity(PREVIEW_BGA_OPACITY);
+
+                  // 오디오 페이드 인 애니메이션
                   const fadeSteps = 10;
                   const fadeStepDuration = PREVIEW_FADE_DURATION_MS / fadeSteps;
                   let currentStep = 0;
@@ -397,7 +424,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                 }
               },
             },
-          });
+          } as any);
         } catch (e) {
           console.error('Preview player 생성 실패:', e);
         }
@@ -499,22 +526,47 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         overflow: 'hidden',
       }}
     >
-      {/* 미리듣기 BGA 배경 */}
-      {previewBgaUrl && (
+      {/* 미리듣기 BGA 배경 (YouTube 영상) */}
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          inset: 0,
+          overflow: 'hidden',
+          opacity: bgaOpacity,
+          transition: `opacity ${PREVIEW_TRANSITION_DURATION_MS}ms ease-in-out`,
+          pointerEvents: 'none',
+          zIndex: 0,
+        }}
+      >
+        {/* YouTube 플레이어 컨테이너 */}
         <div
-          aria-hidden
+          ref={bgaContainerRef}
           style={{
             position: 'absolute',
-            inset: 0,
-            backgroundImage: `url(${previewBgaUrl})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            opacity: PREVIEW_BGA_OPACITY,
-            transition: 'opacity 0.3s ease-in-out',
-            pointerEvents: 'none',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: '177.78vh', // 16:9 비율 유지
+            height: '100vh',
+            minWidth: '100%',
+            minHeight: '56.25vw',
           }}
         />
-      )}
+        {/* 영상 로딩 전 fallback 이미지 */}
+        {previewBgaUrl && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundImage: `url(${previewBgaUrl})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              zIndex: -1,
+            }}
+          />
+        )}
+      </div>
 
       {/* 백그라운드 네온 패턴 */}
       <div
@@ -525,6 +577,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
           backgroundImage:
             'radial-gradient(circle at 20% 20%, rgba(56,189,248,0.08), transparent 22%), radial-gradient(circle at 80% 10%, rgba(129,140,248,0.1), transparent 24%), radial-gradient(circle at 70% 80%, rgba(34,211,238,0.06), transparent 22%)',
           pointerEvents: 'none',
+          zIndex: 1,
         }}
       />
       <div
@@ -537,6 +590,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
           mixBlendMode: 'screen',
           opacity: 0.7,
           pointerEvents: 'none',
+          zIndex: 1,
         }}
       />
 
@@ -549,6 +603,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
           boxShadow: CHART_EDITOR_THEME.shadowSoft,
           position: 'relative',
           overflow: 'hidden',
+          zIndex: 2,
         }}
       >
         <div
@@ -780,7 +835,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
       </div>
 
       {/* 메인 컨텐츠 */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative', zIndex: 2 }}>
         {/* 채보 목록 */}
         <div
           style={{

@@ -21,9 +21,10 @@ export const NOTE_VISIBILITY_BUFFER_MS = 200;
 export const JUDGE_FEEDBACK_DURATION_MS = 800;
 
 // 미리듣기 설정
-export const PREVIEW_FADE_DURATION_MS = 200; // 미리듣기 페이드 인/아웃 시간 (ms)
+export const PREVIEW_FADE_DURATION_MS = 200; // 미리듣기 오디오 페이드 인/아웃 시간 (ms)
+export const PREVIEW_TRANSITION_DURATION_MS = 360; // 채보 전환 시 BGA 페이드 시간 (ms)
 export const PREVIEW_VOLUME = 30; // 미리듣기 볼륨 (0-100)
-export const PREVIEW_BGA_OPACITY = 0.15; // 미리듣기 BGA 배경 투명도
+export const PREVIEW_BGA_OPACITY = 0.25; // 미리듣기 BGA 배경 투명도
 
 // localStorage 키 상수들
 export const DISPLAY_NAME_STORAGE_KEY = 'rhythmGameDisplayName';

@@ -1,6 +1,7 @@
 import React from 'react';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
+import { BrandLogo } from './BrandLogo';
 
 type AuthUser = {
   id: string;
@@ -65,38 +66,14 @@ export const GameMenu: React.FC<GameMenuProps> = ({
       >
         {/* 히어로 영역 */}
         <div style={{ marginBottom: '32px' }}>
-          <h1
-            style={{
-              fontSize: '46px',
-              marginBottom: '12px',
-              marginTop: '-20px',
-              fontWeight: 900,
-              fontStyle: 'italic',
-              letterSpacing: '0.18em',
-              background: CHART_EDITOR_THEME.titleGradient,
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              WebkitTextStroke: `3px ${CHART_EDITOR_THEME.rootBackground}`,
-              textShadow: CHART_EDITOR_THEME.titleGlow,
-              fontFamily: 'Arial Black, sans-serif',
-              textTransform: 'uppercase',
-              lineHeight: 1.1,
-            }}
-          >
-            UseRhythm
-          </h1>
-          <p
-            style={{
-              fontSize: '15px',
-              lineHeight: 1.6,
-              color: CHART_EDITOR_THEME.textSecondary,
-            }}
-          >
-            누구나 리듬게임 채보를 만들고,
-            <br />
-            친구들과 플레이를 공유해 보세요.
-          </p>
+          <BrandLogo
+            title="UseRhythm"
+            tagline={'누구나 리듬게임 채보를 만들고,\n친구들과 플레이를 공유해 보세요.'}
+            size="lg"
+            gradient={CHART_EDITOR_THEME.titleGradient}
+            strokeColor={CHART_EDITOR_THEME.rootBackground}
+            glow={CHART_EDITOR_THEME.titleGlow}
+          />
         </div>
 
         {/* 메인 액션 버튼들 */}
