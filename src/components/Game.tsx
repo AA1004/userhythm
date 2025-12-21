@@ -60,8 +60,9 @@ export const Game: React.FC = () => {
   const gameContainerRef = useRef<HTMLDivElement | null>(null);
   const processedMissNotes = useRef<Set<number>>(new Set());
   const [testYoutubeVideoId, setTestYoutubeVideoId] = useState<string | null>(null);
-  const testAudioSettingsRef = useRef<AudioSettings | null>(null);
+  const [testAudioSettings, setTestAudioSettings] = useState<AudioSettings | null>(null);
   const chartSelectYoutubePlayerRef = useRef<any>(null);
+  const [chartSelectYoutubePlayer, setChartSelectYoutubePlayer] = useState<any>(null);
 
   // 인증 훅
   const {
@@ -118,8 +119,8 @@ export const Game: React.FC = () => {
   // 테스트 시작 위치(startTimeMs)를 더해서 절대 시간으로 변환
   // 이렇게 해야 자막/BGA가 올바른 시간에 표시됨
   const currentChartTimeMs = useMemo(
-    () => Math.max(0, gameState.currentTime + (testAudioSettingsRef.current?.startTimeMs ?? 0)),
-    [gameState.currentTime]
+    () => Math.max(0, gameState.currentTime + (testAudioSettings?.startTimeMs ?? 0)),
+    [gameState.currentTime, testAudioSettings]
   );
 
   // BGA 마스크 훅 - 절대 시간 사용
@@ -203,7 +204,7 @@ export const Game: React.FC = () => {
     onBaseBpmSet: setBaseBpm,
     onSpeedChangesSet: setSpeedChanges,
     onYoutubeVideoIdSet: setTestYoutubeVideoId,
-    onAudioSettingsSet: (settings) => { testAudioSettingsRef.current = settings; },
+    onAudioSettingsSet: setTestAudioSettings,
     onEditorClose: () => setViewMode({ type: 'menu' }),
     onPressedKeysReset: () => {},
     onHoldingNotesReset: () => {},
@@ -221,8 +222,8 @@ export const Game: React.FC = () => {
     gameStarted: gameState.gameStarted,
     currentTime: gameState.currentTime,
     videoId: testYoutubeVideoId,
-    audioSettings: testAudioSettingsRef.current,
-    externalPlayer: chartSelectYoutubePlayerRef.current,
+    audioSettings: testAudioSettings,
+    externalPlayer: chartSelectYoutubePlayer,
   });
 
   // 게임 종료 체크
@@ -253,7 +254,7 @@ export const Game: React.FC = () => {
     setViewMode({ type: 'editor' });
     setIsTestMode(false);
     setIsFromEditor(false);
-    testAudioSettingsRef.current = null;
+    setTestAudioSettings(null);
     setTestYoutubeVideoId(null);
     setSubtitles([]);
     destroyYoutubePlayer();
@@ -269,7 +270,7 @@ export const Game: React.FC = () => {
   const handleReturnToPlayList = useCallback(() => {
     setIsTestMode(false);
     setIsFromEditor(false);
-    testAudioSettingsRef.current = null;
+    setTestAudioSettings(null);
     setTestYoutubeVideoId(null);
     setSubtitles([]);
     destroyYoutubePlayer();
@@ -330,7 +331,7 @@ export const Game: React.FC = () => {
     setIsTestMode(false);
     setIsFromEditor(false);
     testPreparedNotesRef.current = [];
-    testAudioSettingsRef.current = null;
+    setTestAudioSettings(null);
     setTestYoutubeVideoId(null);
     setSubtitles([]);
     destroyYoutubePlayer();
@@ -351,7 +352,7 @@ export const Game: React.FC = () => {
     onYoutubeDestroy: destroyYoutubePlayer,
     onYoutubeSetup: (videoId, settings) => {
       setTestYoutubeVideoId(videoId);
-      testAudioSettingsRef.current = settings;
+      setTestAudioSettings(settings);
     },
     onTestModeSet: setIsTestMode,
     onSubtitlesLoad: (chartId) => {
@@ -473,6 +474,7 @@ export const Game: React.FC = () => {
         refreshToken={viewMode.refreshToken ?? chartListRefreshToken}
         onPreviewPlayerReady={(player) => {
           chartSelectYoutubePlayerRef.current = player;
+          setChartSelectYoutubePlayer(player);
         }}
       />
     );
@@ -485,7 +487,7 @@ export const Game: React.FC = () => {
   const backgroundVideoId = testYoutubeVideoId;
   const bgaCurrentSeconds =
     backgroundVideoId && isBgaEnabled
-      ? getAudioPositionSeconds(gameState.currentTime, testAudioSettingsRef.current)
+      ? getAudioPositionSeconds(gameState.currentTime, testAudioSettings)
       : null;
   const shouldPlayBga =
     !!backgroundVideoId &&

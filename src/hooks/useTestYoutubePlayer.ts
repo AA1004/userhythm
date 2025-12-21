@@ -49,7 +49,8 @@ export function useTestYoutubePlayer({
           const startTimeSec = getAudioBaseSeconds(audioSettings);
           externalPlayer.setPlaybackRate?.(playbackSpeed);
           externalPlayer.seekTo(startTimeSec, true);
-          // 미리듣기에서 볼륨이 낮아져 있을 수 있으므로 100으로 복원
+          // 미리듣기에서 볼륨이 낮아져 있을 수 있으므로 100으로 복원하고 음소거 해제
+          externalPlayer.unMute?.();
           externalPlayer.setVolume?.(100);
         } catch (e) {
           console.warn('External player 설정 실패:', e);
@@ -202,7 +203,8 @@ export function useTestYoutubePlayer({
 
     if (!audioHasStartedRef.current) {
       try {
-        // 미리듣기에서 볼륨이 낮아져 있을 수 있으므로 100으로 복원
+        // 미리듣기에서 볼륨이 낮아져 있을 수 있으므로 100으로 복원하고 음소거 해제
+        player.unMute?.();
         player.setVolume?.(100);
         player.seekTo(cueSeconds, true);
         player.playVideo?.();
