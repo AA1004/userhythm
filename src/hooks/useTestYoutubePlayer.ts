@@ -39,7 +39,7 @@ export function useTestYoutubePlayer({
       setPlayer(externalPlayer);
       playerReadyRef.current = true;
       isExternalPlayerRef.current = true;
-      
+
       // External player 설정
       if (audioSettings) {
         try {
@@ -47,6 +47,8 @@ export function useTestYoutubePlayer({
           const startTimeSec = getAudioBaseSeconds(audioSettings);
           externalPlayer.setPlaybackRate?.(playbackSpeed);
           externalPlayer.seekTo(startTimeSec, true);
+          // 미리듣기에서 볼륨이 낮아져 있을 수 있으므로 100으로 복원
+          externalPlayer.setVolume?.(100);
         } catch (e) {
           console.warn('External player 설정 실패:', e);
         }

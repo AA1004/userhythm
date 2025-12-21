@@ -94,7 +94,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [bgaVisibilityIntervals, setBgaVisibilityIntervals] = useState<BgaVisibilityInterval[]>([]);
   
   // --- 선택 영역 상태 (복사/붙여넣기) ---
-  const [isSelectionMode, setIsSelectionMode] = useState<boolean>(false);
+  const isSelectionMode = true; // 항상 영역 선택 모드 활성화
   const [isMoveMode, setIsMoveMode] = useState<boolean>(false);
   const [selectedLane, setSelectedLane] = useState<Lane | null>(null);
   const [selectionStartTime, setSelectionStartTime] = useState<number | null>(null);
@@ -1051,11 +1051,27 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       return sortedNotes;
     });
   }, [selectedNoteIds, saveToHistory]);
-  
+
+  // 선택된 노트들 삭제
+  const deleteSelectedNotes = useCallback(() => {
+    if (selectedNoteIds.size === 0 || isMoveMode) {
+      return;
+    }
+
+    setNotes((prev) => {
+      const newNotes = prev.filter((n) => !selectedNoteIds.has(n.id));
+      saveToHistory(newNotes);
+      return newNotes;
+    });
+
+    // 선택 해제
+    setSelectedNoteIds(new Set());
+  }, [selectedNoteIds, saveToHistory, isMoveMode]);
+
   // 마퀴 선택 도입 후: 선택 집합은 드래그 박스(hit-test) 결과(selectedNoteIds)로만 관리합니다.
   // (시간 범위 기반 자동 선택은 마퀴와 충돌하므로 제거)
 
-  // 키보드 단축키 (Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y, ESC)
+  // 키보드 단축키 (Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y, ESC, Delete)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // 입력 필드(input, textarea)에 포커스가 있으면 기본 동작 허용
@@ -1106,13 +1122,22 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         }
         return;
       }
+
+      // Delete: 선택된 노트 삭제
+      if (e.key === 'Delete') {
+        if (selectedNoteIds.size > 0) {
+          e.preventDefault();
+          deleteSelectedNotes();
+        }
+        return;
+      }
     };
-    
+
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [selectionStartTime, selectionEndTime, selectedNoteIds, copiedNotes, handleCopySelection, handlePasteNotes, handleClearSelection, handleUndo, handleRedo]);
+  }, [selectionStartTime, selectionEndTime, selectedNoteIds, copiedNotes, handleCopySelection, handlePasteNotes, handleClearSelection, handleUndo, handleRedo, deleteSelectedNotes]);
 
 
   // --- 핸들러들 ---
@@ -1154,7 +1179,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     if (isMoveMode) {
       return;
     }
-    
+
     setNotes((prev) => {
       const newNotes = prev.filter((n) => n.id !== id);
       saveToHistory(newNotes);
@@ -1915,49 +1940,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
               }}
             >
               롱노트 모드
-            </button>
-          </div>
-
-          {/* 선택 모드 */}
-          <div
-            style={{
-              marginBottom: '10px',
-              padding: '6px 8px',
-              borderRadius: CHART_EDITOR_THEME.radiusMd,
-              backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
-              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-            }}
-          >
-            <button
-              onClick={(e) => {
-                setIsSelectionMode(prev => {
-                  if (prev) {
-                    setSelectionStartTime(null);
-                    setSelectionEndTime(null);
-                  }
-                  return !prev;
-                });
-                e.currentTarget.blur();
-              }}
-              onMouseDown={(e) => e.preventDefault()}
-              style={{
-                width: '100%',
-                padding: '6px 8px',
-                borderRadius: CHART_EDITOR_THEME.radiusMd,
-                border: `1px solid ${
-                  isSelectionMode ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.borderSubtle
-                }`,
-                background: isSelectionMode
-                  ? 'linear-gradient(135deg, rgba(59,130,246,0.2), rgba(59,130,246,0.05))'
-                  : 'transparent',
-                color: isSelectionMode ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.textPrimary,
-                fontSize: '12px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              영역 선택 모드
             </button>
           </div>
 
