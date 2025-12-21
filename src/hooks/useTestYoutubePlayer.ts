@@ -9,6 +9,7 @@ export interface UseTestYoutubePlayerOptions {
   videoId: string | null;
   audioSettings: AudioSettings | null;
   externalPlayer?: any | null;
+  volume?: number; // 0-100
 }
 
 export interface UseTestYoutubePlayerReturn {
@@ -25,6 +26,7 @@ export function useTestYoutubePlayer({
   videoId,
   audioSettings,
   externalPlayer,
+  volume = 100,
 }: UseTestYoutubePlayerOptions): UseTestYoutubePlayerReturn {
   const [player, setPlayer] = useState<any>(null);
   const playerRef = useRef<HTMLDivElement>(null);
@@ -49,9 +51,9 @@ export function useTestYoutubePlayer({
           const startTimeSec = getAudioBaseSeconds(audioSettings);
           externalPlayer.setPlaybackRate?.(playbackSpeed);
           externalPlayer.seekTo(startTimeSec, true);
-          // 미리듣기에서 볼륨이 낮아져 있을 수 있으므로 100으로 복원하고 음소거 해제
+          // 미리듣기에서 볼륨이 낮아져 있을 수 있으므로 설정 볼륨으로 복원하고 음소거 해제
           externalPlayer.unMute?.();
-          externalPlayer.setVolume?.(100);
+          externalPlayer.setVolume?.(volume);
         } catch (e) {
           console.warn('External player 설정 실패:', e);
         }
@@ -203,13 +205,13 @@ export function useTestYoutubePlayer({
 
     if (!audioHasStartedRef.current) {
       try {
-        // 미리듣기에서 볼륨이 낮아져 있을 수 있으므로 100으로 복원하고 음소거 해제
+        // 미리듣기에서 볼륨이 낮아져 있을 수 있으므로 설정 볼륨으로 복원하고 음소거 해제
         player.unMute?.();
-        player.setVolume?.(100);
+        player.setVolume?.(volume);
         player.seekTo(cueSeconds, true);
         player.playVideo?.();
         audioHasStartedRef.current = true;
-        console.log(`YouTube test playback start (${cueSeconds.toFixed(2)}s)`);
+        console.log(`YouTube test playback start (${cueSeconds.toFixed(2)}s, volume: ${volume})`);
       } catch (e) {
         console.warn("YouTube initial playback failed:", e);
       }
@@ -237,7 +239,17 @@ export function useTestYoutubePlayer({
         console.warn("YouTube resync failed:", e);
       }
     }
-  }, [isTestMode, gameStarted, currentTime, player, audioSettings]);
+  }, [isTestMode, gameStarted, currentTime, player, audioSettings, volume]);
+
+  // 볼륨 변경 시 실시간 반영
+  useEffect(() => {
+    if (!player || !playerReadyRef.current) return;
+    try {
+      player.setVolume?.(volume);
+    } catch (e) {
+      console.warn("YouTube volume update failed:", e);
+    }
+  }, [player, volume]);
 
   const pause = () => {
     if (player && playerReadyRef.current) {

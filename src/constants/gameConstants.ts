@@ -32,4 +32,5 @@ export const KEY_BINDINGS_STORAGE_KEY = 'rhythmGameKeyBindings';
 export const NOTE_SPEED_STORAGE_KEY = 'rhythmGameNoteSpeed';
 export const BGA_ENABLED_STORAGE_KEY = 'rhythmGameBgaEnabled';
 export const JUDGE_LINE_Y_STORAGE_KEY = 'rhythmGameJudgeLineY';
+export const GAME_VOLUME_STORAGE_KEY = 'rhythmGameVolume';
 

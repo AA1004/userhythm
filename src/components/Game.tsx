@@ -95,6 +95,8 @@ export const Game: React.FC = () => {
     handleResetKeyBindings,
     canChangeDisplayName,
     laneKeyLabels,
+    gameVolume,
+    setGameVolume,
   } = useGameSettings({
     authUserId: authUser?.id || null,
     remoteProfile,
@@ -222,6 +224,7 @@ export const Game: React.FC = () => {
     videoId: testYoutubeVideoId,
     audioSettings: testAudioSettings,
     externalPlayer: null, // 외부 플레이어 재사용 비활성화 - 미리보기 루프 타이머 충돌 방지
+    volume: gameVolume,
   });
 
   // 게임 종료 체크
@@ -503,37 +506,78 @@ export const Game: React.FC = () => {
       {/* FPS HUD - 게임 중에만 표시 */}
       {gameState.gameStarted && !gameState.gameEnded && <FpsHud enabled={true} />}
       
-      {/* 테스트/플레이 중 나가기 버튼 (간주 구간에서도 표시, VideoRhythmLayout 밖에 배치) */}
+      {/* 테스트/플레이 중 컨트롤 (간주 구간에서도 표시, VideoRhythmLayout 밖에 배치) */}
       {gameState.gameStarted && !gameState.gameEnded && isTestMode && (
-        <button
-          onClick={isFromEditor ? handleReturnToEditor : handleReturnToPlayList}
+        <div
           style={{
             position: 'fixed',
             top: '16px',
             right: '16px',
-            padding: '8px 16px',
-            fontSize: '14px',
-            backgroundColor: CHART_EDITOR_THEME.danger,
-            color: CHART_EDITOR_THEME.textPrimary,
-            border: `1px solid ${CHART_EDITOR_THEME.danger}`,
-            borderRadius: CHART_EDITOR_THEME.radiusMd,
-            cursor: 'pointer',
-            fontWeight: 'bold',
-            zIndex: 10000, // 모든 레이어 위에 표시
-            boxShadow: CHART_EDITOR_THEME.shadowSoft,
-            transition: 'all 0.2s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#ef4444';
-            e.currentTarget.style.transform = 'scale(1.05)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = CHART_EDITOR_THEME.danger;
-            e.currentTarget.style.transform = 'scale(1)';
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            zIndex: 10000,
           }}
         >
-          ✕ 나가기
-        </button>
+          {/* 볼륨 조절 */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              backgroundColor: 'rgba(0, 0, 0, 0.6)',
+              padding: '6px 12px',
+              borderRadius: CHART_EDITOR_THEME.radiusMd,
+            }}
+          >
+            <span style={{ color: '#fff', fontSize: '14px' }}>
+              {gameVolume === 0 ? '🔇' : gameVolume < 50 ? '🔉' : '🔊'}
+            </span>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={gameVolume}
+              onChange={(e) => setGameVolume(parseInt(e.target.value, 10))}
+              style={{
+                width: '80px',
+                height: '4px',
+                cursor: 'pointer',
+                accentColor: CHART_EDITOR_THEME.accent,
+              }}
+            />
+            <span style={{ color: '#fff', fontSize: '12px', minWidth: '28px' }}>
+              {gameVolume}%
+            </span>
+          </div>
+
+          {/* 나가기 버튼 */}
+          <button
+            onClick={isFromEditor ? handleReturnToEditor : handleReturnToPlayList}
+            style={{
+              padding: '8px 16px',
+              fontSize: '14px',
+              backgroundColor: CHART_EDITOR_THEME.danger,
+              color: CHART_EDITOR_THEME.textPrimary,
+              border: `1px solid ${CHART_EDITOR_THEME.danger}`,
+              borderRadius: CHART_EDITOR_THEME.radiusMd,
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              boxShadow: CHART_EDITOR_THEME.shadowSoft,
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#ef4444';
+              e.currentTarget.style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = CHART_EDITOR_THEME.danger;
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            ✕ 나가기
+          </button>
+        </div>
       )}
       
       <VideoRhythmLayout
