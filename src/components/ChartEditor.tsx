@@ -7,6 +7,8 @@ import { ChartShareModal } from './ChartEditor/ChartShareModal';
 import { useChartYoutubePlayer } from '../hooks/useChartYoutubePlayer';
 import { useChartTimeline } from '../hooks/useChartTimeline';
 import { useChartAutosave } from '../hooks/useChartAutosave';
+import { useChartHistory } from '../hooks/useChartHistory';
+import { useHitSound } from '../hooks/useHitSound';
 import { TapBPMCalculator, isValidBPM } from '../utils/bpmAnalyzer';
 import { calculateTotalBeatsWithChanges, formatSongLength, timeToMeasure, beatIndexToTime, timeToBeatIndex } from '../utils/bpmUtils';
 import { chartAPI, supabase, isSupabaseConfigured } from '../lib/supabaseClient';
@@ -21,6 +23,7 @@ import {
 } from './ChartEditor/constants';
 import { extractYouTubeVideoId } from '../utils/youtube';
 import { localSubtitleStorage } from '../lib/subtitleAPI';
+import { MIN_LONG_NOTE_DURATION, validateNotes, getMaxNoteId } from '../utils/noteValidation';
 
 const KEY_TO_LANE: Record<string, Lane> = {
   a: 0,
@@ -28,8 +31,6 @@ const KEY_TO_LANE: Record<string, Lane> = {
   d: 2,
   f: 3,
 };
-
-const MIN_LONG_NOTE_DURATION = 50;
 
 interface ChartEditorProps {
   onCancel: () => void;
@@ -107,62 +108,29 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const marqueeInitialSelectedIdsRef = useRef<Set<number>>(new Set());
   const marqueeOperationRef = useRef<'replace' | 'add' | 'toggle'>('replace');
   
-  // --- 실행 취소/다시 실행 상태 ---
-  const notesHistoryRef = useRef<Note[][]>([[]]);
-  const historyIndexRef = useRef<number>(0);
-  const MAX_HISTORY_SIZE = 50;
-  
-  // 히스토리에 현재 상태 저장
-  const saveToHistory = useCallback((newNotes: Note[]) => {
-    const history = notesHistoryRef.current;
-    const index = historyIndexRef.current;
-    
-    // 현재 인덱스 이후의 히스토리 제거 (새로운 변경이 있으면)
-    const newHistory = history.slice(0, index + 1);
-    
-    // 새 상태 추가
-    newHistory.push([...newNotes]);
-    
-    // 최대 크기 제한
-    if (newHistory.length > MAX_HISTORY_SIZE) {
-      newHistory.shift();
-      historyIndexRef.current = newHistory.length - 1;
-    } else {
-      historyIndexRef.current = newHistory.length - 1;
-    }
-    
-    notesHistoryRef.current = newHistory;
-  }, []);
-  
-  // 실행 취소
+  // --- 실행 취소/다시 실행 (useChartHistory 훅 사용) ---
+  const {
+    saveToHistory,
+    undo: undoHistory,
+    redo: redoHistory,
+    reset: resetHistory,
+  } = useChartHistory<Note[]>({ maxSize: 50 });
+
+  // 실행 취소 핸들러
   const handleUndo = useCallback(() => {
-    const history = notesHistoryRef.current;
-    const index = historyIndexRef.current;
-    
-    if (index > 0) {
-      historyIndexRef.current = index - 1;
-      setNotes([...history[index - 1]]);
+    const prevState = undoHistory();
+    if (prevState) {
+      setNotes([...prevState]);
     }
-  }, []);
-  
-  // 다시 실행
+  }, [undoHistory]);
+
+  // 다시 실행 핸들러
   const handleRedo = useCallback(() => {
-    const history = notesHistoryRef.current;
-    const index = historyIndexRef.current;
-    
-    if (index < history.length - 1) {
-      historyIndexRef.current = index + 1;
-      setNotes([...history[index + 1]]);
+    const nextState = redoHistory();
+    if (nextState) {
+      setNotes([...nextState]);
     }
-  }, []);
-  
-  // 초기 상태를 히스토리에 저장
-  useEffect(() => {
-    if (notesHistoryRef.current.length === 1 && notesHistoryRef.current[0].length === 0 && notes.length > 0) {
-      notesHistoryRef.current = [[...notes]];
-      historyIndexRef.current = 0;
-    }
-  }, [notes]);
+  }, [redoHistory]);
   
   // --- UI 상태 ---
   const [isBpmInputOpen, setIsBpmInputOpen] = useState<boolean>(false);
@@ -183,9 +151,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [pendingLongNote, setPendingLongNote] = useState<{ lane: Lane; startTime: number } | null>(null);
   const playheadRafIdRef = useRef<number | null>(null);
   const lastTickTimestampRef = useRef<number | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const hitGainRef = useRef<GainNode | null>(null);
-  const hitSoundBufferRef = useRef<AudioBuffer | null>(null);
   const lastHitCheckTimeRef = useRef<number>(0);
   const playedNoteIdsRef = useRef<Set<number>>(new Set());
   const lastCheckedNoteIndexRef = useRef<number>(0); // 성능 최적화: 마지막으로 확인한 노트 인덱스
@@ -250,98 +215,17 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     return null;
   }, [youtubeVideoId, youtubeUrl]);
 
-  // --- 키음 재생용 오디오 컨텍스트 ---
-  const ensureAudioContext = useCallback(async () => {
-    if (typeof window === 'undefined') return null;
-    const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
-    if (!AudioCtx) return null;
+  // --- 키음 재생 (useHitSound 훅 사용) ---
+  const {
+    play: playHitSound,
+    setVolume: setHitSoundVolumeInternal,
+    ensureContext: ensureAudioContext,
+  } = useHitSound(hitSoundVolume);
 
-    if (!audioCtxRef.current) {
-      const ctx = new AudioCtx();
-      const gain = ctx.createGain();
-      gain.gain.value = Math.max(0, Math.min(1, hitSoundVolume / 100));
-      gain.connect(ctx.destination);
-      audioCtxRef.current = ctx;
-      hitGainRef.current = gain;
-    }
-
-    const ctx = audioCtxRef.current;
-    if (ctx && ctx.state === 'suspended') {
-      try {
-        await ctx.resume();
-      } catch {
-        // ignore resume errors
-      }
-    }
-
-    return audioCtxRef.current ?? null;
-  }, [hitSoundVolume]);
-
-  // 키음 볼륨 반영
+  // 키음 볼륨 변경 시 훅에 반영
   useEffect(() => {
-    const ctx = audioCtxRef.current;
-    const gain = hitGainRef.current;
-    if (!ctx || !gain) return;
-    const value = Math.max(0, Math.min(1, hitSoundVolume / 100));
-    gain.gain.setValueAtTime(value, ctx.currentTime);
-  }, [hitSoundVolume]);
-
-  const playHitSound = useCallback(() => {
-    const ctx = audioCtxRef.current;
-    const masterGain = hitGainRef.current;
-    if (!ctx || !masterGain) return;
-
-    // 컨텍스트가 중지된 경우 재개 시도 (비동기지만 재생에는 영향 없음)
-    if (ctx.state === 'suspended') {
-      ctx.resume().catch(() => {});
-    }
-
-    const now = ctx.currentTime;
-    const duration = 0.1;
-
-    // 노이즈 버퍼가 없으면 한 번만 생성
-    if (!hitSoundBufferRef.current) {
-      const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * duration));
-      const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-      const data = noiseBuffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i += 1) {
-        const env = Math.exp(-i / (bufferSize * 0.4));
-        data[i] = (Math.random() * 2 - 1) * env;
-      }
-      hitSoundBufferRef.current = noiseBuffer;
-    }
-
-    const noiseSource = ctx.createBufferSource();
-    noiseSource.buffer = hitSoundBufferRef.current;
-
-    // 대역 통과 필터로 중고역만 살려서 울림 없는 드럼/클릭 느낌
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(2200, now);
-    filter.Q.setValueAtTime(0.9, now);
-
-    const envGain = ctx.createGain();
-    const baseLevel = Math.max(0.0001, masterGain.gain.value * 0.6);
-    envGain.gain.setValueAtTime(baseLevel, now);
-    envGain.gain.exponentialRampToValueAtTime(
-      Math.max(0.0001, baseLevel * 0.04),
-      now + duration
-    );
-
-    noiseSource.connect(filter).connect(envGain).connect(masterGain);
-    noiseSource.start(now);
-    noiseSource.stop(now + duration);
-
-    noiseSource.onended = () => {
-      try {
-        noiseSource.disconnect();
-        filter.disconnect();
-        envGain.disconnect();
-      } catch {
-        // ignore
-      }
-    };
-  }, []);
+    setHitSoundVolumeInternal(hitSoundVolume);
+  }, [hitSoundVolume, setHitSoundVolumeInternal]);
 
   // --- 에디터 전용 타이머(재생선 시간 소스) ---
   useEffect(() => {
@@ -591,82 +475,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
 
     if (Array.isArray(data.notes)) {
-      // 복원 시 잘못된 롱노트 검증 및 수정 + 유령노트 정리
-      const restoredNotes = data.notes
-        .map((note: Note) => {
-          // 유령노트 정리: hit 상태를 리셋 (에디터에서는 항상 false)
-          const cleanedNote = {
-            ...note,
-            hit: false,
-          };
-          
-          // 롱노트 검증: duration이 0 이하이거나 endTime이 time보다 작거나 같으면 탭 노트로 변환
-          if (cleanedNote.type === 'hold' || cleanedNote.duration > 0) {
-            if (cleanedNote.duration <= 0 || (cleanedNote.endTime !== undefined && cleanedNote.endTime <= cleanedNote.time)) {
-              return {
-                ...cleanedNote,
-                type: 'tap' as const,
-                duration: 0,
-                endTime: cleanedNote.time,
-              };
-            }
-            // 최소 길이 미만이면 탭 노트로 변환
-            if (cleanedNote.duration < MIN_LONG_NOTE_DURATION) {
-              return {
-                ...cleanedNote,
-                type: 'tap' as const,
-                duration: 0,
-                endTime: cleanedNote.time,
-              };
-            }
-            // endTime이 올바르게 설정되지 않은 경우 수정
-            if (!cleanedNote.endTime || cleanedNote.endTime <= cleanedNote.time) {
-              return {
-                ...cleanedNote,
-                endTime: cleanedNote.time + cleanedNote.duration,
-              };
-            }
-            // endTime과 duration이 일치하지 않는 경우 수정
-            const expectedEndTime = cleanedNote.time + cleanedNote.duration;
-            if (cleanedNote.endTime !== expectedEndTime) {
-              return {
-                ...cleanedNote,
-                endTime: expectedEndTime,
-              };
-            }
-          } else {
-            // 탭 노트의 경우 endTime을 time과 동일하게 설정 (endTime이 잘못 설정된 경우 강제 수정)
-            // duration이 0이면 무조건 탭 노트
-            return {
-              ...cleanedNote,
-              type: 'tap' as const,
-              duration: 0,
-              endTime: cleanedNote.time,
-            };
-          }
-          return cleanedNote;
-        })
-        .filter((note: Note) => {
-          // 유효하지 않은 노트 필터링
-          // time이 음수이거나 NaN인 경우 제거
-          if (note.time < 0 || isNaN(note.time)) return false;
-          // endTime이 time보다 작은 경우 제거 (이미 위에서 수정했지만 이중 체크)
-          if (note.endTime < note.time) return false;
-          // endTime이 NaN인 경우 제거
-          if (isNaN(note.endTime)) return false;
-          // duration이 0인데 endTime이 time과 다른 경우도 제거 (탭 노트는 endTime === time이어야 함)
-          if (note.duration === 0 && note.endTime !== note.time) return false;
-          return true;
-        });
+      // 복원 시 노트 검증 및 정규화 (validateNotes 유틸리티 사용)
+      const restoredNotes = validateNotes(data.notes);
       setNotes(restoredNotes);
       // 히스토리 초기화
-      notesHistoryRef.current = [[...restoredNotes]];
-      historyIndexRef.current = 0;
-      const maxId = restoredNotes.reduce((max: number, note: Note) => {
-        const noteId = typeof note.id === 'number' ? note.id : 0;
-        return Math.max(max, noteId);
-      }, 0);
-      noteIdRef.current = maxId + 1;
+      resetHistory([...restoredNotes]);
+      noteIdRef.current = getMaxNoteId(restoredNotes) + 1;
     }
 
     if (typeof data.bpm === 'number') setBpm(data.bpm);
@@ -750,8 +564,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
     setNotes([]);
     // 히스토리 초기화
-    notesHistoryRef.current = [[]];
-    historyIndexRef.current = 0;
+    resetHistory([]);
     setCurrentTime(0);
     setIsPlaying(false);
     setPlaybackSpeed(1);
