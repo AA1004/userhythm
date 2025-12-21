@@ -198,6 +198,8 @@ export function useTestYoutubePlayer({
 
     if (!audioHasStartedRef.current) {
       try {
+        // 미리듣기에서 볼륨이 낮아져 있을 수 있으므로 100으로 복원
+        player.setVolume?.(100);
         player.seekTo(cueSeconds, true);
         player.playVideo?.();
         audioHasStartedRef.current = true;
