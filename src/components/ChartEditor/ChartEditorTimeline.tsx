@@ -61,7 +61,7 @@ interface ChartEditorTimelineProps {
   pendingLongNote?: { lane: Lane; startTime: number } | null;
 }
 
-// 성능 최적화: currentTime이 변경되어도 노트 렌더링이 재계산되지 않도록 memo 적용
+// 성능 최적화: 재생선 위치는 useEffect에서 직접 DOM 업데이트하므로 리렌더링 최소화
 export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.memo(({
   notes,
   beatsPerMeasure,
@@ -103,6 +103,21 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   onMoveEnd,
   yToTime,
 }) => {
+  // 재생선 ref (리렌더링 없이 직접 DOM 업데이트)
+  const playheadRef = useRef<HTMLDivElement>(null);
+  const measureLabelRef = useRef<HTMLDivElement>(null);
+
+  // 재생선 위치 업데이트 (리렌더링 없이 직접 DOM 조작)
+  useEffect(() => {
+    if (playheadRef.current) {
+      playheadRef.current.style.transform = `translateY(${playheadY - 10}px)`;
+    }
+    if (measureLabelRef.current) {
+      measureLabelRef.current.style.transform = `translateY(${playheadY - 6}px)`;
+      measureLabelRef.current.textContent = `${timeToMeasure(currentTime, bpm, bpmChanges, beatsPerMeasure)}마디`;
+    }
+  }, [playheadY, currentTime, bpm, bpmChanges, beatsPerMeasure]);
+
   // 뷰포트 정보 (가시 영역 + 버퍼)
   const [viewTop, setViewTop] = useState(0);
   const [viewHeight, setViewHeight] = useState(0);
@@ -909,13 +924,13 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
 
         {/* 재생선 */}
         <div
+          ref={playheadRef}
           data-playhead
           onMouseDown={onPlayheadMouseDown}
           style={{
             position: 'absolute',
             left: 0,
             top: 0,
-            transform: `translateY(${playheadY - 10}px)`,
             width: `${CONTENT_WIDTH}px`,
             height: '20px', // 클릭 영역 높이 확장
             cursor: 'ns-resize',
@@ -935,14 +950,14 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
             }}
           />
         </div>
-        
+
         {/* 마디 번호 표시 (재생선 오른쪽) */}
         <div
+          ref={measureLabelRef}
           style={{
             position: 'absolute',
             left: `${CONTENT_WIDTH + 8}px`,
             top: 0,
-            transform: `translateY(${playheadY - 6}px)`,
             fontSize: '11px',
             color: '#FF0000',
             fontWeight: 'bold',
@@ -951,9 +966,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
             whiteSpace: 'nowrap',
             willChange: 'transform',
           }}
-        >
-          {timeToMeasure(currentTime, bpm, bpmChanges, beatsPerMeasure)}마디
-        </div>
+        />
         </div>
       </div>
     </div>

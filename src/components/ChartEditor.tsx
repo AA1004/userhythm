@@ -228,6 +228,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   }, [hitSoundVolume, setHitSoundVolumeInternal]);
 
   // --- 에디터 전용 타이머(재생선 시간 소스) ---
+  // 내부 시간은 ref로 관리하고, 상태 업데이트는 throttle하여 성능 최적화
+  const internalTimeRef = useRef<number>(0);
+  const lastStateUpdateRef = useRef<number>(0);
+  const STATE_UPDATE_INTERVAL = 33; // ~30fps로 상태 업데이트 (성능 최적화)
+
   useEffect(() => {
     if (!isPlaying) {
       if (playheadRafIdRef.current !== null) {
@@ -239,12 +244,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
 
     const MAX_DELTA_MS = 100; // 백그라운드 복귀 시 큰 점프 방지 (100ms 상한)
+    internalTimeRef.current = currentTime; // 초기값 동기화
 
     const tick = (timestamp: number) => {
       if (!isPlaying) return;
 
       if (lastTickTimestampRef.current === null) {
         lastTickTimestampRef.current = timestamp;
+        lastStateUpdateRef.current = timestamp;
       }
       const rawDeltaMs = (timestamp - lastTickTimestampRef.current) * playbackSpeed;
       // 탭이 백그라운드에 있다가 돌아오면 delta가 매우 커질 수 있음
@@ -253,7 +260,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       lastTickTimestampRef.current = timestamp;
 
       if (deltaMs > 0) {
-        setCurrentTime((prev) => Math.max(0, prev + deltaMs));
+        internalTimeRef.current = Math.max(0, internalTimeRef.current + deltaMs);
+
+        // 상태 업데이트는 throttle
+        if (timestamp - lastStateUpdateRef.current >= STATE_UPDATE_INTERVAL) {
+          setCurrentTime(internalTimeRef.current);
+          lastStateUpdateRef.current = timestamp;
+        }
       }
       playheadRafIdRef.current = requestAnimationFrame(tick);
     };
@@ -266,8 +279,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         playheadRafIdRef.current = null;
       }
       lastTickTimestampRef.current = null;
+      // 최종 시간 동기화
+      setCurrentTime(internalTimeRef.current);
     };
-  }, [isPlaying, playbackSpeed, setCurrentTime]);
+  }, [isPlaying, playbackSpeed]);
 
   // --- 계산된 값들 ---
   const beatDuration = useMemo(() => (60000 / bpm), [bpm]);
