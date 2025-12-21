@@ -408,24 +408,24 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
           return;
         }
 
-        // 재사용 모드(onPreviewPlayerReady 제공)에서는
-        // ChartSelect 언마운트 후에도 플레이어가 살아있도록 body에 붙인 host를 반드시 사용
-        const reuseEnabled = !!onPreviewPlayerReady;
-
-        if (!previewPlayerHostRef.current) {
-          const hostDiv = document.createElement('div');
-          hostDiv.style.position = 'absolute';
-          hostDiv.style.left = '-10000px';
-          hostDiv.style.top = '-10000px';
-          hostDiv.style.width = '1px';
-          hostDiv.style.height = '1px';
-          hostDiv.style.overflow = 'hidden';
-          hostDiv.style.pointerEvents = 'none';
-          document.body.appendChild(hostDiv);
-          previewPlayerHostRef.current = hostDiv;
+        // BGA 컨테이너가 있으면 그 안에 플레이어 생성 (화면에 표시되도록)
+        // 없으면 fallback으로 숨김 host 생성
+        if (!bgaContainerRef.current) {
+          if (!previewPlayerHostRef.current) {
+            const hostDiv = document.createElement('div');
+            hostDiv.style.position = 'absolute';
+            hostDiv.style.left = '-10000px';
+            hostDiv.style.top = '-10000px';
+            hostDiv.style.width = '1px';
+            hostDiv.style.height = '1px';
+            hostDiv.style.overflow = 'hidden';
+            hostDiv.style.pointerEvents = 'none';
+            document.body.appendChild(hostDiv);
+            previewPlayerHostRef.current = hostDiv;
+          }
         }
 
-        const container = reuseEnabled ? previewPlayerHostRef.current : (bgaContainerRef.current || previewPlayerHostRef.current);
+        const container = bgaContainerRef.current || previewPlayerHostRef.current;
         if (!container) return;
 
         const mountNode = document.createElement('div');
@@ -514,11 +514,36 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
       clearInterval(previewLoopTimerRef.current);
       previewLoopTimerRef.current = null;
     }
+    if (fadeIntervalRef.current) {
+      clearInterval(fadeIntervalRef.current);
+      fadeIntervalRef.current = null;
+    }
     if (previewPlayerRef.current) {
       try {
         previewPlayerRef.current.pauseVideo?.();
-        // 게임 시작 전 볼륨을 100으로 복원 (미리듣기에서 낮춰져 있음)
+        // 게임 시작 전 볼륨을 100으로 복원 및 음소거 해제
+        previewPlayerRef.current.unMute?.();
         previewPlayerRef.current.setVolume?.(100);
+
+        // 플레이어 iframe을 body에 붙여서 ChartSelect 언마운트 후에도 유지
+        const iframe = previewPlayerRef.current.getIframe?.();
+        if (iframe && onPreviewPlayerReady) {
+          // 숨김 호스트가 없으면 생성
+          if (!previewPlayerHostRef.current) {
+            const hostDiv = document.createElement('div');
+            hostDiv.style.position = 'absolute';
+            hostDiv.style.left = '-10000px';
+            hostDiv.style.top = '-10000px';
+            hostDiv.style.width = '1px';
+            hostDiv.style.height = '1px';
+            hostDiv.style.overflow = 'hidden';
+            hostDiv.style.pointerEvents = 'none';
+            document.body.appendChild(hostDiv);
+            previewPlayerHostRef.current = hostDiv;
+          }
+          // iframe을 숨김 호스트로 이동
+          previewPlayerHostRef.current.appendChild(iframe);
+        }
       } catch (e) {
         // 무시
       }
