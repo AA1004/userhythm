@@ -173,7 +173,8 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       }
 
       if (bestNote) {
-        const isHoldNote = bestNote.type === 'hold' || bestNote.duration > 0;
+        // 롱노트 판정: type이 'hold'인 경우만 롱노트로 처리 (duration만 보면 잘못된 데이터에서 버그 발생)
+        const isHoldNote = bestNote.type === 'hold' && bestNote.duration > 0;
         const judge = judgeTiming(bestNote.time - currentTime);
 
         // 너무 일찍 친 경우 (판정 윈도우 밖) - 아무 판정도 하지 않음
