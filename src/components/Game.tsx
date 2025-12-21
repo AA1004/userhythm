@@ -258,6 +258,7 @@ export const Game: React.FC = () => {
     setTestYoutubeVideoId(null);
     setSubtitles([]);
     destroyYoutubePlayer();
+    chartSelectYoutubePlayerRef.current = null;
     setGameState((prev) => ({
       ...prev,
       gameStarted: false,
@@ -274,6 +275,7 @@ export const Game: React.FC = () => {
     setTestYoutubeVideoId(null);
     setSubtitles([]);
     destroyYoutubePlayer();
+    chartSelectYoutubePlayerRef.current = null;
     setGameState((prev) => ({
       ...prev,
       gameStarted: false,
@@ -335,6 +337,7 @@ export const Game: React.FC = () => {
     setTestYoutubeVideoId(null);
     setSubtitles([]);
     destroyYoutubePlayer();
+    chartSelectYoutubePlayerRef.current = null;
     setGameState((prev) => ({
       ...prev,
       gameStarted: false,

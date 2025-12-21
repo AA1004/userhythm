@@ -252,22 +252,19 @@ export function useTestYoutubePlayer({
   const destroy = () => {
     if (player) {
       try {
-        // External player는 destroy하지 않고 pause만
-        if (isExternalPlayerRef.current) {
-          player.pauseVideo?.();
-        } else {
-          player.destroy?.();
-        }
+        // External player도 세션 꼬임 방지를 위해 최종적으로 destroy까지 수행
+        // (ChartSelect -> Game handoff 동안에는 ChartSelect가 destroy하지 않음)
+        player.pauseVideo?.();
+        player.destroy?.();
       } catch (e) {
         console.warn('테스트 플레이어 정리 실패:', e);
       }
     }
-    if (!isExternalPlayerRef.current) {
-      setPlayer(null);
-      playerReadyRef.current = false;
-      if (playerRef.current) {
-        playerRef.current.innerHTML = '';
-      }
+    setPlayer(null);
+    playerReadyRef.current = false;
+    isExternalPlayerRef.current = false;
+    if (playerRef.current) {
+      playerRef.current.innerHTML = '';
     }
   };
 

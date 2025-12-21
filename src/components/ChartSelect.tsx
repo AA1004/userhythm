@@ -61,6 +61,17 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         clearInterval(previewLoopTimerRef.current);
         previewLoopTimerRef.current = null;
       }
+      // Game이 재사용할 수 있도록 플레이어를 destroy하지 않음
+      // (ChartSelect가 언마운트되면, 내부 DOM에 붙은 플레이어는 사라져 오디오가 끊길 수 있으므로
+      //  재사용 모드에서는 body에 붙인 host를 유지하는 구조로 사용)
+      if (onPreviewPlayerReady) {
+        try {
+          previewPlayerRef.current?.pauseVideo?.();
+        } catch {
+          // ignore
+        }
+        return;
+      }
       if (previewPlayerRef.current) {
         try {
           previewPlayerRef.current.pauseVideo?.();
@@ -397,21 +408,24 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
           return;
         }
 
-        // BGA 컨테이너가 있으면 그 안에 플레이어 생성
-        if (!bgaContainerRef.current) {
-          // fallback: 숨김 host div 생성
-          if (!previewPlayerHostRef.current) {
-            const hostDiv = document.createElement('div');
-            hostDiv.style.position = 'absolute';
-            hostDiv.style.width = '0';
-            hostDiv.style.height = '0';
-            hostDiv.style.overflow = 'hidden';
-            document.body.appendChild(hostDiv);
-            previewPlayerHostRef.current = hostDiv;
-          }
+        // 재사용 모드(onPreviewPlayerReady 제공)에서는
+        // ChartSelect 언마운트 후에도 플레이어가 살아있도록 body에 붙인 host를 반드시 사용
+        const reuseEnabled = !!onPreviewPlayerReady;
+
+        if (!previewPlayerHostRef.current) {
+          const hostDiv = document.createElement('div');
+          hostDiv.style.position = 'absolute';
+          hostDiv.style.left = '-10000px';
+          hostDiv.style.top = '-10000px';
+          hostDiv.style.width = '1px';
+          hostDiv.style.height = '1px';
+          hostDiv.style.overflow = 'hidden';
+          hostDiv.style.pointerEvents = 'none';
+          document.body.appendChild(hostDiv);
+          previewPlayerHostRef.current = hostDiv;
         }
 
-        const container = bgaContainerRef.current || previewPlayerHostRef.current;
+        const container = reuseEnabled ? previewPlayerHostRef.current : (bgaContainerRef.current || previewPlayerHostRef.current);
         if (!container) return;
 
         const mountNode = document.createElement('div');
