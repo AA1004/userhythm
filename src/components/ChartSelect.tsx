@@ -495,7 +495,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
   }, [currentPage, hasMore, isLoadingMore]);
 
   const handleSelectChart = (chart: ApiChart) => {
-    // Preview 정지
+    // Preview 정지 및 볼륨 복원
     if (previewLoopTimerRef.current) {
       clearInterval(previewLoopTimerRef.current);
       previewLoopTimerRef.current = null;
@@ -503,6 +503,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
     if (previewPlayerRef.current) {
       try {
         previewPlayerRef.current.pauseVideo?.();
+        // 게임 시작 전 볼륨을 100으로 복원 (미리듣기에서 낮춰져 있음)
+        previewPlayerRef.current.setVolume?.(100);
       } catch (e) {
         // 무시
       }

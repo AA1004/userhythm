@@ -39,6 +39,8 @@ export function useTestYoutubePlayer({
       setPlayer(externalPlayer);
       playerReadyRef.current = true;
       isExternalPlayerRef.current = true;
+      // 새 게임 시작이므로 오디오 상태 리셋
+      audioHasStartedRef.current = false;
 
       // External player 설정
       if (audioSettings) {
@@ -90,6 +92,8 @@ export function useTestYoutubePlayer({
       return null;
     });
     playerReadyRef.current = false;
+    // 새 게임 시작이므로 오디오 상태 리셋
+    audioHasStartedRef.current = false;
 
     waitForYouTubeAPI().then(() => {
       if (isCancelled) return;
