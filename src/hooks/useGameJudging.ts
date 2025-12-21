@@ -176,6 +176,11 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         const isHoldNote = bestNote.type === 'hold' || bestNote.duration > 0;
         const judge = judgeTiming(bestNote.time - currentTime);
 
+        // 너무 일찍 친 경우 (판정 윈도우 밖) - 아무 판정도 하지 않음
+        if (judge === null) {
+          return;
+        }
+
         // 상태 업데이트를 하나로 묶음
         setGameState((prev) => {
           const newScore = updateScoreFromJudge(judge, prev.score);
