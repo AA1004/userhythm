@@ -9,10 +9,9 @@ interface ChartSelectProps {
   onSelect: (chartData: any) => void;
   onClose: () => void;
   refreshToken?: number; // 외부에서 강제 새로고침 트리거
-  onPreviewPlayerReady?: (player: any) => void;
 }
 
-export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, refreshToken, onPreviewPlayerReady }) => {
+export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, refreshToken }) => {
   const requestControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
 
@@ -61,16 +60,9 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         clearInterval(previewLoopTimerRef.current);
         previewLoopTimerRef.current = null;
       }
-      // Game이 재사용할 수 있도록 플레이어를 destroy하지 않음
-      // (ChartSelect가 언마운트되면, 내부 DOM에 붙은 플레이어는 사라져 오디오가 끊길 수 있으므로
-      //  재사용 모드에서는 body에 붙인 host를 유지하는 구조로 사용)
-      if (onPreviewPlayerReady) {
-        try {
-          previewPlayerRef.current?.pauseVideo?.();
-        } catch {
-          // ignore
-        }
-        return;
+      if (fadeIntervalRef.current) {
+        clearInterval(fadeIntervalRef.current);
+        fadeIntervalRef.current = null;
       }
       if (previewPlayerRef.current) {
         try {
@@ -460,11 +452,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                   iframe.style.height = '100%';
                 }
 
-                // Game으로 플레이어 전달 (재사용용)
-                if (onPreviewPlayerReady) {
-                  onPreviewPlayerReady(player);
-                }
-
                 startPreviewPlayback(player, previewStartSec, previewEndSec);
               },
             },
@@ -495,7 +482,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         }
       }
     };
-  }, [selectedChart, onPreviewPlayerReady]);
+  }, [selectedChart]);
 
   const toggleInsaneMode = () => {
     setIsInsaneMode((prev) => !prev);
@@ -509,7 +496,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
   }, [currentPage, hasMore, isLoadingMore]);
 
   const handleSelectChart = (chart: ApiChart) => {
-    // Preview 정지 및 볼륨 복원
+    // Preview 플레이어 정리 - 게임에서 새 플레이어를 생성하므로 여기서 파괴
     if (previewLoopTimerRef.current) {
       clearInterval(previewLoopTimerRef.current);
       previewLoopTimerRef.current = null;
@@ -521,32 +508,11 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
     if (previewPlayerRef.current) {
       try {
         previewPlayerRef.current.pauseVideo?.();
-        // 게임 시작 전 볼륨을 100으로 복원 및 음소거 해제
-        previewPlayerRef.current.unMute?.();
-        previewPlayerRef.current.setVolume?.(100);
-
-        // 플레이어 iframe을 body에 붙여서 ChartSelect 언마운트 후에도 유지
-        const iframe = previewPlayerRef.current.getIframe?.();
-        if (iframe && onPreviewPlayerReady) {
-          // 숨김 호스트가 없으면 생성
-          if (!previewPlayerHostRef.current) {
-            const hostDiv = document.createElement('div');
-            hostDiv.style.position = 'absolute';
-            hostDiv.style.left = '-10000px';
-            hostDiv.style.top = '-10000px';
-            hostDiv.style.width = '1px';
-            hostDiv.style.height = '1px';
-            hostDiv.style.overflow = 'hidden';
-            hostDiv.style.pointerEvents = 'none';
-            document.body.appendChild(hostDiv);
-            previewPlayerHostRef.current = hostDiv;
-          }
-          // iframe을 숨김 호스트로 이동
-          previewPlayerHostRef.current.appendChild(iframe);
-        }
+        previewPlayerRef.current.destroy?.();
       } catch (e) {
         // 무시
       }
+      previewPlayerRef.current = null;
     }
 
     try {

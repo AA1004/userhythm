@@ -61,8 +61,6 @@ export const Game: React.FC = () => {
   const processedMissNotes = useRef<Set<number>>(new Set());
   const [testYoutubeVideoId, setTestYoutubeVideoId] = useState<string | null>(null);
   const [testAudioSettings, setTestAudioSettings] = useState<AudioSettings | null>(null);
-  const chartSelectYoutubePlayerRef = useRef<any>(null);
-  const [chartSelectYoutubePlayer, setChartSelectYoutubePlayer] = useState<any>(null);
 
   // 인증 훅
   const {
@@ -223,7 +221,7 @@ export const Game: React.FC = () => {
     currentTime: gameState.currentTime,
     videoId: testYoutubeVideoId,
     audioSettings: testAudioSettings,
-    externalPlayer: chartSelectYoutubePlayer,
+    externalPlayer: null, // 외부 플레이어 재사용 비활성화 - 미리보기 루프 타이머 충돌 방지
   });
 
   // 게임 종료 체크
@@ -258,7 +256,6 @@ export const Game: React.FC = () => {
     setTestYoutubeVideoId(null);
     setSubtitles([]);
     destroyYoutubePlayer();
-    chartSelectYoutubePlayerRef.current = null;
     setGameState((prev) => ({
       ...prev,
       gameStarted: false,
@@ -275,7 +272,6 @@ export const Game: React.FC = () => {
     setTestYoutubeVideoId(null);
     setSubtitles([]);
     destroyYoutubePlayer();
-    chartSelectYoutubePlayerRef.current = null;
     setGameState((prev) => ({
       ...prev,
       gameStarted: false,
@@ -337,7 +333,6 @@ export const Game: React.FC = () => {
     setTestYoutubeVideoId(null);
     setSubtitles([]);
     destroyYoutubePlayer();
-    chartSelectYoutubePlayerRef.current = null;
     setGameState((prev) => ({
       ...prev,
       gameStarted: false,
@@ -475,10 +470,6 @@ export const Game: React.FC = () => {
         onSelect={handleChartSelect}
         onClose={() => setViewMode({ type: 'menu' })}
         refreshToken={viewMode.refreshToken ?? chartListRefreshToken}
-        onPreviewPlayerReady={(player) => {
-          chartSelectYoutubePlayerRef.current = player;
-          setChartSelectYoutubePlayer(player);
-        }}
       />
     );
   }
