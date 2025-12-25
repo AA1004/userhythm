@@ -82,49 +82,53 @@ export function useGameLoop(
         }
       }
 
-      // currentTime 업데이트 주기 (자막/BGA 등에 필요하지만 매 프레임 업데이트는 성능 저하)
-      // 60Hz 기준으로 약 16ms마다 업데이트 (약 60Hz)
-      const TIME_UPDATE_INTERVAL_MS = 16;
+      // currentTime 업데이트 주기 (게임 중 리렌더링 부하 감소)
+      // NoteRenderer는 currentTimeRef를 직접 읽으므로 state 업데이트는 자막/BGA 동기화용
+      const TIME_UPDATE_INTERVAL_MS = 50;
       const timeSinceLastUpdate = elapsedTime - (gameStateRef.current.currentTime || 0);
       const shouldUpdateTime = timeSinceLastUpdate >= TIME_UPDATE_INTERVAL_MS || hasMiss;
 
-      // 미스가 발생한 경우 또는 주기적으로 currentTime 업데이트
-      if (shouldUpdateTime) {
-        if (hasMiss) {
-          setGameState((prev: GameState) => {
-            const updatedNotes = prev.notes.map((note) => {
-              if (note.hit) return note;
-              
-              const isHoldNote = note.duration > 0;
-              const timeUntilMiss = isHoldNote
-                ? note.endTime - elapsedTime
-                : note.time - elapsedTime;
+      if (!shouldUpdateTime) {
+        // state 업데이트 없이 다음 프레임으로
+        lastTimeRef.current = currentTime;
+        frameRef.current = requestAnimationFrame(animate);
+        return;
+      }
 
-              if (timeUntilMiss < -missThreshold) {
-                return { ...note, hit: true };
-              }
-              return note;
-            });
+      if (hasMiss) {
+        setGameState((prev: GameState) => {
+          const updatedNotes = prev.notes.map((note) => {
+            if (note.hit) return note;
 
-            const missCount = missedInFrame.length;
-            return {
-              ...prev,
-              notes: updatedNotes,
-              currentTime: elapsedTime,
-              score: {
-                ...prev.score,
-                miss: prev.score.miss + missCount,
-                combo: 0,
-              },
-            };
+            const isHoldNote = note.duration > 0;
+            const timeUntilMiss = isHoldNote
+              ? note.endTime - elapsedTime
+              : note.time - elapsedTime;
+
+            if (timeUntilMiss < -missThreshold) {
+              return { ...note, hit: true };
+            }
+            return note;
           });
-        } else {
-          // 미스는 없지만 currentTime만 업데이트 (자막/BGA 동기화용)
-          setGameState((prev: GameState) => ({
+
+          const missCount = missedInFrame.length;
+          return {
             ...prev,
+            notes: updatedNotes,
             currentTime: elapsedTime,
-          }));
-        }
+            score: {
+              ...prev.score,
+              miss: prev.score.miss + missCount,
+              combo: 0,
+            },
+          };
+        });
+      } else {
+        // 매 프레임 currentTime 업데이트
+        setGameState((prev: GameState) => ({
+          ...prev,
+          currentTime: elapsedTime,
+        }));
       }
 
       if (missedInFrame.length && onNoteMiss) {

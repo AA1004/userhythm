@@ -228,10 +228,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   }, [hitSoundVolume, setHitSoundVolumeInternal]);
 
   // --- 에디터 전용 타이머(재생선 시간 소스) ---
-  // 내부 시간은 ref로 관리하고, 상태 업데이트는 throttle하여 성능 최적화
+  // 매 프레임 상태 업데이트 (모니터 주사율에 맞춤)
   const internalTimeRef = useRef<number>(0);
-  const lastStateUpdateRef = useRef<number>(0);
-  const STATE_UPDATE_INTERVAL = 33; // ~30fps로 상태 업데이트 (성능 최적화)
 
   useEffect(() => {
     if (!isPlaying) {
@@ -251,7 +249,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
       if (lastTickTimestampRef.current === null) {
         lastTickTimestampRef.current = timestamp;
-        lastStateUpdateRef.current = timestamp;
       }
       const rawDeltaMs = (timestamp - lastTickTimestampRef.current) * playbackSpeed;
       // 탭이 백그라운드에 있다가 돌아오면 delta가 매우 커질 수 있음
@@ -261,12 +258,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
       if (deltaMs > 0) {
         internalTimeRef.current = Math.max(0, internalTimeRef.current + deltaMs);
-
-        // 상태 업데이트는 throttle
-        if (timestamp - lastStateUpdateRef.current >= STATE_UPDATE_INTERVAL) {
-          setCurrentTime(internalTimeRef.current);
-          lastStateUpdateRef.current = timestamp;
-        }
+        setCurrentTime(internalTimeRef.current);
       }
       playheadRafIdRef.current = requestAnimationFrame(tick);
     };
@@ -741,18 +733,21 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     if (copiedNotes.length === 0) {
       return;
     }
-    
-    // 현재 시간 위치에 노트들을 붙여넣기
+
+    // 현재 재생선 위치를 그리드에 스냅하여 붙여넣기 시작점으로 사용
+    const snappedCurrentTime = snapToGrid(currentTime);
+
+    // 스냅된 시간 위치에 노트들을 붙여넣기
     const newNotes = copiedNotes
       .map((note) => {
-        const newTime = note.time + currentTime;
+        const newTime = note.time + snappedCurrentTime;
         const isTapNote = (note.duration ?? 0) <= 0 || note.type === 'tap';
         
         // 탭 노트는 항상 endTime === time, 롱노트는 endTime도 함께 조정
-        const newEndTime = isTapNote 
-          ? newTime 
-          : (note.endTime && note.endTime > note.time 
-              ? note.endTime + currentTime 
+        const newEndTime = isTapNote
+          ? newTime
+          : (note.endTime && note.endTime > note.time
+              ? note.endTime + snappedCurrentTime
               : newTime + (note.duration ?? 0));
         
         // 유효성 검증: endTime이 time보다 작거나 같으면 탭 노트로 변환
@@ -787,8 +782,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       saveToHistory(newNotesList);
       return newNotesList;
     });
-  }, [copiedNotes, currentTime, saveToHistory]);
-  
+  }, [copiedNotes, currentTime, saveToHistory, snapToGrid]);
+
   // 선택된 노트들을 이동시키는 핸들러
   const handleMoveStart = useCallback((time: number, lane: Lane | null, noteId?: number) => {
     dragStartRef.current = { time, lane: lane ?? 0 };
@@ -1156,7 +1151,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     handleYouTubeUrlSubmit(trimmed);
   }, [handleYouTubeUrlSubmit, youtubeUrl]);
 
-  // 재생선 드래그 (성능 최적화: throttle 적용)
+  // 재생선 드래그 (모니터 주사율에 맞춰 부드럽게)
   const handlePlayheadMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault(); // 기본 드래그 동작 방지 (텍스트 선택 등)
     e.stopPropagation();
@@ -1164,40 +1159,40 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     lastPointerClientYRef.current = e.clientY;
     setIsPlaying(false); // 드래그 시 일시정지
 
-    // throttle 변수: 마지막 업데이트 시간 추적
-    let lastUpdateTime = 0;
-    const THROTTLE_MS = 16; // ~60fps
+    // YouTube 시크는 throttle (너무 잦으면 성능 저하)
+    let lastSeekTime = 0;
+    const SEEK_THROTTLE_MS = 100;
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       if (!timelineScrollRef.current) return;
 
-      // throttle 적용: 16ms 간격으로만 업데이트
-      const now = performance.now();
-      if (now - lastUpdateTime < THROTTLE_MS) return;
-      lastUpdateTime = now;
-
       const rect = timelineScrollRef.current.getBoundingClientRect();
-      // 스크롤된 상태를 고려하여 Y 좌표 계산
-      const relativeY =
-        moveEvent.clientY - rect.top + timelineScrollRef.current.scrollTop;
+      const relativeY = moveEvent.clientY - rect.top + timelineScrollRef.current.scrollTop;
       const newTime = clampTime(yToTime(relativeY));
       setCurrentTime(newTime);
       lastPointerClientYRef.current = moveEvent.clientY;
+
+      // YouTube 시크는 100ms마다 (드래그 중에도 동기화)
+      const now = performance.now();
+      if (now - lastSeekTime >= SEEK_THROTTLE_MS) {
+        seekTo(newTime, { shouldPause: true });
+        lastSeekTime = now;
+      }
     };
 
     const handleMouseUp = (upEvent: MouseEvent) => {
-      upEvent.preventDefault(); // 클릭 이벤트 전파 방지
+      upEvent.preventDefault();
       upEvent.stopPropagation();
-      
+
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
-      
-      // 최종 위치로 이동
+
+      // 최종 위치로 이동 (YouTube 동기화 포함)
       if (timelineScrollRef.current) {
         const rect = timelineScrollRef.current.getBoundingClientRect();
         const relativeY = upEvent.clientY - rect.top + timelineScrollRef.current.scrollTop;
         const newTime = clampTime(yToTime(relativeY));
-        seekTo(newTime, { shouldPause: true }); // shouldPause: true로 전달하여 재생 방지
+        seekTo(newTime, { shouldPause: true });
         setIsPlaying(false);
       }
 

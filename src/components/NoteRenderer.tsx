@@ -8,12 +8,13 @@ const HOLD_MIN_HEIGHT = 60;
 const HOLD_HEAD_HEIGHT = 32;
 const NOTE_SPAWN_Y = -100;
 
+
 interface NoteRendererProps {
   canvasRef: React.RefObject<HTMLCanvasElement>;
   notes: Note[];
   currentTimeRef: React.MutableRefObject<number>;
   fallDuration: number;
-  holdingNotes: Set<number>;
+  holdingNotes: Map<number, Note>;  // Set 대신 Map 직접 사용 (성능 최적화)
   visible: boolean;
 }
 

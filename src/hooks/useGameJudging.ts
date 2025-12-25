@@ -143,28 +143,22 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
             return next;
           });
           keyPressTimersRef.current.delete(lane);
-        }, 100); // 100ms 후에 키 떼기
+        }, 50); // 50ms 후에 키 떼기 (반응성 향상)
         
         keyPressTimersRef.current.set(lane, timer);
 
         return next;
       });
 
-      // 해당 레인에서 가장 가까운 노트 찾기
-      const laneNotes = currentState.notes.filter(
-        (note) => note.lane === lane && !note.hit
-      );
-
-      // 노트가 없으면 아무것도 하지 않음 (성공/실패 판단을 처리 안 함)
-      if (laneNotes.length === 0) {
-        return;
-      }
-
+      // 해당 레인에서 가장 가까운 노트 찾기 (for loop으로 성능 최적화 - filter 제거)
       const currentTime = currentState.currentTime;
       let bestNote: Note | null = null;
       let bestTimeDiff = Infinity;
 
-      for (const note of laneNotes) {
+      // filter() 대신 직접 순회하여 배열 생성 비용 제거
+      for (const note of currentState.notes) {
+        if (note.lane !== lane || note.hit) continue;
+
         const timeDiff = Math.abs(note.time - currentTime);
         if (timeDiff < bestTimeDiff && timeDiff <= judgeConfig.noteSearchRange) {
           bestTimeDiff = timeDiff;
@@ -172,46 +166,49 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         }
       }
 
-      if (bestNote) {
-        // 롱노트 판정: type이 'hold'인 경우만 롱노트로 처리 (duration만 보면 잘못된 데이터에서 버그 발생)
-        const isHoldNote = bestNote.type === 'hold' && bestNote.duration > 0;
-        const judge = judgeTiming(bestNote.time - currentTime);
-
-        // 너무 일찍 친 경우 (판정 윈도우 밖) - 아무 판정도 하지 않음
-        if (judge === null) {
-          return;
-        }
-
-        // 상태 업데이트를 하나로 묶음
-        setGameState((prev) => {
-          const newScore = updateScoreFromJudge(judge, prev.score);
-
-          // 롱노트가 아닌 경우에만 hit: true로 설정
-          const updatedNotes = isHoldNote
-            ? prev.notes
-            : prev.notes.map((note) =>
-                note.id === bestNote!.id ? { ...note, hit: true } : note
-              );
-
-          return {
-            ...prev,
-            notes: updatedNotes,
-            score: newScore,
-          };
-        });
-
-        // 롱노트인 경우 holdingNotes에 추가
-        if (isHoldNote) {
-          setHoldingNotes((prev) => {
-            const next = new Map(prev);
-            next.set(bestNote.id, bestNote);
-            return next;
-          });
-        }
-
-        // 판정 피드백과 이펙트 추가
-        addJudgeFeedback(judge, lane);
+      // 노트가 없으면 아무것도 하지 않음
+      if (!bestNote) {
+        return;
       }
+
+      // 롱노트 판정: type이 'hold'인 경우만 롱노트로 처리 (duration만 보면 잘못된 데이터에서 버그 발생)
+      const isHoldNote = bestNote.type === 'hold' && bestNote.duration > 0;
+      const judge = judgeTiming(bestNote.time - currentTime);
+
+      // 너무 일찍 친 경우 (판정 윈도우 밖) - 아무 판정도 하지 않음
+      if (judge === null) {
+        return;
+      }
+
+      // 상태 업데이트를 하나로 묶음
+      setGameState((prev) => {
+        const newScore = updateScoreFromJudge(judge, prev.score);
+
+        // 롱노트가 아닌 경우에만 hit: true로 설정
+        const updatedNotes = isHoldNote
+          ? prev.notes
+          : prev.notes.map((note) =>
+              note.id === bestNote!.id ? { ...note, hit: true } : note
+            );
+
+        return {
+          ...prev,
+          notes: updatedNotes,
+          score: newScore,
+        };
+      });
+
+      // 롱노트인 경우 holdingNotes에 추가
+      if (isHoldNote) {
+        setHoldingNotes((prev) => {
+          const next = new Map(prev);
+          next.set(bestNote.id, bestNote);
+          return next;
+        });
+      }
+
+      // 판정 피드백과 이펙트 추가
+      addJudgeFeedback(judge, lane);
     },
     [gameStateRef, setGameState, updateScoreFromJudge, addJudgeFeedback]
   );

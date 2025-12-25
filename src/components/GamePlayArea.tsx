@@ -7,6 +7,38 @@ import { NoteRenderer } from './NoteRenderer';
 import { LANE_POSITIONS, JUDGE_LINE_LEFT, JUDGE_LINE_WIDTH, BASE_FALL_DURATION, NOTE_VISIBILITY_BUFFER_MS } from '../constants/gameConstants';
 import { JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
 
+// Binary search로 시간 범위 내 시작 인덱스 찾기 (노트가 time 기준 정렬되어 있다고 가정)
+function binarySearchStartIndex(notes: Note[], targetTime: number): number {
+  let low = 0;
+  let high = notes.length;
+  while (low < high) {
+    const mid = (low + high) >>> 1;
+    // 롱노트의 경우 endTime도 고려해야 함
+    const noteEndTime = notes[mid].endTime || notes[mid].time;
+    if (noteEndTime < targetTime) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  return low;
+}
+
+// Binary search로 시간 범위 내 끝 인덱스 찾기
+function binarySearchEndIndex(notes: Note[], targetTime: number, startIdx: number): number {
+  let low = startIdx;
+  let high = notes.length;
+  while (low < high) {
+    const mid = (low + high) >>> 1;
+    if (notes[mid].time <= targetTime) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  return low - 1;
+}
+
 interface GamePlayAreaProps {
   gameState: GameState;
   gameStarted: boolean;
@@ -37,38 +69,33 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   fallDuration,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const holdingNotesSet = useMemo(() => new Set(Array.from(holdingNotes.keys())), [holdingNotes]);
 
   // Canvas 크기 조정은 NoteRenderer에서 처리 (visible 상태 변경 시 재설정)
 
-  // 화면에 보이는 노트만 필터링하여 렌더링 성능 최적화
+  // 화면에 보이는 노트만 필터링하여 렌더링 성능 최적화 (Binary Search 적용)
   const visibleNotes = useMemo(() => {
     if (bgaMaskOpacity >= 1) return []; // 간주 구간에서는 노트 숨김
-    
+
+    const notes = gameState.notes;
+    if (notes.length === 0) return [];
+
     const baseDuration = BASE_FALL_DURATION / speed;
     const viewportStart = gameState.currentTime - baseDuration - NOTE_VISIBILITY_BUFFER_MS;
     // 중요: viewportEnd를 baseDuration + 버퍼로 설정해야 노트가 화면 위(-100)에서 시작함
-    // 기존 NOTE_VISIBILITY_BUFFER_MS만 사용하면 노트가 중간에서 시작하는 버그 발생
     const viewportEnd = gameState.currentTime + baseDuration + NOTE_VISIBILITY_BUFFER_MS;
-    
-    // hit된 노트와 화면 밖 노트를 빠르게 스킵
-    // 노트 배열이 시간순 정렬되어 있다면 더 효율적으로 필터링 가능
-    const result: typeof gameState.notes = [];
-    for (const note of gameState.notes) {
-      // hit된 노트는 건너뛰기
+
+    // Binary search로 시작/끝 인덱스 찾기 (O(log n))
+    const startIdx = binarySearchStartIndex(notes, viewportStart);
+    const endIdx = binarySearchEndIndex(notes, viewportEnd, startIdx);
+
+    // 범위 내 노트만 순회 (O(visible notes) instead of O(all notes))
+    const result: Note[] = [];
+    for (let i = startIdx; i <= endIdx && i < notes.length; i++) {
+      const note = notes[i];
       if (note.hit) continue;
-      
-      // 노트가 화면에 보이는 범위인지 확인
-      const noteEndTime = note.endTime || note.time;
-      if (
-        (note.time >= viewportStart && note.time <= viewportEnd) ||
-        (noteEndTime >= viewportStart && noteEndTime <= viewportEnd) ||
-        (note.time <= viewportStart && noteEndTime >= viewportEnd) // 롱노트가 화면을 가로지르는 경우
-      ) {
-        result.push(note);
-      }
+      result.push(note);
     }
-    
+
     return result;
   }, [gameState.notes, gameState.currentTime, speed, bgaMaskOpacity]);
 
@@ -125,7 +152,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
             notes={visibleNotes}
             currentTimeRef={currentTimeRef}
             fallDuration={fallDuration}
-            holdingNotes={holdingNotesSet}
+            holdingNotes={holdingNotes}
             visible={bgaMaskOpacity < 1}
           />
         </>
