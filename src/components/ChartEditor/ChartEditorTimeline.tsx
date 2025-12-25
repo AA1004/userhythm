@@ -42,7 +42,7 @@ interface ChartEditorTimelineProps {
   isSelectionMode?: boolean;
   selectedLane?: Lane | null;
   isMoveMode?: boolean;
-  selectedNoteIds?: Set<number>;
+  selectedNoteIds: Set<number>;
   dragOffset?: { time: number; lane: number } | null;
   selectionStartTime?: number | null;
   selectionEndTime?: number | null;
@@ -79,7 +79,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   onPlayheadMouseDown,
   onNoteClick,
   timeToY,
-  getNoteY,
+  getNoteY: _getNoteY,
   currentTime,
   pendingLongNote,
   bpm,
@@ -88,7 +88,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   isSelectionMode = false,
   selectedLane: _selectedLane = null,
   isMoveMode = false,
-  selectedNoteIds = new Set(),
+  selectedNoteIds,
   dragOffset = null,
   selectionStartTime: _selectionStartTime,
   selectionEndTime: _selectionEndTime,
@@ -259,18 +259,24 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   }, [notes, _zoom, timelineContentHeight, paddedTop, paddedBottom, tapNoteHeight, selectedNoteIds, dragOffset]);
 
   // 마퀴 선택용 preparedNotes (모든 노트 필요)
+  // 성능 최적화: timeToY 대신 로컬 함수 사용하여 currentTime 변경시 재계산 방지
   const preparedNotes = useMemo(
-    () =>
-      notes.map((note) => {
+    () => {
+      const zoom = _zoom;
+      const timeToYLocal = (timeMs: number): number => {
+        return timelineContentHeight - TIMELINE_BOTTOM_PADDING - (timeMs / 1000) * PIXELS_PER_SECOND * zoom;
+      };
+
+      return notes.map((note) => {
         const isSelected = selectedNoteIds.has(note.id);
         const effectiveTime = dragOffset && isSelected ? Math.max(0, note.time + dragOffset.time) : note.time;
         const rawLane = dragOffset && isSelected ? note.lane + dragOffset.lane : note.lane;
         const effectiveLane = Math.max(0, Math.min(3, rawLane)) as Lane;
 
-        const noteY = getNoteY(effectiveTime);
+        const noteY = timeToYLocal(effectiveTime);
         const isHold = note.duration > 0 || note.type === 'hold';
         const endTime = isHold ? (note.endTime || note.time + note.duration) : effectiveTime;
-        const endY = isHold ? timeToY(endTime) : noteY;
+        const endY = isHold ? timeToYLocal(endTime) : noteY;
         const topPosition = isHold
           ? Math.min(noteY, endY) - tapNoteHeight / 2
           : noteY - tapNoteHeight / 2;
@@ -283,8 +289,9 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
           topPosition,
           noteHeight,
         };
-      }),
-    [notes, getNoteY, timeToY, tapNoteHeight, selectedNoteIds, dragOffset]
+      });
+    },
+    [notes, _zoom, timelineContentHeight, tapNoteHeight, selectedNoteIds, dragOffset]
   );
 
   // -----------------------------
@@ -348,28 +355,39 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     [preparedNotes, rectIntersects]
   );
 
+  // 성능 최적화: timeToY 의존성 제거 (로컬 함수 사용)
   const visibleSpeedChanges = useMemo(
-    () =>
-      speedChanges
-        .map((sc) => ({ sc, y: timeToY(sc.startTimeMs) }))
-        .filter(({ y }) => y >= paddedTop && y <= paddedBottom),
-    [speedChanges, timeToY, paddedTop, paddedBottom]
+    () => {
+      const zoom = _zoom;
+      const timeToYLocal = (timeMs: number): number => {
+        return timelineContentHeight - TIMELINE_BOTTOM_PADDING - (timeMs / 1000) * PIXELS_PER_SECOND * zoom;
+      };
+      return speedChanges
+        .map((sc) => ({ sc, y: timeToYLocal(sc.startTimeMs) }))
+        .filter(({ y }) => y >= paddedTop && y <= paddedBottom);
+    },
+    [speedChanges, _zoom, timelineContentHeight, paddedTop, paddedBottom]
   );
 
-
+  // 성능 최적화: timeToY 의존성 제거 (로컬 함수 사용)
   const visibleBgaIntervals = useMemo(
-    () =>
-      bgaVisibilityIntervals
+    () => {
+      const zoom = _zoom;
+      const timeToYLocal = (timeMs: number): number => {
+        return timelineContentHeight - TIMELINE_BOTTOM_PADDING - (timeMs / 1000) * PIXELS_PER_SECOND * zoom;
+      };
+      return bgaVisibilityIntervals
         .map((interval) => {
-          const top = Math.min(timeToY(interval.startTimeMs), timeToY(interval.endTimeMs));
-          const height = Math.max(2, Math.abs(timeToY(interval.endTimeMs) - timeToY(interval.startTimeMs)));
+          const top = Math.min(timeToYLocal(interval.startTimeMs), timeToYLocal(interval.endTimeMs));
+          const height = Math.max(2, Math.abs(timeToYLocal(interval.endTimeMs) - timeToYLocal(interval.startTimeMs)));
           return { interval, top, height };
         })
         .filter(({ top, height }) => {
           const bottom = top + height;
           return bottom >= paddedTop && top <= paddedBottom;
-        }),
-    [bgaVisibilityIntervals, timeToY, paddedTop, paddedBottom]
+        });
+    },
+    [bgaVisibilityIntervals, _zoom, timelineContentHeight, paddedTop, paddedBottom]
   );
 
   // 초기 한 번만 스크롤을 재생선 위치로 설정 (재생선이 화면 중앙에 오도록)

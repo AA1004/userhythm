@@ -855,6 +855,53 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     isSelectingRef.current = false;
   }, [isMoveMode]);
 
+  // --- 마퀴/선택 핸들러 (성능 최적화: useCallback) ---
+  const handleMarqueeStart = useCallback((operation: 'replace' | 'add' | 'toggle') => {
+    marqueeOperationRef.current = operation;
+    marqueeInitialSelectedIdsRef.current = new Set(selectedNoteIds);
+  }, [selectedNoteIds]);
+
+  const handleMarqueeUpdate = useCallback((rectSelectedIds: Set<number>) => {
+    const op = marqueeOperationRef.current;
+    const initial = marqueeInitialSelectedIdsRef.current;
+    let next = new Set<number>();
+
+    if (op === 'replace') {
+      next = new Set(rectSelectedIds);
+    } else if (op === 'add') {
+      next = new Set(initial);
+      rectSelectedIds.forEach((id) => next.add(id));
+    } else {
+      // toggle (symmetric difference)
+      next = new Set(initial);
+      rectSelectedIds.forEach((id) => {
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+      });
+    }
+
+    setSelectedNoteIds(next);
+  }, []);
+
+  const handleMarqueeEnd = useCallback(() => {
+    // noop: selection 유지
+  }, []);
+
+  const handleSelectionStart = useCallback((time: number, lane: Lane | null) => {
+    setSelectionStartTime(time);
+    setSelectionEndTime(time);
+    setSelectedLane(lane);
+    isSelectingRef.current = true;
+  }, []);
+
+  const handleSelectionUpdate = useCallback((time: number) => {
+    setSelectionEndTime(time);
+  }, []);
+
+  const handleSelectionEnd = useCallback(() => {
+    isSelectingRef.current = false;
+  }, []);
+
   // 선대칭 반전: 선택된 노트들을 레인 기준으로 반전 (0↔3, 1↔2)
   const handleMirrorNotes = useCallback(() => {
     if (selectedNoteIds.size === 0) {
@@ -1643,46 +1690,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                  dragOffset={dragOffset}
                  selectionStartTime={selectionStartTime}
                  selectionEndTime={selectionEndTime}
-                 onMarqueeStart={(operation) => {
-                   marqueeOperationRef.current = operation;
-                   marqueeInitialSelectedIdsRef.current = new Set(selectedNoteIds);
-                 }}
-                 onMarqueeUpdate={(rectSelectedIds) => {
-                   const op = marqueeOperationRef.current;
-                   const initial = marqueeInitialSelectedIdsRef.current;
-                   let next = new Set<number>();
-
-                   if (op === 'replace') {
-                     next = new Set(rectSelectedIds);
-                   } else if (op === 'add') {
-                     next = new Set(initial);
-                     rectSelectedIds.forEach((id) => next.add(id));
-                   } else {
-                     // toggle (symmetric difference)
-                     next = new Set(initial);
-                     rectSelectedIds.forEach((id) => {
-                       if (next.has(id)) next.delete(id);
-                       else next.add(id);
-                     });
-                   }
-
-                   setSelectedNoteIds(next);
-                 }}
-                 onMarqueeEnd={() => {
-                   // noop: selection 유지
-                 }}
-                 onSelectionStart={(time, lane) => {
-                   setSelectionStartTime(time);
-                   setSelectionEndTime(time);
-                   setSelectedLane(lane);
-                   isSelectingRef.current = true;
-                 }}
-                 onSelectionUpdate={(time) => {
-                   setSelectionEndTime(time);
-                 }}
-                 onSelectionEnd={() => {
-                   isSelectingRef.current = false;
-                 }}
+                 onMarqueeStart={handleMarqueeStart}
+                 onMarqueeUpdate={handleMarqueeUpdate}
+                 onMarqueeEnd={handleMarqueeEnd}
+                 onSelectionStart={handleSelectionStart}
+                 onSelectionUpdate={handleSelectionUpdate}
+                 onSelectionEnd={handleSelectionEnd}
                  onMoveStart={handleMoveStart}
                  onMoveUpdate={handleMoveUpdate}
                  onMoveEnd={handleMoveEnd}

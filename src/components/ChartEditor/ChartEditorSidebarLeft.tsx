@@ -22,7 +22,7 @@ interface ChartEditorSidebarLeftProps {
   beatDuration: number;
 }
 
-export const ChartEditorSidebarLeft: React.FC<ChartEditorSidebarLeftProps> = ({
+const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
   zoom,
   onZoomChange,
   playbackSpeed,
@@ -514,4 +514,6 @@ export const ChartEditorSidebarLeft: React.FC<ChartEditorSidebarLeftProps> = ({
     </div>
   );
 };
+
+export const ChartEditorSidebarLeft = React.memo(ChartEditorSidebarLeftInner);
 

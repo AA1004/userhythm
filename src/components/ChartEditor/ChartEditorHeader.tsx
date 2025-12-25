@@ -43,7 +43,7 @@ interface ChartEditorHeaderProps {
   onImportJson?: () => void;
 }
 
-export const ChartEditorHeader: React.FC<ChartEditorHeaderProps> = ({
+const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
   bpm,
   isPlaying,
   isAutoScrollEnabled,
@@ -397,4 +397,6 @@ export const ChartEditorHeader: React.FC<ChartEditorHeaderProps> = ({
     </div>
   );
 };
+
+export const ChartEditorHeader = React.memo(ChartEditorHeaderInner);
 
