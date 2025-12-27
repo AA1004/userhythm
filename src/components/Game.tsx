@@ -1,5 +1,5 @@
 ﻿import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { GameState, Note, SpeedChange } from '../types/game';
+import { GameState, Note } from '../types/game';
 import { ChartEditor } from './ChartEditor';
 import { ChartSelect } from './ChartSelect';
 import { ChartAdmin } from './ChartAdmin';
@@ -55,9 +55,6 @@ type ViewMode =
 export const Game: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>({ type: 'menu' });
   const [chartListRefreshToken, setChartListRefreshToken] = useState<number>(0);
-  // Canvas 렌더러로 전환하면서 더 이상 사용하지 않지만, useTestSession에서 설정하므로 유지
-  const [_baseBpm, setBaseBpm] = useState<number>(120);
-  const [_speedChanges, setSpeedChanges] = useState<SpeedChange[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const gameContainerRef = useRef<HTMLDivElement | null>(null);
   const processedMissNotes = useRef<Set<number>>(new Set());
@@ -203,8 +200,6 @@ export const Game: React.FC = () => {
     onSubtitlesLoad: loadSubtitlesForChart,
     onSubtitlesClear: () => setSubtitles([]),
     onBgaIntervalsSet: setBgaVisibilityIntervals,
-    onBaseBpmSet: setBaseBpm,
-    onSpeedChangesSet: setSpeedChanges,
     onYoutubeVideoIdSet: setTestYoutubeVideoId,
     onAudioSettingsSet: setTestAudioSettings,
     onEditorClose: () => setViewMode({ type: 'menu' }),
@@ -370,8 +365,6 @@ export const Game: React.FC = () => {
     onBgaIntervalsSet: setBgaVisibilityIntervals,
     onBgaIntervalsRefSet: (intervals) => { testBgaIntervalsRef.current = intervals; },
     onDynamicGameDurationSet: setDynamicGameDuration,
-    onBaseBpmSet: setBaseBpm,
-    onSpeedChangesSet: setSpeedChanges,
     onHoldingNotesReset: () => {},
     onProcessedMissNotesReset: () => processedMissNotes.current.clear(),
     onChartSelectClose: () => setViewMode({ type: 'menu' }),
@@ -390,8 +383,6 @@ export const Game: React.FC = () => {
       youtubeUrl: chartData.youtubeUrl || '',
       playbackSpeed: 1,
       audioOffsetMs: 0,
-      bpm: chartData.bpm,
-      speedChanges: chartData.speedChanges || [],
     });
     }, 0);
   }, [handleEditorTest]);

@@ -190,9 +190,9 @@ const JudgmentContent: React.FC = () => (
     <Section title="판정 등급">
       <p>키를 누른 타이밍에 따라 다음 판정이 적용됩니다:</p>
       <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '16px' }}>
-        <JudgeCard judge="PERFECT" color="#FFD700" timing="±40ms" score="100%" />
-        <JudgeCard judge="GREAT" color="#00FF00" timing="±80ms" score="80%" />
-        <JudgeCard judge="GOOD" color="#00BFFF" timing="±120ms" score="50%" />
+        <JudgeCard judge="PERFECT" color="#FFD700" timing="±45ms" score="100%" />
+        <JudgeCard judge="GREAT" color="#00FF00" timing="±90ms" score="80%" />
+        <JudgeCard judge="GOOD" color="#00BFFF" timing="±135ms" score="50%" />
         <JudgeCard judge="MISS" color="#FF4500" timing="놓침" score="0%" />
       </div>
     </Section>
@@ -233,18 +233,19 @@ const EditorContent: React.FC = () => (
 
     <Section title="기본 조작">
       <ul style={{ lineHeight: 1.8 }}>
-        <li><strong>클릭</strong>: 타임라인에서 노트 배치/선택</li>
-        <li><strong>드래그</strong>: 롱노트 생성 또는 노트 이동</li>
-        <li><strong>Delete/Backspace</strong>: 선택한 노트 삭제</li>
+        <li><strong>A, S, D, F</strong>: 각 레인에 노트 배치 (재생 중)</li>
+        <li><strong>클릭</strong>: 타임라인에서 노트 선택</li>
+        <li><strong>드래그</strong>: 노트 범위 선택</li>
+        <li><strong>Space</strong>: 롱노트 모드 토글</li>
+        <li><strong>Delete</strong>: 선택한 노트 삭제</li>
         <li><strong>Ctrl+C/V</strong>: 노트 복사/붙여넣기</li>
         <li><strong>Ctrl+Z/Y</strong>: 실행 취소/다시 실행</li>
-        <li><strong>Space</strong>: 재생/일시정지</li>
       </ul>
     </Section>
 
     <Section title="테스트 플레이">
       <p>
-        에디터 상단의 <strong>테스트</strong> 버튼을 눌러 현재 채보를 테스트할 수 있습니다.
+        에디터 우측 하단의 <strong>테스트</strong> 버튼을 눌러 현재 채보를 테스트할 수 있습니다.
       </p>
       <ul style={{ lineHeight: 1.8 }}>
         <li>시작 위치와 재생 속도를 설정할 수 있습니다.</li>

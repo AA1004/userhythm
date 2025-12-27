@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { GameState, Note, BgaVisibilityInterval, SpeedChange } from '../types/game';
+import { GameState, Note, BgaVisibilityInterval } from '../types/game';
 import { buildInitialScore, AudioSettings } from '../utils/gameHelpers';
 import { calculateGameDuration } from '../utils/gameHelpers';
 import { START_DELAY_MS } from '../constants/gameConstants';
@@ -16,8 +16,6 @@ export interface UseChartLoaderOptions {
   onBgaIntervalsSet: (intervals: BgaVisibilityInterval[]) => void;
   onBgaIntervalsRefSet: (intervals: BgaVisibilityInterval[]) => void;
   onDynamicGameDurationSet: (duration: number) => void;
-  onBaseBpmSet: (bpm: number) => void;
-  onSpeedChangesSet: (changes: SpeedChange[]) => void;
   onHoldingNotesReset: () => void;
   onProcessedMissNotesReset: () => void;
   onChartSelectClose: () => void;
@@ -38,8 +36,6 @@ export function useChartLoader({
   onBgaIntervalsSet,
   onBgaIntervalsRefSet,
   onDynamicGameDurationSet,
-  onBaseBpmSet,
-  onSpeedChangesSet,
   onHoldingNotesReset,
   onProcessedMissNotesReset,
   onChartSelectClose,
@@ -191,14 +187,7 @@ export function useChartLoader({
         gameStarted: true,
         gameEnded: false,
       });
-      
-      if (typeof chartData.bpm === 'number') {
-        onBaseBpmSet(chartData.bpm);
-      } else {
-        onBaseBpmSet(120);
-      }
-      onSpeedChangesSet(chartData.speedChanges || []);
-      
+
       onHoldingNotesReset();
       onProcessedMissNotesReset();
 
@@ -235,8 +224,6 @@ export function useChartLoader({
     onBgaIntervalsSet,
     onBgaIntervalsRefSet,
     onDynamicGameDurationSet,
-    onBaseBpmSet,
-    onSpeedChangesSet,
     onHoldingNotesReset,
     onProcessedMissNotesReset,
     onChartSelectClose,

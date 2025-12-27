@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { GameState, Note, BgaVisibilityInterval, SpeedChange } from '../types/game';
+import { GameState, Note, BgaVisibilityInterval } from '../types/game';
 import { buildInitialScore, calculateGameDuration } from '../utils/gameHelpers';
 import { DEFAULT_GAME_DURATION, START_DELAY_MS } from '../constants/gameConstants';
 
@@ -10,8 +10,6 @@ export interface EditorTestPayload {
   youtubeUrl: string;
   playbackSpeed: number;
   audioOffsetMs?: number;
-  bpm?: number;
-  speedChanges?: SpeedChange[];
   chartId?: string;
   bgaVisibilityIntervals?: BgaVisibilityInterval[];
 }
@@ -21,8 +19,6 @@ export interface UseTestSessionOptions {
   onSubtitlesLoad: (chartId: string) => void;
   onSubtitlesClear: () => void;
   onBgaIntervalsSet: (intervals: BgaVisibilityInterval[]) => void;
-  onBaseBpmSet: (bpm: number) => void;
-  onSpeedChangesSet: (changes: SpeedChange[]) => void;
   onYoutubeVideoIdSet: (videoId: string | null) => void;
   onAudioSettingsSet: (settings: any) => void;
   onEditorClose: () => void;
@@ -51,8 +47,6 @@ export function useTestSession({
   onSubtitlesLoad,
   onSubtitlesClear,
   onBgaIntervalsSet,
-  onBaseBpmSet,
-  onSpeedChangesSet,
   onYoutubeVideoIdSet,
   onAudioSettingsSet,
   onEditorClose,
@@ -154,9 +148,7 @@ export function useTestSession({
       setIsTestMode(true);
       setIsFromEditor(true); // 에디터에서 테스트 시작
       onEditorClose();
-      onBaseBpmSet(payload.bpm ?? 120);
-      onSpeedChangesSet(payload.speedChanges ?? []);
-      
+
       if (payload.chartId) {
         onSubtitlesLoad(payload.chartId);
       } else {
@@ -168,7 +160,7 @@ export function useTestSession({
       
       startTestSession(preparedNotes, payload.bgaVisibilityIntervals || []);
     },
-    [startTestSession, onSubtitlesLoad, onSubtitlesClear, onBaseBpmSet, onSpeedChangesSet, onYoutubeVideoIdSet, onAudioSettingsSet, onEditorClose]
+    [startTestSession, onSubtitlesLoad, onSubtitlesClear, onYoutubeVideoIdSet, onAudioSettingsSet, onEditorClose]
   );
 
   const handleRetest = useCallback(() => {
@@ -193,9 +185,7 @@ export function useTestSession({
       notes: [],
       score: buildInitialScore(),
     }));
-    onBaseBpmSet(120);
-    onSpeedChangesSet([]);
-  }, [setGameState, onBgaIntervalsSet, onBaseBpmSet, onSpeedChangesSet]);
+  }, [setGameState, onBgaIntervalsSet]);
 
   return {
     isTestMode,

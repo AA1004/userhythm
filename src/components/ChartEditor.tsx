@@ -2427,11 +2427,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                     youtubeVideoId,
                     youtubeUrl,
                     playbackSpeed: 1, // 테스트 시 항상 1.0배속으로 강제
-                audioOffsetMs: 0,
-                bpm,
-                speedChanges,
+                    audioOffsetMs: 0,
                     bgaVisibilityIntervals,
-                chartId: subtitleSessionId,
+                    chartId: subtitleSessionId,
                 });
             }
           }}

@@ -1,8 +1,7 @@
 import { useEffect, useRef, useMemo } from 'react';
 import { GameState, Note } from '../types/game';
 import { judgeConfig } from '../config/judgeConfig';
-
-const BASE_FALL_DURATION = 2000; // 기본 노트가 떨어지는 시간 (ms)
+import { BASE_FALL_DURATION } from '../constants/gameConstants';
 
 export interface GameLoopState {
   currentTime: number; // 게임 시간 (ms)
