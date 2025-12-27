@@ -30,6 +30,7 @@ import { GameMenu } from './GameMenu';
 import { GamePlayArea } from './GamePlayArea';
 import { GameEndScreen } from './GameEndScreen';
 import { FpsHud } from './FpsHud';
+import { TutorialScreen } from './TutorialScreen';
 
 // Subtitle editor chart data
 interface SubtitleEditorChartData {
@@ -44,6 +45,7 @@ interface SubtitleEditorChartData {
 // 화면 상태 타입 - 여러 boolean을 단일 상태로 통합
 type ViewMode =
   | { type: 'menu' }
+  | { type: 'tutorial' }
   | { type: 'chartSelect'; refreshToken?: number }
   | { type: 'editor' }
   | { type: 'admin' }
@@ -453,6 +455,10 @@ export const Game: React.FC = () => {
   }, [isTestMode, gameState.gameStarted, gameState.gameEnded, isFromEditor, viewMode.type]);
 
   // 화면 라우팅
+  if (viewMode.type === 'tutorial') {
+    return <TutorialScreen onClose={() => setViewMode({ type: 'menu' })} />;
+  }
+
   if (viewMode.type === 'subtitleEditor') {
     return (
       <SubtitleEditor
@@ -652,6 +658,7 @@ export const Game: React.FC = () => {
             onPlay={() => setViewMode({ type: 'chartSelect' })}
             onEdit={() => setViewMode({ type: 'editor' })}
             onAdmin={() => setViewMode({ type: 'admin' })}
+            onTutorial={() => setViewMode({ type: 'tutorial' })}
             onLogin={handleLoginWithGoogle}
             onLogout={handleLogout}
             onSettings={() => setIsSettingsOpen(true)}

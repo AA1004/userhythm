@@ -21,6 +21,7 @@ interface GameMenuProps {
   onPlay: () => void;
   onEdit: () => void;
   onAdmin: () => void;
+  onTutorial: () => void;
   onLogin: () => void;
   onLogout: () => void;
   onSettings: () => void;
@@ -38,6 +39,7 @@ export const GameMenu: React.FC<GameMenuProps> = ({
   onPlay,
   onEdit,
   onAdmin,
+  onTutorial,
   onLogin,
   onLogout,
   onSettings,
@@ -182,6 +184,34 @@ export const GameMenu: React.FC<GameMenuProps> = ({
               🔐 관리자
             </button>
           )}
+
+          {/* 도움말 버튼 */}
+          <button
+            style={{
+              padding: '12px 24px',
+              fontSize: '16px',
+              background: 'transparent',
+              color: CHART_EDITOR_THEME.textSecondary,
+              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+              borderRadius: CHART_EDITOR_THEME.radiusMd,
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = CHART_EDITOR_THEME.buttonGhostBgHover;
+              e.currentTarget.style.color = CHART_EDITOR_THEME.textPrimary;
+              e.currentTarget.style.transform = 'translateY(-2px)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.color = CHART_EDITOR_THEME.textSecondary;
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+            onClick={onTutorial}
+          >
+            📖 도움말
+          </button>
         </div>
 
         {/* 로그인/설정 영역 */}
