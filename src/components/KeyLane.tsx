@@ -2,17 +2,18 @@ import React from 'react';
 
 interface KeyLaneProps {
   x: number;
+  top: number;
   keys: string[];
   isPressed: boolean;
 }
 
-const KeyLaneComponent: React.FC<KeyLaneProps> = ({ x, keys, isPressed }) => {
+const KeyLaneComponent: React.FC<KeyLaneProps> = ({ x, top, keys, isPressed }) => {
   return (
     <div
       style={{
         position: 'absolute',
         left: `${x}px`,
-        top: '700px',
+        top: `${top}px`,
         width: '100px',
         height: '100px',
         backgroundColor: isPressed ? '#FFC107' : '#2196F3',
@@ -41,14 +42,12 @@ const KeyLaneComponent: React.FC<KeyLaneProps> = ({ x, keys, isPressed }) => {
   );
 };
 
-// React.memo로 불필요한 리렌더링 방지
 export const KeyLane = React.memo(KeyLaneComponent, (prevProps, nextProps) => {
-  // isPressed가 변경될 때만 리렌더링
   return (
     prevProps.x === nextProps.x &&
+    prevProps.top === nextProps.top &&
     prevProps.isPressed === nextProps.isPressed &&
     prevProps.keys.length === nextProps.keys.length &&
     prevProps.keys.every((key, i) => key === nextProps.keys[i])
   );
 });
-

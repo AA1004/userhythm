@@ -1,5 +1,5 @@
-import React from 'react';
-import { SubtitleCue, SubtitleStyle } from '../types/subtitle';
+import React, { useEffect, useMemo, useState } from 'react';
+import { SubtitleCue, SubtitleStyle, ensureSubtitleFontsReady } from '../types/subtitle';
 
 type ActiveSubtitle = {
   cue: SubtitleCue;
@@ -18,15 +18,41 @@ type LyricOverlayProps = {
   subtitleArea: SubtitleArea;
 };
 
-/**
- * 유튜브 배경 위에 올라가는 자막/가사 오버레이 레이어
- * - Game 컴포넌트에서 계산된 subtitleArea, activeSubtitles를 그대로 받아서 렌더링합니다.
- * - 최상단 z-index 레이어로 동작하며, pointerEvents는 모두 막아 게임 입력에 간섭하지 않습니다.
- */
 export const LyricOverlay: React.FC<LyricOverlayProps> = ({
   activeSubtitles,
   subtitleArea,
 }) => {
+  const [fontsReady, setFontsReady] = useState(false);
+
+  const activeFontFamilies = useMemo(
+    () =>
+      activeSubtitles.map(
+        ({ cue }) => cue.style?.fontFamily || 'Noto Sans KR, sans-serif'
+      ),
+    [activeSubtitles]
+  );
+
+  useEffect(() => {
+    let mounted = true;
+    if (!activeFontFamilies.length) {
+      setFontsReady(false);
+      return;
+    }
+
+    setFontsReady(false);
+    ensureSubtitleFontsReady(activeFontFamilies)
+      .catch((error) => {
+        console.warn('Subtitle font preparation failed:', error);
+      })
+      .finally(() => {
+        if (mounted) setFontsReady(true);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeFontFamilies]);
+
   if (!activeSubtitles.length) {
     return null;
   }
@@ -77,7 +103,7 @@ export const LyricOverlay: React.FC<LyricOverlayProps> = ({
               padding: showBackground ? '6px 14px' : 0,
               borderRadius: showBackground ? 8 : 0,
               backgroundColor,
-              opacity,
+              opacity: fontsReady ? opacity : 0,
               color: style.color ?? '#ffffff',
               fontFamily: style.fontFamily ?? 'Noto Sans KR, sans-serif',
               fontSize: style.fontSize ?? 24,
@@ -112,5 +138,3 @@ export const LyricOverlay: React.FC<LyricOverlayProps> = ({
     </div>
   );
 };
-
-

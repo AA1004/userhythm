@@ -3,15 +3,16 @@ import React from 'react';
 interface JudgeLineProps {
   left: number;
   width: number;
+  top: number;
 }
 
-const JudgeLineComponent: React.FC<JudgeLineProps> = ({ left, width }) => {
+const JudgeLineComponent: React.FC<JudgeLineProps> = ({ left, width, top }) => {
   return (
     <div
       style={{
         position: 'absolute',
         left: `${left}px`,
-        top: '640px',
+        top: `${top}px`,
         width: `${width}px`,
         height: '4px',
         backgroundColor: '#FF5722',

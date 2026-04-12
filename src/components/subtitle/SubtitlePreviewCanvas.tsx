@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState, useEffect } from 'react';
-import { SubtitleCue, SubtitleStyle } from '../../types/subtitle';
+import { SubtitleCue, SubtitleStyle, ensureSubtitleFontsReady } from '../../types/subtitle';
 import { CHART_EDITOR_THEME } from '../ChartEditor/constants';
 
 interface SubtitlePreviewCanvasProps {
@@ -28,6 +28,7 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [fontsReady, setFontsReady] = useState(false);
 
   // 부모 컨테이너 크기 측정
   useEffect(() => {
@@ -45,6 +46,22 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
 
     return () => resizeObserver.disconnect();
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    setFontsReady(false);
+    ensureSubtitleFontsReady(cues.map((cue) => cue.style?.fontFamily || 'Noto Sans KR, sans-serif'))
+      .catch((error) => {
+        console.warn('Subtitle preview font preparation failed:', error);
+      })
+      .finally(() => {
+        if (mounted) setFontsReady(true);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [cues]);
 
   const getCueOpacity = useCallback((cue: SubtitleCue, timeMs: number) => {
     const style: SubtitleStyle = cue.style || ({} as SubtitleStyle);
@@ -187,7 +204,7 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
               : 'none',
             pointerEvents: 'auto',
             zIndex: 10,
-            opacity,
+            opacity: fontsReady ? opacity : 0,
           }}
         >
           {cue.text.split('\n').map((line, idx, arr) => (

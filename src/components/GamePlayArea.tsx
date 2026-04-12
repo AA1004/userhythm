@@ -4,16 +4,21 @@ import { KeyLane } from './KeyLane';
 import { JudgeLine } from './JudgeLine';
 import { Score as ScoreComponent } from './Score';
 import { NoteRenderer } from './NoteRenderer';
-import { LANE_POSITIONS, JUDGE_LINE_LEFT, JUDGE_LINE_WIDTH, BASE_FALL_DURATION, NOTE_VISIBILITY_BUFFER_MS } from '../constants/gameConstants';
+import {
+  LANE_POSITIONS,
+  JUDGE_LINE_LEFT,
+  JUDGE_LINE_WIDTH,
+  BASE_FALL_DURATION,
+  NOTE_VISIBILITY_BUFFER_MS,
+  KEY_LANE_Y,
+} from '../constants/gameConstants';
 import { JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
 
-// Binary search로 시간 범위 내 시작 인덱스 찾기 (노트가 time 기준 정렬되어 있다고 가정)
 function binarySearchStartIndex(notes: Note[], targetTime: number): number {
   let low = 0;
   let high = notes.length;
   while (low < high) {
     const mid = (low + high) >>> 1;
-    // 롱노트의 경우 endTime도 고려해야 함
     const noteEndTime = notes[mid].endTime || notes[mid].time;
     if (noteEndTime < targetTime) {
       low = mid + 1;
@@ -24,7 +29,6 @@ function binarySearchStartIndex(notes: Note[], targetTime: number): number {
   return low;
 }
 
-// Binary search로 시간 범위 내 끝 인덱스 찾기
 function binarySearchEndIndex(notes: Note[], targetTime: number, startIdx: number): number {
   let low = startIdx;
   let high = notes.length;
@@ -52,6 +56,7 @@ interface GamePlayAreaProps {
   isFromEditor: boolean;
   currentTimeRef: React.MutableRefObject<number>;
   fallDuration: number;
+  judgeLineY: number;
 }
 
 export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
@@ -67,28 +72,23 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   isFromEditor: _isFromEditor,
   currentTimeRef,
   fallDuration,
+  judgeLineY,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Canvas 크기 조정은 NoteRenderer에서 처리 (visible 상태 변경 시 재설정)
-
-  // 화면에 보이는 노트만 필터링하여 렌더링 성능 최적화 (Binary Search 적용)
   const visibleNotes = useMemo(() => {
-    if (bgaMaskOpacity >= 1) return []; // 간주 구간에서는 노트 숨김
+    if (bgaMaskOpacity >= 1) return [];
 
     const notes = gameState.notes;
     if (notes.length === 0) return [];
 
     const baseDuration = BASE_FALL_DURATION / speed;
     const viewportStart = gameState.currentTime - baseDuration - NOTE_VISIBILITY_BUFFER_MS;
-    // 중요: viewportEnd를 baseDuration + 버퍼로 설정해야 노트가 화면 위(-100)에서 시작함
     const viewportEnd = gameState.currentTime + baseDuration + NOTE_VISIBILITY_BUFFER_MS;
 
-    // Binary search로 시작/끝 인덱스 찾기 (O(log n))
     const startIdx = binarySearchStartIndex(notes, viewportStart);
     const endIdx = binarySearchEndIndex(notes, viewportEnd, startIdx);
 
-    // 범위 내 노트만 순회 (O(visible notes) instead of O(all notes))
     const result: Note[] = [];
     for (let i = startIdx; i <= endIdx && i < notes.length; i++) {
       const note = notes[i];
@@ -99,9 +99,10 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
     return result;
   }, [gameState.notes, gameState.currentTime, speed, bgaMaskOpacity]);
 
+  const judgeFeedbackTop = Math.max(120, judgeLineY - 140);
+
   return (
     <>
-      {/* 4개 레인 영역 배경 (간주 구간에서는 숨김) */}
       {bgaMaskOpacity < 1 && (
         <div
           style={{
@@ -110,12 +111,11 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
             top: '0',
             width: '400px',
             height: '100%',
-            backgroundColor: 'rgba(15, 23, 42, 0.6)', // 네온 톤의 남색 계열
+            backgroundColor: 'rgba(15, 23, 42, 0.6)',
           }}
         />
       )}
 
-      {/* 배경 라인 구분선 - 레인 사이 경계와 양쪽 끝 (간주 구간에서는 숨김) */}
       {bgaMaskOpacity < 1 &&
         [50, 150, 250, 350, 450].map((x) => (
           <div
@@ -132,7 +132,6 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
           />
         ))}
 
-      {/* Canvas 기반 노트 렌더링 (165Hz 최적화) */}
       {bgaMaskOpacity < 1 && (
         <>
           <canvas
@@ -152,35 +151,32 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
             notes={visibleNotes}
             currentTimeRef={currentTimeRef}
             fallDuration={fallDuration}
+            judgeLineY={judgeLineY}
             holdingNotes={holdingNotes}
             visible={bgaMaskOpacity < 1}
           />
         </>
       )}
 
-      {/* 판정선 - 게임 중에만 표시 (간주 구간에서는 숨김) */}
       {gameStarted && bgaMaskOpacity < 1 && (
-        <JudgeLine left={JUDGE_LINE_LEFT} width={JUDGE_LINE_WIDTH} />
+        <JudgeLine left={JUDGE_LINE_LEFT} width={JUDGE_LINE_WIDTH} top={judgeLineY} />
       )}
 
-      {/* 4개 레인 - 게임 중에만 표시 (간주 구간에서는 숨김) */}
-      {/* 간주 구간(bgaMaskOpacity >= 1)에서는 KeyLane을 완전히 숨김 */}
-      {gameStarted && bgaMaskOpacity < 1 && (
+      {gameStarted &&
+        bgaMaskOpacity < 1 &&
         LANE_POSITIONS.map((x, index) => (
           <KeyLane
             key={index}
             x={x}
+            top={KEY_LANE_Y}
             keys={laneKeyLabels[index]}
             isPressed={pressedKeys.has(index as Lane)}
           />
-        ))
-      )}
+        ))}
 
-      {/* 판정선에 나오는 이펙트 - 노트가 있는 위치에서 (간주 구간에서는 숨김) */}
       {gameStarted &&
         bgaMaskOpacity < 1 &&
         keyEffects.map((effect) => {
-          // 판정별 색상
           const judgeColors = {
             perfect: { main: '#FFD700', soft: 'rgba(255, 215, 0, 0.4)' },
             great: { main: '#00FF00', soft: 'rgba(0, 255, 0, 0.4)' },
@@ -202,14 +198,11 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
                 } as React.CSSProperties
               }
             >
-              {/* 십자가(X) 느낌: 천천히 커지며 살짝 회전했다가 훅 사라짐 */}
               <div className="key-hit__cross" />
             </div>
           );
         })}
 
-      {/* 간주 구간 오버레이 (채보 레인 숨김) */}
-      {/* 간주 구간에서는 모든 레인 UI를 완전히 가림 */}
       <div
         style={{
           position: 'absolute',
@@ -221,12 +214,10 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
           opacity: bgaMaskOpacity,
           transition: 'opacity 80ms linear',
           pointerEvents: 'none',
-          zIndex: 1000, // 모든 레인 UI 위에 표시 (KeyLane, 판정선, 노트 등)
+          zIndex: 1000,
         }}
       />
 
-      {/* 판정 피드백 - 4개 레인 영역 중앙에 통합 표시 (개별 애니메이션) */}
-      {/* 간주 구간에서는 판정 피드백 숨김 */}
       {bgaMaskOpacity < 1 &&
         judgeFeedbacks.map((feedback) =>
           feedback.judge ? (
@@ -235,7 +226,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
               style={{
                 position: 'absolute',
                 left: '50%',
-                top: '500px',
+                top: `${judgeFeedbackTop}px`,
                 transform: 'translateX(-50%)',
                 fontSize: '48px',
                 fontWeight: 'bold',
@@ -258,10 +249,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
           ) : null
         )}
 
-      {/* 점수 - 게임 중에만 표시 (간주 구간에서는 숨김) */}
       {gameStarted && bgaMaskOpacity < 1 && <ScoreComponent score={gameState.score} />}
-
     </>
   );
 };
-

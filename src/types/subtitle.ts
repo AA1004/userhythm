@@ -131,6 +131,38 @@ export const FONT_PRESETS = [
   { label: 'Black Han Sans', value: 'Black Han Sans, sans-serif' },
 ];
 
+const PRESET_FONT_STYLESHEETS = [
+  {
+    id: 'subtitle-fonts-google',
+    href: 'https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&family=Noto+Serif+KR:wght@400;700&family=Gothic+A1:wght@400;700&family=Jua&family=Black+Han+Sans&display=swap',
+  },
+  {
+    id: 'subtitle-fonts-pretendard',
+    href: 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css',
+  },
+] as const;
+
+const normalizeFontFamilyName = (fontFamily: string): string =>
+  fontFamily
+    .split(',')[0]
+    .trim()
+    .replace(/^['"]|['"]$/g, '');
+
+const ensurePresetFontStylesheets = (): void => {
+  if (typeof document === 'undefined') return;
+  const head = document.head || document.getElementsByTagName('head')[0];
+  if (!head) return;
+
+  PRESET_FONT_STYLESHEETS.forEach(({ id, href }) => {
+    if (document.getElementById(id)) return;
+    const link = document.createElement('link');
+    link.id = id;
+    link.rel = 'stylesheet';
+    link.href = href;
+    head.appendChild(link);
+  });
+};
+
 /**
  * 폰트 크기 프리셋
  */
@@ -166,6 +198,7 @@ export const saveCustomFonts = (fonts: CustomFont[]): void => {
 };
 
 export const addCustomFont = async (label: string, value: string, src?: string): Promise<void> => {
+  ensurePresetFontStylesheets();
   const fonts = getCustomFonts();
   // 중복 체크
   if (fonts.some((f) => f.value === value)) return;
@@ -174,7 +207,7 @@ export const addCustomFont = async (label: string, value: string, src?: string):
   if (src) {
     try {
       // value에서 첫 번째 폰트 이름 추출 (예: "Nanum Gothic, sans-serif" -> "Nanum Gothic")
-      const fontFamilyName = value.split(',')[0].trim();
+      const fontFamilyName = normalizeFontFamilyName(value);
       const fontFace = new FontFace(fontFamilyName, `url(${src})`);
       await fontFace.load();
       document.fonts.add(fontFace);
@@ -199,16 +232,17 @@ export const removeCustomFont = (value: string): void => {
  * 저장된 웹 폰트들을 다시 로드
  */
 export const loadStoredWebFonts = async (): Promise<void> => {
+  ensurePresetFontStylesheets();
   const customFonts = getCustomFonts();
   for (const font of customFonts) {
     if (font.src) {
       try {
         // value에서 첫 번째 폰트 이름 추출 (예: "Nanum Gothic, sans-serif" -> "Nanum Gothic")
-        const fontFamilyName = font.value.split(',')[0].trim();
+        const fontFamilyName = normalizeFontFamilyName(font.value);
         
         // 이미 로드된 폰트인지 확인
         const existing = Array.from(document.fonts).find(
-          (f) => f.family === fontFamilyName
+          (f) => normalizeFontFamilyName(f.family) === fontFamilyName
         );
         if (existing) {
           console.log(`Web font already loaded: ${fontFamilyName}`);
@@ -224,6 +258,35 @@ export const loadStoredWebFonts = async (): Promise<void> => {
       }
     }
   }
+};
+
+export const ensureSubtitleFontsReady = async (
+  fontFamilies: string[],
+  timeoutMs: number = 1200
+): Promise<void> => {
+  ensurePresetFontStylesheets();
+  await loadStoredWebFonts();
+
+  if (typeof document === 'undefined' || !document.fonts) return;
+
+  const uniqueFamilies = Array.from(
+    new Set(fontFamilies.map((family) => normalizeFontFamilyName(family)).filter(Boolean))
+  );
+
+  await Promise.all(
+    uniqueFamilies.map(async (family) => {
+      const fontLoadPromise = Promise.all([
+        document.fonts.load(`400 16px "${family}"`),
+        document.fonts.load(`700 16px "${family}"`),
+      ]);
+
+      const timeoutPromise = new Promise<void>((resolve) => {
+        window.setTimeout(() => resolve(), timeoutMs);
+      });
+
+      await Promise.race([fontLoadPromise, timeoutPromise]);
+    })
+  );
 };
 
 /**

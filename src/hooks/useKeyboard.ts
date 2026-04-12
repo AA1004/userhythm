@@ -1,9 +1,8 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Lane } from '../types/game';
 
 const DEFAULT_KEY_BINDINGS = ['D', 'F', 'J', 'K'];
 
-// KeyboardEvent.code를 문자로 변환 (한/영 상관없이 물리적 키 위치 기반)
 const CODE_TO_KEY: Record<string, string> = {
   KeyA: 'A', KeyB: 'B', KeyC: 'C', KeyD: 'D', KeyE: 'E',
   KeyF: 'F', KeyG: 'G', KeyH: 'H', KeyI: 'I', KeyJ: 'J',
@@ -22,7 +21,8 @@ export function useKeyboard(
   enabled: boolean = true,
   keyBindings: string[] = DEFAULT_KEY_BINDINGS
 ) {
-  // 키 바인딩을 lane으로 매핑
+  const pressedLanesRef = useRef<Set<Lane>>(new Set());
+
   const keyToLane = useMemo(() => {
     const map: Record<string, Lane> = {};
     keyBindings.forEach((key, index) => {
@@ -34,14 +34,20 @@ export function useKeyboard(
   }, [keyBindings]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      pressedLanesRef.current.clear();
+      return;
+    }
 
     const getKeyFromEvent = (event: KeyboardEvent): string => {
-      // 물리적 키 위치(code)를 우선 사용하여 한/영 상관없이 동작
       const fromCode = CODE_TO_KEY[event.code];
       if (fromCode) return fromCode;
-      // code 매핑이 없으면 key 사용 (fallback)
       return event.key.toUpperCase();
+    };
+
+    const releaseAllPressedKeys = () => {
+      pressedLanesRef.current.forEach((lane) => onKeyRelease(lane));
+      pressedLanesRef.current.clear();
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -50,6 +56,7 @@ export function useKeyboard(
       const lane = keyToLane[key];
       if (lane !== undefined) {
         event.preventDefault();
+        pressedLanesRef.current.add(lane);
         onKeyPress(lane);
       }
     };
@@ -59,15 +66,32 @@ export function useKeyboard(
       const lane = keyToLane[key];
       if (lane !== undefined) {
         event.preventDefault();
+        pressedLanesRef.current.delete(lane);
         onKeyRelease(lane);
+      }
+    };
+
+    const handleWindowBlur = () => {
+      releaseAllPressedKeys();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') {
+        releaseAllPressedKeys();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleWindowBlur);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
+      releaseAllPressedKeys();
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleWindowBlur);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [onKeyPress, onKeyRelease, enabled, keyToLane]);
 }
