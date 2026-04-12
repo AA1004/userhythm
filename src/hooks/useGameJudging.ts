@@ -41,6 +41,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
 
   const [pressedKeys, setPressedKeys] = useState<Set<Lane>>(new Set());
   const [holdingNotes, setHoldingNotes] = useState<Map<number, Note>>(new Map());
+  const holdingNotesRef = useRef<Map<number, Note>>(new Map());
   const [judgeFeedbacks, setJudgeFeedbacks] = useState<JudgeFeedback[]>([]);
   const feedbackIdRef = useRef(0);
   const [keyEffects, setKeyEffects] = useState<KeyEffect[]>([]);
@@ -123,7 +124,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       let targetNote: Note | null = null;
       for (const note of currentState.notes) {
         if (note.lane !== lane || note.hit) continue;
-        if (holdingNotes.has(note.id)) continue;
+        if (holdingNotesRef.current.has(note.id)) continue;
 
         const timeDiff = note.time - currentTime;
         if (timeDiff < -judgeConfig.noteSearchRange) {
@@ -167,7 +168,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
 
       addJudgeFeedback(judge, lane);
     },
-    [gameStateRef, currentTimeRef, holdingNotes, setGameState, updateScoreFromJudge, addJudgeFeedback]
+    [gameStateRef, currentTimeRef, setGameState, updateScoreFromJudge, addJudgeFeedback]
   );
 
   const handleKeyRelease = useCallback(
@@ -259,6 +260,10 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   );
 
   useEffect(() => {
+    holdingNotesRef.current = holdingNotes;
+  }, [holdingNotes]);
+
+  useEffect(() => {
     if (!gameState.gameStarted) {
       feedbackTimersRef.current.forEach((timer) => {
         clearTimeout(timer);
@@ -268,6 +273,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       setKeyEffects([]);
       setPressedKeys(new Set());
       setHoldingNotes(new Map());
+      holdingNotesRef.current = new Map();
     }
   }, [gameState.gameStarted]);
 
