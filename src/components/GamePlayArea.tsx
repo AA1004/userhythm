@@ -2,7 +2,6 @@ import React, { useMemo, useRef } from 'react';
 import { GameState, Note, Lane } from '../types/game';
 import { KeyLane } from './KeyLane';
 import { JudgeLine } from './JudgeLine';
-import { Score as ScoreComponent } from './Score';
 import { NoteRenderer } from './NoteRenderer';
 import {
   LANE_POSITIONS,
@@ -249,7 +248,6 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
           ) : null
         )}
 
-      {gameStarted && bgaMaskOpacity < 1 && <ScoreComponent score={gameState.score} />}
     </>
   );
 };

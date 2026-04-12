@@ -30,6 +30,7 @@ import { GameMenu } from './GameMenu';
 import { GamePlayArea } from './GamePlayArea';
 import { GameEndScreen } from './GameEndScreen';
 import { FpsHud } from './FpsHud';
+import { Score } from './Score';
 import { TutorialScreen } from './TutorialScreen';
 import { GAME_VIEW_WIDTH, GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 
@@ -541,6 +542,7 @@ export const Game: React.FC = () => {
       
       {/* FPS HUD - 게임 중에만 표시 */}
       {gameState.gameStarted && !gameState.gameEnded && <FpsHud enabled={true} />}
+      {gameState.gameStarted && bgaMaskOpacity < 1 && <Score score={gameState.score} />}
       
       {/* 테스트/플레이 중 컨트롤 (간주 구간에서도 표시, VideoRhythmLayout 밖에 배치) */}
       {gameState.gameStarted && !gameState.gameEnded && isTestMode && (
