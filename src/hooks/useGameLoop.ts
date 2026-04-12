@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, type MutableRefObject } from 'react';
 import { GameState, Note } from '../types/game';
 import { judgeConfig } from '../config/judgeConfig';
 import { BASE_FALL_DURATION } from '../constants/gameConstants';
@@ -13,7 +13,8 @@ export function useGameLoop(
   setGameState: (state: GameState | ((prev: GameState) => GameState)) => void,
   onNoteMiss: (note: Note) => void,
   speed: number = 1.0, // 속도 배율 (1.0 = 기본, 높을수록 빠름)
-  startDelayMs: number = 0
+  startDelayMs: number = 0,
+  externalCurrentTimeRef?: MutableRefObject<number>
 ) {
   // fallDuration을 useMemo로 계산하여 speed 변경 시에만 재계산
   const fallDuration = useMemo(() => BASE_FALL_DURATION / speed, [speed]);
@@ -26,7 +27,8 @@ export function useGameLoop(
   const delayRef = useRef<number>(startDelayMs);
   
   // 게임 시간을 ref에 저장 (렌더링 루프에서 사용)
-  const currentTimeRef = useRef<number>(0);
+  const internalCurrentTimeRef = useRef<number>(0);
+  const currentTimeRef = externalCurrentTimeRef ?? internalCurrentTimeRef;
   
   // 게임 상태 ref (미스 판정 시 최신 상태 참조용)
   const gameStateRef = useRef<GameState>(gameState);

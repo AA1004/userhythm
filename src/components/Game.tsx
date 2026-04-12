@@ -138,6 +138,7 @@ export const Game: React.FC = () => {
 
   // gameState를 ref로 유지하여 최신 값을 항상 참조
   const gameStateRef = useRef(gameState);
+  const currentTimeRef = useRef<number>(0);
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
@@ -171,6 +172,7 @@ export const Game: React.FC = () => {
   } = useGameJudging({
     gameState,
     gameStateRef,
+    currentTimeRef,
     setGameState,
     processedMissNotes,
     judgeLineY,
@@ -207,12 +209,13 @@ export const Game: React.FC = () => {
     keyBindings
   );
 
-  const { currentTimeRef, fallDuration } = useGameLoop(
+  const { fallDuration } = useGameLoop(
     gameState,
     setGameState,
     handleNoteMiss,
     speed,
-    START_DELAY_MS
+    START_DELAY_MS,
+    currentTimeRef
   );
 
   // 자막 훅

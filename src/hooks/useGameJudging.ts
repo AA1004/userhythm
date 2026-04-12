@@ -20,6 +20,7 @@ export interface KeyEffect {
 export interface UseGameJudgingOptions {
   gameState: GameState;
   gameStateRef: React.MutableRefObject<GameState>;
+  currentTimeRef: React.MutableRefObject<number>;
   setGameState: React.Dispatch<React.SetStateAction<GameState>>;
   processedMissNotes: React.MutableRefObject<Set<number>>;
   judgeLineY: number;
@@ -36,7 +37,7 @@ export interface UseGameJudgingReturn {
 }
 
 export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingReturn {
-  const { gameState, gameStateRef, setGameState, processedMissNotes, judgeLineY } = options;
+  const { gameState, gameStateRef, currentTimeRef, setGameState, processedMissNotes, judgeLineY } = options;
 
   const [pressedKeys, setPressedKeys] = useState<Set<Lane>>(new Set());
   const [holdingNotes, setHoldingNotes] = useState<Map<number, Note>>(new Map());
@@ -118,7 +119,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         return next;
       });
 
-      const currentTime = currentState.currentTime;
+      const currentTime = currentTimeRef.current;
       let bestNote: Note | null = null;
       let bestTimeDiff = Infinity;
 
@@ -161,13 +162,11 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
 
       addJudgeFeedback(judge, lane);
     },
-    [gameStateRef, setGameState, updateScoreFromJudge, addJudgeFeedback]
+    [gameStateRef, currentTimeRef, setGameState, updateScoreFromJudge, addJudgeFeedback]
   );
 
   const handleKeyRelease = useCallback(
     (lane: Lane) => {
-      const currentState = gameStateRef.current;
-
       setPressedKeys((prev) => {
         const next = new Set(prev);
         next.delete(lane);
@@ -181,7 +180,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         );
 
         for (const holdNote of laneHoldNotes) {
-          const currentTime = currentState.currentTime;
+          const currentTime = currentTimeRef.current;
           const endTime =
             typeof holdNote.endTime === 'number'
               ? holdNote.endTime
@@ -234,7 +233,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         return next;
       });
     },
-    [gameStateRef, setGameState, processedMissNotes, updateScoreFromJudge, addJudgeFeedback]
+    [gameStateRef, currentTimeRef, setGameState, processedMissNotes, updateScoreFromJudge, addJudgeFeedback]
   );
 
   const handleNoteMiss = useCallback(
