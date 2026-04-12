@@ -6,6 +6,7 @@ export const LANE_POSITIONS = [100, 200, 300, 400] as const;
 export const JUDGE_LINE_LEFT = 50; // 판정선 시작 위치 (첫 레인 왼쪽)
 export const JUDGE_LINE_WIDTH = 400; // 판정선 너비 (4개 레인 영역)
 export const JUDGE_LINE_Y = 640;
+export const KEY_LANE_Y = 700;
 
 export const DEFAULT_GAME_DURATION = 30000; // 30초 (기본 랜덤 게임 / 리셋 시 사용)
 export const MAX_CHART_DURATION = 300000; // 5분 (채보 기반 게임의 상한값)

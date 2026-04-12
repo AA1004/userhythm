@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Note } from '../types/game';
-import { LANE_POSITIONS, JUDGE_LINE_Y } from '../constants/gameConstants';
+import { LANE_POSITIONS } from '../constants/gameConstants';
 
 const NOTE_WIDTH = 90;
 const TAP_HEIGHT = 42;
@@ -8,25 +8,26 @@ const HOLD_MIN_HEIGHT = 60;
 const HOLD_HEAD_HEIGHT = 32;
 const NOTE_SPAWN_Y = -100;
 
-
 interface NoteRendererProps {
   canvasRef: React.RefObject<HTMLCanvasElement>;
   notes: Note[];
   currentTimeRef: React.MutableRefObject<number>;
   fallDuration: number;
-  holdingNotes: Map<number, Note>;  // Set 대신 Map 직접 사용 (성능 최적화)
+  judgeLineY: number;
+  holdingNotes: Map<number, Note>;
   visible: boolean;
 }
 
 /**
- * Canvas 기반 노트 렌더러
- * 별도의 rAF 루프에서 실행되어 165Hz에서도 부드럽게 렌더링
+ * Canvas based note renderer.
+ * Runs in its own rAF loop to keep animation smooth on high refresh-rate displays.
  */
 export const NoteRenderer: React.FC<NoteRendererProps> = ({
   canvasRef,
   notes,
   currentTimeRef,
   fallDuration,
+  judgeLineY,
   holdingNotes,
   visible,
 }) => {
@@ -45,24 +46,19 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Canvas 크기 조정 (devicePixelRatio 고려)
-    // visible이 true가 될 때마다 (간주 구간 후 복귀 시) 재설정
     const setupCanvas = () => {
       const rect = canvas.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
-      
-      // 실제 크기 (물리적 픽셀)
+
       canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
-      
-      // 스케일 리셋 후 재적용
+
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(dpr, dpr);
     };
 
     setupCanvas();
 
-    // 논리적 크기 (CSS 픽셀) 저장
     const logicalWidth = canvas.getBoundingClientRect().width;
     const logicalHeight = canvas.getBoundingClientRect().height;
 
@@ -70,38 +66,31 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
       if (!visible || !canvasRef.current) return;
 
       const currentTime = currentTimeRef.current;
-      
-      // Canvas 클리어 (논리적 크기 기준)
       ctx.clearRect(0, 0, logicalWidth, logicalHeight);
 
-      // 노트 렌더링
       for (const note of notes) {
         if (note.hit) continue;
 
         const isHoldNote = note.duration > 0 && note.type === 'hold';
         const laneX = LANE_POSITIONS[note.lane];
 
-        // 머리 위치 계산
         const timeUntilHit = note.time - currentTime;
         let headY: number;
-        
+
         if (timeUntilHit >= fallDuration) {
           headY = NOTE_SPAWN_Y;
         } else {
           const progress = 1 - timeUntilHit / fallDuration;
-          headY = NOTE_SPAWN_Y + progress * (JUDGE_LINE_Y - NOTE_SPAWN_Y);
-          headY = Math.max(NOTE_SPAWN_Y, Math.min(JUDGE_LINE_Y, headY));
+          headY = NOTE_SPAWN_Y + progress * (judgeLineY - NOTE_SPAWN_Y);
+          headY = Math.max(NOTE_SPAWN_Y, Math.min(judgeLineY, headY));
         }
 
-        // 화면 밖 노트는 스킵
         if (headY < -180 && !isHoldNote) continue;
 
         if (!isHoldNote) {
-          // 탭 노트 렌더링
           const top = headY - TAP_HEIGHT / 2;
           const left = laneX - NOTE_WIDTH / 2;
 
-          // 그라디언트
           const gradient = ctx.createLinearGradient(left, top, left, top + TAP_HEIGHT);
           gradient.addColorStop(0, '#FF6B6B');
           gradient.addColorStop(1, '#FF9A8B');
@@ -124,20 +113,19 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           ctx.fill();
           ctx.stroke();
         } else {
-          // 롱노트 렌더링
           const endTime = note.endTime ?? note.time;
           const timeUntilEnd = endTime - currentTime;
-          
+
           let tailY: number;
           if (timeUntilEnd >= fallDuration) {
             tailY = NOTE_SPAWN_Y;
           } else {
             const progress = 1 - timeUntilEnd / fallDuration;
-            tailY = NOTE_SPAWN_Y + progress * (JUDGE_LINE_Y - NOTE_SPAWN_Y);
-            tailY = Math.max(NOTE_SPAWN_Y, Math.min(JUDGE_LINE_Y, tailY));
+            tailY = NOTE_SPAWN_Y + progress * (judgeLineY - NOTE_SPAWN_Y);
+            tailY = Math.max(NOTE_SPAWN_Y, Math.min(judgeLineY, tailY));
           }
 
-          const holdHeadY = Math.min(headY, JUDGE_LINE_Y);
+          const holdHeadY = Math.min(headY, judgeLineY);
           const holdTailY = tailY;
           const bottomY = Math.max(holdHeadY, holdTailY);
           const spanHeight = Math.abs(holdHeadY - holdTailY);
@@ -150,7 +138,6 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
             ? Math.max(0, Math.min(1, (currentTime - note.time) / note.duration))
             : 0;
 
-          // 롱노트 배경
           const bgGradient = ctx.createLinearGradient(left, containerTop, left, containerTop + containerHeight);
           if (isHolding) {
             bgGradient.addColorStop(0, 'rgba(255,231,157,0.95)');
@@ -178,7 +165,6 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           ctx.fill();
           ctx.stroke();
 
-          // 상단 하이라이트
           ctx.fillStyle = 'rgba(255,255,255,0.4)';
           ctx.beginPath();
           const highlightRadius = 12;
@@ -198,7 +184,6 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           ctx.closePath();
           ctx.fill();
 
-          // 진행도 표시
           if (holdProgress > 0) {
             const progressHeight = (containerHeight - HOLD_HEAD_HEIGHT) * holdProgress;
             const progressGradient = ctx.createLinearGradient(
@@ -233,7 +218,6 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
             ctx.fill();
           }
 
-          // 하단 헤드
           const headGradient = ctx.createLinearGradient(
             left + 6,
             containerTop + containerHeight - HOLD_HEAD_HEIGHT,
@@ -273,8 +257,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
         rafIdRef.current = undefined;
       }
     };
-  }, [canvasRef, notes, currentTimeRef, fallDuration, holdingNotes, visible]);
+  }, [canvasRef, notes, currentTimeRef, fallDuration, judgeLineY, holdingNotes, visible]);
 
   return null;
 };
-

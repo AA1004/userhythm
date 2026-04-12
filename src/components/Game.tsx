@@ -31,6 +31,7 @@ import { GamePlayArea } from './GamePlayArea';
 import { GameEndScreen } from './GameEndScreen';
 import { FpsHud } from './FpsHud';
 import { TutorialScreen } from './TutorialScreen';
+import { GAME_VIEW_WIDTH, GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 
 // Subtitle editor chart data
 interface SubtitleEditorChartData {
@@ -60,6 +61,13 @@ export const Game: React.FC = () => {
   const processedMissNotes = useRef<Set<number>>(new Set());
   const [testYoutubeVideoId, setTestYoutubeVideoId] = useState<string | null>(null);
   const [testAudioSettings, setTestAudioSettings] = useState<AudioSettings | null>(null);
+  const [viewportSize, setViewportSize] = useState(() => ({
+    width: typeof window !== 'undefined' ? window.innerWidth : 1920,
+    height:
+      typeof window !== 'undefined'
+        ? window.visualViewport?.height ?? window.innerHeight
+        : 1080,
+  }));
 
   // 인증 훅
   const {
@@ -133,6 +141,23 @@ export const Game: React.FC = () => {
     gameStateRef.current = gameState;
   }, [gameState]);
 
+  useEffect(() => {
+    const updateViewportSize = () => {
+      setViewportSize({
+        width: window.innerWidth,
+        height: window.visualViewport?.height ?? window.innerHeight,
+      });
+    };
+
+    updateViewportSize();
+    window.addEventListener('resize', updateViewportSize);
+    window.visualViewport?.addEventListener('resize', updateViewportSize);
+    return () => {
+      window.removeEventListener('resize', updateViewportSize);
+      window.visualViewport?.removeEventListener('resize', updateViewportSize);
+    };
+  }, []);
+
   // 판정 훅
   const {
     pressedKeys,
@@ -147,11 +172,25 @@ export const Game: React.FC = () => {
     gameStateRef,
     setGameState,
     processedMissNotes,
+    judgeLineY,
   });
 
   // speed는 noteSpeed를 사용
   const speed = noteSpeed;
   const userDisplayName = getUserDisplayName(displayName);
+  const stageScale = useMemo(() => {
+    const horizontalPadding = 32;
+    const verticalPadding = 32;
+    const availableWidth = Math.max(320, viewportSize.width - horizontalPadding);
+    const availableHeight = Math.max(320, viewportSize.height - verticalPadding);
+    return Math.min(
+      availableWidth / GAME_VIEW_WIDTH,
+      availableHeight / GAME_VIEW_HEIGHT,
+      1
+    );
+  }, [viewportSize.width, viewportSize.height]);
+  const stageDisplayWidth = Math.round(GAME_VIEW_WIDTH * stageScale);
+  const stageDisplayHeight = Math.round(GAME_VIEW_HEIGHT * stageScale);
 
 
   // 속도가 변경될 때마다 localStorage에 저장
@@ -599,10 +638,8 @@ export const Game: React.FC = () => {
         <div
           style={{
             position: 'relative',
-            width: 'min(500px, 100vw - 32px)',
-            height: 'min(800px, 100vh - 32px)',
-            maxWidth: '500px',
-            maxHeight: '800px',
+            width: `${stageDisplayWidth}px`,
+            height: `${stageDisplayHeight}px`,
             margin: '0 auto',
             marginTop: 0,
           }}
@@ -621,74 +658,87 @@ export const Game: React.FC = () => {
               transition: 'background-color 80ms linear, border 80ms linear, box-shadow 80ms linear, border-radius 80ms linear',
             }}
           >
-        <GamePlayArea
-          gameState={gameState}
-          gameStarted={gameState.gameStarted}
-          bgaMaskOpacity={bgaMaskOpacity}
-          speed={speed}
-          pressedKeys={pressedKeys}
-          holdingNotes={holdingNotes}
-          judgeFeedbacks={judgeFeedbacks}
-          keyEffects={keyEffects}
-          laneKeyLabels={laneKeyLabels}
-          isFromEditor={isFromEditor}
-          currentTimeRef={currentTimeRef}
-          fallDuration={fallDuration}
-        />
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                width: `${GAME_VIEW_WIDTH}px`,
+                height: `${GAME_VIEW_HEIGHT}px`,
+                transform: `scale(${stageScale})`,
+                transformOrigin: 'top left',
+              }}
+            >
+              <GamePlayArea
+                gameState={gameState}
+                gameStarted={gameState.gameStarted}
+                bgaMaskOpacity={bgaMaskOpacity}
+                speed={speed}
+                pressedKeys={pressedKeys}
+                holdingNotes={holdingNotes}
+                judgeFeedbacks={judgeFeedbacks}
+                keyEffects={keyEffects}
+                laneKeyLabels={laneKeyLabels}
+                isFromEditor={isFromEditor}
+                currentTimeRef={currentTimeRef}
+                fallDuration={fallDuration}
+                judgeLineY={judgeLineY}
+              />
 
-        {/* 게임 시작 UI */}
-        {!gameState.gameStarted && (
-          <GameMenu
-            authUser={authUser}
-            canEditCharts={canEditCharts}
-            canSeeAdminMenu={canSeeAdminMenu}
-            userDisplayName={userDisplayName}
-            roleChessIcon={roleChessIcon}
-            isAdmin={isAdmin}
-            isModerator={isModerator}
-            onPlay={() => setViewMode({ type: 'chartSelect' })}
-            onEdit={() => setViewMode({ type: 'editor' })}
-            onAdmin={() => setViewMode({ type: 'admin' })}
-            onTutorial={() => setViewMode({ type: 'tutorial' })}
-            onLogin={handleLoginWithGoogle}
-            onLogout={handleLogout}
-            onSettings={() => setIsSettingsOpen(true)}
-            ensureEditorAccess={ensureEditorAccess}
-          />
-        )}
+              {/* 게임 시작 UI */}
+              {!gameState.gameStarted && (
+                <GameMenu
+                  authUser={authUser}
+                  canEditCharts={canEditCharts}
+                  canSeeAdminMenu={canSeeAdminMenu}
+                  userDisplayName={userDisplayName}
+                  roleChessIcon={roleChessIcon}
+                  isAdmin={isAdmin}
+                  isModerator={isModerator}
+                  onPlay={() => setViewMode({ type: 'chartSelect' })}
+                  onEdit={() => setViewMode({ type: 'editor' })}
+                  onAdmin={() => setViewMode({ type: 'admin' })}
+                  onTutorial={() => setViewMode({ type: 'tutorial' })}
+                  onLogin={handleLoginWithGoogle}
+                  onLogout={handleLogout}
+                  onSettings={() => setIsSettingsOpen(true)}
+                  ensureEditorAccess={ensureEditorAccess}
+                />
+              )}
 
 
-        {/* 게임 종료 UI */}
-        {gameState.gameEnded && (
-          <GameEndScreen
-            isTestMode={isTestMode}
-            accuracy={accuracy}
-            score={gameState.score}
-            bgaMaskOpacity={bgaMaskOpacity}
-            onRetest={isTestMode ? handleRetest : undefined}
-            onReturnToEditor={isFromEditor ? handleReturnToEditor : undefined}
-            onReturnToPlayList={!isFromEditor ? handleReturnToPlayList : undefined}
-            onReset={resetGame}
-          />
-        )}
-        
-        {/* 테스트 모드 YouTube 플레이어 (숨김 - 오디오만 재생) */}
-        {isTestMode && testYoutubeVideoId && (
-          <div
-            ref={testYoutubePlayerRef}
-            style={{
-              position: 'absolute',
-              bottom: '-1000px',
-              left: '-1000px',
-              width: '1px',
-              height: '1px',
-              opacity: 0,
-              pointerEvents: 'none',
-              overflow: 'hidden',
-              zIndex: -1,
-            }}
-          />
-        )}
+              {/* 게임 종료 UI */}
+              {gameState.gameEnded && (
+                <GameEndScreen
+                  isTestMode={isTestMode}
+                  accuracy={accuracy}
+                  score={gameState.score}
+                  bgaMaskOpacity={bgaMaskOpacity}
+                  onRetest={isTestMode ? handleRetest : undefined}
+                  onReturnToEditor={isFromEditor ? handleReturnToEditor : undefined}
+                  onReturnToPlayList={!isFromEditor ? handleReturnToPlayList : undefined}
+                  onReset={resetGame}
+                />
+              )}
+
+              {/* 테스트 모드 YouTube 플레이어 (숨김 - 오디오만 재생) */}
+              {isTestMode && testYoutubeVideoId && (
+                <div
+                  ref={testYoutubePlayerRef}
+                  style={{
+                    position: 'absolute',
+                    bottom: '-1000px',
+                    left: '-1000px',
+                    width: '1px',
+                    height: '1px',
+                    opacity: 0,
+                    pointerEvents: 'none',
+                    overflow: 'hidden',
+                    zIndex: -1,
+                  }}
+                />
+              )}
+            </div>
       </div>
 
       {/* 자막 레이어 (게임 컨테이너 바깥, 16:9 영역으로 확장) - 간주 구간에서는 숨김 */}
