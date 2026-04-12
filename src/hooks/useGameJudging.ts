@@ -120,30 +120,35 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       });
 
       const currentTime = currentTimeRef.current;
-      let bestNote: Note | null = null;
-      let bestTimeDiff = Infinity;
-
+      let targetNote: Note | null = null;
       for (const note of currentState.notes) {
         if (note.lane !== lane || note.hit) continue;
+        if (holdingNotes.has(note.id)) continue;
 
-        const timeDiff = Math.abs(note.time - currentTime);
-        if (timeDiff < bestTimeDiff && timeDiff <= judgeConfig.noteSearchRange) {
-          bestTimeDiff = timeDiff;
-          bestNote = note;
+        const timeDiff = note.time - currentTime;
+        if (timeDiff < -judgeConfig.noteSearchRange) {
+          continue;
         }
+        if (timeDiff > judgeConfig.noteSearchRange) {
+          // Notes are time-sorted; no need to scan further in this lane.
+          break;
+        }
+
+        targetNote = note;
+        break;
       }
 
-      if (!bestNote) return;
+      if (!targetNote) return;
 
-      const isHoldNote = bestNote.type === 'hold' && bestNote.duration > 0;
-      const judge = judgeTiming(bestNote.time - currentTime);
+      const isHoldNote = targetNote.type === 'hold' && targetNote.duration > 0;
+      const judge = judgeTiming(targetNote.time - currentTime);
       if (judge === null) return;
 
       setGameState((prev) => {
         const newScore = updateScoreFromJudge(judge, prev.score);
         const updatedNotes = isHoldNote
           ? prev.notes
-          : prev.notes.map((note) => (note.id === bestNote!.id ? { ...note, hit: true } : note));
+          : prev.notes.map((note) => (note.id === targetNote!.id ? { ...note, hit: true } : note));
 
         return {
           ...prev,
@@ -155,14 +160,14 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       if (isHoldNote) {
         setHoldingNotes((prev) => {
           const next = new Map(prev);
-          next.set(bestNote.id, bestNote);
+          next.set(targetNote.id, targetNote);
           return next;
         });
       }
 
       addJudgeFeedback(judge, lane);
     },
-    [gameStateRef, currentTimeRef, setGameState, updateScoreFromJudge, addJudgeFeedback]
+    [gameStateRef, currentTimeRef, holdingNotes, setGameState, updateScoreFromJudge, addJudgeFeedback]
   );
 
   const handleKeyRelease = useCallback(
