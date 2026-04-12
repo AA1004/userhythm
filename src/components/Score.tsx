@@ -73,9 +73,9 @@ const ScoreComponent: React.FC<ScoreProps> = ({ score }) => {
   );
 };
 
-// React.memo로 불필요한 리렌더링 방지
+// Prevent unnecessary re-renders with React.memo
 export const Score = React.memo(ScoreComponent, (prevProps, nextProps) => {
-  // score 객체의 모든 속성이 같으면 리렌더링 방지
+  // Skip render if all score fields are unchanged
   return (
     prevProps.score.perfect === nextProps.score.perfect &&
     prevProps.score.great === nextProps.score.great &&

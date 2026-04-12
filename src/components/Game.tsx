@@ -540,11 +540,12 @@ export const Game: React.FC = () => {
         </>
       )}
       
-      {/* FPS HUD - 게임 중에만 표시 */}
+      {/* Show FPS HUD only during gameplay */}
       {gameState.gameStarted && !gameState.gameEnded && <FpsHud enabled={true} />}
+      {/* Keep score HUD outside scaled stage to preserve fixed viewport position */}
       {gameState.gameStarted && bgaMaskOpacity < 1 && <Score score={gameState.score} />}
       
-      {/* 테스트/플레이 중 컨트롤 (간주 구간에서도 표시, VideoRhythmLayout 밖에 배치) */}
+      {/* Test/play controls (shown outside VideoRhythmLayout, including interlude sections) */}
       {gameState.gameStarted && !gameState.gameEnded && isTestMode && (
         <div
           style={{
