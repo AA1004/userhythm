@@ -21,6 +21,7 @@ export interface UseGameJudgingOptions {
   gameState: GameState;
   gameStateRef: React.MutableRefObject<GameState>;
   currentTimeRef: React.MutableRefObject<number>;
+  laneCenters?: readonly number[];
   setGameState: React.Dispatch<React.SetStateAction<GameState>>;
   processedMissNotes: React.MutableRefObject<Set<number>>;
   judgeLineY: number;
@@ -37,7 +38,15 @@ export interface UseGameJudgingReturn {
 }
 
 export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingReturn {
-  const { gameState, gameStateRef, currentTimeRef, setGameState, processedMissNotes, judgeLineY } = options;
+  const {
+    gameState,
+    gameStateRef,
+    currentTimeRef,
+    laneCenters = LANE_POSITIONS,
+    setGameState,
+    processedMissNotes,
+    judgeLineY,
+  } = options;
 
   const [pressedKeys, setPressedKeys] = useState<Set<Lane>>(new Set());
   const [holdingNotes, setHoldingNotes] = useState<Map<number, Note>>(new Map());
@@ -92,7 +101,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       setJudgeFeedbacks([{ id: feedbackId, judge }]);
 
       const effectId = keyEffectIdRef.current++;
-      const effectX = LANE_POSITIONS[lane];
+      const effectX = laneCenters[lane] ?? LANE_POSITIONS[lane];
       const effectY = judgeLineY;
       setKeyEffects((prev) => [...prev, { id: effectId, lane, x: effectX, y: effectY, judge }]);
 
@@ -105,7 +114,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         feedbackTimersRef.current.set(feedbackId, timer);
       });
     },
-    [gameStateRef, judgeLineY]
+    [gameStateRef, laneCenters, judgeLineY]
   );
 
   const handleKeyPress = useCallback(

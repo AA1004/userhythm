@@ -4,13 +4,10 @@ import { KeyLane } from './KeyLane';
 import { JudgeLine } from './JudgeLine';
 import { NoteRenderer } from './NoteRenderer';
 import {
-  LANE_POSITIONS,
-  JUDGE_LINE_LEFT,
-  JUDGE_LINE_WIDTH,
   BASE_FALL_DURATION,
   NOTE_VISIBILITY_BUFFER_MS,
-  KEY_LANE_Y,
 } from '../constants/gameConstants';
+import { PlayfieldGeometry } from '../constants/gameVisualSettings';
 import { JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
 
 function binarySearchStartIndex(notes: Note[], targetTime: number): number {
@@ -56,6 +53,7 @@ interface GamePlayAreaProps {
   currentTimeRef: React.MutableRefObject<number>;
   fallDuration: number;
   judgeLineY: number;
+  playfieldGeometry: PlayfieldGeometry;
 }
 
 export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
@@ -72,6 +70,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   currentTimeRef,
   fallDuration,
   judgeLineY,
+  playfieldGeometry,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -106,9 +105,9 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
         <div
           style={{
             position: 'absolute',
-            left: '50px',
+            left: `${playfieldGeometry.laneGroupLeft}px`,
             top: '0',
-            width: '400px',
+            width: `${playfieldGeometry.laneGroupWidth}px`,
             height: '100%',
             backgroundColor: 'rgba(15, 23, 42, 0.6)',
           }}
@@ -116,7 +115,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
       )}
 
       {bgaMaskOpacity < 1 &&
-        [50, 150, 250, 350, 450].map((x) => (
+        playfieldGeometry.laneEdges.map((x) => (
           <div
             key={x}
             style={{
@@ -151,6 +150,9 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
             currentTimeRef={currentTimeRef}
             fallDuration={fallDuration}
             judgeLineY={judgeLineY}
+            laneCenters={playfieldGeometry.laneCenters}
+            noteWidth={playfieldGeometry.noteWidth}
+            noteHeight={playfieldGeometry.noteHeight}
             holdingNotes={holdingNotes}
             visible={bgaMaskOpacity < 1}
           />
@@ -158,16 +160,21 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
       )}
 
       {gameStarted && bgaMaskOpacity < 1 && (
-        <JudgeLine left={JUDGE_LINE_LEFT} width={JUDGE_LINE_WIDTH} top={judgeLineY} />
+        <JudgeLine
+          left={playfieldGeometry.judgeLineLeft}
+          width={playfieldGeometry.judgeLineWidth}
+          top={judgeLineY}
+        />
       )}
 
       {gameStarted &&
         bgaMaskOpacity < 1 &&
-        LANE_POSITIONS.map((x, index) => (
+        playfieldGeometry.laneCenters.map((x, index) => (
           <KeyLane
             key={index}
             x={x}
-            top={KEY_LANE_Y}
+            top={playfieldGeometry.keyLaneY}
+            width={playfieldGeometry.laneWidth}
             keys={laneKeyLabels[index]}
             isPressed={pressedKeys.has(index as Lane)}
           />
@@ -205,9 +212,9 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
       <div
         style={{
           position: 'absolute',
-          left: '50px',
+          left: `${playfieldGeometry.laneGroupLeft}px`,
           top: 0,
-          width: '400px',
+          width: `${playfieldGeometry.laneGroupWidth}px`,
           height: '100%',
           backgroundColor: 'rgba(8,12,24,0.94)',
           opacity: bgaMaskOpacity,

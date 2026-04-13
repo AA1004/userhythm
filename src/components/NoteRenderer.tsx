@@ -2,8 +2,6 @@ import React, { useEffect, useRef } from 'react';
 import { Note } from '../types/game';
 import { LANE_POSITIONS } from '../constants/gameConstants';
 
-const NOTE_WIDTH = 90;
-const TAP_HEIGHT = 42;
 const HOLD_MIN_HEIGHT = 60;
 const HOLD_HEAD_HEIGHT = 32;
 const NOTE_SPAWN_Y = -100;
@@ -14,6 +12,9 @@ interface NoteRendererProps {
   currentTimeRef: React.MutableRefObject<number>;
   fallDuration: number;
   judgeLineY: number;
+  laneCenters?: readonly number[];
+  noteWidth?: number;
+  noteHeight?: number;
   holdingNotes: Map<number, Note>;
   visible: boolean;
 }
@@ -28,6 +29,9 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
   currentTimeRef,
   fallDuration,
   judgeLineY,
+  laneCenters = LANE_POSITIONS,
+  noteWidth = 90,
+  noteHeight = 42,
   holdingNotes,
   visible,
 }) => {
@@ -73,7 +77,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
         if (note.hit) continue;
 
         const isHoldNote = note.duration > 0 && note.type === 'hold';
-        const laneX = LANE_POSITIONS[note.lane];
+        const laneX = laneCenters[note.lane] ?? LANE_POSITIONS[note.lane];
 
         const timeUntilHit = note.time - currentTime;
         let headY: number;
@@ -89,10 +93,10 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
         if (headY < -180 && !isHoldNote) continue;
 
         if (!isHoldNote) {
-          const top = headY - TAP_HEIGHT / 2;
-          const left = laneX - NOTE_WIDTH / 2;
+          const top = headY - noteHeight / 2;
+          const left = laneX - noteWidth / 2;
 
-          const gradient = ctx.createLinearGradient(left, top, left, top + TAP_HEIGHT);
+          const gradient = ctx.createLinearGradient(left, top, left, top + noteHeight);
           gradient.addColorStop(0, '#FF6B6B');
           gradient.addColorStop(1, '#FF9A8B');
 
@@ -102,12 +106,12 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           ctx.beginPath();
           const radius = 14;
           ctx.moveTo(left + radius, top);
-          ctx.lineTo(left + NOTE_WIDTH - radius, top);
-          ctx.quadraticCurveTo(left + NOTE_WIDTH, top, left + NOTE_WIDTH, top + radius);
-          ctx.lineTo(left + NOTE_WIDTH, top + TAP_HEIGHT - radius);
-          ctx.quadraticCurveTo(left + NOTE_WIDTH, top + TAP_HEIGHT, left + NOTE_WIDTH - radius, top + TAP_HEIGHT);
-          ctx.lineTo(left + radius, top + TAP_HEIGHT);
-          ctx.quadraticCurveTo(left, top + TAP_HEIGHT, left, top + TAP_HEIGHT - radius);
+          ctx.lineTo(left + noteWidth - radius, top);
+          ctx.quadraticCurveTo(left + noteWidth, top, left + noteWidth, top + radius);
+          ctx.lineTo(left + noteWidth, top + noteHeight - radius);
+          ctx.quadraticCurveTo(left + noteWidth, top + noteHeight, left + noteWidth - radius, top + noteHeight);
+          ctx.lineTo(left + radius, top + noteHeight);
+          ctx.quadraticCurveTo(left, top + noteHeight, left, top + noteHeight - radius);
           ctx.lineTo(left, top + radius);
           ctx.quadraticCurveTo(left, top, left + radius, top);
           ctx.closePath();
@@ -132,7 +136,8 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           const spanHeight = Math.abs(holdHeadY - holdTailY);
           const containerHeight = Math.max(HOLD_MIN_HEIGHT, spanHeight);
           const containerTop = bottomY - containerHeight;
-          const left = laneX - NOTE_WIDTH / 2;
+          const left = laneX - noteWidth / 2;
+          const holdHeadHeight = Math.min(HOLD_HEAD_HEIGHT, Math.max(24, noteHeight));
 
           const isHolding = holdingNotes.has(note.id);
           const holdProgress = note.duration
@@ -154,10 +159,10 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           ctx.beginPath();
           const radius = 18;
           ctx.moveTo(left + radius, containerTop);
-          ctx.lineTo(left + NOTE_WIDTH - radius, containerTop);
-          ctx.quadraticCurveTo(left + NOTE_WIDTH, containerTop, left + NOTE_WIDTH, containerTop + radius);
-          ctx.lineTo(left + NOTE_WIDTH, containerTop + containerHeight - radius);
-          ctx.quadraticCurveTo(left + NOTE_WIDTH, containerTop + containerHeight, left + NOTE_WIDTH - radius, containerTop + containerHeight);
+          ctx.lineTo(left + noteWidth - radius, containerTop);
+          ctx.quadraticCurveTo(left + noteWidth, containerTop, left + noteWidth, containerTop + radius);
+          ctx.lineTo(left + noteWidth, containerTop + containerHeight - radius);
+          ctx.quadraticCurveTo(left + noteWidth, containerTop + containerHeight, left + noteWidth - radius, containerTop + containerHeight);
           ctx.lineTo(left + radius, containerTop + containerHeight);
           ctx.quadraticCurveTo(left, containerTop + containerHeight, left, containerTop + containerHeight - radius);
           ctx.lineTo(left, containerTop + radius);
@@ -169,9 +174,9 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           ctx.fillStyle = 'rgba(255,255,255,0.4)';
           ctx.beginPath();
           const highlightRadius = 12;
-          const highlightLeft = left + NOTE_WIDTH * 0.1;
+          const highlightLeft = left + noteWidth * 0.1;
           const highlightTop = containerTop + 4;
-          const highlightWidth = NOTE_WIDTH * 0.8;
+          const highlightWidth = noteWidth * 0.8;
           const highlightHeight = 12;
           ctx.moveTo(highlightLeft + highlightRadius, highlightTop);
           ctx.lineTo(highlightLeft + highlightWidth - highlightRadius, highlightTop);
@@ -186,12 +191,12 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           ctx.fill();
 
           if (holdProgress > 0) {
-            const progressHeight = (containerHeight - HOLD_HEAD_HEIGHT) * holdProgress;
+            const progressHeight = (containerHeight - holdHeadHeight) * holdProgress;
             const progressGradient = ctx.createLinearGradient(
-              left + NOTE_WIDTH * 0.18,
-              containerTop + containerHeight - HOLD_HEAD_HEIGHT - progressHeight,
-              left + NOTE_WIDTH * 0.18,
-              containerTop + containerHeight - HOLD_HEAD_HEIGHT
+              left + noteWidth * 0.18,
+              containerTop + containerHeight - holdHeadHeight - progressHeight,
+              left + noteWidth * 0.18,
+              containerTop + containerHeight - holdHeadHeight
             );
             if (isHolding) {
               progressGradient.addColorStop(0, 'rgba(255,255,255,0.85)');
@@ -203,9 +208,9 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
             ctx.fillStyle = progressGradient;
             ctx.beginPath();
             const progressRadius = 10;
-            const progressLeft = left + NOTE_WIDTH * 0.18;
-            const progressTop = containerTop + containerHeight - HOLD_HEAD_HEIGHT - progressHeight;
-            const progressWidth = NOTE_WIDTH * 0.64;
+            const progressLeft = left + noteWidth * 0.18;
+            const progressTop = containerTop + containerHeight - holdHeadHeight - progressHeight;
+            const progressWidth = noteWidth * 0.64;
             ctx.moveTo(progressLeft + progressRadius, progressTop);
             ctx.lineTo(progressLeft + progressWidth - progressRadius, progressTop);
             ctx.quadraticCurveTo(progressLeft + progressWidth, progressTop, progressLeft + progressWidth, progressTop + progressRadius);
@@ -221,7 +226,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
 
           const headGradient = ctx.createLinearGradient(
             left + 6,
-            containerTop + containerHeight - HOLD_HEAD_HEIGHT,
+            containerTop + containerHeight - holdHeadHeight,
             left + 6,
             containerTop + containerHeight
           );
@@ -231,15 +236,15 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           ctx.beginPath();
           const headRadius = 10;
           const headLeft = left + 6;
-          const headTop = containerTop + containerHeight - HOLD_HEAD_HEIGHT;
-          const headWidth = NOTE_WIDTH - 12;
+          const headTop = containerTop + containerHeight - holdHeadHeight;
+          const headWidth = noteWidth - 12;
           ctx.moveTo(headLeft + headRadius, headTop);
           ctx.lineTo(headLeft + headWidth - headRadius, headTop);
           ctx.quadraticCurveTo(headLeft + headWidth, headTop, headLeft + headWidth, headTop + headRadius);
-          ctx.lineTo(headLeft + headWidth, headTop + HOLD_HEAD_HEIGHT - headRadius);
-          ctx.quadraticCurveTo(headLeft + headWidth, headTop + HOLD_HEAD_HEIGHT, headLeft + headWidth - headRadius, headTop + HOLD_HEAD_HEIGHT);
-          ctx.lineTo(headLeft + headRadius, headTop + HOLD_HEAD_HEIGHT);
-          ctx.quadraticCurveTo(headLeft, headTop + HOLD_HEAD_HEIGHT, headLeft, headTop + HOLD_HEAD_HEIGHT - headRadius);
+          ctx.lineTo(headLeft + headWidth, headTop + holdHeadHeight - headRadius);
+          ctx.quadraticCurveTo(headLeft + headWidth, headTop + holdHeadHeight, headLeft + headWidth - headRadius, headTop + holdHeadHeight);
+          ctx.lineTo(headLeft + headRadius, headTop + holdHeadHeight);
+          ctx.quadraticCurveTo(headLeft, headTop + holdHeadHeight, headLeft, headTop + holdHeadHeight - headRadius);
           ctx.lineTo(headLeft, headTop + headRadius);
           ctx.quadraticCurveTo(headLeft, headTop, headLeft + headRadius, headTop);
           ctx.closePath();
@@ -258,7 +263,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
         rafIdRef.current = undefined;
       }
     };
-  }, [canvasRef, notes, currentTimeRef, fallDuration, judgeLineY, holdingNotes, visible]);
+  }, [canvasRef, notes, currentTimeRef, fallDuration, judgeLineY, laneCenters, noteWidth, noteHeight, holdingNotes, visible]);
 
   return null;
 };

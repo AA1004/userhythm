@@ -33,6 +33,10 @@ import { FpsHud } from './FpsHud';
 import { Score } from './Score';
 import { TutorialScreen } from './TutorialScreen';
 import { GAME_VIEW_WIDTH, GAME_VIEW_HEIGHT } from '../constants/gameLayout';
+import {
+  buildPlayfieldGeometry,
+  DEFAULT_GAME_VISUAL_SETTINGS,
+} from '../constants/gameVisualSettings';
 
 // Subtitle editor chart data
 interface SubtitleEditorChartData {
@@ -143,6 +147,11 @@ export const Game: React.FC = () => {
     gameStateRef.current = gameState;
   }, [gameState]);
 
+  const playfieldGeometry = useMemo(
+    () => buildPlayfieldGeometry(DEFAULT_GAME_VISUAL_SETTINGS, judgeLineY),
+    [judgeLineY]
+  );
+
   useEffect(() => {
     const updateViewportSize = () => {
       setViewportSize({
@@ -173,6 +182,7 @@ export const Game: React.FC = () => {
     gameState,
     gameStateRef,
     currentTimeRef,
+    laneCenters: playfieldGeometry.laneCenters,
     setGameState,
     processedMissNotes,
     judgeLineY,
@@ -689,6 +699,7 @@ export const Game: React.FC = () => {
                 currentTimeRef={currentTimeRef}
                 fallDuration={fallDuration}
                 judgeLineY={judgeLineY}
+                playfieldGeometry={playfieldGeometry}
               />
 
               {/* 게임 시작 UI */}
