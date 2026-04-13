@@ -9,6 +9,7 @@ import {
 } from '../constants/gameConstants';
 import { PlayfieldGeometry } from '../constants/gameVisualSettings';
 import { JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
+import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 
 function binarySearchEndIndex(notes: Note[], targetTime: number, startIdx: number): number {
   let low = startIdx;
@@ -65,6 +66,16 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const visibleNotes = useMemo(() => {
+    const shouldProfile = isGameplayProfilerEnabled();
+    const profileStart = shouldProfile ? performance.now() : 0;
+    let inspectedNotes = 0;
+
+    const recordProfile = () => {
+      if (shouldProfile) {
+        recordGameplayMetric('visibleNoteFilter', performance.now() - profileStart, inspectedNotes);
+      }
+    };
+
     if (!isLaneUiVisible) return [];
 
     const notes = gameState.notes;
@@ -78,12 +89,14 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
 
     const result: Note[] = [];
     for (let i = 0; i <= endIdx && i < notes.length; i++) {
+      inspectedNotes += 1;
       const note = notes[i];
       if (note.hit) continue;
       if (getNoteRenderEndTime(note) < viewportStart) continue;
       result.push(note);
     }
 
+    recordProfile();
     return result;
   }, [gameState.notes, gameState.currentTime, speed, isLaneUiVisible]);
 

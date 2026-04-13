@@ -2,6 +2,7 @@ import { useEffect, useRef, useMemo, type MutableRefObject } from 'react';
 import { GameState, Note } from '../types/game';
 import { judgeConfig } from '../config/judgeConfig';
 import { BASE_FALL_DURATION } from '../constants/gameConstants';
+import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 
 export interface GameLoopState {
   currentTime: number; // 게임 시간 (ms)
@@ -67,8 +68,12 @@ export function useGameLoop(
       const state = gameStateRef.current;
       let missedInFrame: Note[] = [];
       let hasMiss = false;
+      const shouldProfile = isGameplayProfilerEnabled();
+      const missScanStart = shouldProfile ? performance.now() : 0;
+      let scannedNotes = 0;
 
       for (const note of state.notes) {
+        scannedNotes += 1;
         if (note.hit) continue;
 
         const isHoldNote = note.duration > 0;
@@ -81,6 +86,10 @@ export function useGameLoop(
           missedInFrame.push(note);
           hasMiss = true;
         }
+      }
+
+      if (shouldProfile) {
+        recordGameplayMetric('missScan', performance.now() - missScanStart, scannedNotes);
       }
 
       // currentTime 업데이트 주기 (게임 중 리렌더링 부하 감소)

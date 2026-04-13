@@ -3,6 +3,7 @@ import { Lane, Note, JudgeType, GameState } from '../types/game';
 import { judgeTiming, judgeHoldReleaseTiming } from '../utils/judge';
 import { judgeConfig } from '../config/judgeConfig';
 import { LANE_POSITIONS, JUDGE_FEEDBACK_DURATION_MS } from '../constants/gameConstants';
+import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 
 export interface JudgeFeedback {
   id: number;
@@ -131,7 +132,11 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
 
       const currentTime = currentTimeRef.current;
       let targetNote: Note | null = null;
+      const shouldProfile = isGameplayProfilerEnabled();
+      const judgeScanStart = shouldProfile ? performance.now() : 0;
+      let scannedNotes = 0;
       for (const note of currentState.notes) {
+        scannedNotes += 1;
         if (note.lane !== lane || note.hit) continue;
         if (holdingNotesRef.current.has(note.id)) continue;
 
@@ -146,6 +151,10 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
 
         targetNote = note;
         break;
+      }
+
+      if (shouldProfile) {
+        recordGameplayMetric('judgeScan', performance.now() - judgeScanStart, scannedNotes);
       }
 
       if (!targetNote) return;

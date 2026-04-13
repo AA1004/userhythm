@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Note } from '../types/game';
 import { LANE_POSITIONS } from '../constants/gameConstants';
+import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 
 const HOLD_MIN_HEIGHT = 60;
 const HOLD_HEAD_HEIGHT = 32;
@@ -153,6 +154,9 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
     const render = () => {
       if (!visible || !canvasRef.current) return;
 
+      const shouldProfile = isGameplayProfilerEnabled();
+      const profileStart = shouldProfile ? performance.now() : 0;
+      let drawnNotes = 0;
       const currentTime = currentTimeRef.current;
       ctx.clearRect(0, 0, logicalWidth, logicalHeight);
 
@@ -196,6 +200,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           ctx.closePath();
           ctx.fill();
           ctx.stroke();
+          drawnNotes += 1;
         } else {
           const left = laneX - noteWidth / 2;
           const isHolding = holdingNotes.has(note.id);
@@ -326,9 +331,13 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           ctx.fill();
 
           ctx.restore();
+          drawnNotes += 1;
         }
       }
 
+      if (shouldProfile) {
+        recordGameplayMetric('noteRender', performance.now() - profileStart, drawnNotes);
+      }
       rafIdRef.current = requestAnimationFrame(render);
     };
 
