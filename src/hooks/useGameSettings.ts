@@ -9,6 +9,15 @@ import {
   GAME_VOLUME_STORAGE_KEY,
   JUDGE_LINE_Y,
 } from '../constants/gameConstants';
+import {
+  DEFAULT_GAME_VISUAL_SETTINGS,
+  GAME_VISUAL_PRESETS,
+  GameVisualSettings,
+  normalizeGameVisualSettings,
+  VISUAL_SETTINGS_STORAGE_KEY,
+  VISUAL_SETTINGS_VERSION,
+  VisualPresetId,
+} from '../constants/gameVisualSettings';
 import { profileAPI, UserProfile } from '../lib/supabaseClient';
 
 const safeReadLocalStorage = (key: string) => {
@@ -29,6 +38,23 @@ const safeWriteLocalStorage = (key: string, value: string) => {
   }
 };
 
+const readStoredVisualSettings = (): GameVisualSettings => {
+  const stored = safeReadLocalStorage(VISUAL_SETTINGS_STORAGE_KEY);
+  if (!stored) return DEFAULT_GAME_VISUAL_SETTINGS;
+
+  try {
+    const parsed = JSON.parse(stored) as Partial<GameVisualSettings>;
+    if (parsed.version !== VISUAL_SETTINGS_VERSION) {
+      console.warn('[settings] Unknown visual settings version. Restoring defaults.', parsed);
+      return DEFAULT_GAME_VISUAL_SETTINGS;
+    }
+    return normalizeGameVisualSettings(parsed);
+  } catch (error) {
+    console.warn('[settings] Failed to parse visual settings. Restoring defaults.', error);
+    return DEFAULT_GAME_VISUAL_SETTINGS;
+  }
+};
+
 export interface UseGameSettingsOptions {
   authUserId?: string | null;
   remoteProfile?: UserProfile | null;
@@ -45,6 +71,14 @@ export interface UseGameSettingsReturn {
   setIsBgaEnabled: (enabled: boolean) => void;
   judgeLineY: number;
   setJudgeLineY: (y: number) => void;
+  visualSettings: GameVisualSettings;
+  draftVisualSettings: GameVisualSettings;
+  hasPendingVisualSettings: boolean;
+  setDraftVisualSettings: (settings: Partial<GameVisualSettings>) => void;
+  commitVisualSettings: (applyToGameplay?: boolean, settingsOverride?: Partial<GameVisualSettings>) => void;
+  applyPendingVisualSettings: () => void;
+  applyVisualPreset: (presetId: Exclude<VisualPresetId, 'custom'>, applyToGameplay?: boolean) => void;
+  resetVisualSettings: (applyToGameplay?: boolean) => void;
   gameVolume: number;
   setGameVolume: (volume: number) => void;
   nextDisplayNameChangeAt: Date | null;
@@ -105,6 +139,13 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
     }
     return JUDGE_LINE_Y;
   });
+  const [draftVisualSettings, setDraftVisualSettingsState] = useState<GameVisualSettings>(() =>
+    normalizeGameVisualSettings(readStoredVisualSettings(), judgeLineY)
+  );
+  const [committedVisualSettings, setCommittedVisualSettings] = useState<GameVisualSettings>(() =>
+    normalizeGameVisualSettings(readStoredVisualSettings(), judgeLineY)
+  );
+  const [hasPendingVisualSettings, setHasPendingVisualSettings] = useState(false);
   const [gameVolume, setGameVolume] = useState<number>(() => {
     const stored = safeReadLocalStorage(GAME_VOLUME_STORAGE_KEY);
     if (stored) {
@@ -137,6 +178,93 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
   useEffect(() => {
     safeWriteLocalStorage(JUDGE_LINE_Y_STORAGE_KEY, String(judgeLineY));
   }, [judgeLineY]);
+
+  const visualSettings = useMemo(
+    () => normalizeGameVisualSettings(committedVisualSettings, judgeLineY),
+    [committedVisualSettings, judgeLineY]
+  );
+
+  const normalizedDraftVisualSettings = useMemo(
+    () => normalizeGameVisualSettings(draftVisualSettings, judgeLineY),
+    [draftVisualSettings, judgeLineY]
+  );
+
+  const setDraftVisualSettings = useCallback(
+    (settings: Partial<GameVisualSettings>) => {
+      setDraftVisualSettingsState((prev) =>
+        normalizeGameVisualSettings(
+          {
+            ...prev,
+            ...settings,
+            presetId: settings.presetId ?? 'custom',
+          },
+          judgeLineY
+        )
+      );
+    },
+    [judgeLineY]
+  );
+
+  const persistVisualSettings = useCallback((settings: GameVisualSettings) => {
+    safeWriteLocalStorage(VISUAL_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  }, []);
+
+  const commitVisualSettings = useCallback(
+    (applyToGameplay: boolean = true, settingsOverride: Partial<GameVisualSettings> = {}) => {
+      const normalized = normalizeGameVisualSettings(
+        { ...draftVisualSettings, ...settingsOverride },
+        judgeLineY
+      );
+      setDraftVisualSettingsState(normalized);
+      persistVisualSettings(normalized);
+
+      if (applyToGameplay) {
+        setCommittedVisualSettings(normalized);
+        setHasPendingVisualSettings(false);
+      } else {
+        setHasPendingVisualSettings(true);
+      }
+    },
+    [draftVisualSettings, judgeLineY, persistVisualSettings]
+  );
+
+  const applyPendingVisualSettings = useCallback(() => {
+    setCommittedVisualSettings((prev) => {
+      const normalized = normalizeGameVisualSettings(draftVisualSettings, judgeLineY);
+      return JSON.stringify(prev) === JSON.stringify(normalized) ? prev : normalized;
+    });
+    setHasPendingVisualSettings(false);
+  }, [draftVisualSettings, judgeLineY]);
+
+  const applyVisualPreset = useCallback(
+    (presetId: Exclude<VisualPresetId, 'custom'>, applyToGameplay: boolean = true) => {
+      const normalized = normalizeGameVisualSettings(GAME_VISUAL_PRESETS[presetId], judgeLineY);
+      setDraftVisualSettingsState(normalized);
+      persistVisualSettings(normalized);
+      if (applyToGameplay) {
+        setCommittedVisualSettings(normalized);
+        setHasPendingVisualSettings(false);
+      } else {
+        setHasPendingVisualSettings(true);
+      }
+    },
+    [judgeLineY, persistVisualSettings]
+  );
+
+  const resetVisualSettings = useCallback(
+    (applyToGameplay: boolean = true) => {
+      const normalized = normalizeGameVisualSettings(DEFAULT_GAME_VISUAL_SETTINGS, judgeLineY);
+      setDraftVisualSettingsState(normalized);
+      persistVisualSettings(normalized);
+      if (applyToGameplay) {
+        setCommittedVisualSettings(normalized);
+        setHasPendingVisualSettings(false);
+      } else {
+        setHasPendingVisualSettings(true);
+      }
+    },
+    [judgeLineY, persistVisualSettings]
+  );
 
   useEffect(() => {
     safeWriteLocalStorage(GAME_VOLUME_STORAGE_KEY, String(gameVolume));
@@ -204,6 +332,14 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
     setIsBgaEnabled,
     judgeLineY,
     setJudgeLineY,
+    visualSettings,
+    draftVisualSettings: normalizedDraftVisualSettings,
+    hasPendingVisualSettings,
+    setDraftVisualSettings,
+    commitVisualSettings,
+    applyPendingVisualSettings,
+    applyVisualPreset,
+    resetVisualSettings,
     gameVolume,
     setGameVolume,
     nextDisplayNameChangeAt,

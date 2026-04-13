@@ -1,5 +1,11 @@
-import React, { useState } from 'react';
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
+import {
+  GAME_VISUAL_PRESETS,
+  GameVisualSettings,
+  VISUAL_SETTING_LIMITS,
+  VisualPresetId,
+} from '../constants/gameVisualSettings';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -23,9 +29,60 @@ interface SettingsModalProps {
   // 판정선 위치 관련
   judgeLineY: number;
   onJudgeLineYChange: (y: number) => void;
+  // 비주얼 설정 관련
+  visualSettings: GameVisualSettings;
+  hasPendingVisualSettings: boolean;
+  isGameplayActive: boolean;
+  onVisualSettingsChange: (settings: Partial<GameVisualSettings>) => void;
+  onVisualSettingsCommit: (applyToGameplay?: boolean, settingsOverride?: Partial<GameVisualSettings>) => void;
+  onApplyVisualPreset: (presetId: Exclude<VisualPresetId, 'custom'>, applyToGameplay?: boolean) => void;
+  onResetVisualSettings: (applyToGameplay?: boolean) => void;
   // 역할 표시
   currentRoleLabel: string;
 }
+
+interface VisualSliderRowProps {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  suffix?: string;
+  onChange: (value: number) => void;
+  onCommit: () => void;
+}
+
+const VisualSliderRow = memo<VisualSliderRowProps>(({
+  label,
+  value,
+  min,
+  max,
+  step,
+  suffix = 'px',
+  onChange,
+  onCommit,
+}) => {
+  return (
+    <div style={{ marginBottom: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '4px' }}>
+        <span>{label}</span>
+        <strong style={{ color: CHART_EDITOR_THEME.textPrimary }}>{value}{suffix}</strong>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        onPointerUp={onCommit}
+        onKeyUp={onCommit}
+        onBlur={onCommit}
+        style={{ width: '100%', accentColor: CHART_EDITOR_THEME.accent }}
+      />
+    </div>
+  );
+});
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
@@ -44,10 +101,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onBgaChange,
   judgeLineY,
   onJudgeLineYChange,
+  visualSettings,
+  hasPendingVisualSettings,
+  isGameplayActive,
+  onVisualSettingsChange,
+  onVisualSettingsCommit,
+  onApplyVisualPreset,
+  onResetVisualSettings,
   currentRoleLabel,
 }) => {
   const [isSavingNickname, setIsSavingNickname] = useState(false);
   const [recordingKeyIndex, setRecordingKeyIndex] = useState<number | null>(null);
+  const visualRafRef = useRef<number | null>(null);
+  const queuedVisualSettingsRef = useRef<Partial<GameVisualSettings>>({});
 
   if (!isOpen) return null;
 
@@ -71,6 +137,55 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   };
 
+  const commitVisualSettings = useCallback(() => {
+    const queued = queuedVisualSettingsRef.current;
+    queuedVisualSettingsRef.current = {};
+    if (visualRafRef.current !== null) {
+      cancelAnimationFrame(visualRafRef.current);
+      visualRafRef.current = null;
+    }
+    if (Object.keys(queued).length > 0) {
+      onVisualSettingsChange(queued);
+    }
+    onVisualSettingsCommit(!isGameplayActive, queued);
+  }, [isGameplayActive, onVisualSettingsChange, onVisualSettingsCommit]);
+
+  const scheduleVisualSettingsChange = useCallback(
+    (settings: Partial<GameVisualSettings>) => {
+      queuedVisualSettingsRef.current = {
+        ...queuedVisualSettingsRef.current,
+        ...settings,
+        presetId: 'custom',
+      };
+
+      if (visualRafRef.current !== null) return;
+
+      visualRafRef.current = requestAnimationFrame(() => {
+        visualRafRef.current = null;
+        const queued = queuedVisualSettingsRef.current;
+        queuedVisualSettingsRef.current = {};
+        onVisualSettingsChange(queued);
+      });
+    },
+    [onVisualSettingsChange]
+  );
+
+  const handlePresetClick = (presetId: Exclude<VisualPresetId, 'custom'>) => {
+    onApplyVisualPreset(presetId, !isGameplayActive);
+  };
+
+  const handleResetVisualSettings = () => {
+    onResetVisualSettings(!isGameplayActive);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (visualRafRef.current !== null) {
+        cancelAnimationFrame(visualRafRef.current);
+      }
+    };
+  }, []);
+
   const formatNextChangeDate = (date: Date | null) => {
     if (!date) return '';
     const now = new Date();
@@ -83,6 +198,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (days > 0) return `${days}일 ${hours}시간 후 변경 가능`;
     return `${hours}시간 후 변경 가능`;
   };
+
+  const keyLaneMin = Math.min(
+    700,
+    judgeLineY + VISUAL_SETTING_LIMITS.keyLaneY.minGapFromJudgeLine
+  );
 
   return (
     <div
@@ -312,6 +432,118 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginTop: '6px' }}>
             판정선을 위로 올리면 노트가 더 빨리 도착합니다.
           </p>
+        </div>
+
+        <div style={{ marginBottom: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <h3 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px', margin: 0 }}>
+              비주얼 설정
+            </h3>
+            <button
+              onClick={handleResetVisualSettings}
+              style={{
+                padding: '4px 8px',
+                borderRadius: CHART_EDITOR_THEME.radiusSm,
+                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                background: 'transparent',
+                color: CHART_EDITOR_THEME.textSecondary,
+                fontSize: '12px',
+                cursor: 'pointer',
+              }}
+            >
+              기본값으로
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '14px' }}>
+            {(Object.keys(GAME_VISUAL_PRESETS) as Array<Exclude<VisualPresetId, 'custom'>>).map((presetId) => (
+              <button
+                key={presetId}
+                onClick={() => handlePresetClick(presetId)}
+                style={{
+                  padding: '8px 6px',
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  border: `1px solid ${visualSettings.presetId === presetId ? CHART_EDITOR_THEME.accent : CHART_EDITOR_THEME.borderSubtle}`,
+                  background: visualSettings.presetId === presetId ? CHART_EDITOR_THEME.accentSoft : 'transparent',
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  textTransform: 'capitalize',
+                }}
+              >
+                {presetId}
+              </button>
+            ))}
+          </div>
+
+          <VisualSliderRow
+            label="레인 폭"
+            value={visualSettings.laneWidth}
+            min={VISUAL_SETTING_LIMITS.laneWidth.min}
+            max={VISUAL_SETTING_LIMITS.laneWidth.max}
+            step={1}
+            onChange={(value) => scheduleVisualSettingsChange({ laneWidth: value })}
+            onCommit={commitVisualSettings}
+          />
+          <VisualSliderRow
+            label="레인 간격"
+            value={visualSettings.laneGap}
+            min={VISUAL_SETTING_LIMITS.laneGap.min}
+            max={VISUAL_SETTING_LIMITS.laneGap.max}
+            step={1}
+            onChange={(value) => scheduleVisualSettingsChange({ laneGap: value })}
+            onCommit={commitVisualSettings}
+          />
+          <VisualSliderRow
+            label="레인 묶음 X 오프셋"
+            value={visualSettings.laneOffsetX}
+            min={-80}
+            max={80}
+            step={1}
+            onChange={(value) => scheduleVisualSettingsChange({ laneOffsetX: value })}
+            onCommit={commitVisualSettings}
+          />
+          <VisualSliderRow
+            label="키 박스 위치"
+            value={visualSettings.keyLaneY}
+            min={keyLaneMin}
+            max={700}
+            step={5}
+            onChange={(value) => scheduleVisualSettingsChange({ keyLaneY: value })}
+            onCommit={commitVisualSettings}
+          />
+          <VisualSliderRow
+            label="노트 폭"
+            value={visualSettings.noteWidth}
+            min={VISUAL_SETTING_LIMITS.noteWidth.min}
+            max={visualSettings.laneWidth}
+            step={1}
+            onChange={(value) => scheduleVisualSettingsChange({ noteWidth: value })}
+            onCommit={commitVisualSettings}
+          />
+          <VisualSliderRow
+            label="노트 높이"
+            value={visualSettings.noteHeight}
+            min={VISUAL_SETTING_LIMITS.noteHeight.min}
+            max={VISUAL_SETTING_LIMITS.noteHeight.max}
+            step={1}
+            onChange={(value) => scheduleVisualSettingsChange({ noteHeight: value })}
+            onCommit={commitVisualSettings}
+          />
+
+          <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginTop: '6px', lineHeight: 1.5 }}>
+            판정선은 위 설정과 분리됩니다. 키 박스 위치는 시각 위치만 바꾸고, 노트 도착점은 판정선 위치를 따릅니다.
+          </p>
+          {isGameplayActive && (
+            <p style={{ color: CHART_EDITOR_THEME.accentStrong, fontSize: '11px', marginTop: '6px', lineHeight: 1.5 }}>
+              플레이 중 변경한 비주얼 설정은 다음 판부터 적용됩니다.
+            </p>
+          )}
+          {hasPendingVisualSettings && (
+            <p style={{ color: CHART_EDITOR_THEME.success, fontSize: '11px', marginTop: '6px', lineHeight: 1.5 }}>
+              다음 판에 적용될 비주얼 설정이 있습니다.
+            </p>
+          )}
         </div>
 
         {/* 역할 표시 */}

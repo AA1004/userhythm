@@ -33,10 +33,7 @@ import { FpsHud } from './FpsHud';
 import { Score } from './Score';
 import { TutorialScreen } from './TutorialScreen';
 import { GAME_VIEW_WIDTH, GAME_VIEW_HEIGHT } from '../constants/gameLayout';
-import {
-  buildPlayfieldGeometry,
-  DEFAULT_GAME_VISUAL_SETTINGS,
-} from '../constants/gameVisualSettings';
+import { buildPlayfieldGeometry } from '../constants/gameVisualSettings';
 
 // Subtitle editor chart data
 interface SubtitleEditorChartData {
@@ -101,6 +98,14 @@ export const Game: React.FC = () => {
     setIsBgaEnabled,
     judgeLineY,
     setJudgeLineY,
+    visualSettings,
+    draftVisualSettings,
+    hasPendingVisualSettings,
+    setDraftVisualSettings,
+    commitVisualSettings,
+    applyPendingVisualSettings,
+    applyVisualPreset,
+    resetVisualSettings,
     nextDisplayNameChangeAt,
     handleDisplayNameSave,
     handleKeyBindingChange,
@@ -148,9 +153,20 @@ export const Game: React.FC = () => {
   }, [gameState]);
 
   const playfieldGeometry = useMemo(
-    () => buildPlayfieldGeometry(DEFAULT_GAME_VISUAL_SETTINGS, judgeLineY),
-    [judgeLineY]
+    () => buildPlayfieldGeometry(visualSettings, judgeLineY),
+    [visualSettings, judgeLineY]
   );
+
+  useEffect(() => {
+    if (hasPendingVisualSettings && (!gameState.gameStarted || gameState.gameEnded)) {
+      applyPendingVisualSettings();
+    }
+  }, [
+    hasPendingVisualSettings,
+    gameState.gameStarted,
+    gameState.gameEnded,
+    applyPendingVisualSettings,
+  ]);
 
   useEffect(() => {
     const updateViewportSize = () => {
@@ -781,6 +797,13 @@ export const Game: React.FC = () => {
         onBgaChange={setIsBgaEnabled}
         judgeLineY={judgeLineY}
         onJudgeLineYChange={setJudgeLineY}
+        visualSettings={draftVisualSettings}
+        hasPendingVisualSettings={hasPendingVisualSettings}
+        isGameplayActive={gameState.gameStarted && !gameState.gameEnded}
+        onVisualSettingsChange={setDraftVisualSettings}
+        onVisualSettingsCommit={commitVisualSettings}
+        onApplyVisualPreset={applyVisualPreset}
+        onResetVisualSettings={resetVisualSettings}
         currentRoleLabel={currentRoleLabel}
       />
     </VideoRhythmLayout>
