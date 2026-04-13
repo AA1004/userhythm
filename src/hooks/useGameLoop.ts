@@ -4,6 +4,15 @@ import { judgeConfig } from '../config/judgeConfig';
 import { BASE_FALL_DURATION } from '../constants/gameConstants';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 
+const getNoteMissDeadline = (note: Note) =>
+  note.duration > 0 ? note.endTime ?? note.time + note.duration : note.time;
+
+const getNotesSignature = (notes: Note[]) => {
+  const first = notes[0];
+  const last = notes[notes.length - 1];
+  return `${notes.length}:${first?.id ?? 'none'}:${first?.time ?? 0}:${last?.id ?? 'none'}:${last?.time ?? 0}`;
+};
+
 export interface GameLoopState {
   currentTime: number; // 게임 시간 (ms)
   gameStarted: boolean;
@@ -26,6 +35,9 @@ export function useGameLoop(
   const lastTimeRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
   const delayRef = useRef<number>(startDelayMs);
+  const missScanIndexRef = useRef<number>(0);
+  const missOrderRef = useRef<number[]>([]);
+  const notesSignatureRef = useRef<string>('');
   
   // 게임 시간을 ref에 저장 (렌더링 루프에서 사용)
   const internalCurrentTimeRef = useRef<number>(0);
@@ -48,6 +60,7 @@ export function useGameLoop(
       startTimeRef.current = 0;
       lastTimeRef.current = 0;
       currentTimeRef.current = 0;
+      missScanIndexRef.current = 0;
       return;
     }
 
@@ -71,21 +84,32 @@ export function useGameLoop(
       const shouldProfile = isGameplayProfilerEnabled();
       const missScanStart = shouldProfile ? performance.now() : 0;
       let scannedNotes = 0;
+      const notesSignature = getNotesSignature(state.notes);
+      if (notesSignatureRef.current !== notesSignature) {
+        notesSignatureRef.current = notesSignature;
+        missScanIndexRef.current = 0;
+        missOrderRef.current = state.notes
+          .map((_, index) => index)
+          .sort((a, b) => getNoteMissDeadline(state.notes[a]) - getNoteMissDeadline(state.notes[b]));
+      }
 
-      for (const note of state.notes) {
+      const missOrder = missOrderRef.current;
+      while (missScanIndexRef.current < missOrder.length) {
+        const note = state.notes[missOrder[missScanIndexRef.current]];
         scannedNotes += 1;
-        if (note.hit) continue;
+        if (!note) {
+          missScanIndexRef.current += 1;
+          continue;
+        }
 
-        const isHoldNote = note.duration > 0;
-        const timeUntilMiss = isHoldNote
-          ? note.endTime - elapsedTime
-          : note.time - elapsedTime;
+        const timeUntilMiss = getNoteMissDeadline(note) - elapsedTime;
+        if (timeUntilMiss >= -missThreshold) break;
 
-        // Miss 판정 (화면을 지나간 노트)
-        if (timeUntilMiss < -missThreshold) {
+        if (!note.hit) {
           missedInFrame.push(note);
           hasMiss = true;
         }
+        missScanIndexRef.current += 1;
       }
 
       if (shouldProfile) {

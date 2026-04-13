@@ -7,6 +7,82 @@ const HOLD_MIN_HEIGHT = 60;
 const HOLD_HEAD_HEIGHT = 32;
 const NOTE_SPAWN_Y = -100;
 const NOTE_RENDER_BUFFER = 180;
+const NOTE_SPRITE_CACHE_LIMIT = 24;
+
+type NoteSpriteType = 'tap' | 'holdHead';
+
+const noteSpriteCache = new Map<string, HTMLCanvasElement>();
+
+const drawRoundedRect = (
+  ctx: CanvasRenderingContext2D,
+  left: number,
+  top: number,
+  width: number,
+  height: number,
+  radius: number
+) => {
+  const safeRadius = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(left + safeRadius, top);
+  ctx.lineTo(left + width - safeRadius, top);
+  ctx.quadraticCurveTo(left + width, top, left + width, top + safeRadius);
+  ctx.lineTo(left + width, top + height - safeRadius);
+  ctx.quadraticCurveTo(left + width, top + height, left + width - safeRadius, top + height);
+  ctx.lineTo(left + safeRadius, top + height);
+  ctx.quadraticCurveTo(left, top + height, left, top + height - safeRadius);
+  ctx.lineTo(left, top + safeRadius);
+  ctx.quadraticCurveTo(left, top, left + safeRadius, top);
+  ctx.closePath();
+};
+
+const getNoteSprite = (
+  type: NoteSpriteType,
+  noteWidth: number,
+  noteHeight: number,
+  isHolding: boolean,
+  themeVariant: 'default' = 'default'
+) => {
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.round(noteWidth);
+  const height = Math.round(noteHeight);
+  const cacheKey = `${type}:${width}:${height}:${isHolding ? 'holding' : 'idle'}:${themeVariant}:${dpr}`;
+  const cached = noteSpriteCache.get(cacheKey);
+  if (cached) return cached;
+
+  const sprite = document.createElement('canvas');
+  sprite.width = Math.max(1, Math.round(width * dpr));
+  sprite.height = Math.max(1, Math.round(height * dpr));
+  const spriteCtx = sprite.getContext('2d');
+  if (!spriteCtx) return sprite;
+
+  spriteCtx.scale(dpr, dpr);
+
+  if (type === 'tap') {
+    const gradient = spriteCtx.createLinearGradient(0, 0, 0, height);
+    gradient.addColorStop(0, '#FF6B6B');
+    gradient.addColorStop(1, '#FF9A8B');
+    spriteCtx.fillStyle = gradient;
+    spriteCtx.strokeStyle = '#EE5A52';
+    spriteCtx.lineWidth = 3;
+    drawRoundedRect(spriteCtx, 1.5, 1.5, width - 3, height - 3, 14);
+    spriteCtx.fill();
+    spriteCtx.stroke();
+  } else {
+    const gradient = spriteCtx.createLinearGradient(0, 0, 0, height);
+    gradient.addColorStop(0, isHolding ? 'rgba(255,255,255,0.98)' : 'rgba(255,255,255,0.9)');
+    gradient.addColorStop(1, isHolding ? 'rgba(255,244,196,0.82)' : 'rgba(255,255,255,0.68)');
+    spriteCtx.fillStyle = gradient;
+    drawRoundedRect(spriteCtx, 0, 0, width, height, 10);
+    spriteCtx.fill();
+  }
+
+  if (noteSpriteCache.size >= NOTE_SPRITE_CACHE_LIMIT) {
+    const firstKey = noteSpriteCache.keys().next().value;
+    if (firstKey) noteSpriteCache.delete(firstKey);
+  }
+  noteSpriteCache.set(cacheKey, sprite);
+  return sprite;
+};
 
 interface TapRenderPosition {
   left: number;
@@ -122,6 +198,10 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
   const rafIdRef = useRef<number>();
 
   useEffect(() => {
+    noteSpriteCache.clear();
+  }, [noteWidth, noteHeight]);
+
+  useEffect(() => {
     if (!visible || !canvasRef.current) {
       if (rafIdRef.current) {
         cancelAnimationFrame(rafIdRef.current);
@@ -179,27 +259,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           if (!position) continue;
           const { left, top } = position;
 
-          const gradient = ctx.createLinearGradient(left, top, left, top + noteHeight);
-          gradient.addColorStop(0, '#FF6B6B');
-          gradient.addColorStop(1, '#FF9A8B');
-
-          ctx.fillStyle = gradient;
-          ctx.strokeStyle = '#EE5A52';
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          const radius = 14;
-          ctx.moveTo(left + radius, top);
-          ctx.lineTo(left + noteWidth - radius, top);
-          ctx.quadraticCurveTo(left + noteWidth, top, left + noteWidth, top + radius);
-          ctx.lineTo(left + noteWidth, top + noteHeight - radius);
-          ctx.quadraticCurveTo(left + noteWidth, top + noteHeight, left + noteWidth - radius, top + noteHeight);
-          ctx.lineTo(left + radius, top + noteHeight);
-          ctx.quadraticCurveTo(left, top + noteHeight, left, top + noteHeight - radius);
-          ctx.lineTo(left, top + radius);
-          ctx.quadraticCurveTo(left, top, left + radius, top);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
+          ctx.drawImage(getNoteSprite('tap', noteWidth, noteHeight, false), left, top, noteWidth, noteHeight);
           drawnNotes += 1;
         } else {
           const left = laneX - noteWidth / 2;
@@ -236,38 +296,18 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           ctx.fillStyle = bgGradient;
           ctx.strokeStyle = 'rgba(255,255,255,0.25)';
           ctx.lineWidth = 2;
-          ctx.beginPath();
           const radius = 18;
-          ctx.moveTo(left + radius, containerTop);
-          ctx.lineTo(left + noteWidth - radius, containerTop);
-          ctx.quadraticCurveTo(left + noteWidth, containerTop, left + noteWidth, containerTop + radius);
-          ctx.lineTo(left + noteWidth, containerTop + containerHeight - radius);
-          ctx.quadraticCurveTo(left + noteWidth, containerTop + containerHeight, left + noteWidth - radius, containerTop + containerHeight);
-          ctx.lineTo(left + radius, containerTop + containerHeight);
-          ctx.quadraticCurveTo(left, containerTop + containerHeight, left, containerTop + containerHeight - radius);
-          ctx.lineTo(left, containerTop + radius);
-          ctx.quadraticCurveTo(left, containerTop, left + radius, containerTop);
-          ctx.closePath();
+          drawRoundedRect(ctx, left, containerTop, noteWidth, containerHeight, radius);
           ctx.fill();
           ctx.stroke();
 
           ctx.fillStyle = 'rgba(255,255,255,0.4)';
-          ctx.beginPath();
           const highlightRadius = 12;
           const highlightLeft = left + noteWidth * 0.1;
           const highlightTop = containerTop + 4;
           const highlightWidth = noteWidth * 0.8;
           const highlightHeight = 12;
-          ctx.moveTo(highlightLeft + highlightRadius, highlightTop);
-          ctx.lineTo(highlightLeft + highlightWidth - highlightRadius, highlightTop);
-          ctx.quadraticCurveTo(highlightLeft + highlightWidth, highlightTop, highlightLeft + highlightWidth, highlightTop + highlightRadius);
-          ctx.lineTo(highlightLeft + highlightWidth, highlightTop + highlightHeight - highlightRadius);
-          ctx.quadraticCurveTo(highlightLeft + highlightWidth, highlightTop + highlightHeight, highlightLeft + highlightWidth - highlightRadius, highlightTop + highlightHeight);
-          ctx.lineTo(highlightLeft + highlightRadius, highlightTop + highlightHeight);
-          ctx.quadraticCurveTo(highlightLeft, highlightTop + highlightHeight, highlightLeft, highlightTop + highlightHeight - highlightRadius);
-          ctx.lineTo(highlightLeft, highlightTop + highlightRadius);
-          ctx.quadraticCurveTo(highlightLeft, highlightTop, highlightLeft + highlightRadius, highlightTop);
-          ctx.closePath();
+          drawRoundedRect(ctx, highlightLeft, highlightTop, highlightWidth, highlightHeight, highlightRadius);
           ctx.fill();
 
           if (holdProgress > 0) {
@@ -286,49 +326,24 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
               progressGradient.addColorStop(0.7, 'rgba(255,255,255,0.15)');
             }
             ctx.fillStyle = progressGradient;
-            ctx.beginPath();
             const progressRadius = 10;
             const progressLeft = left + noteWidth * 0.18;
             const progressTop = containerTop + containerHeight - holdHeadHeight - progressHeight;
             const progressWidth = noteWidth * 0.64;
-            ctx.moveTo(progressLeft + progressRadius, progressTop);
-            ctx.lineTo(progressLeft + progressWidth - progressRadius, progressTop);
-            ctx.quadraticCurveTo(progressLeft + progressWidth, progressTop, progressLeft + progressWidth, progressTop + progressRadius);
-            ctx.lineTo(progressLeft + progressWidth, progressTop + progressHeight - progressRadius);
-            ctx.quadraticCurveTo(progressLeft + progressWidth, progressTop + progressHeight, progressLeft + progressWidth - progressRadius, progressTop + progressHeight);
-            ctx.lineTo(progressLeft + progressRadius, progressTop + progressHeight);
-            ctx.quadraticCurveTo(progressLeft, progressTop + progressHeight, progressLeft, progressTop + progressHeight - progressRadius);
-            ctx.lineTo(progressLeft, progressTop + progressRadius);
-            ctx.quadraticCurveTo(progressLeft, progressTop, progressLeft + progressRadius, progressTop);
-            ctx.closePath();
+            drawRoundedRect(ctx, progressLeft, progressTop, progressWidth, progressHeight, progressRadius);
             ctx.fill();
           }
 
-          const headGradient = ctx.createLinearGradient(
-            left + 6,
-            containerTop + containerHeight - holdHeadHeight,
-            left + 6,
-            containerTop + containerHeight
-          );
-          headGradient.addColorStop(0, 'rgba(255,255,255,0.95)');
-          headGradient.addColorStop(1, 'rgba(255,255,255,0.7)');
-          ctx.fillStyle = headGradient;
-          ctx.beginPath();
-          const headRadius = 10;
           const headLeft = left + 6;
           const headTop = containerTop + containerHeight - holdHeadHeight;
           const headWidth = noteWidth - 12;
-          ctx.moveTo(headLeft + headRadius, headTop);
-          ctx.lineTo(headLeft + headWidth - headRadius, headTop);
-          ctx.quadraticCurveTo(headLeft + headWidth, headTop, headLeft + headWidth, headTop + headRadius);
-          ctx.lineTo(headLeft + headWidth, headTop + holdHeadHeight - headRadius);
-          ctx.quadraticCurveTo(headLeft + headWidth, headTop + holdHeadHeight, headLeft + headWidth - headRadius, headTop + holdHeadHeight);
-          ctx.lineTo(headLeft + headRadius, headTop + holdHeadHeight);
-          ctx.quadraticCurveTo(headLeft, headTop + holdHeadHeight, headLeft, headTop + holdHeadHeight - headRadius);
-          ctx.lineTo(headLeft, headTop + headRadius);
-          ctx.quadraticCurveTo(headLeft, headTop, headLeft + headRadius, headTop);
-          ctx.closePath();
-          ctx.fill();
+          ctx.drawImage(
+            getNoteSprite('holdHead', headWidth, holdHeadHeight, isHolding),
+            headLeft,
+            headTop,
+            headWidth,
+            holdHeadHeight
+          );
 
           ctx.restore();
           drawnNotes += 1;

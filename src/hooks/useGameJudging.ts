@@ -5,6 +5,20 @@ import { judgeConfig } from '../config/judgeConfig';
 import { LANE_POSITIONS, JUDGE_FEEDBACK_DURATION_MS } from '../constants/gameConstants';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 
+function binarySearchFirstNoteAtOrAfter(notes: Note[], targetTime: number): number {
+  let low = 0;
+  let high = notes.length;
+  while (low < high) {
+    const mid = (low + high) >>> 1;
+    if (notes[mid].time < targetTime) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  return low;
+}
+
 export interface JudgeFeedback {
   id: number;
   judge: JudgeType;
@@ -135,19 +149,19 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       const shouldProfile = isGameplayProfilerEnabled();
       const judgeScanStart = shouldProfile ? performance.now() : 0;
       let scannedNotes = 0;
-      for (const note of currentState.notes) {
+      const searchStartIndex = binarySearchFirstNoteAtOrAfter(
+        currentState.notes,
+        currentTime - judgeConfig.noteSearchRange
+      );
+      for (let i = searchStartIndex; i < currentState.notes.length; i++) {
+        const note = currentState.notes[i];
         scannedNotes += 1;
-        if (note.lane !== lane || note.hit) continue;
-        if (holdingNotesRef.current.has(note.id)) continue;
-
         const timeDiff = note.time - currentTime;
-        if (timeDiff < -judgeConfig.noteSearchRange) {
-          continue;
-        }
         if (timeDiff > judgeConfig.noteSearchRange) {
-          // Notes are time-sorted; no need to scan further in this lane.
           break;
         }
+        if (note.lane !== lane || note.hit) continue;
+        if (holdingNotesRef.current.has(note.id)) continue;
 
         targetNote = note;
         break;
