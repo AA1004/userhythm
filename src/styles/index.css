@@ -237,9 +237,9 @@ body {
   pointer-events: none;
   color: #eef7f2;
   background:
-    radial-gradient(circle at 22% 18%, rgba(0, 229, 176, 0.32), transparent 30%),
-    radial-gradient(circle at 86% 12%, rgba(255, 78, 122, 0.24), transparent 28%),
-    linear-gradient(180deg, rgba(6, 7, 10, 0.1), rgba(6, 7, 10, 0.78));
+    radial-gradient(circle at 26% 16%, rgba(0, 229, 176, 0.18), transparent 34%),
+    radial-gradient(circle at 78% 18%, rgba(255, 78, 122, 0.14), transparent 32%),
+    linear-gradient(180deg, rgba(6, 7, 10, 0.16), rgba(6, 7, 10, 0.74));
 }
 
 .game-menu-grid {
@@ -259,15 +259,15 @@ body {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 460px;
-  height: 760px;
+  width: 430px;
+  height: 720px;
   transform: translate(-50%, -50%);
   border-left: 1px solid rgba(119, 255, 214, 0.32);
   border-right: 1px solid rgba(255, 78, 122, 0.28);
   box-shadow:
     inset 0 0 40px rgba(119, 255, 214, 0.08),
     0 0 48px rgba(255, 78, 122, 0.16);
-  animation: menuStageBreath 1400ms ease-in-out infinite;
+  animation: menuStageBreath 2400ms ease-in-out infinite;
 }
 
 .game-menu-lanes {
@@ -280,7 +280,7 @@ body {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
-  opacity: 0.72;
+  opacity: 0.42;
 }
 
 .game-menu-lanes span {
@@ -288,9 +288,7 @@ body {
   overflow: hidden;
   border-left: 1px solid rgba(119, 255, 214, 0.26);
   border-right: 1px solid rgba(255, 255, 255, 0.1);
-  background:
-    linear-gradient(180deg, rgba(119, 255, 214, 0.04), rgba(255, 78, 122, 0.02)),
-    repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0 2px, transparent 2px 52px);
+  background: linear-gradient(180deg, rgba(119, 255, 214, 0.03), rgba(255, 78, 122, 0.015));
 }
 
 .game-menu-lanes span::after {
@@ -298,20 +296,20 @@ body {
   position: absolute;
   left: 50%;
   top: -26%;
-  width: min(58px, 72%);
-  height: 76px;
+  width: min(42px, 58%);
+  height: 48px;
   border-radius: 8px;
   transform: translateX(-50%);
-  background: linear-gradient(180deg, rgba(0, 229, 176, 0.05), rgba(0, 229, 176, 0.95));
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 0 18px rgba(119, 255, 214, 0.55);
-  animation: menuNoteFall 1280ms cubic-bezier(0.16, 0.92, 0.24, 1) infinite;
+  background: linear-gradient(180deg, rgba(0, 229, 176, 0.08), rgba(0, 229, 176, 0.72));
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 0 12px rgba(119, 255, 214, 0.28);
+  animation: menuNoteFall 1900ms cubic-bezier(0.16, 0.92, 0.24, 1) infinite;
 }
 
 .game-menu-lanes span:nth-child(2)::after {
   animation-delay: 180ms;
-  background: linear-gradient(180deg, rgba(255, 78, 122, 0.05), rgba(255, 78, 122, 0.88));
-  box-shadow: 0 0 18px rgba(255, 78, 122, 0.5);
+  background: linear-gradient(180deg, rgba(255, 78, 122, 0.08), rgba(255, 78, 122, 0.62));
+  box-shadow: 0 0 12px rgba(255, 78, 122, 0.26);
 }
 
 .game-menu-lanes span:nth-child(3)::after {
@@ -320,21 +318,8 @@ body {
 
 .game-menu-lanes span:nth-child(4)::after {
   animation-delay: 620ms;
-  background: linear-gradient(180deg, rgba(255, 184, 77, 0.06), rgba(255, 184, 77, 0.9));
-  box-shadow: 0 0 18px rgba(255, 184, 77, 0.46);
-}
-
-.game-menu-judgeline {
-  position: absolute;
-  left: 50%;
-  bottom: 104px;
-  width: 420px;
-  height: 5px;
-  transform: translateX(-50%);
-  border-radius: 999px;
-  background: linear-gradient(90deg, transparent, #ff4e7a 18%, #ffcf5f 50%, #77ffd6 82%, transparent);
-  box-shadow: 0 0 18px rgba(255, 78, 122, 0.6), 0 0 32px rgba(119, 255, 214, 0.34);
-  animation: menuJudgePulse 720ms ease-in-out infinite;
+  background: linear-gradient(180deg, rgba(255, 184, 77, 0.08), rgba(255, 184, 77, 0.62));
+  box-shadow: 0 0 12px rgba(255, 184, 77, 0.24);
 }
 
 .game-menu-panel {
@@ -344,30 +329,13 @@ body {
   height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   gap: 14px;
-  padding: 30px 24px 26px;
+  padding: 44px 36px;
   text-align: center;
   pointer-events: auto;
   animation: menuPanelIn 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-.game-menu-topline {
-  width: min(430px, 100%);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: rgba(238, 247, 242, 0.58);
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.game-menu-topline span:first-child {
-  color: #ff4e7a;
-  animation: menuLiveBlink 920ms steps(2, end) infinite;
 }
 
 .game-menu-main {
@@ -375,7 +343,7 @@ body {
   display: grid;
   justify-items: center;
   gap: 17px;
-  transform: translateY(4px);
+  transform: translateY(0);
 }
 
 .game-menu-kicker {
@@ -397,18 +365,14 @@ body {
   animation: menuHeroFloat 1800ms ease-in-out infinite;
 }
 
-.game-menu-hero .ur-logo {
-  --ur-logo-size: 46px;
-}
-
 .game-menu-hero .ur-tagline {
-  margin-top: 14px;
+  margin-top: 12px;
   color: rgba(238, 247, 242, 0.84);
   font-weight: 700;
 }
 
 .game-menu-equalizer {
-  height: 34px;
+  height: 24px;
   display: flex;
   align-items: end;
   justify-content: center;
@@ -416,18 +380,18 @@ body {
 }
 
 .game-menu-equalizer i {
-  width: 5px;
+  width: 4px;
   height: 10px;
   border-radius: 8px 8px 2px 2px;
   background: linear-gradient(180deg, #ff4e7a, #77ffd6);
   box-shadow: 0 0 12px rgba(119, 255, 214, 0.35);
-  animation: menuEqualizer 420ms ease-in-out infinite alternate;
+  animation: menuEqualizer 760ms ease-in-out infinite alternate;
 }
 
 .game-menu-actions {
   width: min(430px, 100%);
   display: grid;
-  gap: 10px;
+  gap: 9px;
   perspective: 800px;
 }
 
@@ -442,18 +406,18 @@ body {
 }
 
 .game-menu-action {
-  min-height: 54px;
+  min-height: 50px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 18px;
   font-weight: 900;
   background: rgba(7, 16, 14, 0.76);
-  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.42);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.34);
   overflow: hidden;
   position: relative;
   transition: transform 150ms ease, border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
-  animation: menuActionIn 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: menuActionIn 460ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .game-menu-action:nth-child(1) {
@@ -477,8 +441,8 @@ body {
   position: absolute;
   inset: -40% -18%;
   transform: translateX(-120%) rotate(16deg);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
-  animation: menuButtonSweep 2200ms ease-in-out infinite;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+  animation: menuButtonSweep 3200ms ease-in-out infinite;
 }
 
 .game-menu-action > span,
@@ -500,7 +464,7 @@ body {
 
 .game-menu-action:hover:not(:disabled),
 .game-menu-action:focus-visible:not(:disabled) {
-  transform: translateY(-3px) rotateX(4deg);
+  transform: translateY(-2px);
   border-color: rgba(119, 255, 214, 0.7);
   box-shadow: 0 20px 42px rgba(0, 0, 0, 0.52), 0 0 18px rgba(119, 255, 214, 0.16);
 }
@@ -592,32 +556,6 @@ body {
   line-height: 1.45;
 }
 
-.game-menu-bottomline {
-  width: min(430px, 100%);
-  height: 18px;
-  display: grid;
-  grid-template-columns: 1fr 1.4fr 1fr;
-  gap: 8px;
-  opacity: 0.78;
-}
-
-.game-menu-bottomline span {
-  border-radius: 999px;
-  background: linear-gradient(90deg, transparent, rgba(119, 255, 214, 0.86), transparent);
-  box-shadow: 0 0 18px rgba(119, 255, 214, 0.34);
-  animation: menuBottomScan 880ms ease-in-out infinite alternate;
-}
-
-.game-menu-bottomline span:nth-child(2) {
-  background: linear-gradient(90deg, transparent, rgba(255, 207, 95, 0.92), transparent);
-  animation-delay: 120ms;
-}
-
-.game-menu-bottomline span:nth-child(3) {
-  background: linear-gradient(90deg, transparent, rgba(255, 78, 122, 0.86), transparent);
-  animation-delay: 240ms;
-}
-
 @keyframes menuPanelIn {
   from {
     opacity: 0;
@@ -634,18 +572,18 @@ body {
     transform: translateY(0) scale(1);
   }
   50% {
-    transform: translateY(-8px) scale(1.015);
+    transform: translateY(-4px) scale(1.005);
   }
 }
 
 @keyframes menuStageBreath {
   0%, 100% {
-    opacity: 0.68;
+    opacity: 0.5;
     transform: translate(-50%, -50%) scaleX(1);
   }
   50% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scaleX(1.035);
+    opacity: 0.78;
+    transform: translate(-50%, -50%) scaleX(1.018);
   }
 }
 
@@ -657,15 +595,6 @@ body {
   50% {
     border-color: rgba(255, 207, 95, 0.7);
     color: #ffcf5f;
-  }
-}
-
-@keyframes menuLiveBlink {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.28;
   }
 }
 
@@ -681,22 +610,18 @@ body {
 @keyframes menuNoteFall {
   0% {
     opacity: 0;
-    transform: translate(-50%, -120px) scaleY(0.7);
+    transform: translate(-50%, -96px) scaleY(0.78);
   }
   20% {
     opacity: 1;
   }
   76% {
     opacity: 1;
-    transform: translate(-50%, 682px) scaleY(1.05);
-  }
-  84% {
-    opacity: 1;
-    transform: translate(-50%, 694px) scaleY(0.55);
+    transform: translate(-50%, 650px) scaleY(1.02);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, 730px) scaleY(1.2);
+    transform: translate(-50%, 700px) scaleY(1.08);
   }
 }
 
@@ -709,36 +634,14 @@ body {
   }
 }
 
-@keyframes menuJudgePulse {
-  0%, 100% {
-    opacity: 0.72;
-    transform: translateX(-50%) scaleX(0.96);
-  }
-  45% {
-    opacity: 1;
-    transform: translateX(-50%) scaleX(1.05);
-  }
-}
-
 @keyframes menuActionIn {
   from {
     opacity: 0;
-    transform: translateY(16px) rotateX(-10deg);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
     transform: translateY(0) rotateX(0);
-  }
-}
-
-@keyframes menuBottomScan {
-  from {
-    opacity: 0.35;
-    transform: scaleX(0.72);
-  }
-  to {
-    opacity: 1;
-    transform: scaleX(1);
   }
 }
 
@@ -756,15 +659,12 @@ body {
   .game-menu-stage-glow,
   .game-menu-grid,
   .game-menu-lanes span::after,
-  .game-menu-judgeline,
   .game-menu-panel,
-  .game-menu-topline span:first-child,
   .game-menu-kicker,
   .game-menu-hero,
   .game-menu-equalizer i,
   .game-menu-action,
-  .game-menu-action::before,
-  .game-menu-bottomline span {
+  .game-menu-action::before {
     animation: none;
   }
 

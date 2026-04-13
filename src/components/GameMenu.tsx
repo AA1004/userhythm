@@ -60,15 +60,8 @@ export const GameMenu: React.FC<GameMenuProps> = ({
         <span />
         <span />
       </div>
-      <div className="game-menu-judgeline" aria-hidden="true" />
 
       <section className="game-menu-panel" aria-label="UseRhythm main menu">
-        <div className="game-menu-topline">
-          <span>LIVE</span>
-          <span>USE RHYTHM</span>
-          <span>V1.8</span>
-        </div>
-
         <div className="game-menu-main">
           <div className="game-menu-kicker">RHYTHM LAB</div>
           <div className="game-menu-hero">
@@ -175,12 +168,6 @@ export const GameMenu: React.FC<GameMenuProps> = ({
             채보 만들기는 Google 로그인 후 이용할 수 있습니다.
           </p>
         )}
-
-        <div className="game-menu-bottomline" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
       </section>
     </div>
   );
