@@ -550,6 +550,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
 
   return (
     <div
+      className="chart-select-screen"
       style={{
         position: 'fixed',
         top: 0,
@@ -633,6 +634,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
 
       {/* 헤더 */}
       <div
+        className="chart-select-header"
         style={{
           backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
           padding: '20px',
@@ -872,9 +874,10 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
       </div>
 
       {/* 메인 컨텐츠 */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative', zIndex: 2 }}>
+      <div className="chart-select-main" style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative', zIndex: 2 }}>
         {/* 채보 목록 */}
         <div
+          className="chart-select-list-panel"
           style={{
             flex: 1,
             overflowY: 'auto',
@@ -925,17 +928,20 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
             </div>
           ) : (
             <div
+              className="chart-select-list-grid"
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
                 gap: '20px',
               }}
             >
-              {charts.map((chart) => (
+              {charts.map((chart, index) => (
                 <div
                   key={chart.id}
+                  className={`chart-select-card${selectedChart?.id === chart.id ? ' chart-select-card--selected' : ''}`}
                   onClick={() => setSelectedChart(chart)}
                   style={{
+                    animationDelay: `${Math.min(index, 11) * 36}ms`,
                     background: selectedChart?.id === chart.id
                       ? 'linear-gradient(145deg, rgba(34,211,238,0.18), rgba(129,140,248,0.16))'
                       : CHART_EDITOR_THEME.surface,
@@ -1129,6 +1135,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         {/* 상세 정보 패널 */}
         {selectedChart && (
           <div
+            className="chart-select-detail-panel"
+            key={selectedChart.id}
             style={{
               width: '400px',
               backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
