@@ -1,6 +1,7 @@
 import React from 'react';
 
 interface ChartSelectTransitionProps {
+  phase: 'enter' | 'exit';
   onCancel: () => void;
 }
 
@@ -11,9 +12,9 @@ const transitionNotes = [
   { lane: 3, delay: '420ms', height: 88 },
 ];
 
-export const ChartSelectTransition: React.FC<ChartSelectTransitionProps> = ({ onCancel }) => {
+export const ChartSelectTransition: React.FC<ChartSelectTransitionProps> = ({ phase, onCancel }) => {
   return (
-    <div className="chart-select-transition" role="status" aria-live="polite">
+    <div className={`chart-select-transition chart-select-transition--${phase}`} role="status" aria-live="polite">
       <div className="chart-select-transition__grid" aria-hidden="true" />
       <div className="chart-select-transition__stage" aria-hidden="true">
         <div className="chart-select-transition__lanes">

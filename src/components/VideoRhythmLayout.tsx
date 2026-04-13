@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { waitForYouTubeAPI } from '../utils/youtube';
 
 type VideoRhythmLayoutProps = {
@@ -190,7 +189,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
-        background: CHART_EDITOR_THEME.backgroundGradient,
+        background: 'var(--ur-stage-background)',
       }}
     >
       {/* 유튜브 배경 레이어 (있을 때만) */}
@@ -238,7 +237,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
           zIndex: 1,
           background: videoId && bgaEnabled
             ? 'radial-gradient(circle at top, rgba(15,23,42,0.35), rgba(15,23,42,0.92))'
-            : CHART_EDITOR_THEME.backgroundGradient,
+            : 'var(--ur-stage-background)',
         }}
       />
       )}

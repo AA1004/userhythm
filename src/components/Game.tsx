@@ -50,12 +50,16 @@ interface SubtitleEditorChartData {
 type ViewMode =
   | { type: 'menu' }
   | { type: 'tutorial' }
-  | { type: 'chartSelectLoading'; refreshToken?: number }
   | { type: 'chartSelect'; refreshToken?: number }
   | { type: 'editor' }
   | { type: 'admin' }
   | { type: 'subtitleEditor'; data: SubtitleEditorChartData }
   | { type: 'playing'; isTestMode: boolean; isFromEditor: boolean };
+
+type ChartSelectTransitionState = {
+  phase: 'enter' | 'exit';
+  refreshToken?: number;
+};
 
 export const Game: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>({ type: 'menu' });
@@ -63,7 +67,9 @@ export const Game: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const gameContainerRef = useRef<HTMLDivElement | null>(null);
   const processedMissNotes = useRef<Set<number>>(new Set());
-  const chartSelectTransitionTimerRef = useRef<number | null>(null);
+  const chartSelectTransitionTimersRef = useRef<number[]>([]);
+  const [chartSelectTransition, setChartSelectTransition] =
+    useState<ChartSelectTransitionState | null>(null);
   const [testYoutubeVideoId, setTestYoutubeVideoId] = useState<string | null>(null);
   const [testAudioSettings, setTestAudioSettings] = useState<AudioSettings | null>(null);
   const [viewportSize, setViewportSize] = useState(() => ({
@@ -336,37 +342,40 @@ export const Game: React.FC = () => {
     }));
   }, [destroyYoutubePlayer, setSubtitles]);
 
-  const openChartSelect = useCallback((refreshToken?: number) => {
-    if (chartSelectTransitionTimerRef.current !== null) {
-      window.clearTimeout(chartSelectTransitionTimerRef.current);
-    }
-
-    setViewMode({ type: 'chartSelectLoading', refreshToken });
-    chartSelectTransitionTimerRef.current = window.setTimeout(() => {
-      chartSelectTransitionTimerRef.current = null;
-      setViewMode((prev) =>
-        prev.type === 'chartSelectLoading'
-          ? { type: 'chartSelect', refreshToken: prev.refreshToken }
-          : prev
-      );
-    }, 520);
+  const clearChartSelectTransitionTimers = useCallback(() => {
+    chartSelectTransitionTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+    chartSelectTransitionTimersRef.current = [];
   }, []);
+
+  const openChartSelect = useCallback((refreshToken?: number) => {
+    clearChartSelectTransitionTimers();
+
+    setChartSelectTransition({ phase: 'enter', refreshToken });
+
+    const exitTimer = window.setTimeout(() => {
+      setChartSelectTransition((prev) =>
+        prev ? { ...prev, phase: 'exit' } : prev
+      );
+    }, 900);
+
+    const routeTimer = window.setTimeout(() => {
+      chartSelectTransitionTimersRef.current = [];
+      setChartSelectTransition(null);
+      setViewMode({ type: 'chartSelect', refreshToken });
+    }, 1180);
+
+    chartSelectTransitionTimersRef.current = [exitTimer, routeTimer];
+  }, [clearChartSelectTransitionTimers]);
 
   const cancelChartSelectTransition = useCallback(() => {
-    if (chartSelectTransitionTimerRef.current !== null) {
-      window.clearTimeout(chartSelectTransitionTimerRef.current);
-      chartSelectTransitionTimerRef.current = null;
-    }
+    clearChartSelectTransitionTimers();
+    setChartSelectTransition(null);
     setViewMode({ type: 'menu' });
-  }, []);
+  }, [clearChartSelectTransitionTimers]);
 
   useEffect(() => {
-    return () => {
-      if (chartSelectTransitionTimerRef.current !== null) {
-        window.clearTimeout(chartSelectTransitionTimerRef.current);
-      }
-    };
-  }, []);
+    return clearChartSelectTransitionTimers;
+  }, [clearChartSelectTransitionTimers]);
 
   // 플레이 목록으로 돌아가기 핸들러
   const handleReturnToPlayList = useCallback(() => {
@@ -569,17 +578,15 @@ export const Game: React.FC = () => {
     return <ChartEditor onCancel={handleEditorCancel} onTest={handleEditorTest} onOpenSubtitleEditor={handleOpenSubtitleEditor} />;
   }
 
-  if (viewMode.type === 'chartSelectLoading') {
-    return <ChartSelectTransition onCancel={cancelChartSelectTransition} />;
-  }
-
   if (viewMode.type === 'chartSelect') {
     return (
-      <ChartSelect
-        onSelect={handleChartSelect}
-        onClose={() => setViewMode({ type: 'menu' })}
-        refreshToken={viewMode.refreshToken ?? chartListRefreshToken}
-      />
+      <div className="chart-select-route-in">
+        <ChartSelect
+          onSelect={handleChartSelect}
+          onClose={() => setViewMode({ type: 'menu' })}
+          refreshToken={viewMode.refreshToken ?? chartListRefreshToken}
+        />
+      </div>
     );
   }
 
@@ -598,16 +605,21 @@ export const Game: React.FC = () => {
     gameState.gameStarted &&
     !gameState.gameEnded &&
     gameState.currentTime >= 0;
+  const isChartSelectTransitioning = chartSelectTransition !== null;
 
   return (
     <>
-      {/* 사이드바는 VideoRhythmLayout 밖에 배치 */}
-      {!gameState.gameStarted && (
-        <>
-          <MainMenuSidebar type="version" position="left" />
-          <MainMenuSidebar type="notice" position="right" />
-        </>
-      )}
+      <div
+        className={`main-to-chart-transition${isChartSelectTransitioning ? ' main-to-chart-transition--active' : ''}`}
+        aria-hidden={isChartSelectTransitioning ? true : undefined}
+      >
+        {/* 사이드바는 VideoRhythmLayout 밖에 배치 */}
+        {!gameState.gameStarted && (
+          <>
+            <MainMenuSidebar type="version" position="left" />
+            <MainMenuSidebar type="notice" position="right" />
+          </>
+        )}
       
       {/* Show FPS HUD only during gameplay */}
       {gameState.gameStarted && !gameState.gameEnded && <FpsHud enabled={true} />}
@@ -847,6 +859,13 @@ export const Game: React.FC = () => {
         currentRoleLabel={currentRoleLabel}
       />
     </VideoRhythmLayout>
+      </div>
+      {chartSelectTransition && (
+        <ChartSelectTransition
+          phase={chartSelectTransition.phase}
+          onCancel={cancelChartSelectTransition}
+        />
+      )}
     </>
   );
 };

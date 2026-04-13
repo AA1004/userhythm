@@ -556,7 +556,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         left: 0,
         right: 0,
         bottom: 0,
-        background: CHART_EDITOR_THEME.backgroundGradient,
+        background: 'var(--ur-stage-background)',
         display: 'flex',
         flexDirection: 'column',
         zIndex: 10000,
