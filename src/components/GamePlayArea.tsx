@@ -10,21 +10,6 @@ import {
 import { PlayfieldGeometry } from '../constants/gameVisualSettings';
 import { JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
 
-function binarySearchStartIndex(notes: Note[], targetTime: number): number {
-  let low = 0;
-  let high = notes.length;
-  while (low < high) {
-    const mid = (low + high) >>> 1;
-    const noteEndTime = notes[mid].endTime || notes[mid].time;
-    if (noteEndTime < targetTime) {
-      low = mid + 1;
-    } else {
-      high = mid;
-    }
-  }
-  return low;
-}
-
 function binarySearchEndIndex(notes: Note[], targetTime: number, startIdx: number): number {
   let low = startIdx;
   let high = notes.length;
@@ -38,6 +23,9 @@ function binarySearchEndIndex(notes: Note[], targetTime: number, startIdx: numbe
   }
   return low - 1;
 }
+
+const getNoteRenderEndTime = (note: Note) =>
+  note.type === 'hold' && note.duration > 0 ? note.endTime || note.time + note.duration : note.time;
 
 interface GamePlayAreaProps {
   gameState: GameState;
@@ -86,13 +74,13 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
     const viewportStart = gameState.currentTime - baseDuration - NOTE_VISIBILITY_BUFFER_MS;
     const viewportEnd = gameState.currentTime + baseDuration + NOTE_VISIBILITY_BUFFER_MS;
 
-    const startIdx = binarySearchStartIndex(notes, viewportStart);
-    const endIdx = binarySearchEndIndex(notes, viewportEnd, startIdx);
+    const endIdx = binarySearchEndIndex(notes, viewportEnd, 0);
 
     const result: Note[] = [];
-    for (let i = startIdx; i <= endIdx && i < notes.length; i++) {
+    for (let i = 0; i <= endIdx && i < notes.length; i++) {
       const note = notes[i];
       if (note.hit) continue;
+      if (getNoteRenderEndTime(note) < viewportStart) continue;
       result.push(note);
     }
 

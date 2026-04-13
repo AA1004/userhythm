@@ -5,6 +5,89 @@ import { LANE_POSITIONS } from '../constants/gameConstants';
 const HOLD_MIN_HEIGHT = 60;
 const HOLD_HEAD_HEIGHT = 32;
 const NOTE_SPAWN_Y = -100;
+const NOTE_RENDER_BUFFER = 180;
+
+interface TapRenderPosition {
+  left: number;
+  top: number;
+}
+
+interface HoldRenderSegment {
+  containerTop: number;
+  containerHeight: number;
+  visibleTop: number;
+  visibleBottom: number;
+  holdHeadHeight: number;
+}
+
+const getEventY = (
+  eventTime: number,
+  currentTime: number,
+  fallDuration: number,
+  judgeLineY: number
+) => {
+  const progress = 1 - (eventTime - currentTime) / fallDuration;
+  return NOTE_SPAWN_Y + progress * (judgeLineY - NOTE_SPAWN_Y);
+};
+
+const computeTapRenderPosition = (
+  note: Note,
+  currentTime: number,
+  fallDuration: number,
+  judgeLineY: number,
+  laneX: number,
+  noteWidth: number,
+  noteHeight: number
+): TapRenderPosition | null => {
+  const y = Math.max(NOTE_SPAWN_Y, Math.min(judgeLineY, getEventY(note.time, currentTime, fallDuration, judgeLineY)));
+  const top = y - noteHeight / 2;
+  if (top > judgeLineY + NOTE_RENDER_BUFFER || top + noteHeight < -NOTE_RENDER_BUFFER) return null;
+
+  return {
+    left: laneX - noteWidth / 2,
+    top,
+  };
+};
+
+const computeHoldRenderSegment = (
+  note: Note,
+  currentTime: number,
+  fallDuration: number,
+  judgeLineY: number,
+  noteHeight: number,
+  isHolding: boolean,
+  viewportHeight: number
+): HoldRenderSegment | null => {
+  const endTime = note.endTime ?? note.time + note.duration;
+  const rawHeadY = getEventY(note.time, currentTime, fallDuration, judgeLineY);
+  const rawTailY = getEventY(endTime, currentTime, fallDuration, judgeLineY);
+
+  // Rendering-only rule: while holding, the head is visually anchored to the judgment line.
+  const headY =
+    isHolding && currentTime >= note.time
+      ? judgeLineY
+      : Math.max(NOTE_SPAWN_Y, Math.min(judgeLineY, rawHeadY));
+  const tailY = Math.max(NOTE_SPAWN_Y, Math.min(judgeLineY, rawTailY));
+
+  const topY = Math.min(headY, tailY);
+  const bottomY = Math.max(headY, tailY);
+  const holdHeadHeight = Math.min(HOLD_HEAD_HEIGHT, Math.max(24, noteHeight));
+  const fullHeight = Math.max(HOLD_MIN_HEIGHT, bottomY - topY);
+  const containerTop = bottomY - fullHeight;
+  const containerBottom = containerTop + fullHeight;
+  const visibleTop = Math.max(containerTop, -NOTE_RENDER_BUFFER);
+  const visibleBottom = Math.min(containerBottom, viewportHeight + NOTE_RENDER_BUFFER);
+
+  if (visibleBottom <= visibleTop) return null;
+
+  return {
+    containerTop,
+    containerHeight: fullHeight,
+    visibleTop,
+    visibleBottom,
+    holdHeadHeight,
+  };
+};
 
 interface NoteRendererProps {
   canvasRef: React.RefObject<HTMLCanvasElement>;
@@ -79,22 +162,18 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
         const isHoldNote = note.duration > 0 && note.type === 'hold';
         const laneX = laneCenters[note.lane] ?? LANE_POSITIONS[note.lane];
 
-        const timeUntilHit = note.time - currentTime;
-        let headY: number;
-
-        if (timeUntilHit >= fallDuration) {
-          headY = NOTE_SPAWN_Y;
-        } else {
-          const progress = 1 - timeUntilHit / fallDuration;
-          headY = NOTE_SPAWN_Y + progress * (judgeLineY - NOTE_SPAWN_Y);
-          headY = Math.max(NOTE_SPAWN_Y, Math.min(judgeLineY, headY));
-        }
-
-        if (headY < -180 && !isHoldNote) continue;
-
         if (!isHoldNote) {
-          const top = headY - noteHeight / 2;
-          const left = laneX - noteWidth / 2;
+          const position = computeTapRenderPosition(
+            note,
+            currentTime,
+            fallDuration,
+            judgeLineY,
+            laneX,
+            noteWidth,
+            noteHeight
+          );
+          if (!position) continue;
+          const { left, top } = position;
 
           const gradient = ctx.createLinearGradient(left, top, left, top + noteHeight);
           gradient.addColorStop(0, '#FF6B6B');
@@ -118,31 +197,27 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           ctx.fill();
           ctx.stroke();
         } else {
-          const endTime = note.endTime ?? note.time;
-          const timeUntilEnd = endTime - currentTime;
-
-          let tailY: number;
-          if (timeUntilEnd >= fallDuration) {
-            tailY = NOTE_SPAWN_Y;
-          } else {
-            const progress = 1 - timeUntilEnd / fallDuration;
-            tailY = NOTE_SPAWN_Y + progress * (judgeLineY - NOTE_SPAWN_Y);
-            tailY = Math.max(NOTE_SPAWN_Y, Math.min(judgeLineY, tailY));
-          }
-
-          const holdHeadY = Math.min(headY, judgeLineY);
-          const holdTailY = tailY;
-          const bottomY = Math.max(holdHeadY, holdTailY);
-          const spanHeight = Math.abs(holdHeadY - holdTailY);
-          const containerHeight = Math.max(HOLD_MIN_HEIGHT, spanHeight);
-          const containerTop = bottomY - containerHeight;
           const left = laneX - noteWidth / 2;
-          const holdHeadHeight = Math.min(HOLD_HEAD_HEIGHT, Math.max(24, noteHeight));
-
           const isHolding = holdingNotes.has(note.id);
+          const segment = computeHoldRenderSegment(
+            note,
+            currentTime,
+            fallDuration,
+            judgeLineY,
+            noteHeight,
+            isHolding,
+            logicalHeight
+          );
+          if (!segment) continue;
+          const { containerTop, containerHeight, visibleTop, visibleBottom, holdHeadHeight } = segment;
           const holdProgress = note.duration
             ? Math.max(0, Math.min(1, (currentTime - note.time) / note.duration))
             : 0;
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(left - 8, visibleTop, noteWidth + 16, visibleBottom - visibleTop);
+          ctx.clip();
 
           const bgGradient = ctx.createLinearGradient(left, containerTop, left, containerTop + containerHeight);
           if (isHolding) {
@@ -249,6 +324,8 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           ctx.quadraticCurveTo(headLeft, headTop, headLeft + headRadius, headTop);
           ctx.closePath();
           ctx.fill();
+
+          ctx.restore();
         }
       }
 
