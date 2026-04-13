@@ -2,6 +2,7 @@
 import { GameState, Note } from '../types/game';
 import { ChartEditor } from './ChartEditor';
 import { ChartSelect } from './ChartSelect';
+import { ChartSelectTransition } from './ChartSelectTransition';
 import { ChartAdmin } from './ChartAdmin';
 import { SubtitleEditor } from './SubtitleEditor';
 import { SettingsModal } from './SettingsModal';
@@ -49,6 +50,7 @@ interface SubtitleEditorChartData {
 type ViewMode =
   | { type: 'menu' }
   | { type: 'tutorial' }
+  | { type: 'chartSelectLoading'; refreshToken?: number }
   | { type: 'chartSelect'; refreshToken?: number }
   | { type: 'editor' }
   | { type: 'admin' }
@@ -61,6 +63,7 @@ export const Game: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const gameContainerRef = useRef<HTMLDivElement | null>(null);
   const processedMissNotes = useRef<Set<number>>(new Set());
+  const chartSelectTransitionTimerRef = useRef<number | null>(null);
   const [testYoutubeVideoId, setTestYoutubeVideoId] = useState<string | null>(null);
   const [testAudioSettings, setTestAudioSettings] = useState<AudioSettings | null>(null);
   const [viewportSize, setViewportSize] = useState(() => ({
@@ -333,6 +336,38 @@ export const Game: React.FC = () => {
     }));
   }, [destroyYoutubePlayer, setSubtitles]);
 
+  const openChartSelect = useCallback((refreshToken?: number) => {
+    if (chartSelectTransitionTimerRef.current !== null) {
+      window.clearTimeout(chartSelectTransitionTimerRef.current);
+    }
+
+    setViewMode({ type: 'chartSelectLoading', refreshToken });
+    chartSelectTransitionTimerRef.current = window.setTimeout(() => {
+      chartSelectTransitionTimerRef.current = null;
+      setViewMode((prev) =>
+        prev.type === 'chartSelectLoading'
+          ? { type: 'chartSelect', refreshToken: prev.refreshToken }
+          : prev
+      );
+    }, 520);
+  }, []);
+
+  const cancelChartSelectTransition = useCallback(() => {
+    if (chartSelectTransitionTimerRef.current !== null) {
+      window.clearTimeout(chartSelectTransitionTimerRef.current);
+      chartSelectTransitionTimerRef.current = null;
+    }
+    setViewMode({ type: 'menu' });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (chartSelectTransitionTimerRef.current !== null) {
+        window.clearTimeout(chartSelectTransitionTimerRef.current);
+      }
+    };
+  }, []);
+
   // 플레이 목록으로 돌아가기 핸들러
   const handleReturnToPlayList = useCallback(() => {
     setIsTestMode(false);
@@ -349,9 +384,10 @@ export const Game: React.FC = () => {
       notes: [],
       score: buildInitialScore(),
     }));
-    setChartListRefreshToken((prev) => prev + 1);
-    setViewMode({ type: 'chartSelect', refreshToken: chartListRefreshToken + 1 });
-  }, [destroyYoutubePlayer, setSubtitles, chartListRefreshToken]);
+    const nextRefreshToken = chartListRefreshToken + 1;
+    setChartListRefreshToken(nextRefreshToken);
+    openChartSelect(nextRefreshToken);
+  }, [destroyYoutubePlayer, setSubtitles, chartListRefreshToken, openChartSelect]);
 
   useEffect(() => {
     if (!isTestMode || !gameState.gameStarted || gameState.gameEnded) return;
@@ -531,6 +567,10 @@ export const Game: React.FC = () => {
 
   if (viewMode.type === 'editor') {
     return <ChartEditor onCancel={handleEditorCancel} onTest={handleEditorTest} onOpenSubtitleEditor={handleOpenSubtitleEditor} />;
+  }
+
+  if (viewMode.type === 'chartSelectLoading') {
+    return <ChartSelectTransition onCancel={cancelChartSelectTransition} />;
   }
 
   if (viewMode.type === 'chartSelect') {
@@ -728,7 +768,7 @@ export const Game: React.FC = () => {
                   roleChessIcon={roleChessIcon}
                   isAdmin={isAdmin}
                   isModerator={isModerator}
-                  onPlay={() => setViewMode({ type: 'chartSelect' })}
+                  onPlay={() => openChartSelect()}
                   onEdit={() => setViewMode({ type: 'editor' })}
                   onAdmin={() => setViewMode({ type: 'admin' })}
                   onTutorial={() => setViewMode({ type: 'tutorial' })}

@@ -886,8 +886,14 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
           }}
         >
           {status === 'loading' ? (
-            <div style={{ color: CHART_EDITOR_THEME.textSecondary, textAlign: 'center', padding: '40px' }}>
-              로딩 중...
+            <div className="chart-list-loading" role="status" aria-live="polite">
+              <div className="chart-list-loading__orbit" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </div>
+              <strong>곡 목록 동기화 중</strong>
+              <p>Railway 서버에서 최신 공개 채보를 불러오고 있습니다.</p>
             </div>
           ) : error ? (
             <div style={{ color: CHART_EDITOR_THEME.danger, textAlign: 'center', padding: '40px' }}>
@@ -1419,4 +1425,3 @@ function getDifficultyColor(difficulty: string): string {
       return '#616161';
   }
 }
-
