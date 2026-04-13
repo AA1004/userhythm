@@ -53,12 +53,14 @@ export const GameMenu: React.FC<GameMenuProps> = ({
   return (
     <div className="game-menu-shell">
       <div className="game-menu-grid" aria-hidden="true" />
+      <div className="game-menu-stage-glow" aria-hidden="true" />
       <div className="game-menu-lanes" aria-hidden="true">
         <span />
         <span />
         <span />
         <span />
       </div>
+      <div className="game-menu-judgeline" aria-hidden="true" />
 
       <section className="game-menu-panel" aria-label="UseRhythm main menu">
         <div className="game-menu-kicker">RHYTHM LAB</div>
