@@ -47,11 +47,12 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
     if (!ctx) return;
 
     const setupCanvas = () => {
-      const rect = canvas.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
+      const cssWidth = canvas.clientWidth;
+      const cssHeight = canvas.clientHeight;
 
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
+      canvas.width = Math.round(cssWidth * dpr);
+      canvas.height = Math.round(cssHeight * dpr);
 
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(dpr, dpr);
@@ -59,8 +60,8 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
 
     setupCanvas();
 
-    const logicalWidth = canvas.getBoundingClientRect().width;
-    const logicalHeight = canvas.getBoundingClientRect().height;
+    const logicalWidth = canvas.clientWidth;
+    const logicalHeight = canvas.clientHeight;
 
     const render = () => {
       if (!visible || !canvasRef.current) return;
