@@ -43,6 +43,7 @@ interface GamePlayAreaProps {
   gameState: GameState;
   gameStarted: boolean;
   bgaMaskOpacity: number;
+  isLaneUiVisible: boolean;
   speed: number;
   pressedKeys: Set<Lane>;
   holdingNotes: Map<number, Note>;
@@ -60,6 +61,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   gameState,
   gameStarted,
   bgaMaskOpacity,
+  isLaneUiVisible,
   speed,
   pressedKeys,
   holdingNotes,
@@ -75,7 +77,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const visibleNotes = useMemo(() => {
-    if (bgaMaskOpacity >= 1) return [];
+    if (!isLaneUiVisible) return [];
 
     const notes = gameState.notes;
     if (notes.length === 0) return [];
@@ -95,13 +97,13 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
     }
 
     return result;
-  }, [gameState.notes, gameState.currentTime, speed, bgaMaskOpacity]);
+  }, [gameState.notes, gameState.currentTime, speed, isLaneUiVisible]);
 
   const judgeFeedbackTop = Math.max(120, judgeLineY - 140);
 
   return (
     <>
-      {bgaMaskOpacity < 1 && (
+      {isLaneUiVisible && (
         <div
           style={{
             position: 'absolute',
@@ -114,7 +116,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
         />
       )}
 
-      {bgaMaskOpacity < 1 &&
+      {isLaneUiVisible &&
         playfieldGeometry.laneEdges.map((x) => (
           <div
             key={x}
@@ -130,7 +132,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
           />
         ))}
 
-      {bgaMaskOpacity < 1 && (
+      {isLaneUiVisible && (
         <>
           <canvas
             ref={canvasRef}
@@ -154,12 +156,12 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
             noteWidth={playfieldGeometry.noteWidth}
             noteHeight={playfieldGeometry.noteHeight}
             holdingNotes={holdingNotes}
-            visible={bgaMaskOpacity < 1}
+            visible={isLaneUiVisible}
           />
         </>
       )}
 
-      {gameStarted && bgaMaskOpacity < 1 && (
+      {gameStarted && isLaneUiVisible && (
         <JudgeLine
           left={playfieldGeometry.judgeLineLeft}
           width={playfieldGeometry.judgeLineWidth}
@@ -168,7 +170,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
       )}
 
       {gameStarted &&
-        bgaMaskOpacity < 1 &&
+        isLaneUiVisible &&
         playfieldGeometry.laneCenters.map((x, index) => (
           <KeyLane
             key={index}
@@ -181,7 +183,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
         ))}
 
       {gameStarted &&
-        bgaMaskOpacity < 1 &&
+        isLaneUiVisible &&
         keyEffects.map((effect) => {
           const judgeColors = {
             perfect: { main: '#FFD700', soft: 'rgba(255, 215, 0, 0.4)' },
@@ -224,7 +226,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
         }}
       />
 
-      {bgaMaskOpacity < 1 &&
+      {isLaneUiVisible &&
         judgeFeedbacks.map((feedback) =>
           feedback.judge ? (
             <div

@@ -1,18 +1,27 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 import { BgaVisibilityInterval } from '../types/game';
 
 export interface UseBgaMaskOptions {
   currentTime: number;
+  currentTimeRef?: MutableRefObject<number>;
+  currentTimeOffsetMs?: number;
 }
 
 export interface UseBgaMaskReturn {
   intervals: BgaVisibilityInterval[];
   setIntervals: (intervals: BgaVisibilityInterval[]) => void;
   maskOpacity: number;
+  isLaneUiVisible: boolean;
 }
 
-export function useBgaMask({ currentTime }: UseBgaMaskOptions): UseBgaMaskReturn {
+export function useBgaMask({
+  currentTime,
+  currentTimeRef,
+  currentTimeOffsetMs = 0,
+}: UseBgaMaskOptions): UseBgaMaskReturn {
   const [intervals, setIntervals] = useState<BgaVisibilityInterval[]>([]);
+  const [realtimeLaneUiVisible, setRealtimeLaneUiVisible] = useState(true);
+  const realtimeLaneUiVisibleRef = useRef(true);
 
   const sortedIntervals = useMemo(
     () => [...intervals].sort((a, b) => a.startTimeMs - b.startTimeMs),
@@ -54,6 +63,18 @@ export function useBgaMask({ currentTime }: UseBgaMaskOptions): UseBgaMaskReturn
     [sortedIntervals]
   );
 
+  const getLaneUiVisible = useCallback(
+    (chartTimeMs: number) => {
+      for (const interval of sortedIntervals) {
+        if (interval.startTimeMs > chartTimeMs) break;
+        if (chartTimeMs > interval.endTimeMs) continue;
+        if (interval.mode === 'hidden') return false;
+      }
+      return true;
+    },
+    [sortedIntervals]
+  );
+
   // currentTime을 30ms 단위로 버킷화하여 불필요한 재계산 방지
   const currentTimeBucket = useMemo(
     () => Math.round(currentTime / 30),
@@ -65,10 +86,43 @@ export function useBgaMask({ currentTime }: UseBgaMaskOptions): UseBgaMaskReturn
     [currentTimeBucket, getBgaMaskOpacity]
   );
 
+  const derivedLaneUiVisible = useMemo(
+    () => getLaneUiVisible(currentTime),
+    [currentTimeBucket, getLaneUiVisible]
+  );
+
+  useEffect(() => {
+    realtimeLaneUiVisibleRef.current = derivedLaneUiVisible;
+    setRealtimeLaneUiVisible(derivedLaneUiVisible);
+  }, [derivedLaneUiVisible]);
+
+  useEffect(() => {
+    if (!currentTimeRef) return;
+
+    let frameId: number | null = null;
+
+    const tick = () => {
+      const next = getLaneUiVisible(currentTimeRef.current + currentTimeOffsetMs);
+      if (realtimeLaneUiVisibleRef.current !== next) {
+        realtimeLaneUiVisibleRef.current = next;
+        setRealtimeLaneUiVisible(next);
+      }
+      frameId = requestAnimationFrame(tick);
+    };
+
+    frameId = requestAnimationFrame(tick);
+    return () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+    };
+  }, [currentTimeRef, currentTimeOffsetMs, getLaneUiVisible]);
+
   return {
     intervals,
     setIntervals,
     maskOpacity,
+    isLaneUiVisible: realtimeLaneUiVisible,
   };
 }
 

@@ -141,25 +141,33 @@ export const Game: React.FC = () => {
     containerRef: gameContainerRef,
   });
 
-  // 현재 게임 시간(ms)을 자막/채보 타임라인 시간(절대 시간)으로 변환
-  // 테스트 시작 위치(startTimeMs)를 더해서 절대 시간으로 변환
-  // 이렇게 해야 자막/BGA가 올바른 시간에 표시됨
-  const currentChartTimeMs = useMemo(
-    () => Math.max(0, gameState.currentTime + (testAudioSettings?.startTimeMs ?? 0)),
-    [gameState.currentTime, testAudioSettings]
-  );
-
-  // BGA 마스크 훅 - 절대 시간 사용
-  const { setIntervals: setBgaVisibilityIntervals, maskOpacity: bgaMaskOpacity } = useBgaMask({
-    currentTime: currentChartTimeMs,
-  });
-
   // gameState를 ref로 유지하여 최신 값을 항상 참조
   const gameStateRef = useRef(gameState);
   const currentTimeRef = useRef<number>(0);
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
+
+  const currentChartTimeOffsetMs = testAudioSettings?.startTimeMs ?? 0;
+
+  // 현재 게임 시간(ms)을 자막/채보 타임라인 시간(절대 시간)으로 변환
+  // 테스트 시작 위치(startTimeMs)를 더해서 절대 시간으로 변환
+  // 이렇게 해야 자막/BGA가 올바른 시간에 표시됨
+  const currentChartTimeMs = useMemo(
+    () => Math.max(0, gameState.currentTime + currentChartTimeOffsetMs),
+    [gameState.currentTime, currentChartTimeOffsetMs]
+  );
+
+  // BGA 마스크 훅 - 절대 시간 사용
+  const {
+    setIntervals: setBgaVisibilityIntervals,
+    maskOpacity: bgaMaskOpacity,
+    isLaneUiVisible,
+  } = useBgaMask({
+    currentTime: currentChartTimeMs,
+    currentTimeRef,
+    currentTimeOffsetMs: currentChartTimeOffsetMs,
+  });
 
   const playfieldGeometry = useMemo(
     () => buildPlayfieldGeometry(visualSettings, judgeLineY),
@@ -757,6 +765,7 @@ export const Game: React.FC = () => {
                 gameState={gameState}
                 gameStarted={gameState.gameStarted}
                 bgaMaskOpacity={bgaMaskOpacity}
+                isLaneUiVisible={isLaneUiVisible}
                 speed={speed}
                 pressedKeys={pressedKeys}
                 holdingNotes={holdingNotes}
