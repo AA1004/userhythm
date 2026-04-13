@@ -3,9 +3,12 @@ import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import {
   GAME_VISUAL_PRESETS,
   GameVisualSettings,
+  KEY_LANE_HEIGHT,
+  LANE_COUNT,
   VISUAL_SETTING_LIMITS,
   VisualPresetId,
 } from '../constants/gameVisualSettings';
+import { GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH } from '../constants/gameLayout';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -115,8 +118,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const visualRafRef = useRef<number | null>(null);
   const queuedVisualSettingsRef = useRef<Partial<GameVisualSettings>>({});
 
-  if (!isOpen) return null;
-
   const handleSaveNickname = async () => {
     if (!canChangeDisplayName || isSavingNickname) return;
     setIsSavingNickname(true);
@@ -199,10 +200,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     return `${hours}시간 후 변경 가능`;
   };
 
+  const laneGroupWidth =
+    LANE_COUNT * visualSettings.laneWidth +
+    (LANE_COUNT - 1) * visualSettings.laneGap;
+  const laneOffsetLimit = Math.floor(
+    Math.max(0, (GAME_VIEW_WIDTH - laneGroupWidth) / 2)
+  );
+  const keyLaneMax = GAME_VIEW_HEIGHT - KEY_LANE_HEIGHT;
   const keyLaneMin = Math.min(
-    700,
+    keyLaneMax,
     judgeLineY + VISUAL_SETTING_LIMITS.keyLaneY.minGapFromJudgeLine
   );
+
+  if (!isOpen) return null;
 
   return (
     <div
@@ -497,8 +507,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <VisualSliderRow
             label="레인 묶음 X 오프셋"
             value={visualSettings.laneOffsetX}
-            min={-80}
-            max={80}
+            min={-laneOffsetLimit}
+            max={laneOffsetLimit}
             step={1}
             onChange={(value) => scheduleVisualSettingsChange({ laneOffsetX: value })}
             onCommit={commitVisualSettings}
@@ -507,7 +517,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             label="키 박스 위치"
             value={visualSettings.keyLaneY}
             min={keyLaneMin}
-            max={700}
+            max={keyLaneMax}
             step={5}
             onChange={(value) => scheduleVisualSettingsChange({ keyLaneY: value })}
             onCommit={commitVisualSettings}
@@ -533,6 +543,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginTop: '6px', lineHeight: 1.5 }}>
             판정선은 위 설정과 분리됩니다. 키 박스 위치는 시각 위치만 바꾸고, 노트 도착점은 판정선 위치를 따릅니다.
+            레인 X 오프셋은 전체 레인 묶음이 500px 스테이지 밖으로 나가지 않는 범위로 제한됩니다.
           </p>
           {isGameplayActive && (
             <p style={{ color: CHART_EDITOR_THEME.accentStrong, fontSize: '11px', marginTop: '6px', lineHeight: 1.5 }}>
