@@ -63,23 +63,31 @@ export const GameMenu: React.FC<GameMenuProps> = ({
       <div className="game-menu-judgeline" aria-hidden="true" />
 
       <section className="game-menu-panel" aria-label="UseRhythm main menu">
-        <div className="game-menu-kicker">RHYTHM LAB</div>
-        <div className="game-menu-hero">
-          <BrandLogo
-            title="UseRhythm"
-            tagline={'직접 만든 채보로 바로 플레이하고,\n친구들과 리듬을 공유하세요.'}
-            size="lg"
-            markStyle="overlap"
-            gradient={CHART_EDITOR_THEME.titleGradient}
-            strokeColor={CHART_EDITOR_THEME.rootBackground}
-            glow={CHART_EDITOR_THEME.titleGlow}
-          />
+        <div className="game-menu-topline">
+          <span>LIVE</span>
+          <span>USE RHYTHM</span>
+          <span>V1.8</span>
         </div>
 
-        <div className="game-menu-equalizer" aria-hidden="true">
-          {Array.from({ length: 18 }).map((_, index) => (
-            <i key={index} style={{ animationDelay: `${index * 48}ms` }} />
-          ))}
+        <div className="game-menu-main">
+          <div className="game-menu-kicker">RHYTHM LAB</div>
+          <div className="game-menu-hero">
+            <BrandLogo
+              title="UseRhythm"
+              tagline={'직접 만든 채보로 바로 플레이하고,\n친구들과 리듬을 공유하세요.'}
+              size="lg"
+              markStyle="overlap"
+              gradient={CHART_EDITOR_THEME.titleGradient}
+              strokeColor={CHART_EDITOR_THEME.rootBackground}
+              glow={CHART_EDITOR_THEME.titleGlow}
+            />
+          </div>
+
+          <div className="game-menu-equalizer" aria-hidden="true">
+            {Array.from({ length: 22 }).map((_, index) => (
+              <i key={index} style={{ animationDelay: `${index * 42}ms` }} />
+            ))}
+          </div>
         </div>
 
         <div className="game-menu-actions">
@@ -167,6 +175,12 @@ export const GameMenu: React.FC<GameMenuProps> = ({
             채보 만들기는 Google 로그인 후 이용할 수 있습니다.
           </p>
         )}
+
+        <div className="game-menu-bottomline" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
       </section>
     </div>
   );

@@ -340,15 +340,42 @@ body {
 .game-menu-panel {
   position: relative;
   z-index: 1;
-  width: min(420px, calc(100% - 44px));
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 18px;
-  padding: 18px 0;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 30px 24px 26px;
   text-align: center;
   pointer-events: auto;
   animation: menuPanelIn 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.game-menu-topline {
+  width: min(430px, 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: rgba(238, 247, 242, 0.58);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.game-menu-topline span:first-child {
+  color: #ff4e7a;
+  animation: menuLiveBlink 920ms steps(2, end) infinite;
+}
+
+.game-menu-main {
+  width: min(430px, 100%);
+  display: grid;
+  justify-items: center;
+  gap: 17px;
+  transform: translateY(4px);
 }
 
 .game-menu-kicker {
@@ -370,6 +397,16 @@ body {
   animation: menuHeroFloat 1800ms ease-in-out infinite;
 }
 
+.game-menu-hero .ur-logo {
+  --ur-logo-size: 46px;
+}
+
+.game-menu-hero .ur-tagline {
+  margin-top: 14px;
+  color: rgba(238, 247, 242, 0.84);
+  font-weight: 700;
+}
+
 .game-menu-equalizer {
   height: 34px;
   display: flex;
@@ -388,6 +425,7 @@ body {
 }
 
 .game-menu-actions {
+  width: min(430px, 100%);
   display: grid;
   gap: 10px;
   perspective: 800px;
@@ -505,6 +543,7 @@ body {
 
 .game-menu-account,
 .game-menu-userbar {
+  width: min(430px, 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -553,6 +592,32 @@ body {
   line-height: 1.45;
 }
 
+.game-menu-bottomline {
+  width: min(430px, 100%);
+  height: 18px;
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 1fr;
+  gap: 8px;
+  opacity: 0.78;
+}
+
+.game-menu-bottomline span {
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(119, 255, 214, 0.86), transparent);
+  box-shadow: 0 0 18px rgba(119, 255, 214, 0.34);
+  animation: menuBottomScan 880ms ease-in-out infinite alternate;
+}
+
+.game-menu-bottomline span:nth-child(2) {
+  background: linear-gradient(90deg, transparent, rgba(255, 207, 95, 0.92), transparent);
+  animation-delay: 120ms;
+}
+
+.game-menu-bottomline span:nth-child(3) {
+  background: linear-gradient(90deg, transparent, rgba(255, 78, 122, 0.86), transparent);
+  animation-delay: 240ms;
+}
+
 @keyframes menuPanelIn {
   from {
     opacity: 0;
@@ -592,6 +657,15 @@ body {
   50% {
     border-color: rgba(255, 207, 95, 0.7);
     color: #ffcf5f;
+  }
+}
+
+@keyframes menuLiveBlink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.28;
   }
 }
 
@@ -657,6 +731,17 @@ body {
   }
 }
 
+@keyframes menuBottomScan {
+  from {
+    opacity: 0.35;
+    transform: scaleX(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
 @keyframes menuButtonSweep {
   0%, 54% {
     transform: translateX(-120%) rotate(16deg);
@@ -673,11 +758,13 @@ body {
   .game-menu-lanes span::after,
   .game-menu-judgeline,
   .game-menu-panel,
+  .game-menu-topline span:first-child,
   .game-menu-kicker,
   .game-menu-hero,
   .game-menu-equalizer i,
   .game-menu-action,
-  .game-menu-action::before {
+  .game-menu-action::before,
+  .game-menu-bottomline span {
     animation: none;
   }
 
