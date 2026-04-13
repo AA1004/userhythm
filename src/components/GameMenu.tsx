@@ -45,32 +45,27 @@ export const GameMenu: React.FC<GameMenuProps> = ({
   onSettings,
   ensureEditorAccess,
 }) => {
+  const editorTitle =
+    !canEditCharts && isSupabaseConfigured
+      ? 'Google 로그인 후 이용할 수 있습니다.'
+      : undefined;
+
   return (
-    <div
-      style={{
-        position: 'absolute',
-        inset: 0,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        pointerEvents: 'none',
-      }}
-    >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: 520,
-          padding: '0 24px',
-          boxSizing: 'border-box',
-          textAlign: 'center',
-          pointerEvents: 'auto',
-        }}
-      >
-        {/* 히어로 영역 */}
-        <div style={{ marginBottom: '32px' }}>
+    <div className="game-menu-shell">
+      <div className="game-menu-grid" aria-hidden="true" />
+      <div className="game-menu-lanes" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
+
+      <section className="game-menu-panel" aria-label="UseRhythm main menu">
+        <div className="game-menu-kicker">RHYTHM LAB</div>
+        <div className="game-menu-hero">
           <BrandLogo
             title="UseRhythm"
-            tagline={'누구나 리듬게임 채보를 만들고,\n친구들과 플레이를 공유해 보세요.'}
+            tagline={'직접 만든 채보로 바로 플레이하고,\n친구들과 리듬을 공유하세요.'}
             size="lg"
             markStyle="overlap"
             gradient={CHART_EDITOR_THEME.titleGradient}
@@ -79,247 +74,98 @@ export const GameMenu: React.FC<GameMenuProps> = ({
           />
         </div>
 
-        {/* 메인 액션 버튼들 */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 14,
-            marginBottom: 32,
-          }}
-        >
-          {/* 플레이 버튼 */}
+        <div className="game-menu-equalizer" aria-hidden="true">
+          {Array.from({ length: 18 }).map((_, index) => (
+            <i key={index} style={{ animationDelay: `${index * 48}ms` }} />
+          ))}
+        </div>
+
+        <div className="game-menu-actions">
           <button
-            style={{
-              padding: '18px 40px',
-              fontSize: '20px',
-              background: CHART_EDITOR_THEME.buttonPrimaryBg,
-              color: CHART_EDITOR_THEME.buttonPrimaryText,
-              border: 'none',
-              borderRadius: CHART_EDITOR_THEME.radiusLg,
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              transition: 'all 0.18s ease-out',
-              boxShadow: CHART_EDITOR_THEME.shadowSoft,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = CHART_EDITOR_THEME.buttonPrimaryBgHover;
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = CHART_EDITOR_THEME.buttonPrimaryBg;
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
+            className="game-menu-action game-menu-action--primary"
             onClick={onPlay}
           >
-            ▶️ 플레이
+            <span>플레이</span>
+            <small>PLAY</small>
           </button>
 
-          {/* 채보 만들기 버튼 */}
           <button
-            style={{
-              padding: '16px 40px',
-              fontSize: '18px',
-              background: CHART_EDITOR_THEME.ctaButtonGradient,
-              color: CHART_EDITOR_THEME.textPrimary,
-              border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
-              borderRadius: CHART_EDITOR_THEME.radiusLg,
-              cursor: canEditCharts ? 'pointer' : 'not-allowed',
-              fontWeight: 'bold',
-              transition: 'all 0.18s ease-out',
-              boxShadow: `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`,
-              opacity: canEditCharts ? 1 : 0.5,
-            }}
-            onMouseEnter={(e) => {
-              if (!canEditCharts) return;
-              e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = `0 6px 16px ${CHART_EDITOR_THEME.accentSoft}`;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradient;
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`;
-            }}
+            className="game-menu-action game-menu-action--secondary"
+            disabled={!canEditCharts}
             onClick={() => {
               if (!ensureEditorAccess()) return;
               onEdit();
             }}
-            title={
-              !canEditCharts && isSupabaseConfigured
-                ? 'Google 로그인 후 이용할 수 있습니다.'
-                : undefined
-            }
+            title={editorTitle}
           >
-            ✏️ 채보 만들기
+            <span>채보 만들기</span>
+            <small>EDITOR</small>
           </button>
 
-          {/* 관리자 버튼 (보조 액션) */}
           {canSeeAdminMenu && (
             <button
-              style={{
-                padding: '12px 24px',
-                fontSize: '16px',
-                background: CHART_EDITOR_THEME.ctaButtonGradient,
-                color: CHART_EDITOR_THEME.textPrimary,
-                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                borderRadius: CHART_EDITOR_THEME.radiusMd,
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                transition: 'all 0.2s',
-                boxShadow: `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`,
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = `0 6px 16px ${CHART_EDITOR_THEME.accentSoft}`;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradient;
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = `0 4px 12px ${CHART_EDITOR_THEME.accentSoft}`;
-              }}
+              className="game-menu-action game-menu-action--compact"
               onClick={onAdmin}
             >
-              🔐 관리자
+              관리자
             </button>
           )}
 
-          {/* 도움말 버튼 */}
           <button
-            style={{
-              padding: '12px 24px',
-              fontSize: '16px',
-              background: 'transparent',
-              color: CHART_EDITOR_THEME.textSecondary,
-              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-              borderRadius: CHART_EDITOR_THEME.radiusMd,
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              transition: 'all 0.2s',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = CHART_EDITOR_THEME.buttonGhostBgHover;
-              e.currentTarget.style.color = CHART_EDITOR_THEME.textPrimary;
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
-              e.currentTarget.style.color = CHART_EDITOR_THEME.textSecondary;
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
+            className="game-menu-action game-menu-action--ghost"
             onClick={onTutorial}
           >
-            📖 도움말
+            도움말
           </button>
         </div>
 
-        {/* 로그인/설정 영역 */}
-        <div style={{ marginBottom: 24 }}>
+        <div className="game-menu-account">
           {isSupabaseConfigured && !authUser ? (
             <button
+              className="game-menu-link"
               onClick={onLogin}
-              style={{
-                padding: '10px 20px',
-                fontSize: '14px',
-                background: 'transparent',
-                color: CHART_EDITOR_THEME.textPrimary,
-                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                borderRadius: CHART_EDITOR_THEME.radiusSm,
-                cursor: 'pointer',
-                marginRight: '8px',
-              }}
             >
-              🔑 Google 로그인
+              Google 로그인
             </button>
           ) : authUser ? (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: CHART_EDITOR_THEME.textSecondary }}>
-                <span>
-                  {roleChessIcon} {userDisplayName}
-                </span>
+            <div className="game-menu-userbar">
+              <div className="game-menu-user">
+                <span>{roleChessIcon} {userDisplayName}</span>
                 {(isAdmin || isModerator) && (
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      padding: '2px 8px',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      letterSpacing: '0.25px',
-                      color: isAdmin ? '#fecaca' : '#c7d2fe',
-                      background: isAdmin
-                        ? 'rgba(239, 68, 68, 0.16)'
-                        : 'rgba(56, 189, 248, 0.12)',
-                      border: isAdmin
-                        ? '1px solid rgba(239, 68, 68, 0.55)'
-                        : '1px solid rgba(56, 189, 248, 0.55)',
-                      borderRadius: CHART_EDITOR_THEME.radiusSm,
-                      textTransform: 'uppercase',
-                    }}
-                  >
+                  <span className="game-menu-role">
                     {isAdmin ? 'ADMIN' : 'MODERATOR'}
                   </span>
                 )}
               </div>
               <button
+                className="game-menu-link"
                 onClick={onSettings}
-                style={{
-                  padding: '8px 16px',
-                  fontSize: '14px',
-                  background: 'transparent',
-                  color: CHART_EDITOR_THEME.textPrimary,
-                  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                  borderRadius: CHART_EDITOR_THEME.radiusSm,
-                  cursor: 'pointer',
-                }}
               >
-                ⚙️ 설정
+                설정
               </button>
               <button
+                className="game-menu-link game-menu-link--muted"
                 onClick={onLogout}
-                style={{
-                  padding: '8px 16px',
-                  fontSize: '14px',
-                  background: 'transparent',
-                  color: CHART_EDITOR_THEME.textSecondary,
-                  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                  borderRadius: CHART_EDITOR_THEME.radiusSm,
-                  cursor: 'pointer',
-                }}
               >
                 로그아웃
               </button>
             </div>
           ) : (
             <button
+              className="game-menu-link"
               onClick={onSettings}
-              style={{
-                padding: '6px 16px',
-                fontSize: '13px',
-                background: CHART_EDITOR_THEME.buttonGhostBg,
-                color: CHART_EDITOR_THEME.textPrimary,
-                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                borderRadius: CHART_EDITOR_THEME.radiusSm,
-                cursor: 'pointer',
-              }}
             >
-              ⚙ 설정
+              설정
             </button>
           )}
         </div>
 
         {isSupabaseConfigured && !authUser && (
-          <p
-            style={{
-              fontSize: '12px',
-              color: CHART_EDITOR_THEME.textSecondary,
-            }}
-          >
+          <p className="game-menu-note">
             채보 만들기는 Google 로그인 후 이용할 수 있습니다.
           </p>
         )}
-      </div>
+      </section>
     </div>
   );
 };
