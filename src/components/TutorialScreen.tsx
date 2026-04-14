@@ -19,6 +19,7 @@ export const TutorialScreen: React.FC<TutorialScreenProps> = ({ onClose }) => {
 
   return (
     <div
+      className="tutorial-screen"
       style={{
         position: 'fixed',
         inset: 0,
@@ -31,6 +32,7 @@ export const TutorialScreen: React.FC<TutorialScreenProps> = ({ onClose }) => {
     >
       {/* 헤더 */}
       <div
+        className="tutorial-header"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -53,6 +55,7 @@ export const TutorialScreen: React.FC<TutorialScreenProps> = ({ onClose }) => {
           도움말
         </h1>
         <button
+          className="tutorial-close"
           onClick={onClose}
           style={{
             padding: '8px 16px',
@@ -71,6 +74,7 @@ export const TutorialScreen: React.FC<TutorialScreenProps> = ({ onClose }) => {
 
       {/* 탭 네비게이션 */}
       <div
+        className="tutorial-tabs"
         style={{
           display: 'flex',
           gap: '8px',
@@ -81,6 +85,7 @@ export const TutorialScreen: React.FC<TutorialScreenProps> = ({ onClose }) => {
         {TABS.map((tab) => (
           <button
             key={tab.id}
+            className={`tutorial-tab${activeTab === tab.id ? ' tutorial-tab--active' : ''}`}
             onClick={() => setActiveTab(tab.id)}
             style={{
               padding: '10px 20px',
@@ -111,6 +116,7 @@ export const TutorialScreen: React.FC<TutorialScreenProps> = ({ onClose }) => {
 
       {/* 컨텐츠 영역 */}
       <div
+        className="tutorial-content"
         style={{
           flex: 1,
           overflow: 'auto',
@@ -269,7 +275,7 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({
   title,
   children,
 }) => (
-  <div style={{ marginBottom: '32px' }}>
+  <div className="tutorial-section" style={{ marginBottom: '32px' }}>
     <h2
       style={{
         fontSize: '18px',
@@ -282,7 +288,7 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({
     >
       {title}
     </h2>
-    <div style={{ color: CHART_EDITOR_THEME.textPrimary, lineHeight: 1.6 }}>
+    <div className="tutorial-section__body" style={{ color: CHART_EDITOR_THEME.textPrimary, lineHeight: 1.6 }}>
       {children}
     </div>
   </div>
@@ -292,6 +298,7 @@ const KeyBindingDisplay: React.FC = () => {
   const keys = ['D', 'F', 'J', 'K'];
   return (
     <div
+      className="tutorial-key-grid"
       style={{
         display: 'flex',
         gap: '16px',
@@ -301,6 +308,7 @@ const KeyBindingDisplay: React.FC = () => {
     >
       {keys.map((key, index) => (
         <div
+          className="tutorial-key-item"
           key={key}
           style={{
             display: 'flex',
@@ -310,6 +318,7 @@ const KeyBindingDisplay: React.FC = () => {
           }}
         >
           <div
+            className="tutorial-keycap"
             style={{
               width: '60px',
               height: '60px',
@@ -341,6 +350,7 @@ const NoteTypeCard: React.FC<{
   description: string;
 }> = ({ title, color, description }) => (
   <div
+    className="tutorial-note-card"
     style={{
       flex: '1 1 200px',
       padding: '16px',
@@ -358,6 +368,7 @@ const NoteTypeCard: React.FC<{
       }}
     >
       <div
+        className="tutorial-note-swatch"
         style={{
           width: '24px',
           height: '24px',
@@ -380,6 +391,7 @@ const JudgeCard: React.FC<{
   score: string;
 }> = ({ judge, color, timing, score }) => (
   <div
+    className="tutorial-judge-card"
     style={{
       padding: '12px 16px',
       backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
