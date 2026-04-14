@@ -1,6 +1,5 @@
 import React from 'react';
 import { GameState } from '../types/game';
-import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 
 interface GameEndScreenProps {
   isTestMode: boolean;
@@ -13,6 +12,30 @@ interface GameEndScreenProps {
   onReset: () => void;
 }
 
+interface ResultAction {
+  label: string;
+  variant: 'primary' | 'secondary';
+  onClick: () => void;
+}
+
+const getResultGrade = (accuracy: number) => {
+  if (accuracy >= 99.5) return 'SS';
+  if (accuracy >= 95) return 'S';
+  if (accuracy >= 90) return 'A';
+  if (accuracy >= 80) return 'B';
+  return 'C';
+};
+
+const ResultActionButton: React.FC<ResultAction> = ({ label, variant, onClick }) => (
+  <button
+    className={`game-end-action game-end-action--${variant}`}
+    type="button"
+    onClick={onClick}
+  >
+    {label}
+  </button>
+);
+
 export const GameEndScreen: React.FC<GameEndScreenProps> = ({
   isTestMode,
   accuracy,
@@ -23,222 +46,79 @@ export const GameEndScreen: React.FC<GameEndScreenProps> = ({
   onReturnToPlayList,
   onReset,
 }) => {
-  // 간주 구간에서는 종료 화면 숨김
+  // Hide result UI during BGA-only interlude sections.
   if (bgaMaskOpacity >= 1) {
     return null;
   }
 
-  if (isTestMode) {
-    return (
-      <div
-        style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          textAlign: 'center',
-          color: CHART_EDITOR_THEME.textPrimary,
-          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
-          padding: '32px',
-          borderRadius: CHART_EDITOR_THEME.radiusLg,
-          minWidth: '360px',
-          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-          boxShadow: CHART_EDITOR_THEME.shadowSoft,
-        }}
-      >
-        <h1
-          style={{
-            fontSize: '40px',
-            marginBottom: '20px',
-            color: CHART_EDITOR_THEME.textPrimary,
-          }}
-        >
-          테스트 종료
-        </h1>
-        <div
-          style={{
-            fontSize: '20px',
-            marginBottom: '28px',
-            color: CHART_EDITOR_THEME.textSecondary,
-          }}
-        >
-          <div>정확도: {accuracy.toFixed(2)}%</div>
-          <div>최대 콤보: {score.maxCombo}</div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {onRetest && (
-            <button
-              onClick={onRetest}
-              style={{
-                padding: '14px 24px',
-                fontSize: '18px',
-                background: CHART_EDITOR_THEME.ctaButtonGradient,
-                color: CHART_EDITOR_THEME.textPrimary,
-                border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
-                borderRadius: CHART_EDITOR_THEME.radiusMd,
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradient;
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              🔁 다시 테스트
-            </button>
-          )}
-          {onReturnToEditor && (
-            <button
-              onClick={onReturnToEditor}
-              style={{
-                padding: '14px 24px',
-                fontSize: '18px',
-                background: CHART_EDITOR_THEME.ctaButtonGradient,
-                color: CHART_EDITOR_THEME.textPrimary,
-                border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
-                borderRadius: CHART_EDITOR_THEME.radiusMd,
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradient;
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              ✏️ 에디터로 돌아가기
-            </button>
-          )}
-          {onReturnToPlayList && (
-            <button
-              onClick={onReturnToPlayList}
-              style={{
-                padding: '14px 24px',
-                fontSize: '18px',
-                background: CHART_EDITOR_THEME.ctaButtonGradient,
-                color: CHART_EDITOR_THEME.textPrimary,
-                border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
-                borderRadius: CHART_EDITOR_THEME.radiusMd,
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradient;
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              📋 플레이 목록으로
-            </button>
-          )}
-          <button
-            onClick={onReset}
-            style={{
-              padding: '14px 24px',
-              fontSize: '18px',
-              background: 'transparent',
-              color: CHART_EDITOR_THEME.textPrimary,
-              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-              borderRadius: CHART_EDITOR_THEME.radiusMd,
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              transition: 'all 0.2s',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = CHART_EDITOR_THEME.surface;
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            🏠 메인 메뉴
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const grade = getResultGrade(accuracy);
+  const totalNotes = score.perfect + score.great + score.good + score.miss;
+  const accuracyAngle = Math.max(0, Math.min(100, accuracy)) * 3.6;
+  const title = isTestMode ? '테스트 종료' : '게임 종료';
+  const subtitle = isTestMode
+    ? '채보 테스트 결과를 확인하고 바로 수정 흐름으로 돌아갈 수 있습니다.'
+    : '플레이 결과가 정산되었습니다.';
+
+  const stats = [
+    { label: 'Perfect', value: score.perfect, tone: 'gold' },
+    { label: 'Great', value: score.great, tone: 'green' },
+    { label: 'Good', value: score.good, tone: 'blue' },
+    { label: 'Miss', value: score.miss, tone: 'red' },
+    { label: 'Max Combo', value: score.maxCombo, tone: 'plain' },
+    { label: 'Total Notes', value: totalNotes, tone: 'plain' },
+  ];
+
+  const actions: ResultAction[] = isTestMode
+    ? [
+        ...(onRetest ? [{ label: '다시 테스트', variant: 'primary' as const, onClick: onRetest }] : []),
+        ...(onReturnToEditor
+          ? [{ label: '에디터로 돌아가기', variant: 'primary' as const, onClick: onReturnToEditor }]
+          : []),
+        ...(onReturnToPlayList
+          ? [{ label: '플레이 목록으로', variant: 'primary' as const, onClick: onReturnToPlayList }]
+          : []),
+        { label: '메인 메뉴', variant: 'secondary', onClick: onReset },
+      ]
+    : [{ label: '다시 시작', variant: 'primary', onClick: onReset }];
 
   return (
-    <div
-      style={{
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        textAlign: 'center',
-        color: CHART_EDITOR_THEME.textPrimary,
-        backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
-        padding: '32px',
-        borderRadius: CHART_EDITOR_THEME.radiusLg,
-        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-        boxShadow: CHART_EDITOR_THEME.shadowSoft,
-      }}
-    >
-      <h1
-        style={{
-          fontSize: '48px',
-          marginBottom: '32px',
-          color: CHART_EDITOR_THEME.textPrimary,
-        }}
-      >
-        게임 종료
-      </h1>
-      <div
-        style={{
-          fontSize: '24px',
-          marginBottom: '32px',
-          color: CHART_EDITOR_THEME.textSecondary,
-        }}
-      >
-        <div>최대 콤보: {score.maxCombo}</div>
-        <div>정확도: {accuracy.toFixed(2)}%</div>
+    <div className="game-end-screen" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="game-end-panel">
+        <div className="game-end-ambient" aria-hidden="true" />
+
+        <div className="game-end-copy">
+          <p className="game-end-eyebrow">{isTestMode ? 'TEST RESULT' : 'PLAY RESULT'}</p>
+          <h1>{title}</h1>
+          <p>{subtitle}</p>
+        </div>
+
+        <div className="game-end-summary">
+          <div
+            className="game-end-accuracy-ring"
+            style={{ '--accuracy-angle': `${accuracyAngle}deg` } as React.CSSProperties}
+            aria-label={`정확도 ${accuracy.toFixed(2)} 퍼센트`}
+          >
+            <span className="game-end-grade">{grade}</span>
+            <strong>{accuracy.toFixed(2)}%</strong>
+            <small>ACCURACY</small>
+          </div>
+
+          <div className="game-end-stats">
+            {stats.map((item) => (
+              <div className={`game-end-stat game-end-stat--${item.tone}`} key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="game-end-actions">
+          {actions.map((action) => (
+            <ResultActionButton key={action.label} {...action} />
+          ))}
+        </div>
       </div>
-      <button
-        onClick={onReset}
-        style={{
-          padding: '16px 32px',
-          fontSize: '24px',
-          background: CHART_EDITOR_THEME.ctaButtonGradient,
-          color: CHART_EDITOR_THEME.textPrimary,
-          border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
-          borderRadius: CHART_EDITOR_THEME.radiusMd,
-          cursor: 'pointer',
-          fontWeight: 'bold',
-          transition: 'all 0.2s',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradientHover;
-          e.currentTarget.style.transform = 'translateY(-2px)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = CHART_EDITOR_THEME.ctaButtonGradient;
-          e.currentTarget.style.transform = 'translateY(0)';
-        }}
-      >
-        다시 시작
-      </button>
     </div>
   );
 };
-
-
-
-
-
-
-
