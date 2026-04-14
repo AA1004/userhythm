@@ -124,6 +124,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       });
       feedbackTimersRef.current.clear();
       setJudgeFeedbacks([]);
+      setKeyEffects([]);
 
       const feedbackId = feedbackIdRef.current++;
       setJudgeFeedbacks([{ id: feedbackId, judge }]);
@@ -131,7 +132,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       const effectId = keyEffectIdRef.current++;
       const effectX = laneCenters[lane] ?? LANE_POSITIONS[lane];
       const effectY = judgeLineY;
-      setKeyEffects((prev) => [...prev, { id: effectId, lane, x: effectX, y: effectY, judge }]);
+      setKeyEffects([{ id: effectId, lane, x: effectX, y: effectY, judge }]);
 
       requestAnimationFrame(() => {
         const timer = setTimeout(() => {
