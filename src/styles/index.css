@@ -84,11 +84,11 @@ body {
 
 .combo-display {
   position: absolute;
-  top: 46px;
+  top: 38px;
   z-index: 850;
   display: grid;
   justify-items: center;
-  min-width: 150px;
+  min-width: 220px;
   transform: translateX(-50%);
   pointer-events: none;
   user-select: none;
@@ -102,10 +102,10 @@ body {
 .combo-display__number {
   display: block;
   font-family: 'Bahnschrift', 'DIN Alternate', 'Rajdhani', 'Arial Narrow', sans-serif;
-  font-size: 58px;
+  font-size: 96px;
   font-weight: 300;
-  line-height: 0.88;
-  letter-spacing: -0.08em;
+  line-height: 0.82;
+  letter-spacing: -0.095em;
   font-variant-numeric: tabular-nums;
   text-shadow:
     0 0 1px rgba(255, 255, 255, 0.9),
@@ -117,14 +117,14 @@ body {
 .combo-display__label {
   position: relative;
   display: inline-block;
-  margin-top: 8px;
-  padding: 3px 12px 4px;
+  margin-top: 12px;
+  padding: 4px 16px 5px;
   border: 1px solid rgba(238, 247, 242, 0.16);
   border-radius: 999px;
   color: rgba(238, 247, 242, 0.64);
   background: linear-gradient(90deg, rgba(119, 255, 214, 0.09), rgba(255, 255, 255, 0.035), rgba(255, 78, 122, 0.08));
   font-family: 'Bahnschrift', 'Rajdhani', 'Arial Narrow', sans-serif;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.22em;
 }
