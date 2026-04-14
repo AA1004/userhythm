@@ -657,6 +657,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', position: 'relative', zIndex: 1 }}>
           <h1
+            className="chart-select-title"
             style={{
               color: CHART_EDITOR_THEME.textPrimary,
               fontSize: '24px',
@@ -969,6 +970,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                 >
                   {chart.preview_image ? (
                     <div
+                      className="chart-select-card__thumb"
                       style={{
                         width: '100%',
                         height: '180px',
@@ -983,6 +985,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                       }}
                     >
                       <img
+                        className="chart-select-card__image"
                         src={chart.preview_image}
                         alt={chart.title}
                         style={{
@@ -992,17 +995,14 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                         }}
                         loading="lazy"
                         onError={(e) => {
-                          console.error('이미지 로드 실패:', chart.preview_image);
                           // 이미지 로드 실패 시 숨김
                           e.currentTarget.style.display = 'none';
-                        }}
-                        onLoad={() => {
-                          console.log('이미지 로드 성공:', chart.preview_image);
                         }}
                       />
                     </div>
                   ) : (
                     <div
+                      className="chart-select-card__thumb chart-select-card__thumb--empty"
                       style={{
                         width: '100%',
                           height: '180px',
