@@ -83,7 +83,9 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   const feedbackIdRef = useRef(0);
   const [keyEffects, setKeyEffects] = useState<KeyEffect[]>([]);
   const keyEffectIdRef = useRef(0);
-  const feedbackTimersRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
+  const judgeFeedbackTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const keyEffectTimersRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
+  const laneEffectIdsRef = useRef<Map<Lane, number>>(new Map());
 
   const updateScoreFromJudge = useCallback((judge: JudgeType, prevScore: GameState['score']): GameState['score'] => {
     const newScore = { ...prevScore };
@@ -119,12 +121,11 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       const currentState = gameStateRef.current;
       if (!currentState.gameStarted || currentState.gameEnded) return;
 
-      feedbackTimersRef.current.forEach((timer) => {
-        clearTimeout(timer);
-      });
-      feedbackTimersRef.current.clear();
+      if (judgeFeedbackTimerRef.current) {
+        clearTimeout(judgeFeedbackTimerRef.current);
+        judgeFeedbackTimerRef.current = null;
+      }
       setJudgeFeedbacks([]);
-      setKeyEffects([]);
 
       const feedbackId = feedbackIdRef.current++;
       setJudgeFeedbacks([{ id: feedbackId, judge }]);
@@ -132,15 +133,39 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       const effectId = keyEffectIdRef.current++;
       const effectX = laneCenters[lane] ?? LANE_POSITIONS[lane];
       const effectY = judgeLineY;
-      setKeyEffects([{ id: effectId, lane, x: effectX, y: effectY, judge }]);
+
+      const previousLaneEffectId = laneEffectIdsRef.current.get(lane);
+      if (previousLaneEffectId !== undefined) {
+        const previousTimer = keyEffectTimersRef.current.get(previousLaneEffectId);
+        if (previousTimer) {
+          clearTimeout(previousTimer);
+          keyEffectTimersRef.current.delete(previousLaneEffectId);
+        }
+      }
+
+      laneEffectIdsRef.current.set(lane, effectId);
+      setKeyEffects((prev) => [
+        ...prev.filter((effect) => effect.lane !== lane),
+        { id: effectId, lane, x: effectX, y: effectY, judge },
+      ]);
 
       requestAnimationFrame(() => {
-        const timer = setTimeout(() => {
+        const feedbackTimer = setTimeout(() => {
           setJudgeFeedbacks((prev) => prev.filter((f) => f.id !== feedbackId));
-          setKeyEffects((prev) => prev.filter((e) => e.id !== effectId));
-          feedbackTimersRef.current.delete(feedbackId);
+          if (judgeFeedbackTimerRef.current === feedbackTimer) {
+            judgeFeedbackTimerRef.current = null;
+          }
         }, JUDGE_FEEDBACK_DURATION_MS);
-        feedbackTimersRef.current.set(feedbackId, timer);
+        judgeFeedbackTimerRef.current = feedbackTimer;
+
+        const keyEffectTimer = setTimeout(() => {
+          setKeyEffects((prev) => prev.filter((e) => e.id !== effectId));
+          keyEffectTimersRef.current.delete(effectId);
+          if (laneEffectIdsRef.current.get(lane) === effectId) {
+            laneEffectIdsRef.current.delete(lane);
+          }
+        }, JUDGE_FEEDBACK_DURATION_MS);
+        keyEffectTimersRef.current.set(effectId, keyEffectTimer);
       });
     },
     [gameStateRef, laneCenters, judgeLineY]
@@ -309,10 +334,15 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
 
   useEffect(() => {
     if (!gameState.gameStarted) {
-      feedbackTimersRef.current.forEach((timer) => {
+      if (judgeFeedbackTimerRef.current) {
+        clearTimeout(judgeFeedbackTimerRef.current);
+        judgeFeedbackTimerRef.current = null;
+      }
+      keyEffectTimersRef.current.forEach((timer) => {
         clearTimeout(timer);
       });
-      feedbackTimersRef.current.clear();
+      keyEffectTimersRef.current.clear();
+      laneEffectIdsRef.current.clear();
       setJudgeFeedbacks([]);
       setKeyEffects([]);
       setPressedKeys(new Set());
@@ -323,10 +353,15 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
 
   useEffect(() => {
     return () => {
-      feedbackTimersRef.current.forEach((timer) => {
+      if (judgeFeedbackTimerRef.current) {
+        clearTimeout(judgeFeedbackTimerRef.current);
+        judgeFeedbackTimerRef.current = null;
+      }
+      keyEffectTimersRef.current.forEach((timer) => {
         clearTimeout(timer);
       });
-      feedbackTimersRef.current.clear();
+      keyEffectTimersRef.current.clear();
+      laneEffectIdsRef.current.clear();
     };
   }, []);
 
