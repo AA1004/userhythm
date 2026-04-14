@@ -25,8 +25,55 @@ function binarySearchEndIndex(notes: Note[], targetTime: number, startIdx: numbe
   return low - 1;
 }
 
+function binarySearchStartIndex(notes: Note[], targetTime: number): number {
+  let low = 0;
+  let high = notes.length;
+  while (low < high) {
+    const mid = (low + high) >>> 1;
+    if (notes[mid].time < targetTime) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  return low;
+}
+
+function binarySearchHoldEndIndex(notes: Note[], holdIndicesByEnd: number[], targetTime: number): number {
+  let low = 0;
+  let high = holdIndicesByEnd.length;
+  while (low < high) {
+    const mid = (low + high) >>> 1;
+    if (getNoteRenderEndTime(notes[holdIndicesByEnd[mid]]) < targetTime) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  return low;
+}
+
 const getNoteRenderEndTime = (note: Note) =>
   note.type === 'hold' && note.duration > 0 ? note.endTime || note.time + note.duration : note.time;
+
+const getNotesRenderIndexSignature = (notes: Note[]) => {
+  const first = notes[0];
+  const last = notes[notes.length - 1];
+  return [
+    notes.length,
+    first?.id ?? 'none',
+    first?.time ?? 0,
+    first ? getNoteRenderEndTime(first) : 0,
+    last?.id ?? 'none',
+    last?.time ?? 0,
+    last ? getNoteRenderEndTime(last) : 0,
+  ].join(':');
+};
+
+interface NoteRenderIndex {
+  signature: string;
+  holdIndicesByEnd: number[];
+}
 
 interface GamePlayAreaProps {
   gameState: GameState;
@@ -64,6 +111,10 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   playfieldGeometry,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const renderIndexRef = useRef<NoteRenderIndex>({
+    signature: '',
+    holdIndicesByEnd: [],
+  });
 
   const visibleNotes = useMemo(() => {
     const shouldProfile = isGameplayProfilerEnabled();
@@ -76,24 +127,56 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
       }
     };
 
-    if (!isLaneUiVisible) return [];
+    if (!isLaneUiVisible) {
+      recordProfile();
+      return [];
+    }
 
     const notes = gameState.notes;
-    if (notes.length === 0) return [];
+    if (notes.length === 0) {
+      recordProfile();
+      return [];
+    }
+
+    const renderIndexSignature = getNotesRenderIndexSignature(notes);
+    if (renderIndexRef.current.signature !== renderIndexSignature) {
+      renderIndexRef.current = {
+        signature: renderIndexSignature,
+        holdIndicesByEnd: notes
+          .map((note, index) => (note.type === 'hold' && note.duration > 0 ? index : -1))
+          .filter((index) => index >= 0)
+          .sort((a, b) => getNoteRenderEndTime(notes[a]) - getNoteRenderEndTime(notes[b])),
+      };
+    }
 
     const baseDuration = BASE_FALL_DURATION / speed;
     const viewportStart = gameState.currentTime - baseDuration - NOTE_VISIBILITY_BUFFER_MS;
     const viewportEnd = gameState.currentTime + baseDuration + NOTE_VISIBILITY_BUFFER_MS;
 
-    const endIdx = binarySearchEndIndex(notes, viewportEnd, 0);
+    const startIdx = binarySearchStartIndex(notes, viewportStart);
+    const endIdx = binarySearchEndIndex(notes, viewportEnd, startIdx);
 
     const result: Note[] = [];
-    for (let i = 0; i <= endIdx && i < notes.length; i++) {
-      inspectedNotes += 1;
-      const note = notes[i];
-      if (note.hit) continue;
-      if (getNoteRenderEndTime(note) < viewportStart) continue;
+    const addedNoteIds = new Set<number>();
+    const addVisibleNote = (note: Note) => {
+      if (note.hit || addedNoteIds.has(note.id)) return;
+      if (getNoteRenderEndTime(note) < viewportStart || note.time > viewportEnd) return;
+      addedNoteIds.add(note.id);
       result.push(note);
+    };
+
+    for (let i = startIdx; i <= endIdx && i < notes.length; i++) {
+      inspectedNotes += 1;
+      addVisibleNote(notes[i]);
+    }
+
+    const holdIndicesByEnd = renderIndexRef.current.holdIndicesByEnd;
+    const holdStartIdx = binarySearchHoldEndIndex(notes, holdIndicesByEnd, viewportStart);
+    for (let i = holdStartIdx; i < holdIndicesByEnd.length; i++) {
+      const note = notes[holdIndicesByEnd[i]];
+      inspectedNotes += 1;
+      if (!note || note.time >= viewportStart) continue;
+      addVisibleNote(note);
     }
 
     recordProfile();
