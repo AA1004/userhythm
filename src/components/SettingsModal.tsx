@@ -66,12 +66,13 @@ const VisualSliderRow = memo<VisualSliderRowProps>(({
   onCommit,
 }) => {
   return (
-    <div style={{ marginBottom: '12px' }}>
+    <div className="settings-slider-row" style={{ marginBottom: '12px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '4px' }}>
         <span>{label}</span>
         <strong style={{ color: CHART_EDITOR_THEME.textPrimary }}>{value}{suffix}</strong>
       </div>
       <input
+        className="settings-slider-row__input"
         type="range"
         min={min}
         max={max}
@@ -216,6 +217,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div
+      className="settings-modal-overlay"
       style={{
         position: 'fixed',
         top: 0,
@@ -231,6 +233,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       onClick={onClose}
     >
       <div
+        className="settings-modal-panel"
         style={{
           background: CHART_EDITOR_THEME.surfaceElevated,
           borderRadius: CHART_EDITOR_THEME.radiusLg,
@@ -244,6 +247,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <h2
+          className="settings-modal-title"
           style={{
             color: CHART_EDITOR_THEME.textPrimary,
             marginTop: 0,
@@ -582,6 +586,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* 닫기 버튼 */}
         <button
+          className="settings-modal-close"
           onClick={onClose}
           style={{
             width: '100%',

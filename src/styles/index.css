@@ -132,6 +132,94 @@ body {
 }
 
 /* =========================
+   Settings modal
+   ========================= */
+
+.settings-modal-overlay {
+  animation: settingsOverlayIn 180ms ease-out both;
+  backdrop-filter: blur(8px);
+}
+
+.settings-modal-panel {
+  position: relative;
+  isolation: isolate;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(119, 255, 214, 0.34) rgba(255, 255, 255, 0.04);
+  animation: settingsPanelIn 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.settings-modal-panel::-webkit-scrollbar {
+  width: 10px;
+}
+
+.settings-modal-panel::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 999px;
+}
+
+.settings-modal-panel::-webkit-scrollbar-thumb {
+  border: 2px solid rgba(8, 12, 24, 0.88);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(119, 255, 214, 0.52), rgba(255, 78, 122, 0.36));
+}
+
+.settings-modal-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 160px;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 12% 10%, rgba(119, 255, 214, 0.18), transparent 36%),
+    radial-gradient(circle at 88% 0%, rgba(255, 78, 122, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent);
+  opacity: 0.9;
+}
+
+.settings-modal-title {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-modal-title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -8px;
+  width: 100%;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #77ffd6, #ffcf5f, #ff5f85);
+  box-shadow: 0 0 14px rgba(119, 255, 214, 0.34);
+}
+
+.settings-slider-row {
+  padding: 9px 10px 11px;
+  border: 1px solid rgba(238, 247, 242, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.028);
+}
+
+.settings-slider-row__input {
+  cursor: pointer;
+}
+
+.settings-modal-close {
+  transition: transform 150ms ease, background 150ms ease, border-color 150ms ease;
+}
+
+.settings-modal-close:hover,
+.settings-modal-close:focus-visible {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.055) !important;
+  border-color: rgba(119, 255, 214, 0.32) !important;
+}
+
+/* =========================
    Key hit effect (neon theme)
    ========================= */
 
@@ -217,6 +305,26 @@ body {
     transform: translateY(3px) scale(0.96);
   }
   to {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes settingsOverlayIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes settingsPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+  to {
+    opacity: 1;
     transform: translateY(0) scale(1);
   }
 }
@@ -1622,6 +1730,8 @@ body {
   .game-menu-grid,
   .game-menu-lanes span::after,
   .combo-display__number,
+  .settings-modal-overlay,
+  .settings-modal-panel,
   .game-menu-panel,
   .game-menu-kicker,
   .game-menu-hero,
@@ -1659,6 +1769,7 @@ body {
   .game-menu-link,
   .chart-select-transition__copy button,
   .chart-select-card__image,
+  .settings-modal-close,
   .game-end-action {
     transition: none;
   }
