@@ -540,6 +540,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onChange={(value) => scheduleVisualSettingsChange({ noteHeight: value })}
             onCommit={commitVisualSettings}
           />
+          <VisualSliderRow
+            label="콤보 숫자 투명도"
+            value={Math.round(visualSettings.comboOpacity * 100)}
+            min={VISUAL_SETTING_LIMITS.comboOpacity.min * 100}
+            max={VISUAL_SETTING_LIMITS.comboOpacity.max * 100}
+            step={5}
+            suffix="%"
+            onChange={(value) => scheduleVisualSettingsChange({ comboOpacity: value / 100 })}
+            onCommit={commitVisualSettings}
+          />
 
           <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginTop: '6px', lineHeight: 1.5 }}>
             판정선은 위 설정과 분리됩니다. 키 박스 위치는 시각 위치만 바꾸고, 노트 도착점은 판정선 위치를 따릅니다.

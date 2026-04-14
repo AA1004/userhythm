@@ -258,6 +258,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
         <ComboDisplay
           combo={gameState.score.combo}
           laneGroupCenterX={playfieldGeometry.laneGroupLeft + playfieldGeometry.laneGroupWidth / 2}
+          numberOpacity={playfieldGeometry.comboOpacity}
           visible={isLaneUiVisible}
         />
       )}

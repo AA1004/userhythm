@@ -3,12 +3,14 @@ import React from 'react';
 interface ComboDisplayProps {
   combo: number;
   laneGroupCenterX: number;
+  numberOpacity: number;
   visible: boolean;
 }
 
 const ComboDisplayComponent: React.FC<ComboDisplayProps> = ({
   combo,
   laneGroupCenterX,
+  numberOpacity,
   visible,
 }) => {
   if (!visible || combo <= 0) return null;
@@ -16,7 +18,12 @@ const ComboDisplayComponent: React.FC<ComboDisplayProps> = ({
   return (
     <div
       className="combo-display"
-      style={{ left: `${laneGroupCenterX}px` }}
+      style={
+        {
+          left: `${laneGroupCenterX}px`,
+          '--combo-number-opacity': numberOpacity,
+        } as React.CSSProperties
+      }
       aria-label={`Combo ${combo}`}
     >
       <span className="combo-display__number" key={combo}>
@@ -32,5 +39,6 @@ export const ComboDisplay = React.memo(
   (prev, next) =>
     prev.combo === next.combo &&
     prev.laneGroupCenterX === next.laneGroupCenterX &&
+    prev.numberOpacity === next.numberOpacity &&
     prev.visible === next.visible
 );

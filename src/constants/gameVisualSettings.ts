@@ -17,6 +17,7 @@ export interface GameVisualSettings {
   keyLaneY: number;
   noteWidth: number;
   noteHeight: number;
+  comboOpacity: number;
 }
 
 export interface PlayfieldGeometry {
@@ -32,6 +33,7 @@ export interface PlayfieldGeometry {
   keyLaneY: number;
   noteWidth: number;
   noteHeight: number;
+  comboOpacity: number;
 }
 
 export const VISUAL_SETTING_LIMITS = {
@@ -39,6 +41,7 @@ export const VISUAL_SETTING_LIMITS = {
   laneGap: { min: 0, max: 28 },
   noteWidth: { min: 48 },
   noteHeight: { min: 28, max: 56 },
+  comboOpacity: { min: 0.3, max: 1 },
   keyLaneY: { minGapFromJudgeLine: 40 },
 } as const;
 
@@ -51,6 +54,7 @@ export const DEFAULT_GAME_VISUAL_SETTINGS: GameVisualSettings = {
   keyLaneY: 700,
   noteWidth: 90,
   noteHeight: 42,
+  comboOpacity: 0.7,
 };
 
 export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, GameVisualSettings> = {
@@ -64,6 +68,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     keyLaneY: 700,
     noteWidth: 76,
     noteHeight: 38,
+    comboOpacity: 0.7,
   },
   wide: {
     version: VISUAL_SETTINGS_VERSION,
@@ -74,6 +79,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     keyLaneY: 700,
     noteWidth: 96,
     noteHeight: 46,
+    comboOpacity: 0.7,
   },
 };
 
@@ -127,6 +133,11 @@ export const normalizeGameVisualSettings = (
     VISUAL_SETTING_LIMITS.noteHeight.min,
     VISUAL_SETTING_LIMITS.noteHeight.max
   );
+  const comboOpacity = clamp(
+    finiteOr(raw.comboOpacity, fallback.comboOpacity),
+    VISUAL_SETTING_LIMITS.comboOpacity.min,
+    VISUAL_SETTING_LIMITS.comboOpacity.max
+  );
 
   // judgeLineY controls the timing line and note destination.
   // keyLaneY controls only the visual key boxes and is kept below judgeLineY when possible.
@@ -151,6 +162,7 @@ export const normalizeGameVisualSettings = (
     keyLaneY,
     noteWidth,
     noteHeight,
+    comboOpacity,
   };
 };
 
@@ -189,5 +201,6 @@ export const buildPlayfieldGeometry = (
     keyLaneY: normalized.keyLaneY,
     noteWidth: normalized.noteWidth,
     noteHeight: normalized.noteHeight,
+    comboOpacity: normalized.comboOpacity,
   };
 };
