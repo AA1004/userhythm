@@ -138,13 +138,17 @@ const computeHoldRenderSegment = (
   const endTime = note.endTime ?? note.time + note.duration;
   const rawHeadY = getEventY(note.time, currentTime, fallDuration, judgeLineY);
   const rawTailY = getEventY(endTime, currentTime, fallDuration, judgeLineY);
+  const visualHalfHeight = noteHeight / 2;
+  const visualBottomLimitY = judgeLineY + visualHalfHeight;
+  const visualTopLimitY = NOTE_SPAWN_Y - visualHalfHeight;
 
-  // Rendering-only rule: while holding, the head is visually anchored to the judgment line.
+  // Rendering-only rule: hold endpoints are centered on the judgment line like tap notes.
+  // Judgment timing still uses note.time/endTime; only the visible capsule extends by half a note.
   const headY =
     isHolding && currentTime >= note.time
-      ? judgeLineY
-      : Math.max(NOTE_SPAWN_Y, Math.min(judgeLineY, rawHeadY));
-  const tailY = Math.max(NOTE_SPAWN_Y, Math.min(judgeLineY, rawTailY));
+      ? visualBottomLimitY
+      : Math.max(visualTopLimitY, Math.min(visualBottomLimitY, rawHeadY + visualHalfHeight));
+  const tailY = Math.max(visualTopLimitY, Math.min(visualBottomLimitY, rawTailY - visualHalfHeight));
 
   const topY = Math.min(headY, tailY);
   const bottomY = Math.max(headY, tailY);
