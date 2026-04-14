@@ -3,6 +3,7 @@ import { GameState, Note, Lane } from '../types/game';
 import { KeyLane } from './KeyLane';
 import { JudgeLine } from './JudgeLine';
 import { NoteRenderer } from './NoteRenderer';
+import { ComboDisplay } from './ComboDisplay';
 import {
   BASE_FALL_DURATION,
   NOTE_VISIBILITY_BUFFER_MS,
@@ -250,6 +251,14 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
           left={playfieldGeometry.judgeLineLeft}
           width={playfieldGeometry.judgeLineWidth}
           top={judgeLineY}
+        />
+      )}
+
+      {gameStarted && (
+        <ComboDisplay
+          combo={gameState.score.combo}
+          laneGroupCenterX={playfieldGeometry.laneGroupLeft + playfieldGeometry.laneGroupWidth / 2}
+          visible={isLaneUiVisible}
         />
       )}
 
