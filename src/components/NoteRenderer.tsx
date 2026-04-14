@@ -196,6 +196,43 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
   visible,
 }) => {
   const rafIdRef = useRef<number>();
+  const notesRef = useRef(notes);
+  const holdingNotesRef = useRef(holdingNotes);
+  const fallDurationRef = useRef(fallDuration);
+  const judgeLineYRef = useRef(judgeLineY);
+  const laneCentersRef = useRef(laneCenters);
+  const noteWidthRef = useRef(noteWidth);
+  const noteHeightRef = useRef(noteHeight);
+  const visibleRef = useRef(visible);
+
+  useEffect(() => {
+    notesRef.current = notes;
+  }, [notes]);
+
+  useEffect(() => {
+    holdingNotesRef.current = holdingNotes;
+  }, [holdingNotes]);
+
+  useEffect(() => {
+    fallDurationRef.current = fallDuration;
+  }, [fallDuration]);
+
+  useEffect(() => {
+    judgeLineYRef.current = judgeLineY;
+  }, [judgeLineY]);
+
+  useEffect(() => {
+    laneCentersRef.current = laneCenters;
+  }, [laneCenters]);
+
+  useEffect(() => {
+    noteWidthRef.current = noteWidth;
+    noteHeightRef.current = noteHeight;
+  }, [noteWidth, noteHeight]);
+
+  useEffect(() => {
+    visibleRef.current = visible;
+  }, [visible]);
 
   useEffect(() => {
     noteSpriteCache.clear();
@@ -232,44 +269,57 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
     const logicalHeight = canvas.clientHeight;
 
     const render = () => {
-      if (!visible || !canvasRef.current) return;
+      if (!visibleRef.current || !canvasRef.current) return;
 
       const shouldProfile = isGameplayProfilerEnabled();
       const profileStart = shouldProfile ? performance.now() : 0;
       let drawnNotes = 0;
       const currentTime = currentTimeRef.current;
+      const renderNotes = notesRef.current;
+      const activeHoldingNotes = holdingNotesRef.current;
+      const activeFallDuration = fallDurationRef.current;
+      const activeJudgeLineY = judgeLineYRef.current;
+      const activeLaneCenters = laneCentersRef.current;
+      const activeNoteWidth = noteWidthRef.current;
+      const activeNoteHeight = noteHeightRef.current;
       ctx.clearRect(0, 0, logicalWidth, logicalHeight);
 
-      for (const note of notes) {
+      for (const note of renderNotes) {
         if (note.hit) continue;
 
         const isHoldNote = note.duration > 0 && note.type === 'hold';
-        const laneX = laneCenters[note.lane] ?? LANE_POSITIONS[note.lane];
+        const laneX = activeLaneCenters[note.lane] ?? LANE_POSITIONS[note.lane];
 
         if (!isHoldNote) {
           const position = computeTapRenderPosition(
             note,
             currentTime,
-            fallDuration,
-            judgeLineY,
+            activeFallDuration,
+            activeJudgeLineY,
             laneX,
-            noteWidth,
-            noteHeight
+            activeNoteWidth,
+            activeNoteHeight
           );
           if (!position) continue;
           const { left, top } = position;
 
-          ctx.drawImage(getNoteSprite('tap', noteWidth, noteHeight, false), left, top, noteWidth, noteHeight);
+          ctx.drawImage(
+            getNoteSprite('tap', activeNoteWidth, activeNoteHeight, false),
+            left,
+            top,
+            activeNoteWidth,
+            activeNoteHeight
+          );
           drawnNotes += 1;
         } else {
-          const left = laneX - noteWidth / 2;
-          const isHolding = holdingNotes.has(note.id);
+          const left = laneX - activeNoteWidth / 2;
+          const isHolding = activeHoldingNotes.has(note.id);
           const segment = computeHoldRenderSegment(
             note,
             currentTime,
-            fallDuration,
-            judgeLineY,
-            noteHeight,
+            activeFallDuration,
+            activeJudgeLineY,
+            activeNoteHeight,
             isHolding,
             logicalHeight
           );
@@ -281,7 +331,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
 
           ctx.save();
           ctx.beginPath();
-          ctx.rect(left - 8, visibleTop, noteWidth + 16, visibleBottom - visibleTop);
+          ctx.rect(left - 8, visibleTop, activeNoteWidth + 16, visibleBottom - visibleTop);
           ctx.clip();
 
           const bgGradient = ctx.createLinearGradient(left, containerTop, left, containerTop + containerHeight);
@@ -297,15 +347,15 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           ctx.strokeStyle = 'rgba(255,255,255,0.25)';
           ctx.lineWidth = 2;
           const radius = 18;
-          drawRoundedRect(ctx, left, containerTop, noteWidth, containerHeight, radius);
+          drawRoundedRect(ctx, left, containerTop, activeNoteWidth, containerHeight, radius);
           ctx.fill();
           ctx.stroke();
 
           ctx.fillStyle = 'rgba(255,255,255,0.4)';
           const highlightRadius = 12;
-          const highlightLeft = left + noteWidth * 0.1;
+          const highlightLeft = left + activeNoteWidth * 0.1;
           const highlightTop = containerTop + 4;
-          const highlightWidth = noteWidth * 0.8;
+          const highlightWidth = activeNoteWidth * 0.8;
           const highlightHeight = 12;
           drawRoundedRect(ctx, highlightLeft, highlightTop, highlightWidth, highlightHeight, highlightRadius);
           ctx.fill();
@@ -313,9 +363,9 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           if (holdProgress > 0) {
             const progressHeight = (containerHeight - holdHeadHeight) * holdProgress;
             const progressGradient = ctx.createLinearGradient(
-              left + noteWidth * 0.18,
+              left + activeNoteWidth * 0.18,
               containerTop + containerHeight - holdHeadHeight - progressHeight,
-              left + noteWidth * 0.18,
+              left + activeNoteWidth * 0.18,
               containerTop + containerHeight - holdHeadHeight
             );
             if (isHolding) {
@@ -327,16 +377,16 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
             }
             ctx.fillStyle = progressGradient;
             const progressRadius = 10;
-            const progressLeft = left + noteWidth * 0.18;
+            const progressLeft = left + activeNoteWidth * 0.18;
             const progressTop = containerTop + containerHeight - holdHeadHeight - progressHeight;
-            const progressWidth = noteWidth * 0.64;
+            const progressWidth = activeNoteWidth * 0.64;
             drawRoundedRect(ctx, progressLeft, progressTop, progressWidth, progressHeight, progressRadius);
             ctx.fill();
           }
 
           const headLeft = left + 6;
           const headTop = containerTop + containerHeight - holdHeadHeight;
-          const headWidth = noteWidth - 12;
+          const headWidth = activeNoteWidth - 12;
           ctx.drawImage(
             getNoteSprite('holdHead', headWidth, holdHeadHeight, isHolding),
             headLeft,
@@ -364,7 +414,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
         rafIdRef.current = undefined;
       }
     };
-  }, [canvasRef, notes, currentTimeRef, fallDuration, judgeLineY, laneCenters, noteWidth, noteHeight, holdingNotes, visible]);
+  }, [canvasRef, currentTimeRef, visible]);
 
   return null;
 };

@@ -19,6 +19,19 @@ function binarySearchFirstNoteAtOrAfter(notes: Note[], targetTime: number): numb
   return low;
 }
 
+function markNoteHitById(notes: Note[], noteId: number, preferredIndex = -1): Note[] {
+  const targetIndex =
+    preferredIndex >= 0 && notes[preferredIndex]?.id === noteId
+      ? preferredIndex
+      : notes.findIndex((note) => note.id === noteId);
+
+  if (targetIndex < 0 || notes[targetIndex].hit) return notes;
+
+  const updatedNotes = notes.slice();
+  updatedNotes[targetIndex] = { ...updatedNotes[targetIndex], hit: true };
+  return updatedNotes;
+}
+
 export interface JudgeFeedback {
   id: number;
   judge: JudgeType;
@@ -146,6 +159,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
 
       const currentTime = currentTimeRef.current;
       let targetNote: Note | null = null;
+      let targetNoteIndex = -1;
       const shouldProfile = isGameplayProfilerEnabled();
       const judgeScanStart = shouldProfile ? performance.now() : 0;
       let scannedNotes = 0;
@@ -164,6 +178,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         if (holdingNotesRef.current.has(note.id)) continue;
 
         targetNote = note;
+        targetNoteIndex = i;
         break;
       }
 
@@ -181,7 +196,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         const newScore = updateScoreFromJudge(judge, prev.score);
         const updatedNotes = isHoldNote
           ? prev.notes
-          : prev.notes.map((note) => (note.id === targetNote!.id ? { ...note, hit: true } : note));
+          : markNoteHitById(prev.notes, targetNote!.id, targetNoteIndex);
 
         return {
           ...prev,
@@ -233,9 +248,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
             setGameState((prevState) => {
               const newScore = updateScoreFromJudge(judge, prevState.score);
 
-              const updatedNotes = prevState.notes.map((note) =>
-                note.id === holdNote.id ? { ...note, hit: true } : note
-              );
+              const updatedNotes = markNoteHitById(prevState.notes, holdNote.id);
 
               return {
                 ...prevState,
@@ -252,9 +265,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
             setGameState((prevState) => {
               const newScore = updateScoreFromJudge('miss', prevState.score);
 
-              const updatedNotes = prevState.notes.map((note) =>
-                note.id === holdNote.id ? { ...note, hit: true } : note
-              );
+              const updatedNotes = markNoteHitById(prevState.notes, holdNote.id);
 
               return {
                 ...prevState,

@@ -80,6 +80,7 @@ export function useGameLoop(
       // Miss 판정만 수행 (게임 규칙에 필요한 최소 상태 업데이트)
       const state = gameStateRef.current;
       let missedInFrame: Note[] = [];
+      let missedIndicesInFrame: number[] = [];
       let hasMiss = false;
       const shouldProfile = isGameplayProfilerEnabled();
       const missScanStart = shouldProfile ? performance.now() : 0;
@@ -95,7 +96,8 @@ export function useGameLoop(
 
       const missOrder = missOrderRef.current;
       while (missScanIndexRef.current < missOrder.length) {
-        const note = state.notes[missOrder[missScanIndexRef.current]];
+        const noteIndex = missOrder[missScanIndexRef.current];
+        const note = state.notes[noteIndex];
         scannedNotes += 1;
         if (!note) {
           missScanIndexRef.current += 1;
@@ -107,6 +109,7 @@ export function useGameLoop(
 
         if (!note.hit) {
           missedInFrame.push(note);
+          missedIndicesInFrame.push(noteIndex);
           hasMiss = true;
         }
         missScanIndexRef.current += 1;
@@ -131,21 +134,27 @@ export function useGameLoop(
 
       if (hasMiss) {
         setGameState((prev: GameState) => {
-          const updatedNotes = prev.notes.map((note) => {
-            if (note.hit) return note;
+          const missedIds = new Set(missedInFrame.map((note) => note.id));
+          const updatedNotes = prev.notes.slice();
+          let missCount = 0;
 
-            const isHoldNote = note.duration > 0;
-            const timeUntilMiss = isHoldNote
-              ? note.endTime - elapsedTime
-              : note.time - elapsedTime;
+          for (const noteIndex of missedIndicesInFrame) {
+            const note = updatedNotes[noteIndex];
+            if (!note || note.hit || !missedIds.has(note.id)) continue;
+            updatedNotes[noteIndex] = { ...note, hit: true };
+            missCount += 1;
+          }
 
-            if (timeUntilMiss < -missThreshold) {
-              return { ...note, hit: true };
+          if (missCount < missedIds.size) {
+            for (let i = 0; i < updatedNotes.length; i++) {
+              const note = updatedNotes[i];
+              if (note.hit || !missedIds.has(note.id)) continue;
+              updatedNotes[i] = { ...note, hit: true };
+              missCount += 1;
+              if (missCount >= missedIds.size) break;
             }
-            return note;
-          });
+          }
 
-          const missCount = missedInFrame.length;
           return {
             ...prev,
             notes: updatedNotes,
