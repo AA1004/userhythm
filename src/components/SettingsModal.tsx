@@ -411,6 +411,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               배경 영상 표시
             </span>
           </label>
+          <div style={{ marginTop: '12px' }}>
+            <VisualSliderRow
+              label="BGA 투명도"
+              value={Math.round(visualSettings.bgaOpacity * 100)}
+              min={VISUAL_SETTING_LIMITS.bgaOpacity.min * 100}
+              max={VISUAL_SETTING_LIMITS.bgaOpacity.max * 100}
+              step={5}
+              suffix="%"
+              onChange={(value) => scheduleVisualSettingsChange({ bgaOpacity: value / 100 })}
+              onCommit={commitVisualSettings}
+            />
+          </div>
+          <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginTop: '6px', lineHeight: 1.5 }}>
+            BGA 투명도는 배경 영상 레이어만 조절합니다. 레인/노트/판정선 투명도와는 분리됩니다.
+          </p>
         </div>
 
         {/* 판정선 위치 설정 */}

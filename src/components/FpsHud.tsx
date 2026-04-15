@@ -91,6 +91,7 @@ export const FpsHud: React.FC<FpsHudProps> = ({ enabled = true }) => {
 
   return (
     <div
+      className="fps-hud"
       style={{
         position: 'fixed',
         top: '8px',

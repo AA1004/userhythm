@@ -18,6 +18,7 @@ export interface GameVisualSettings {
   noteWidth: number;
   noteHeight: number;
   comboOpacity: number;
+  bgaOpacity: number;
 }
 
 export interface PlayfieldGeometry {
@@ -34,6 +35,7 @@ export interface PlayfieldGeometry {
   noteWidth: number;
   noteHeight: number;
   comboOpacity: number;
+  bgaOpacity: number;
 }
 
 export const VISUAL_SETTING_LIMITS = {
@@ -42,6 +44,7 @@ export const VISUAL_SETTING_LIMITS = {
   noteWidth: { min: 48 },
   noteHeight: { min: 28, max: 56 },
   comboOpacity: { min: 0.3, max: 1 },
+  bgaOpacity: { min: 0.1, max: 1 },
   keyLaneY: { minGapFromJudgeLine: 40 },
 } as const;
 
@@ -55,6 +58,7 @@ export const DEFAULT_GAME_VISUAL_SETTINGS: GameVisualSettings = {
   noteWidth: 90,
   noteHeight: 42,
   comboOpacity: 0.7,
+  bgaOpacity: 1,
 };
 
 export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, GameVisualSettings> = {
@@ -69,6 +73,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     noteWidth: 76,
     noteHeight: 38,
     comboOpacity: 0.7,
+    bgaOpacity: 1,
   },
   wide: {
     version: VISUAL_SETTINGS_VERSION,
@@ -80,6 +85,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     noteWidth: 96,
     noteHeight: 46,
     comboOpacity: 0.7,
+    bgaOpacity: 1,
   },
 };
 
@@ -138,6 +144,11 @@ export const normalizeGameVisualSettings = (
     VISUAL_SETTING_LIMITS.comboOpacity.min,
     VISUAL_SETTING_LIMITS.comboOpacity.max
   );
+  const bgaOpacity = clamp(
+    finiteOr(raw.bgaOpacity, fallback.bgaOpacity),
+    VISUAL_SETTING_LIMITS.bgaOpacity.min,
+    VISUAL_SETTING_LIMITS.bgaOpacity.max
+  );
 
   // judgeLineY controls the timing line and note destination.
   // keyLaneY controls only the visual key boxes and is kept below judgeLineY when possible.
@@ -163,6 +174,7 @@ export const normalizeGameVisualSettings = (
     noteWidth,
     noteHeight,
     comboOpacity,
+    bgaOpacity,
   };
 };
 
@@ -202,5 +214,6 @@ export const buildPlayfieldGeometry = (
     noteWidth: normalized.noteWidth,
     noteHeight: normalized.noteHeight,
     comboOpacity: normalized.comboOpacity,
+    bgaOpacity: normalized.bgaOpacity,
   };
 };

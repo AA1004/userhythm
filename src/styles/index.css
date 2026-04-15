@@ -132,6 +132,83 @@ body {
 }
 
 /* =========================
+   Gameplay HUD
+   ========================= */
+
+.score-hud {
+  isolation: isolate;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  background:
+    linear-gradient(135deg, rgba(5, 8, 14, 0.84), rgba(8, 12, 24, 0.66)),
+    rgba(0, 0, 0, 0.58) !important;
+  border-color: rgba(238, 247, 242, 0.16) !important;
+  box-shadow:
+    0 18px 46px rgba(0, 0, 0, 0.34),
+    inset 0 0 28px rgba(119, 255, 214, 0.045);
+  animation: gameplayHudIn 220ms ease-out both;
+}
+
+.score-hud::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  pointer-events: none;
+  background: linear-gradient(90deg, #77ffd6, #ffcf5f, #ff5f85);
+  opacity: 0.72;
+}
+
+.score-hud__row {
+  position: relative;
+  z-index: 1;
+}
+
+.score-hud__label {
+  letter-spacing: 0.02em;
+}
+
+.score-hud__value {
+  color: rgba(246, 251, 255, 0.92);
+  font-variant-numeric: tabular-nums;
+}
+
+.score-hud__value--combo {
+  text-shadow: 0 0 14px rgba(255, 207, 95, 0.24);
+}
+
+.score-hud__value--accuracy {
+  text-shadow: 0 0 14px rgba(119, 255, 214, 0.18);
+}
+
+.fps-hud {
+  border: 1px solid rgba(238, 247, 242, 0.12);
+  backdrop-filter: blur(10px);
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.28),
+    inset 0 0 16px rgba(119, 255, 214, 0.05);
+}
+
+.gameplay-control-hud {
+  animation: gameplayHudIn 220ms ease-out both;
+}
+
+.gameplay-volume-control {
+  border: 1px solid rgba(238, 247, 242, 0.12);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.26);
+}
+
+.gameplay-exit-button {
+  transform: translateZ(0);
+}
+
+.gameplay-exit-button:hover,
+.gameplay-exit-button:focus-visible {
+  filter: brightness(1.08);
+}
+
+/* =========================
    Settings modal
    ========================= */
 
@@ -609,6 +686,17 @@ body {
   }
   to {
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes gameplayHudIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -2371,6 +2459,8 @@ body {
   .game-menu-grid,
   .game-menu-lanes span::after,
   .combo-display__number,
+  .score-hud,
+  .gameplay-control-hud,
   .settings-modal-overlay,
   .settings-modal-panel,
   .main-menu-sidebar,
@@ -2425,6 +2515,7 @@ body {
   .chart-select-retry-button,
   .chart-select-load-more__button,
   .chart-select-play-button,
+  .gameplay-exit-button,
   .settings-modal-close,
   .main-menu-sidebar__edit,
   .tutorial-close,

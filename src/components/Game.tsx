@@ -637,6 +637,7 @@ export const Game: React.FC = () => {
       {/* Test/play controls (shown outside VideoRhythmLayout, including interlude sections) */}
       {gameState.gameStarted && !gameState.gameEnded && isTestMode && (
         <div
+          className="gameplay-control-hud"
           style={{
             position: 'fixed',
             top: '16px',
@@ -649,6 +650,7 @@ export const Game: React.FC = () => {
         >
           {/* 볼륨 조절 */}
           <div
+            className="gameplay-volume-control"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -681,6 +683,7 @@ export const Game: React.FC = () => {
 
           {/* 나가기 버튼 */}
           <button
+            className="gameplay-exit-button"
             onClick={isFromEditor ? handleReturnToEditor : handleReturnToPlayList}
             style={{
               padding: '8px 16px',
@@ -714,6 +717,7 @@ export const Game: React.FC = () => {
         shouldPlayBga={shouldPlayBga}
         bgaCurrentSeconds={bgaCurrentSeconds ?? undefined}
         bgaMaskOpacity={bgaMaskOpacity}
+        bgaOpacity={visualSettings.bgaOpacity}
       >
       {/* 게임 + 자막 wrapper (자막이 게임 바깥으로 나갈 수 있도록) */}
       <div
