@@ -154,6 +154,12 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
     sidebarStyle.right = getSidebarPosition();
   }
 
+  const sidebarClassName = [
+    'main-menu-sidebar',
+    `main-menu-sidebar--${type}`,
+    `main-menu-sidebar--${position}`,
+  ].join(' ');
+
   return (
     <>
       {isAdminModalOpen && (
@@ -189,9 +195,10 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
           }}
         />
       )}
-      <div style={sidebarStyle}>
+      <div className={sidebarClassName} style={sidebarStyle}>
         {/* 제목 및 편집 버튼 */}
         <div
+          className="main-menu-sidebar__header"
           style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -202,6 +209,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
           }}
         >
           <h2
+            className="main-menu-sidebar__title"
             style={{
               fontSize: getFontSize(28, 24, 22),
               fontWeight: 'bold',
@@ -213,6 +221,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
           </h2>
           {isAdmin && (
             <button
+              className="main-menu-sidebar__edit"
               onClick={() => setIsAdminModalOpen(true)}
               style={{
                 padding: '8px 16px',
@@ -241,6 +250,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
 
       {/* 내용 영역 */}
       <div
+        className="main-menu-sidebar__content"
         style={{
           flex: 1,
           overflowY: 'auto',
@@ -252,16 +262,17 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
         {type === 'notice' ? (
           <>
             {isLoading ? (
-              <div style={{ textAlign: 'center', padding: '30px', fontSize: getFontSize(16, 14, 13) }}>
+              <div className="main-menu-sidebar__state" style={{ textAlign: 'center', padding: '30px', fontSize: getFontSize(16, 14, 13) }}>
                 로딩 중...
               </div>
             ) : error ? (
-              <div style={{ textAlign: 'center', padding: '30px', color: CHART_EDITOR_THEME.danger, fontSize: getFontSize(14, 13, 12) }}>
+              <div className="main-menu-sidebar__state main-menu-sidebar__state--error" style={{ textAlign: 'center', padding: '30px', color: CHART_EDITOR_THEME.danger, fontSize: getFontSize(14, 13, 12) }}>
                 {error}
               </div>
             ) : notice ? (
               <>
                 <div
+                  className="main-menu-sidebar__notice-title"
                   style={{
                     marginBottom: '12px',
                     color: CHART_EDITOR_THEME.textPrimary,
@@ -272,6 +283,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
                   {notice.title}
                 </div>
                 <div
+                  className="main-menu-sidebar__body"
                   style={{
                     whiteSpace: 'pre-line',
                     wordBreak: 'break-word',
@@ -281,6 +293,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
                 </div>
                 {notice.updatedAt && (
                   <div
+                    className="main-menu-sidebar__meta"
                     style={{
                       marginTop: '16px',
                       fontSize: '12px',
@@ -294,7 +307,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
                 )}
               </>
             ) : (
-              <div style={{ textAlign: 'center', padding: '30px', color: CHART_EDITOR_THEME.textMuted, fontSize: getFontSize(14, 13, 12) }}>
+              <div className="main-menu-sidebar__state" style={{ textAlign: 'center', padding: '30px', color: CHART_EDITOR_THEME.textMuted, fontSize: getFontSize(14, 13, 12) }}>
                 공지사항이 없습니다.
               </div>
             )}
@@ -302,16 +315,17 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
         ) : (
           <>
             {isLoading ? (
-              <div style={{ textAlign: 'center', padding: '30px', fontSize: getFontSize(16, 14, 13) }}>
+              <div className="main-menu-sidebar__state" style={{ textAlign: 'center', padding: '30px', fontSize: getFontSize(16, 14, 13) }}>
                 로딩 중...
               </div>
             ) : error ? (
-              <div style={{ textAlign: 'center', padding: '30px', color: CHART_EDITOR_THEME.danger, fontSize: getFontSize(14, 13, 12) }}>
+              <div className="main-menu-sidebar__state main-menu-sidebar__state--error" style={{ textAlign: 'center', padding: '30px', color: CHART_EDITOR_THEME.danger, fontSize: getFontSize(14, 13, 12) }}>
                 {error}
               </div>
             ) : version ? (
               <>
                 <div
+                  className="main-menu-sidebar__version"
                   style={{
                     marginBottom: '16px',
                     color: CHART_EDITOR_THEME.textPrimary,
@@ -322,6 +336,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
                   v{version.version}
                 </div>
                 <div
+                  className="main-menu-sidebar__section-label"
                   style={{
                     marginBottom: '12px',
                     fontSize: getFontSize(15, 14, 13),
@@ -332,6 +347,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
                   변경사항:
                 </div>
                 <ul
+                  className="main-menu-sidebar__changelog"
                   style={{
                     margin: 0,
                     paddingLeft: '20px',
@@ -340,6 +356,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
                 >
                   {version.changelog.map((item, index) => (
                     <li
+                      className="main-menu-sidebar__changelog-item"
                       key={index}
                       style={{
                         marginBottom: '8px',
@@ -353,7 +370,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
                 </ul>
               </>
             ) : (
-              <div style={{ textAlign: 'center', padding: '30px', color: CHART_EDITOR_THEME.textMuted, fontSize: getFontSize(14, 13, 12) }}>
+              <div className="main-menu-sidebar__state" style={{ textAlign: 'center', padding: '30px', color: CHART_EDITOR_THEME.textMuted, fontSize: getFontSize(14, 13, 12) }}>
                 버전 정보가 없습니다.
               </div>
             )}

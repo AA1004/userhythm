@@ -220,6 +220,151 @@ body {
 }
 
 /* =========================
+   Main menu side panels
+   ========================= */
+
+.main-menu-sidebar {
+  isolation: isolate;
+  backdrop-filter: blur(14px);
+  animation: mainMenuSidebarIn 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.main-menu-sidebar::before,
+.main-menu-sidebar::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.main-menu-sidebar::before {
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 12% 10%, rgba(119, 255, 214, 0.14), transparent 38%),
+    radial-gradient(circle at 90% 8%, rgba(255, 78, 122, 0.11), transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 42%);
+}
+
+.main-menu-sidebar::after {
+  inset: 20px auto 20px 0;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, transparent, rgba(119, 255, 214, 0.68), rgba(255, 207, 95, 0.55), transparent);
+  box-shadow: 0 0 18px rgba(119, 255, 214, 0.24);
+  opacity: 0.78;
+}
+
+.main-menu-sidebar--right::after {
+  right: 0;
+  left: auto;
+  background: linear-gradient(180deg, transparent, rgba(255, 78, 122, 0.62), rgba(119, 255, 214, 0.48), transparent);
+}
+
+.main-menu-sidebar > * {
+  position: relative;
+  z-index: 1;
+}
+
+.main-menu-sidebar__header {
+  position: relative;
+}
+
+.main-menu-sidebar__title {
+  position: relative;
+  letter-spacing: -0.02em;
+  text-shadow: 0 0 18px rgba(119, 255, 214, 0.12);
+}
+
+.main-menu-sidebar__title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -14px;
+  width: min(180px, 90%);
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #77ffd6, #ffcf5f, rgba(255, 78, 122, 0));
+  box-shadow: 0 0 14px rgba(119, 255, 214, 0.3);
+}
+
+.main-menu-sidebar__edit {
+  transform: translateZ(0);
+}
+
+.main-menu-sidebar__edit:hover,
+.main-menu-sidebar__edit:focus-visible {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.main-menu-sidebar__content {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(119, 255, 214, 0.38) rgba(255, 255, 255, 0.04);
+  animation: mainMenuSidebarContentIn 360ms 80ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.main-menu-sidebar__content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.main-menu-sidebar__content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 999px;
+}
+
+.main-menu-sidebar__content::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(119, 255, 214, 0.52), rgba(255, 78, 122, 0.34));
+}
+
+.main-menu-sidebar__notice-title,
+.main-menu-sidebar__version {
+  text-shadow: 0 0 16px rgba(119, 255, 214, 0.16);
+}
+
+.main-menu-sidebar__version {
+  display: inline-flex;
+  padding: 2px 10px 4px;
+  border: 1px solid rgba(119, 255, 214, 0.22);
+  border-radius: 999px;
+  background: rgba(119, 255, 214, 0.055);
+  letter-spacing: -0.02em;
+}
+
+.main-menu-sidebar__body {
+  color: rgba(226, 232, 240, 0.76);
+}
+
+.main-menu-sidebar__meta {
+  border-image: linear-gradient(90deg, rgba(119, 255, 214, 0.35), rgba(255, 255, 255, 0.04)) 1;
+}
+
+.main-menu-sidebar__section-label {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.main-menu-sidebar__changelog {
+  display: grid;
+  gap: 3px;
+}
+
+.main-menu-sidebar__changelog-item::marker {
+  color: rgba(119, 255, 214, 0.82);
+}
+
+.main-menu-sidebar__state {
+  opacity: 0.78;
+}
+
+.main-menu-sidebar__state--error {
+  border: 1px solid rgba(255, 78, 122, 0.26);
+  border-radius: 14px;
+  background: rgba(255, 78, 122, 0.06);
+}
+
+/* =========================
    Tutorial screen
    ========================= */
 
@@ -1899,6 +2044,28 @@ body {
   }
 }
 
+@keyframes mainMenuSidebarIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes mainMenuSidebarContentIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes chartListPulse {
   0%, 100% {
     transform: scale(0.98);
@@ -1932,6 +2099,8 @@ body {
   .combo-display__number,
   .settings-modal-overlay,
   .settings-modal-panel,
+  .main-menu-sidebar,
+  .main-menu-sidebar__content,
   .tutorial-screen,
   .tutorial-screen::before,
   .tutorial-content,
@@ -1974,6 +2143,7 @@ body {
   .chart-select-transition__copy button,
   .chart-select-card__image,
   .settings-modal-close,
+  .main-menu-sidebar__edit,
   .tutorial-close,
   .tutorial-tab::after,
   .tutorial-keycap,
