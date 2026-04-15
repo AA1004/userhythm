@@ -44,7 +44,7 @@ export const VISUAL_SETTING_LIMITS = {
   noteWidth: { min: 48 },
   noteHeight: { min: 28, max: 56 },
   comboOpacity: { min: 0.3, max: 1 },
-  bgaOpacity: { min: 0.1, max: 1 },
+  bgaOpacity: { min: 0, max: 0.9 },
   keyLaneY: { minGapFromJudgeLine: 40 },
 } as const;
 
@@ -58,7 +58,7 @@ export const DEFAULT_GAME_VISUAL_SETTINGS: GameVisualSettings = {
   noteWidth: 90,
   noteHeight: 42,
   comboOpacity: 0.7,
-  bgaOpacity: 1,
+  bgaOpacity: 0,
 };
 
 export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, GameVisualSettings> = {
@@ -73,7 +73,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     noteWidth: 76,
     noteHeight: 38,
     comboOpacity: 0.7,
-    bgaOpacity: 1,
+    bgaOpacity: 0,
   },
   wide: {
     version: VISUAL_SETTINGS_VERSION,
@@ -85,7 +85,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     noteWidth: 96,
     noteHeight: 46,
     comboOpacity: 0.7,
-    bgaOpacity: 1,
+    bgaOpacity: 0,
   },
 };
 

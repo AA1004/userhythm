@@ -424,7 +424,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             />
           </div>
           <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginTop: '6px', lineHeight: 1.5 }}>
-            BGA 투명도는 배경 영상 레이어만 조절합니다. 레인/노트/판정선 투명도와는 분리됩니다.
+            값이 높을수록 BGA가 더 투명해집니다. 레인/노트/판정선 투명도와는 분리됩니다.
           </p>
         </div>
 

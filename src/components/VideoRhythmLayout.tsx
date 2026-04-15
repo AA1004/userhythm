@@ -11,7 +11,7 @@ type VideoRhythmLayoutProps = {
   bgaCurrentSeconds?: number | null;
   /** 간주 구간 오버레이 투명도 (0~1, 1이면 완전히 간주 구간) */
   bgaMaskOpacity?: number;
-  /** 배경 동영상 자체의 표시 투명도 (0~1) */
+  /** 배경 동영상 투명도 (0~1, 값이 클수록 더 투명) */
   bgaOpacity?: number;
   children: React.ReactNode;
 };
@@ -202,7 +202,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
             position: 'absolute',
             inset: 0,
             zIndex: 0,
-            opacity: bgaOpacity,
+            opacity: 1 - bgaOpacity,
             pointerEvents: 'none', // 배경은 클릭 불가, 게임 영역만 인터랙션
           }}
         >
