@@ -1244,6 +1244,41 @@ body {
   animation: chartSelectPanelIn 360ms 80ms ease-out both;
 }
 
+.chart-select-count {
+  position: relative;
+  overflow: hidden;
+}
+
+.chart-select-count::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 -70%;
+  width: 55%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+  transform: skewX(-18deg);
+  animation: chartSelectSoftSweep 2800ms ease-in-out infinite;
+}
+
+.chart-select-toolbar-button,
+.chart-select-sort-order,
+.chart-select-retry-button,
+.chart-select-load-more__button {
+  transform: translateZ(0);
+}
+
+.chart-select-toolbar-button:hover,
+.chart-select-toolbar-button:focus-visible,
+.chart-select-sort-order:hover,
+.chart-select-sort-order:focus-visible,
+.chart-select-retry-button:hover,
+.chart-select-retry-button:focus-visible,
+.chart-select-load-more__button:hover,
+.chart-select-load-more__button:focus-visible {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
 .chart-select-title {
   position: relative;
 }
@@ -1265,11 +1300,83 @@ body {
   animation: chartSelectPanelIn 380ms 130ms ease-out both;
 }
 
+.chart-select-filter {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  animation: chartSelectFilterIn 360ms 150ms ease-out both;
+}
+
+.chart-select-filter::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 -26%;
+  width: 24%;
+  pointer-events: none;
+  z-index: -1;
+  background: linear-gradient(90deg, transparent, rgba(119, 255, 214, 0.16), transparent);
+  transform: skewX(-14deg);
+  animation: chartSelectFilterSweep 5200ms ease-in-out infinite;
+}
+
+.chart-select-filter--insane::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 95, 133, 0.22), transparent);
+}
+
+.chart-select-filter > * {
+  position: relative;
+  z-index: 1;
+}
+
+.chart-select-search,
+.chart-select-sort {
+  outline: none;
+}
+
+.chart-select-search::placeholder {
+  color: rgba(226, 232, 240, 0.42);
+}
+
 .chart-select-list-panel {
   position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(119, 255, 214, 0.35) rgba(255, 255, 255, 0.04);
+}
+
+.chart-select-list-panel::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.12;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 68px 68px;
+  mask-image: linear-gradient(180deg, transparent, black 16%, black 84%, transparent);
+}
+
+.chart-select-list-panel::-webkit-scrollbar,
+.chart-select-detail-panel::-webkit-scrollbar {
+  width: 10px;
+}
+
+.chart-select-list-panel::-webkit-scrollbar-track,
+.chart-select-detail-panel::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.chart-select-list-panel::-webkit-scrollbar-thumb,
+.chart-select-detail-panel::-webkit-scrollbar-thumb {
+  border: 2px solid rgba(6, 9, 16, 0.88);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(119, 255, 214, 0.52), rgba(255, 78, 122, 0.34));
 }
 
 .chart-select-list-grid {
+  position: relative;
+  z-index: 1;
   perspective: 900px;
 }
 
@@ -1312,6 +1419,23 @@ body {
   transform: translateY(-2px) scale(1.01);
 }
 
+.chart-select-card__title {
+  letter-spacing: -0.02em;
+  text-shadow: 0 0 16px rgba(119, 255, 214, 0.12);
+}
+
+.chart-select-card__author {
+  min-height: 18px;
+}
+
+.chart-select-card__badges span {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.055);
+}
+
+.chart-select-card__description {
+  opacity: 0.84;
+}
+
 .chart-select-card__thumb {
   position: relative;
 }
@@ -1352,7 +1476,117 @@ body {
 }
 
 .chart-select-detail-panel {
+  isolation: isolate;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(119, 255, 214, 0.35) rgba(255, 255, 255, 0.04);
   animation: chartSelectDetailIn 260ms ease-out both;
+}
+
+.chart-select-detail-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 190px;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(119, 255, 214, 0.16), transparent 38%),
+    radial-gradient(circle at 92% 10%, rgba(255, 78, 122, 0.13), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), transparent);
+}
+
+.chart-select-detail-panel__title {
+  position: relative;
+  letter-spacing: -0.03em;
+  text-shadow: 0 0 18px rgba(119, 255, 214, 0.15);
+}
+
+.chart-select-detail-panel__title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -9px;
+  width: 140px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #77ffd6, rgba(255, 207, 95, 0.8), transparent);
+}
+
+.chart-select-play-button:hover,
+.chart-select-play-button:focus-visible {
+  filter: brightness(1.08);
+}
+
+.chart-select-detail-panel__preview {
+  position: relative;
+}
+
+.chart-select-detail-panel__preview::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, transparent 56%, rgba(0, 0, 0, 0.34)),
+    linear-gradient(90deg, rgba(119, 255, 214, 0.14), transparent 30%, transparent 72%, rgba(255, 78, 122, 0.14));
+}
+
+.chart-select-detail-panel__facts {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px !important;
+}
+
+.chart-select-detail-panel__fact {
+  padding: 10px 11px;
+  border: 1px solid rgba(238, 247, 242, 0.075);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.032);
+}
+
+.chart-select-detail-panel__fact--wide {
+  grid-column: 1 / -1;
+}
+
+.chart-select-leaderboard {
+  padding-top: 2px;
+}
+
+.chart-select-leaderboard__title {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.chart-select-leaderboard__title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -6px;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(119, 255, 214, 0.66), transparent);
+}
+
+.chart-select-leaderboard__row {
+  animation: chartSelectLeaderboardRowIn 220ms ease-out both;
+}
+
+.chart-select-leaderboard__row:hover {
+  border-color: rgba(119, 255, 214, 0.22) !important;
+  background: rgba(119, 255, 214, 0.055) !important;
+}
+
+.chart-select-leaderboard__empty,
+.chart-select-empty {
+  border: 1px solid rgba(238, 247, 242, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.chart-select-load-more {
+  position: relative;
+  z-index: 1;
 }
 
 /* =========================
@@ -1902,6 +2136,35 @@ body {
   }
 }
 
+@keyframes chartSelectSoftSweep {
+  0%, 48% {
+    transform: translateX(0) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(320%) skewX(-18deg);
+  }
+}
+
+@keyframes chartSelectFilterIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes chartSelectFilterSweep {
+  0%, 34% {
+    transform: translateX(0) skewX(-14deg);
+  }
+  100% {
+    transform: translateX(620%) skewX(-14deg);
+  }
+}
+
 @keyframes chartSelectPanelIn {
   from {
     opacity: 0;
@@ -1932,6 +2195,17 @@ body {
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+@keyframes chartSelectLeaderboardRowIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -2121,13 +2395,17 @@ body {
   .chart-select-screen,
   .chart-select-screen::before,
   .chart-select-screen::after,
+  .chart-select-count::before,
   .chart-select-title::after,
+  .chart-select-filter,
+  .chart-select-filter::before,
   .chart-select-header,
   .chart-select-main,
   .chart-select-card,
   .chart-select-card::before,
   .chart-select-card__thumb--empty::before,
   .chart-select-detail-panel,
+  .chart-select-leaderboard__row,
   .game-end-screen,
   .game-end-panel,
   .game-end-ambient,
@@ -2142,6 +2420,11 @@ body {
   .game-menu-link,
   .chart-select-transition__copy button,
   .chart-select-card__image,
+  .chart-select-toolbar-button,
+  .chart-select-sort-order,
+  .chart-select-retry-button,
+  .chart-select-load-more__button,
+  .chart-select-play-button,
   .settings-modal-close,
   .main-menu-sidebar__edit,
   .tutorial-close,

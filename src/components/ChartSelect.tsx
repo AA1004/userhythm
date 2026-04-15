@@ -669,6 +669,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
             채보 선택하기
           </h1>
           <span
+            className="chart-select-count"
             style={{
               padding: '8px 14px',
               borderRadius: 999,
@@ -683,6 +684,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
           </span>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
+              className="chart-select-toolbar-button"
               onClick={() => {
                 setCurrentPage(1);
                 setHasMore(true);
@@ -712,6 +714,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
               🔄 새로고침
             </button>
             <button
+              className="chart-select-toolbar-button"
               onClick={onClose}
               style={{
                 padding: '10px 18px',
@@ -738,6 +741,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
 
         {/* 검색 및 필터 */}
         <div
+          className={`chart-select-filter${isInsaneMode ? ' chart-select-filter--insane' : ''}`}
           style={{
             display: 'flex',
             gap: '10px',
@@ -752,6 +756,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
           }}
         >
           <input
+            className="chart-select-search"
             type="text"
             value={searchInput}
             onChange={(e) => {
@@ -779,6 +784,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
             }}
           />
           <select
+            className="chart-select-sort"
             value={sortBy}
             onChange={(e) => {
               setSortBy(e.target.value as any);
@@ -797,6 +803,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
             <option value="author">작성자순</option>
           </select>
           <button
+            className={`chart-select-insane-toggle${isInsaneMode ? ' chart-select-insane-toggle--active' : ''}`}
             onClick={toggleInsaneMode}
             style={{
               padding: '10px 16px',
@@ -844,6 +851,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
             {isInsaneMode ? '🔥 INSANE ON' : '🔥 INSANE 모드'}
           </button>
           <button
+            className="chart-select-sort-order"
             onClick={() => {
               setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
               setCurrentPage(1);
@@ -900,7 +908,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
               <p>Railway 서버에서 최신 공개 채보를 불러오고 있습니다.</p>
             </div>
           ) : error ? (
-            <div style={{ color: CHART_EDITOR_THEME.danger, textAlign: 'center', padding: '40px' }}>
+            <div className="chart-select-empty chart-select-empty--error" style={{ color: CHART_EDITOR_THEME.danger, textAlign: 'center', padding: '40px' }}>
               <div style={{ marginBottom: '20px', fontSize: '16px', fontWeight: 'bold', color: CHART_EDITOR_THEME.textPrimary }}>
                 오류가 발생했습니다
               </div>
@@ -908,6 +916,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                 {error}
               </div>
               <button
+                className="chart-select-retry-button"
                 onClick={() => fetchAllCharts(true)}
                 style={{
                   padding: '10px 20px',
@@ -924,7 +933,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
               </button>
             </div>
           ) : charts.length === 0 ? (
-            <div style={{ color: CHART_EDITOR_THEME.textSecondary, textAlign: 'center', padding: '40px' }}>
+            <div className="chart-select-empty" style={{ color: CHART_EDITOR_THEME.textSecondary, textAlign: 'center', padding: '40px' }}>
               {searchQuery ? '검색 결과가 없습니다.' : '공개된 채보가 없습니다.'}
             </div>
           ) : (
@@ -1021,10 +1030,10 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                       이미지 없음
                     </div>
                   )}
-                  <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>
+                  <div className="chart-select-card__title" style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>
                     {chart.title}
                   </div>
-                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '13px', marginBottom: '12px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <div className="chart-select-card__author" style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '13px', marginBottom: '12px', display: 'flex', gap: '6px', alignItems: 'center' }}>
                     <span>{(chart as any)._authorChess || '♟'}</span>
                     <span
                       style={{
@@ -1040,7 +1049,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                       </span>
                     )}
                   </div>
-                  <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+                  <div className="chart-select-card__badges" style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
                     <span
                       style={{
                         padding: '4px 8px',
@@ -1080,6 +1089,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                   </div>
                   {chart.description && (
                     <div
+                      className="chart-select-card__description"
                       style={{
                         color: CHART_EDITOR_THEME.textSecondary,
                         fontSize: '12px',
@@ -1101,6 +1111,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
 
           {/* 더 보기 버튼 (무한스크롤 대체) */}
           <div
+            className="chart-select-load-more"
             style={{
               display: 'flex',
               justifyContent: 'center',
@@ -1112,6 +1123,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
           >
             {hasMore && (
               <button
+                className="chart-select-load-more__button"
                 onClick={handleLoadMore}
                 disabled={isLoadingMore}
                 style={{
@@ -1167,12 +1179,13 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                 }}
               />
             )}
-            <div style={{ position: 'relative', zIndex: 1 }}>
-            <h2 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '20px', marginBottom: '20px' }}>
+            <div className="chart-select-detail-panel__content" style={{ position: 'relative', zIndex: 1 }}>
+            <h2 className="chart-select-detail-panel__title" style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '20px', marginBottom: '20px' }}>
               {selectedChart.title}
             </h2>
 
             <button
+              className="chart-select-play-button"
               onClick={() => handleSelectChart(selectedChart)}
               style={{
                 width: '100%',
@@ -1202,6 +1215,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
 
             {selectedChart.preview_image && (
               <div
+                className="chart-select-detail-panel__preview"
                 style={{
                   width: '100%',
                   marginBottom: '20px',
@@ -1228,8 +1242,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px' }}>
-              <div>
+            <div className="chart-select-detail-panel__facts" style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px' }}>
+              <div className="chart-select-detail-panel__fact">
                 <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>작성자</div>
                 <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px', display: 'flex', gap: '6px', alignItems: 'center' }}>
                   <span>{(selectedChart as any)._authorChess || '♟'}</span>
@@ -1248,21 +1262,21 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                   )}
                 </div>
               </div>
-              <div>
+              <div className="chart-select-detail-panel__fact">
                 <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>BPM</div>
                 <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart.bpm}</div>
               </div>
               {selectedChart.difficulty && (
-                <div>
+                <div className="chart-select-detail-panel__fact">
                   <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>난이도</div>
                   <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart.difficulty}</div>
                 </div>
               )}
-              <div>
+              <div className="chart-select-detail-panel__fact">
                 <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>플레이 횟수</div>
                 <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart.play_count}</div>
               </div>
-              <div>
+              <div className="chart-select-detail-panel__fact">
                 <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>노트 수</div>
                 <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
                   {(() => {
@@ -1276,7 +1290,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                 </div>
               </div>
               {selectedChart.description && (
-                <div>
+                <div className="chart-select-detail-panel__fact chart-select-detail-panel__fact--wide">
                   <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>설명</div>
                   <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px', lineHeight: 1.5 }}>
                     {selectedChart.description}
@@ -1284,7 +1298,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                 </div>
               )}
               {selectedChart.youtube_url && (
-                <div>
+                <div className="chart-select-detail-panel__fact chart-select-detail-panel__fact--wide">
                   <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>YouTube</div>
                   <a
                     href={selectedChart.youtube_url}
@@ -1296,7 +1310,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                   </a>
                 </div>
               )}
-              <div>
+              <div className="chart-select-detail-panel__fact">
                 <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>업로드 일시</div>
                 <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px' }}>
                   {selectedChart.created_at
@@ -1306,9 +1320,9 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
               </div>
             </div>
 
-            <div style={{ marginTop: '20px' }}>
-              <h3 style={{ color: CHART_EDITOR_THEME.textPrimary, marginBottom: '10px' }}>정확도 리더보드</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
+            <div className="chart-select-leaderboard" style={{ marginTop: '20px' }}>
+              <h3 className="chart-select-leaderboard__title" style={{ color: CHART_EDITOR_THEME.textPrimary, marginBottom: '10px' }}>정확도 리더보드</h3>
+              <div className="chart-select-leaderboard__grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
                 <div>
                   <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
                     곡별 상위 기록 (현재 선택)
@@ -1339,12 +1353,13 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
 
 const LeaderboardList: React.FC<{ scores: ApiScore[]; emptyText?: string }> = ({ scores, emptyText }) => {
   if (!scores || scores.length === 0) {
-    return <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px' }}>{emptyText || '데이터 없음'}</div>;
+    return <div className="chart-select-leaderboard__empty" style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px' }}>{emptyText || '데이터 없음'}</div>;
   }
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+    <div className="chart-select-leaderboard__list" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
       {scores.map((s, idx) => (
         <div
+          className="chart-select-leaderboard__row"
           key={s.id}
           style={{
             display: 'flex',
@@ -1377,12 +1392,13 @@ const LeaderboardList: React.FC<{ scores: ApiScore[]; emptyText?: string }> = ({
 
 const UserLeaderboardList: React.FC<{ entries: ApiUserAggregate[]; emptyText?: string }> = ({ entries, emptyText }) => {
   if (!entries || entries.length === 0) {
-    return <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px' }}>{emptyText || '데이터 없음'}</div>;
+    return <div className="chart-select-leaderboard__empty" style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px' }}>{emptyText || '데이터 없음'}</div>;
   }
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+    <div className="chart-select-leaderboard__list" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
       {entries.map((e, idx) => (
         <div
+          className="chart-select-leaderboard__row"
           key={e.user_id}
           style={{
             display: 'flex',
