@@ -69,6 +69,7 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
 
   return (
     <div
+      className="chart-editor-left-panel"
       style={{
         width: '240px',
         backgroundColor: CHART_EDITOR_THEME.sidebarBackground,
@@ -78,6 +79,7 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
       }}
     >
       <h3
+        className="chart-editor-panel-title"
         style={{
           marginTop: 0,
           marginBottom: '8px',

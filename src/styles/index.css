@@ -2485,6 +2485,154 @@ body {
   }
 }
 
+/* Chart editor polish: visual-only layer. Timing, note math, and save logic stay in React. */
+.chart-editor-root {
+  background-size: 150% 150%;
+}
+
+.chart-editor-header,
+.chart-editor-workbench,
+.chart-editor-left-panel,
+.chart-editor-right-panel,
+.chart-editor-timeline-shell {
+  position: relative;
+  isolation: isolate;
+}
+
+.chart-editor-header {
+  overflow: hidden;
+  animation: chartEditorPanelIn 180ms ease-out both;
+}
+
+.chart-editor-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 14% 0%, rgba(34, 211, 238, 0.24), transparent 32%),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.08), transparent 34%, rgba(244, 114, 182, 0.08));
+}
+
+.chart-editor-header > * {
+  position: relative;
+  z-index: 1;
+}
+
+.chart-editor-workbench {
+  animation: chartEditorPanelIn 220ms ease-out 40ms both;
+}
+
+.chart-editor-workbench::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 24% 18%, rgba(34, 211, 238, 0.12), transparent 30%),
+    radial-gradient(circle at 78% 8%, rgba(244, 114, 182, 0.1), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 42%);
+}
+
+.chart-editor-workbench > * {
+  position: relative;
+  z-index: 1;
+}
+
+.chart-editor-left-panel,
+.chart-editor-right-panel {
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 16%),
+    radial-gradient(circle at 50% 0%, rgba(34, 211, 238, 0.12), transparent 34%);
+  scrollbar-color: rgba(34, 211, 238, 0.5) rgba(15, 23, 42, 0.35);
+  scrollbar-width: thin;
+}
+
+.chart-editor-left-panel::-webkit-scrollbar,
+.chart-editor-right-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chart-editor-left-panel::-webkit-scrollbar-track,
+.chart-editor-right-panel::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.chart-editor-left-panel::-webkit-scrollbar-thumb,
+.chart-editor-right-panel::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.66), rgba(148, 163, 184, 0.28));
+  border-radius: 999px;
+}
+
+.chart-editor-panel-title {
+  position: relative;
+  padding-left: 10px;
+}
+
+.chart-editor-panel-title::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 3px;
+  bottom: 3px;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #22d3ee, #f472b6);
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.42);
+}
+
+.chart-editor-left-panel > div,
+.chart-editor-right-panel > div {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease;
+}
+
+.chart-editor-left-panel > div:hover,
+.chart-editor-right-panel > div:hover {
+  border-color: rgba(34, 211, 238, 0.32) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    0 10px 22px rgba(2, 6, 23, 0.22);
+}
+
+.chart-editor-left-panel input[type="range"],
+.chart-editor-right-panel input[type="range"] {
+  accent-color: #22d3ee;
+}
+
+.chart-editor-header button:focus-visible,
+.chart-editor-left-panel button:focus-visible,
+.chart-editor-right-panel button:focus-visible,
+.chart-editor-left-panel input:focus-visible,
+.chart-editor-right-panel input:focus-visible,
+.chart-editor-left-panel select:focus-visible,
+.chart-editor-right-panel select:focus-visible {
+  outline: 2px solid rgba(34, 211, 238, 0.76);
+  outline-offset: 2px;
+}
+
+.chart-editor-timeline-shell {
+  box-shadow:
+    inset 18px 0 38px rgba(2, 6, 23, 0.22),
+    inset -18px 0 38px rgba(2, 6, 23, 0.22);
+}
+
+@keyframes chartEditorPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ur-logo__fill,
   .game-menu-stage-glow,
@@ -2534,7 +2682,9 @@ body {
   .game-end-accuracy-ring,
   .game-end-stat,
   .chart-list-loading__orbit,
-  .chart-list-loading__orbit span {
+  .chart-list-loading__orbit span,
+  .chart-editor-header,
+  .chart-editor-workbench {
     animation: none;
   }
 

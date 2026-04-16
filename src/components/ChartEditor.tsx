@@ -1548,6 +1548,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
   return (
     <div
+      className="chart-editor-root"
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -1620,6 +1621,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       />
 
       <div
+        className="chart-editor-workbench"
         style={{
           flex: 1,
           display: 'flex',
@@ -1654,7 +1656,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         />
 
         {/* Main Timeline Canvas */}
-        <div style={{ flex: 1, position: 'relative', backgroundColor: '#1f1f1f', overflow: 'hidden' }}>
+        <div
+          className="chart-editor-timeline-shell"
+          style={{ flex: 1, position: 'relative', backgroundColor: '#1f1f1f', overflow: 'hidden' }}
+        >
             <ChartEditorTimeline
                 notes={notes}
                 beatsPerMeasure={beatsPerMeasure}
@@ -1714,6 +1719,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
         {/* Right Sidebar */}
         <div
+          className="chart-editor-right-panel"
           style={{
             width: '240px',
             backgroundColor: CHART_EDITOR_THEME.sidebarBackground,
@@ -1723,6 +1729,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           }}
         >
           <h3
+            className="chart-editor-panel-title"
             style={{
               marginTop: 0,
               marginBottom: '8px',

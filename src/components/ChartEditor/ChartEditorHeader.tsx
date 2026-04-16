@@ -86,6 +86,7 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
 
   return (
     <div
+      className="chart-editor-header"
       style={{
         background:
           'linear-gradient(90deg, rgba(15,23,42,0.98), rgba(17,24,39,0.98))',
@@ -399,4 +400,3 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
 };
 
 export const ChartEditorHeader = React.memo(ChartEditorHeaderInner);
-
