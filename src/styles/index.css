@@ -136,8 +136,11 @@ body {
    ========================= */
 
 .score-hud {
+  left: max(20px, env(safe-area-inset-left)) !important;
+  bottom: max(20px, env(safe-area-inset-bottom)) !important;
   isolation: isolate;
   overflow: hidden;
+  max-width: calc(100vw - 40px);
   backdrop-filter: blur(12px);
   background:
     linear-gradient(135deg, rgba(5, 8, 14, 0.84), rgba(8, 12, 24, 0.66)),
@@ -182,6 +185,8 @@ body {
 }
 
 .fps-hud {
+  top: max(8px, env(safe-area-inset-top)) !important;
+  left: max(8px, env(safe-area-inset-left)) !important;
   border: 1px solid rgba(238, 247, 242, 0.12);
   backdrop-filter: blur(10px);
   box-shadow:
@@ -190,6 +195,8 @@ body {
 }
 
 .gameplay-control-hud {
+  top: max(16px, env(safe-area-inset-top)) !important;
+  right: max(16px, env(safe-area-inset-right)) !important;
   animation: gameplayHudIn 220ms ease-out both;
 }
 
@@ -206,6 +213,31 @@ body {
 .gameplay-exit-button:hover,
 .gameplay-exit-button:focus-visible {
   filter: brightness(1.08);
+}
+
+.bga-transparency-scale {
+  padding: 0 2px;
+}
+
+@media (max-width: 900px) {
+  .score-hud {
+    gap: 8px !important;
+    padding: 9px 11px !important;
+    font-size: 12px !important;
+  }
+
+  .score-hud__row {
+    flex-wrap: wrap;
+    gap: 10px !important;
+  }
+
+  .gameplay-control-hud {
+    gap: 8px !important;
+  }
+
+  .gameplay-volume-control {
+    padding: 5px 9px !important;
+  }
 }
 
 /* =========================

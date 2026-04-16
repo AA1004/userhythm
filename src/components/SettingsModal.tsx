@@ -422,6 +422,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               onChange={(value) => scheduleVisualSettingsChange({ bgaOpacity: value / 100 })}
               onCommit={commitVisualSettings}
             />
+            <div
+              className="bga-transparency-scale"
+              aria-hidden="true"
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                marginTop: '-4px',
+                color: CHART_EDITOR_THEME.textSecondary,
+                fontSize: '10px',
+              }}
+            >
+              <span>0% 선명</span>
+              <span>45% 반투명</span>
+              <span>90% 거의 숨김</span>
+            </div>
           </div>
           <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginTop: '6px', lineHeight: 1.5 }}>
             값이 높을수록 BGA가 더 투명해집니다. 레인/노트/판정선 투명도와는 분리됩니다.

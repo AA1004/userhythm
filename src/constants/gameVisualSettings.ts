@@ -144,8 +144,9 @@ export const normalizeGameVisualSettings = (
     VISUAL_SETTING_LIMITS.comboOpacity.min,
     VISUAL_SETTING_LIMITS.comboOpacity.max
   );
+  const rawBgaOpacity = finiteOr(raw.bgaOpacity, fallback.bgaOpacity);
   const bgaOpacity = clamp(
-    finiteOr(raw.bgaOpacity, fallback.bgaOpacity),
+    rawBgaOpacity > VISUAL_SETTING_LIMITS.bgaOpacity.max ? fallback.bgaOpacity : rawBgaOpacity,
     VISUAL_SETTING_LIMITS.bgaOpacity.min,
     VISUAL_SETTING_LIMITS.bgaOpacity.max
   );
