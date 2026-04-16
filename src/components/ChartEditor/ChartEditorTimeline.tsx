@@ -8,6 +8,7 @@ import {
   PIXELS_PER_SECOND,
 } from './constants';
 import { timeToMeasure } from '../../utils/bpmUtils';
+import { buildBgaVisibilitySegments } from '../../utils/bgaVisibility';
 
 // 노트가 레인 경계선 안에 딱 맞게 들어가도록 레인 너비에서 약간의 여백만 남김
 const NOTE_WIDTH = LANE_WIDTH - 4;
@@ -370,24 +371,25 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   );
 
   // 성능 최적화: timeToY 의존성 제거 (로컬 함수 사용)
-  const visibleBgaIntervals = useMemo(
+  const visibleBgaSegments = useMemo(
     () => {
       const zoom = _zoom;
       const timeToYLocal = (timeMs: number): number => {
         return timelineContentHeight - TIMELINE_BOTTOM_PADDING - (timeMs / 1000) * PIXELS_PER_SECOND * zoom;
       };
-      return bgaVisibilityIntervals
-        .map((interval) => {
-          const top = Math.min(timeToYLocal(interval.startTimeMs), timeToYLocal(interval.endTimeMs));
-          const height = Math.max(2, Math.abs(timeToYLocal(interval.endTimeMs) - timeToYLocal(interval.startTimeMs)));
-          return { interval, top, height };
+      return buildBgaVisibilitySegments(bgaVisibilityIntervals, timelineDurationMs)
+        .map((segment) => {
+          const visualEndTime = Math.min(timelineDurationMs, segment.endTimeMs + segment.fadeOutMs);
+          const top = Math.min(timeToYLocal(segment.startTimeMs), timeToYLocal(visualEndTime));
+          const height = Math.max(2, Math.abs(timeToYLocal(visualEndTime) - timeToYLocal(segment.startTimeMs)));
+          return { segment, visualEndTime, top, height };
         })
         .filter(({ top, height }) => {
           const bottom = top + height;
           return bottom >= paddedTop && top <= paddedBottom;
         });
     },
-    [bgaVisibilityIntervals, _zoom, timelineContentHeight, paddedTop, paddedBottom]
+    [bgaVisibilityIntervals, timelineDurationMs, _zoom, timelineContentHeight, paddedTop, paddedBottom]
   );
 
   // 초기 한 번만 스크롤을 재생선 위치로 설정 (재생선이 화면 중앙에 오도록)
@@ -738,16 +740,13 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
 
 
         {/* 간주 구간 오버레이 (채보 레인 숨김) */}
-        {visibleBgaIntervals.map(({ interval, top, height }) => {
-          const total = Math.max(1, Math.abs(interval.endTimeMs - interval.startTimeMs));
-          const fadeInRatio = Math.min(1, Math.max(0, (interval.fadeInMs ?? 0) / total));
-          const fadeOutRatio = Math.min(1, Math.max(0, (interval.fadeOutMs ?? 0) / total));
+        {visibleBgaSegments.map(({ segment, visualEndTime, top, height }) => {
+          const total = Math.max(1, visualEndTime - segment.startTimeMs);
+          const fadeInRatio = Math.min(1, Math.max(0, segment.fadeInMs / total));
+          const fadeOutRatio = Math.min(1, Math.max(0, segment.fadeOutMs / total));
           const midStart = fadeInRatio;
           const midEnd = Math.max(midStart, 1 - fadeOutRatio);
-          const baseColor =
-            interval.mode === 'hidden'
-              ? 'rgba(248,113,113,0.22)'
-              : 'rgba(74,222,128,0.18)';
+          const baseColor = 'rgba(248,113,113,0.22)';
           const gradient = `linear-gradient(to bottom,
             rgba(0,0,0,0) 0%,
             ${baseColor} ${midStart * 100}%,
@@ -756,7 +755,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
 
           return (
             <div
-              key={interval.id}
+              key={segment.id}
               style={{
                 position: 'absolute',
                 left: 0,
@@ -764,15 +763,13 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
                 width: `${CONTENT_WIDTH}px`,
                 height: `${height}px`,
                 background: gradient,
-                border: `1px dashed ${interval.mode === 'hidden' ? 'rgba(239,68,68,0.6)' : 'rgba(34,197,94,0.6)'}`,
+                border: '1px dashed rgba(239,68,68,0.6)',
                 borderRadius: 6,
-                boxShadow:
-                  interval.mode === 'hidden'
-                    ? '0 0 12px rgba(248,113,113,0.35)'
-                    : '0 0 12px rgba(74,222,128,0.35)',
+                boxShadow: '0 0 12px rgba(248,113,113,0.35)',
+                pointerEvents: 'none',
                 zIndex: 6,
               }}
-              title={`간주 구간 (채보 레인 ${interval.mode === 'hidden' ? '숨김' : '표시'}) (${interval.startTimeMs}ms ~ ${interval.endTimeMs}ms)`}
+              title={`간주 구간 (채보 레인 숨김) (${segment.startTimeMs}ms ~ ${segment.endTimeMs}ms)`}
             >
               <span
                 style={{
@@ -781,12 +778,12 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
                   top: 4,
                   fontSize: 11,
                   fontWeight: 700,
-                  color: interval.mode === 'hidden' ? '#fca5a5' : '#bbf7d0',
+                  color: '#fca5a5',
                   textShadow: '0 0 6px rgba(0,0,0,0.65)',
                   pointerEvents: 'none',
                 }}
               >
-                {interval.mode === 'hidden' ? 'HIDE' : 'SHOW'}
+                HIDE
               </span>
             </div>
           );

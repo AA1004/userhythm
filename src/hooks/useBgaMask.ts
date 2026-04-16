@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 import { BgaVisibilityInterval } from '../types/game';
+import { buildBgaVisibilitySegments } from '../utils/bgaVisibility';
 
 export interface UseBgaMaskOptions {
   currentTime: number;
@@ -23,8 +24,8 @@ export function useBgaMask({
   const [realtimeLaneUiVisible, setRealtimeLaneUiVisible] = useState(true);
   const realtimeLaneUiVisibleRef = useRef(true);
 
-  const sortedIntervals = useMemo(
-    () => [...intervals].sort((a, b) => a.startTimeMs - b.startTimeMs),
+  const hiddenSegments = useMemo(
+    () => buildBgaVisibilitySegments(intervals),
     [intervals]
   );
 
@@ -32,47 +33,46 @@ export function useBgaMask({
     (chartTimeMs: number) => {
       let maxOpacity = 0;
 
-      for (const interval of sortedIntervals) {
-        if (interval.startTimeMs > chartTimeMs) break;
-        if (chartTimeMs > interval.endTimeMs) continue;
-        const fadeIn = Math.max(0, interval.fadeInMs ?? 0);
-        const fadeOut = Math.max(0, interval.fadeOutMs ?? 0);
-        const toHidden = interval.mode === 'hidden';
+      for (const segment of hiddenSegments) {
+        const fadeIn = Math.max(0, segment.fadeInMs);
+        const fadeOut = Math.max(0, segment.fadeOutMs);
+        const fadeOutEnd = segment.endTimeMs + fadeOut;
+        if (segment.startTimeMs > chartTimeMs) break;
+        if (chartTimeMs > fadeOutEnd) continue;
 
-        if (fadeIn > 0 && chartTimeMs < interval.startTimeMs + fadeIn) {
-          const t = (chartTimeMs - interval.startTimeMs) / Math.max(1, fadeIn);
-          const opacity = toHidden ? t : 1 - t;
-          maxOpacity = Math.max(maxOpacity, opacity);
+        if (fadeIn > 0 && chartTimeMs < segment.startTimeMs + fadeIn) {
+          const t = (chartTimeMs - segment.startTimeMs) / Math.max(1, fadeIn);
+          maxOpacity = Math.max(maxOpacity, Math.max(0, Math.min(1, t)));
           continue;
         }
 
-        if (fadeOut > 0 && chartTimeMs > interval.endTimeMs - fadeOut) {
-          const t = (interval.endTimeMs - chartTimeMs) / Math.max(1, fadeOut);
-          const clamped = Math.max(0, Math.min(1, t));
-          const opacity = toHidden ? clamped : 1 - clamped;
-          maxOpacity = Math.max(maxOpacity, opacity);
+        if (fadeOut > 0 && chartTimeMs >= segment.endTimeMs) {
+          const t = 1 - (chartTimeMs - segment.endTimeMs) / Math.max(1, fadeOut);
+          maxOpacity = Math.max(maxOpacity, Math.max(0, Math.min(1, t)));
           continue;
         }
 
-        const opacity = toHidden ? 1 : 0;
-        maxOpacity = Math.max(maxOpacity, opacity);
+        if (chartTimeMs >= segment.startTimeMs && chartTimeMs < segment.endTimeMs) {
+          maxOpacity = 1;
+        }
       }
 
       return maxOpacity;
     },
-    [sortedIntervals]
+    [hiddenSegments]
   );
 
   const getLaneUiVisible = useCallback(
     (chartTimeMs: number) => {
-      for (const interval of sortedIntervals) {
-        if (interval.startTimeMs > chartTimeMs) break;
-        if (chartTimeMs > interval.endTimeMs) continue;
-        if (interval.mode === 'hidden') return false;
+      for (const segment of hiddenSegments) {
+        if (segment.startTimeMs > chartTimeMs) break;
+        if (chartTimeMs >= segment.startTimeMs && chartTimeMs < segment.endTimeMs) {
+          return false;
+        }
       }
       return true;
     },
-    [sortedIntervals]
+    [hiddenSegments]
   );
 
   // currentTime을 30ms 단위로 버킷화하여 불필요한 재계산 방지

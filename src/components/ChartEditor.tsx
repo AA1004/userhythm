@@ -24,6 +24,7 @@ import {
 import { extractYouTubeVideoId } from '../utils/youtube';
 import { localSubtitleStorage } from '../lib/subtitleAPI';
 import { MIN_LONG_NOTE_DURATION, validateNotes, getMaxNoteId } from '../utils/noteValidation';
+import { expandLegacyBgaVisibilityIntervals } from '../utils/bgaVisibility';
 
 const KEY_TO_LANE: Record<string, Lane> = {
   a: 0,
@@ -93,6 +94,26 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [gridDivision, setGridDivision] = useState<number>(1);
   const [speedChanges, setSpeedChanges] = useState<SpeedChange[]>([]);
   const [bgaVisibilityIntervals, setBgaVisibilityIntervals] = useState<BgaVisibilityInterval[]>([]);
+
+  const handleNumericInputFocus = useCallback((event: React.FocusEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    if (target.type !== 'number' && target.dataset.selectOnFocus !== 'true') return;
+
+    requestAnimationFrame(() => {
+      if (document.activeElement === target) {
+        target.select();
+      }
+    });
+  }, []);
+
+  const keepEditorButtonFromTakingFocus = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+  }, []);
+
+  const blurEditorButton = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
+    event.currentTarget.blur();
+  }, []);
   
   // --- 선택 영역 상태 (복사/붙여넣기) ---
   const isSelectionMode = true; // 항상 영역 선택 모드 활성화
@@ -525,7 +546,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
             : Math.max(0, Number(interval.fadeOutMs) || 0),
         easing: interval.easing === 'linear' ? 'linear' : undefined,
       }));
-      setBgaVisibilityIntervals(hydrated);
+      setBgaVisibilityIntervals(expandLegacyBgaVisibilityIntervals(hydrated));
     }
     if (typeof data.chartTitle === 'string') setShareTitle(data.chartTitle);
     if (typeof data.chartAuthor === 'string') setShareAuthor(data.chartAuthor);
@@ -649,30 +670,29 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const normalizeInterval = useCallback(
     (raw: Partial<BgaVisibilityInterval> & { id: string }) => {
       const start = clampTime(Math.max(0, raw.startTimeMs ?? 0));
-      const end = clampTime(Math.max(start + 1, raw.endTimeMs ?? start + 1));
+      const mode: BgaVisibilityMode = raw.mode === 'visible' ? 'visible' : 'hidden';
       return {
         id: raw.id,
-        startTimeMs: Math.min(start, end),
-        endTimeMs: Math.max(start, end),
-        mode: (raw.mode as BgaVisibilityMode) ?? 'hidden',
-        fadeInMs: raw.fadeInMs !== undefined ? Math.max(0, Number(raw.fadeInMs)) : undefined,
-        fadeOutMs: raw.fadeOutMs !== undefined ? Math.max(0, Number(raw.fadeOutMs)) : undefined,
+        startTimeMs: start,
+        endTimeMs: start,
+        mode,
+        fadeInMs: mode === 'hidden' ? Math.max(0, Number(raw.fadeInMs ?? 300) || 0) : 0,
+        fadeOutMs: mode === 'visible' ? Math.max(0, Number(raw.fadeOutMs ?? 300) || 0) : 0,
         easing: raw.easing === 'linear' ? 'linear' : undefined,
       } as BgaVisibilityInterval;
     },
     [clampTime]
   );
 
-  const handleAddBgaInterval = useCallback(() => {
+  const handleAddBgaEvent = useCallback((mode: BgaVisibilityMode) => {
     const start = clampTime(currentTime);
-    const end = clampTime(start + 5000);
     const next: BgaVisibilityInterval = normalizeInterval({
       id: `bga-${Date.now()}`,
       startTimeMs: start,
-      endTimeMs: end,
-      mode: 'hidden',
-      fadeInMs: 300,
-      fadeOutMs: 300,
+      endTimeMs: start,
+      mode,
+      fadeInMs: mode === 'hidden' ? 300 : 0,
+      fadeOutMs: mode === 'visible' ? 300 : 0,
       easing: 'linear',
     });
     setBgaVisibilityIntervals((prev) => [...prev, next].sort((a, b) => a.startTimeMs - b.startTimeMs));
@@ -1549,6 +1569,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   return (
     <div
       className="chart-editor-root"
+      onFocusCapture={handleNumericInputFocus}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -2113,20 +2134,44 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <span style={{ fontSize: 12, fontWeight: 600 }}>간주 구간 (채보 레인 숨김)</span>
-              <button
-                onClick={handleAddBgaInterval}
-                style={{
-                  padding: '2px 6px',
-                  fontSize: '10px',
-                  borderRadius: CHART_EDITOR_THEME.radiusSm,
-                  border: `1px solid ${CHART_EDITOR_THEME.accentStrong}`,
-                  backgroundColor: 'rgba(34,211,238,0.12)',
-                  color: CHART_EDITOR_THEME.accentStrong,
-                  cursor: 'pointer',
-                }}
-              >
-                +
-              </button>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button
+                  onMouseDown={keepEditorButtonFromTakingFocus}
+                  onClick={(e) => {
+                    blurEditorButton(e);
+                    handleAddBgaEvent('hidden');
+                  }}
+                  style={{
+                    padding: '2px 6px',
+                    fontSize: '10px',
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    border: '1px solid rgba(239,68,68,0.55)',
+                    backgroundColor: 'rgba(239,68,68,0.12)',
+                    color: '#fca5a5',
+                    cursor: 'pointer',
+                  }}
+                >
+                  + Hide
+                </button>
+                <button
+                  onMouseDown={keepEditorButtonFromTakingFocus}
+                  onClick={(e) => {
+                    blurEditorButton(e);
+                    handleAddBgaEvent('visible');
+                  }}
+                  style={{
+                    padding: '2px 6px',
+                    fontSize: '10px',
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    border: '1px solid rgba(34,197,94,0.55)',
+                    backgroundColor: 'rgba(34,197,94,0.12)',
+                    color: '#86efac',
+                    cursor: 'pointer',
+                  }}
+                >
+                  + Show
+                </button>
+              </div>
             </div>
             {bgaVisibilityIntervals.length === 0 ? (
               <div style={{ fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>구간 없음</div>
@@ -2134,12 +2179,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 140, overflowY: 'auto' }}>
                 {bgaVisibilityIntervals.map((it) => {
                   const startBeatIdx = timeToBeatIndex(it.startTimeMs, bpm, sortedBpmChanges);
-                  const endBeatIdx = timeToBeatIndex(it.endTimeMs, bpm, sortedBpmChanges);
-                  
                   const startMeasureNum = Math.floor(startBeatIdx / beatsPerMeasure);
                   const startBeat = Math.floor(startBeatIdx % beatsPerMeasure) + 1;
-                  const endMeasureNum = Math.floor(endBeatIdx / beatsPerMeasure);
-                  const endBeat = Math.floor(endBeatIdx % beatsPerMeasure) + 1;
+                  const isHideEvent = it.mode === 'hidden';
+                  const fadeLabel = isHideEvent ? 'Fade in' : 'Fade out';
+                  const fadeValue = isHideEvent ? Math.round(it.fadeInMs ?? 0) : Math.round(it.fadeOutMs ?? 0);
 
                   return (
                     <div
@@ -2152,8 +2196,35 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                        <button
+                          onMouseDown={keepEditorButtonFromTakingFocus}
+                          onClick={(e) => {
+                            blurEditorButton(e);
+                            handleUpdateBgaInterval(it.id, {
+                              mode: isHideEvent ? 'visible' : 'hidden',
+                              fadeInMs: isHideEvent ? 0 : 300,
+                              fadeOutMs: isHideEvent ? 300 : 0,
+                            });
+                          }}
+                          style={{
+                            fontSize: 10,
+                            padding: '3px 6px',
+                            minWidth: 42,
+                            borderRadius: CHART_EDITOR_THEME.radiusSm,
+                            border: `1px solid ${isHideEvent ? 'rgba(239,68,68,0.6)' : 'rgba(34,197,94,0.6)'}`,
+                            backgroundColor: isHideEvent ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)',
+                            color: isHideEvent ? '#fca5a5' : '#86efac',
+                            cursor: 'pointer',
+                            fontWeight: 700,
+                          }}
+                          title="Hide/Show 전환"
+                        >
+                          {isHideEvent ? 'Hide' : 'Show'}
+                        </button>
                         <input
                           type="text"
+                          inputMode="numeric"
+                          data-select-on-focus="true"
                           placeholder="마디"
                           value={startMeasureNum + 1}
                           onChange={(e) => {
@@ -2176,6 +2247,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                         <span style={{ fontSize: 11, color: CHART_EDITOR_THEME.textSecondary }}>.</span>
                         <input
                           type="text"
+                          inputMode="numeric"
+                          data-select-on-focus="true"
                           placeholder="박"
                           value={startBeat}
                           onChange={(e) => {
@@ -2195,53 +2268,22 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                             borderRadius: CHART_EDITOR_THEME.radiusSm,
                           }}
                         />
-                        <span style={{ fontSize: 11, color: CHART_EDITOR_THEME.textMuted, margin: '0 2px' }}>~</span>
-                        <input
-                          type="text"
-                          placeholder="마디"
-                          value={endMeasureNum + 1}
-                          onChange={(e) => {
-                            const m = Math.max(0, (parseInt(e.target.value) || 1) - 1);
-                            const beatIdx = m * beatsPerMeasure + (endBeat - 1);
-                            const newMs = beatIndexToTime(beatIdx, bpm, sortedBpmChanges);
-                            handleUpdateBgaInterval(it.id, { endTimeMs: newMs });
-                          }}
+                        <span
                           style={{
-                            width: 32,
-                            padding: '3px 4px',
-                            fontSize: 11,
-                            textAlign: 'center',
-                            backgroundColor: '#020617',
-                            color: CHART_EDITOR_THEME.textPrimary,
-                            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                            borderRadius: CHART_EDITOR_THEME.radiusSm,
+                            fontSize: 10,
+                            color: CHART_EDITOR_THEME.textMuted,
+                            whiteSpace: 'nowrap',
                           }}
-                        />
-                        <span style={{ fontSize: 11, color: CHART_EDITOR_THEME.textSecondary }}>.</span>
-                        <input
-                          type="text"
-                          placeholder="박"
-                          value={endBeat}
-                          onChange={(e) => {
-                            const b = Math.max(1, Math.min(beatsPerMeasure, parseInt(e.target.value) || 1));
-                            const beatIdx = endMeasureNum * beatsPerMeasure + (b - 1);
-                            const newMs = beatIndexToTime(beatIdx, bpm, sortedBpmChanges);
-                            handleUpdateBgaInterval(it.id, { endTimeMs: newMs });
-                          }}
-                          style={{
-                            width: 28,
-                            padding: '3px 4px',
-                            fontSize: 11,
-                            textAlign: 'center',
-                            backgroundColor: '#020617',
-                            color: CHART_EDITOR_THEME.textPrimary,
-                            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                            borderRadius: CHART_EDITOR_THEME.radiusSm,
-                          }}
-                        />
+                        >
+                          {isHideEvent ? '다음 Show까지' : '숨김 해제'}
+                        </span>
                         <div style={{ flex: 1 }} />
                         <button
-                          onClick={() => handleDeleteBgaInterval(it.id)}
+                          onMouseDown={keepEditorButtonFromTakingFocus}
+                          onClick={(e) => {
+                            blurEditorButton(e);
+                            handleDeleteBgaInterval(it.id);
+                          }}
                           style={{
                             fontSize: 11,
                             padding: '2px 6px',
@@ -2256,29 +2298,20 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                         </button>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <button
-                          onClick={() => handleUpdateBgaInterval(it.id, { mode: it.mode === 'hidden' ? 'visible' : 'hidden' })}
-                          style={{
-                            fontSize: 10,
-                            padding: '2px 6px',
-                            borderRadius: CHART_EDITOR_THEME.radiusSm,
-                            border: `1px solid ${it.mode === 'hidden' ? 'rgba(239,68,68,0.6)' : 'rgba(34,197,94,0.6)'}`,
-                            backgroundColor: it.mode === 'hidden' ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)',
-                            color: it.mode === 'hidden' ? '#fca5a5' : '#86efac',
-                            cursor: 'pointer',
-                            fontWeight: 600,
-                          }}
-                        >
-                          {it.mode === 'hidden' ? '레인 숨김' : '레인 표시'}
-                        </button>
-                        <span style={{ fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>F-in</span>
+                        <span style={{ fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>{fadeLabel}</span>
                         <input
                           type="number"
                           min={0}
-                          value={Math.round(it.fadeInMs ?? 0)}
-                          onChange={(e) =>
-                            handleUpdateBgaInterval(it.id, { fadeInMs: Math.max(0, Number(e.target.value) || 0) })
-                          }
+                          value={fadeValue}
+                          onChange={(e) => {
+                            const nextFade = Math.max(0, Number(e.target.value) || 0);
+                            handleUpdateBgaInterval(
+                              it.id,
+                              isHideEvent
+                                ? { fadeInMs: nextFade, fadeOutMs: 0 }
+                                : { fadeInMs: 0, fadeOutMs: nextFade }
+                            );
+                          }}
                           style={{
                             width: 42,
                             padding: '2px 4px',
@@ -2290,27 +2323,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                             borderRadius: CHART_EDITOR_THEME.radiusSm,
                           }}
                         />
-                        <span style={{ fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>F-out</span>
-                        <input
-                          type="number"
-                          min={0}
-                          value={Math.round(it.fadeOutMs ?? 0)}
-                          onChange={(e) =>
-                            handleUpdateBgaInterval(it.id, { fadeOutMs: Math.max(0, Number(e.target.value) || 0) })
-                          }
-                          style={{
-                            width: 42,
-                            padding: '2px 4px',
-                            fontSize: 10,
-                            textAlign: 'center',
-                            backgroundColor: '#020617',
-                            color: CHART_EDITOR_THEME.textPrimary,
-                            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                            borderRadius: CHART_EDITOR_THEME.radiusSm,
-                          }}
-                        />
+                        <span style={{ fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>ms</span>
                         <button
-                          onClick={() => handleUpdateBgaInterval(it.id, { fadeInMs: 0, fadeOutMs: 0 })}
+                          onMouseDown={keepEditorButtonFromTakingFocus}
+                          onClick={(e) => {
+                            blurEditorButton(e);
+                            handleUpdateBgaInterval(it.id, { fadeInMs: 0, fadeOutMs: 0 });
+                          }}
                           title="페이드 제거 (하드컷)"
                           style={{
                             fontSize: 10,
@@ -2354,6 +2373,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
             </label>
             <input
               type="text"
+              inputMode="numeric"
+              data-select-on-focus="true"
               value={testStartInput}
               onChange={(e) => setTestStartInput(e.target.value)}
               placeholder="ms"
