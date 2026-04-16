@@ -148,6 +148,10 @@ const normalizeFontFamilyName = (fontFamily: string): string =>
     .trim()
     .replace(/^['"]|['"]$/g, '');
 
+const loadedCustomFontKeys = new Set<string>();
+const subtitleFontReadyPromises = new Map<string, Promise<void>>();
+let storedWebFontsPromise: Promise<void> | null = null;
+
 const ensurePresetFontStylesheets = (): void => {
   if (typeof document === 'undefined') return;
   const head = document.head || document.getElementsByTagName('head')[0];
@@ -211,6 +215,8 @@ export const addCustomFont = async (label: string, value: string, src?: string):
       const fontFace = new FontFace(fontFamilyName, `url(${src})`);
       await fontFace.load();
       document.fonts.add(fontFace);
+      loadedCustomFontKeys.add(`${fontFamilyName}:${src}`);
+      subtitleFontReadyPromises.delete(fontFamilyName);
       console.log(`Web font loaded: ${fontFamilyName}`);
     } catch (error) {
       console.error('Failed to load web font:', error);
@@ -233,18 +239,28 @@ export const removeCustomFont = (value: string): void => {
  */
 export const loadStoredWebFonts = async (): Promise<void> => {
   ensurePresetFontStylesheets();
+  if (storedWebFontsPromise) {
+    return storedWebFontsPromise;
+  }
+
+  storedWebFontsPromise = (async () => {
   const customFonts = getCustomFonts();
   for (const font of customFonts) {
     if (font.src) {
       try {
         // value에서 첫 번째 폰트 이름 추출 (예: "Nanum Gothic, sans-serif" -> "Nanum Gothic")
         const fontFamilyName = normalizeFontFamilyName(font.value);
+        const fontKey = `${fontFamilyName}:${font.src}`;
+        if (loadedCustomFontKeys.has(fontKey)) {
+          continue;
+        }
         
         // 이미 로드된 폰트인지 확인
         const existing = Array.from(document.fonts).find(
           (f) => normalizeFontFamilyName(f.family) === fontFamilyName
         );
         if (existing) {
+          loadedCustomFontKeys.add(fontKey);
           console.log(`Web font already loaded: ${fontFamilyName}`);
           continue;
         }
@@ -252,12 +268,16 @@ export const loadStoredWebFonts = async (): Promise<void> => {
         const fontFace = new FontFace(fontFamilyName, `url(${font.src})`);
         await fontFace.load();
         document.fonts.add(fontFace);
+        loadedCustomFontKeys.add(fontKey);
         console.log(`Web font loaded: ${fontFamilyName}`);
       } catch (error) {
         console.error(`Failed to load web font ${font.label}:`, error);
       }
     }
   }
+  })();
+
+  return storedWebFontsPromise;
 };
 
 export const ensureSubtitleFontsReady = async (
@@ -275,16 +295,24 @@ export const ensureSubtitleFontsReady = async (
 
   await Promise.all(
     uniqueFamilies.map(async (family) => {
+      const cached = subtitleFontReadyPromises.get(family);
+      if (cached) {
+        await cached;
+        return;
+      }
+
       const fontLoadPromise = Promise.all([
         document.fonts.load(`400 16px "${family}"`),
         document.fonts.load(`700 16px "${family}"`),
-      ]);
+      ]).then(() => undefined);
 
       const timeoutPromise = new Promise<void>((resolve) => {
         window.setTimeout(() => resolve(), timeoutMs);
       });
 
-      await Promise.race([fontLoadPromise, timeoutPromise]);
+      const readyPromise = Promise.race([fontLoadPromise, timeoutPromise]);
+      subtitleFontReadyPromises.set(family, readyPromise);
+      await readyPromise;
     })
   );
 };
