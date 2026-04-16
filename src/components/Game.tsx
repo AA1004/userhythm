@@ -364,13 +364,13 @@ export const Game: React.FC = () => {
       setChartSelectTransition((prev) =>
         prev ? { ...prev, phase: 'exit' } : prev
       );
-    }, 900);
+    }, 520);
 
     const routeTimer = window.setTimeout(() => {
       chartSelectTransitionTimersRef.current = [];
       setChartSelectTransition(null);
       setViewMode({ type: 'chartSelect', refreshToken });
-    }, 1180);
+    }, 680);
 
     chartSelectTransitionTimersRef.current = [exitTimer, routeTimer];
   }, [clearChartSelectTransitionTimers]);
