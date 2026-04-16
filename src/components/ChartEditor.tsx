@@ -2268,15 +2268,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                             borderRadius: CHART_EDITOR_THEME.radiusSm,
                           }}
                         />
-                        <span
-                          style={{
-                            fontSize: 10,
-                            color: CHART_EDITOR_THEME.textMuted,
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {isHideEvent ? '다음 Show까지' : '숨김 해제'}
-                        </span>
                         <div style={{ flex: 1 }} />
                         <button
                           onMouseDown={keepEditorButtonFromTakingFocus}
