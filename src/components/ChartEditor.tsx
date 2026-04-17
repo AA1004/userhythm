@@ -917,10 +917,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     isSelectingRef.current = false;
   }, []);
 
-  const handleToggleMoveMode = useCallback(() => {
-    setIsMoveMode((prev) => !prev);
-  }, []);
-
   // 선대칭 반전: 선택된 노트들을 레인 기준으로 반전 (0↔3, 1↔2)
   const handleMirrorNotes = useCallback(() => {
     if (selectedNoteIds.size === 0) {
@@ -1701,7 +1697,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                 zoom={zoom}
                 onTimelineClick={handleTimelineClick}
                 onPlayheadMouseDown={handlePlayheadMouseDown}
-                onToggleMoveMode={handleToggleMoveMode}
                 onNoteClick={deleteNote}
                 timeToY={timeToY}
                 getNoteY={getNoteY}

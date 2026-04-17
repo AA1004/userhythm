@@ -32,7 +32,6 @@ interface ChartEditorTimelineProps {
   zoom: number;
   onTimelineClick: (e: React.MouseEvent<HTMLDivElement>) => void;
   onPlayheadMouseDown: (e: React.MouseEvent) => void;
-  onToggleMoveMode?: () => void;
   onNoteClick: (noteId: number) => void;
   timeToY: (timeMs: number) => number;
   getNoteY: (noteTime: number) => number;
@@ -79,7 +78,6 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   zoom: _zoom, // 줌은 타임라인 스케일링에만 사용 (노트 크기는 고정)
   onTimelineClick,
   onPlayheadMouseDown,
-  onToggleMoveMode,
   onNoteClick,
   timeToY,
   getNoteY: _getNoteY,
@@ -458,19 +456,8 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     [onTimelineClick]
   );
 
-  const handleAuxClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.button !== 1) return;
-    suppressNextTimelineClickRef.current = false;
-    e.preventDefault();
-    e.stopPropagation();
-  }, []);
-  
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button === 1) {
-      onToggleMoveMode?.();
-      suppressTimelineClick();
-      e.preventDefault();
-      e.stopPropagation();
       return;
     }
 
@@ -557,7 +544,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     suppressTimelineClick();
     e.preventDefault();
     e.stopPropagation();
-  }, [isSelectionMode, isMoveMode, selectedNoteIds, yToTime, onSelectionStart, onMoveStart, timelineContentRef, normalizeRect, onMarqueeStart, onMarqueeUpdate, computeMarqueeSelectedIds, onToggleMoveMode, suppressTimelineClick]);
+  }, [isSelectionMode, isMoveMode, selectedNoteIds, yToTime, onSelectionStart, onMoveStart, timelineContentRef, normalizeRect, onMarqueeStart, onMarqueeUpdate, computeMarqueeSelectedIds, suppressTimelineClick]);
   
   const handleMouseMove = useCallback((e: MouseEvent) => {
     // 이동 모드 드래그 처리
@@ -660,7 +647,6 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
       <div
         ref={timelineScrollRef}
         onClick={handleTimelineClick}
-        onAuxClick={handleAuxClick}
         onMouseDown={handleMouseDown}
         style={{
           width: '100%',
