@@ -35,6 +35,7 @@ import { Score } from './Score';
 import { TutorialScreen } from './TutorialScreen';
 import { GAME_VIEW_WIDTH, GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 import { buildPlayfieldGeometry } from '../constants/gameVisualSettings';
+import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 
 // Subtitle editor chart data
 interface SubtitleEditorChartData {
@@ -62,6 +63,7 @@ type ChartSelectTransitionState = {
 };
 
 export const Game: React.FC = () => {
+  const renderProfileStart = isGameplayProfilerEnabled() ? performance.now() : 0;
   const [viewMode, setViewMode] = useState<ViewMode>({ type: 'menu' });
   const [chartListRefreshToken, setChartListRefreshToken] = useState<number>(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
@@ -238,6 +240,10 @@ export const Game: React.FC = () => {
   const stageDisplayWidth = Math.round(GAME_VIEW_WIDTH * stageScale);
   const stageDisplayHeight = Math.round(GAME_VIEW_HEIGHT * stageScale);
 
+  useEffect(() => {
+    if (!isGameplayProfilerEnabled()) return;
+    recordGameplayMetric('reactRender', performance.now() - renderProfileStart, 1);
+  });
 
   // 속도가 변경될 때마다 localStorage에 저장
   useEffect(() => {

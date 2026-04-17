@@ -1,8 +1,12 @@
 type GameplayMetricName =
   | 'noteRender'
   | 'visibleNoteFilter'
+  | 'visibleCursor'
   | 'missScan'
-  | 'judgeScan';
+  | 'judgeScan'
+  | 'hitProcessing'
+  | 'reactRender'
+  | 'activeSubtitle';
 
 interface MetricBucket {
   count: number;

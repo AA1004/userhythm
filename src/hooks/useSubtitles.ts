@@ -3,6 +3,7 @@ import { SubtitleCue, SubtitleStyle, ensureSubtitleFontsReady } from '../types/s
 import { subtitleAPI, localSubtitleStorage } from '../lib/subtitleAPI';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { GameState } from '../types/game';
+import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 
 export interface ActiveSubtitle {
   cue: SubtitleCue;
@@ -160,8 +161,22 @@ export function useSubtitles(gameState: GameState, currentChartTimeMs: number): 
   }, [subtitles]);
 
   const activeSubtitles = useMemo(() => {
-    if (!subtitles.length) return [];
-    if (!gameState.gameStarted) return [];
+    const shouldProfile = isGameplayProfilerEnabled();
+    const profileStart = shouldProfile ? performance.now() : 0;
+    const recordProfile = (count: number) => {
+      if (shouldProfile) {
+        recordGameplayMetric('activeSubtitle', performance.now() - profileStart, count);
+      }
+    };
+
+    if (!subtitles.length) {
+      recordProfile(0);
+      return [];
+    }
+    if (!gameState.gameStarted) {
+      recordProfile(0);
+      return [];
+    }
 
     const t = currentChartTimeMs;
     const { byStart, byEnd } = timelineIndex;
@@ -191,6 +206,7 @@ export function useSubtitles(gameState: GameState, currentChartTimeMs: number): 
     }
 
     active.sort((a, b) => a.originalIndex - b.originalIndex);
+    recordProfile(active.length);
     return active.map(({ cue, opacity }) => ({ cue, opacity }));
   }, [subtitles.length, gameState.gameStarted, currentChartTimeMs, getSubtitleOpacity, timelineIndex]);
 

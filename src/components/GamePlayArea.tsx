@@ -156,6 +156,9 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
 
     const startIdx = binarySearchStartIndex(notes, viewportStart);
     const endIdx = binarySearchEndIndex(notes, viewportEnd, startIdx);
+    if (shouldProfile) {
+      recordGameplayMetric('visibleCursor', 0, startIdx);
+    }
 
     const result: Note[] = [];
     const addedNoteIds = new Set<number>();
