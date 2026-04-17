@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { SubtitleCue, SubtitleStyle } from '../types/subtitle';
+import { GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 
 type ActiveSubtitle = {
   cue: SubtitleCue;
@@ -37,9 +38,7 @@ const LyricCue = React.memo<LyricCueProps>(
     const rendered = useMemo(() => {
       const style: SubtitleStyle = cue.style || ({} as SubtitleStyle);
       const pos = style.position ?? { x: 0.5, y: 0.9 };
-
-      const left = subtitleArea.left + pos.x * subtitleArea.width;
-      const top = subtitleArea.top + pos.y * subtitleArea.height;
+      const sizeScale = Math.max(0.1, subtitleArea.height / GAME_VIEW_HEIGHT);
 
       const transformParts: string[] = ['translate(-50%, -50%)'];
       if (style.rotationDeg) {
@@ -60,16 +59,16 @@ const LyricCue = React.memo<LyricCueProps>(
         lines,
         style: {
           position: 'absolute' as const,
-          left,
-          top,
+          left: `${pos.x * 100}%`,
+          top: `${pos.y * 100}%`,
           transform: transformParts.join(' '),
           transformOrigin: '50% 50%',
-          padding: showBackground ? '6px 14px' : 0,
-          borderRadius: showBackground ? 8 : 0,
+          padding: showBackground ? `${6 * sizeScale}px ${14 * sizeScale}px` : 0,
+          borderRadius: showBackground ? 8 * sizeScale : 0,
           backgroundColor,
           color: style.color ?? '#ffffff',
           fontFamily: style.fontFamily ?? 'Noto Sans KR, sans-serif',
-          fontSize: style.fontSize ?? 24,
+          fontSize: (style.fontSize ?? 24) * sizeScale,
           fontWeight: style.fontWeight ?? 'normal',
           fontStyle: style.fontStyle ?? 'normal',
           textAlign,
@@ -78,14 +77,14 @@ const LyricCue = React.memo<LyricCueProps>(
           maxWidth: 'none',
           pointerEvents: 'none' as const,
           boxShadow: showBackground
-            ? '0 10px 30px rgba(0,0,0,0.9), 0 0 18px rgba(15,23,42,0.9)'
+            ? `0 ${10 * sizeScale}px ${30 * sizeScale}px rgba(0,0,0,0.9), 0 0 ${18 * sizeScale}px rgba(15,23,42,0.9)`
             : 'none',
           border:
             showBackground && style.outlineColor
               ? `1px solid ${style.outlineColor}`
               : 'none',
           textShadow: !showBackground
-            ? '0 0 8px rgba(0,0,0,0.9), 0 2px 4px rgba(0,0,0,0.8), 0 0 20px rgba(0,0,0,0.6)'
+            ? `0 0 ${8 * sizeScale}px rgba(0,0,0,0.9), 0 ${2 * sizeScale}px ${4 * sizeScale}px rgba(0,0,0,0.8), 0 0 ${20 * sizeScale}px rgba(0,0,0,0.6)`
             : 'none',
         },
       };
@@ -128,7 +127,10 @@ export const LyricOverlay: React.FC<LyricOverlayProps> = ({
     <div
       style={{
         position: 'absolute',
-        inset: 0,
+        left: subtitleArea.left,
+        top: subtitleArea.top,
+        width: subtitleArea.width,
+        height: subtitleArea.height,
         overflow: 'visible',
         pointerEvents: 'none',
         zIndex: 300,
