@@ -88,6 +88,13 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
 
   const normalizeCharts = useCallback((loadedCharts: ApiChart[]) => {
     return loadedCharts.map((chart: ApiChart) => {
+      let chartData: any = {};
+      try {
+        chartData = JSON.parse(chart.data_json || '{}');
+      } catch {
+        chartData = {};
+      }
+
       // author badge info
       const authorChess =
         chart.author_role === 'admin'
@@ -104,18 +111,20 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
       // preview image
       let preview = chart.preview_image || null;
       if (!preview) {
-        try {
-          const data = JSON.parse(chart.data_json || '{}');
-          const youtubeUrl: string = data.youtubeUrl || chart.youtube_url || '';
-          const youtubeVideoId: string | null =
-            data.youtubeVideoId || (youtubeUrl ? extractYouTubeVideoId(youtubeUrl) : null);
-          if (youtubeVideoId) {
-            preview = `https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg`;
-          }
-        } catch {
-          // ignore parse error
+        const youtubeUrl: string = chartData.youtubeUrl || chart.youtube_url || '';
+        const youtubeVideoId: string | null =
+          chartData.youtubeVideoId || (youtubeUrl ? extractYouTubeVideoId(youtubeUrl) : null);
+        if (youtubeVideoId) {
+          preview = `https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg`;
         }
       }
+
+      const notes = Array.isArray(chartData.notes) ? chartData.notes : [];
+      const holdCount = notes.filter((note: any) => note?.type === 'hold' || Number(note?.duration) > 0).length;
+      const subtitleCount = Array.isArray(chartData.subtitles) ? chartData.subtitles.length : 0;
+      const bgaEventCount = Array.isArray(chartData.bgaVisibilityIntervals)
+        ? chartData.bgaVisibilityIntervals.length
+        : 0;
 
       return {
         ...chart,
@@ -124,6 +133,12 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         _authorLabel: authorLabel,
         _isAdmin: chart.author_role === 'admin',
         _isModerator: chart.author_role === 'moderator',
+        _noteCount: notes.length,
+        _holdCount: holdCount,
+        _subtitleCount: subtitleCount,
+        _bgaEventCount: bgaEventCount,
+        _hasSubtitles: subtitleCount > 0,
+        _hasBgaEvents: bgaEventCount > 0,
       };
     });
   }, []);
@@ -977,6 +992,15 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                     }
                   }}
                 >
+                  {selectedChart?.id === chart.id && (
+                    <div className="chart-select-card__now" aria-hidden="true">
+                      <span>PREVIEW</span>
+                      <i />
+                      <i />
+                      <i />
+                      <i />
+                    </div>
+                  )}
                   {chart.preview_image ? (
                     <div
                       className="chart-select-card__thumb"
@@ -1049,7 +1073,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                       </span>
                     )}
                   </div>
-                  <div className="chart-select-card__badges" style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+                  <div className="chart-select-card__badges" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
                     <span
                       style={{
                         padding: '4px 8px',
@@ -1060,6 +1084,17 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                       }}
                     >
                       BPM {chart.bpm}
+                    </span>
+                    <span
+                      style={{
+                        padding: '4px 8px',
+                        backgroundColor: CHART_EDITOR_THEME.buttonGhostBgHover,
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                        color: CHART_EDITOR_THEME.textPrimary,
+                        fontSize: '11px',
+                      }}
+                    >
+                      NOTES {(chart as any)._noteCount ?? 0}
                     </span>
                     {chart.difficulty && (
                       <span
@@ -1086,6 +1121,36 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                     >
                       ▶ {chart.play_count}
                     </span>
+                    {(chart as any)._hasSubtitles && (
+                      <span
+                        className="chart-select-card__feature-badge"
+                        style={{
+                          padding: '4px 8px',
+                          backgroundColor: 'rgba(167,139,250,0.18)',
+                          borderRadius: CHART_EDITOR_THEME.radiusSm,
+                          color: '#ddd6fe',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                        }}
+                      >
+                        SUB
+                      </span>
+                    )}
+                    {(chart as any)._hasBgaEvents && (
+                      <span
+                        className="chart-select-card__feature-badge"
+                        style={{
+                          padding: '4px 8px',
+                          backgroundColor: 'rgba(244,114,182,0.16)',
+                          borderRadius: CHART_EDITOR_THEME.radiusSm,
+                          color: '#fbcfe8',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                        }}
+                      >
+                        BGA FX
+                      </span>
+                    )}
                   </div>
                   {chart.description && (
                     <div
@@ -1279,14 +1344,29 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
               <div className="chart-select-detail-panel__fact">
                 <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>노트 수</div>
                 <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
-                  {(() => {
-                    try {
-                      const data = JSON.parse(selectedChart.data_json);
-                      return data.notes?.length || 0;
-                    } catch {
-                      return '?';
-                    }
-                  })()}
+                  {(selectedChart as any)._noteCount ?? 0}
+                </div>
+              </div>
+              <div className="chart-select-detail-panel__fact">
+                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>롱노트</div>
+                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
+                  {(selectedChart as any)._holdCount ?? 0}
+                </div>
+              </div>
+              <div className="chart-select-detail-panel__fact">
+                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>자막</div>
+                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
+                  {(selectedChart as any)._subtitleCount > 0
+                    ? `${(selectedChart as any)._subtitleCount}개`
+                    : '없음'}
+                </div>
+              </div>
+              <div className="chart-select-detail-panel__fact">
+                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>BGA 연출</div>
+                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
+                  {(selectedChart as any)._bgaEventCount > 0
+                    ? `${(selectedChart as any)._bgaEventCount}개`
+                    : '없음'}
                 </div>
               </div>
               {selectedChart.description && (
