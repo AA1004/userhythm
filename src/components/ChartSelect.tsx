@@ -1249,34 +1249,40 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
               {selectedChart.title}
             </h2>
 
-            <button
-              className="chart-select-play-button"
-              onClick={() => handleSelectChart(selectedChart)}
+            <div
+              className="chart-select-detail-panel__sticky-action"
               style={{
-                width: '100%',
-                padding: '15px',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                background: CHART_EDITOR_THEME.buttonPrimaryBg,
-                color: CHART_EDITOR_THEME.buttonPrimaryText,
-                border: 'none',
-                borderRadius: CHART_EDITOR_THEME.radiusMd,
-                cursor: 'pointer',
-                boxShadow: CHART_EDITOR_THEME.shadowSoft,
                 marginBottom: '20px',
-                transition: 'all 0.15s ease-out',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = CHART_EDITOR_THEME.buttonPrimaryBgHover;
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = CHART_EDITOR_THEME.buttonPrimaryBg;
-                e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
-              🎮 이 채보로 플레이
-            </button>
+              <button
+                className="chart-select-play-button"
+                onClick={() => handleSelectChart(selectedChart)}
+                style={{
+                  width: '100%',
+                  padding: '15px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  background: CHART_EDITOR_THEME.buttonPrimaryBg,
+                  color: CHART_EDITOR_THEME.buttonPrimaryText,
+                  border: 'none',
+                  borderRadius: CHART_EDITOR_THEME.radiusMd,
+                  cursor: 'pointer',
+                  boxShadow: CHART_EDITOR_THEME.shadowSoft,
+                  transition: 'all 0.15s ease-out',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = CHART_EDITOR_THEME.buttonPrimaryBgHover;
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = CHART_EDITOR_THEME.buttonPrimaryBg;
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                🎮 이 채보로 플레이
+              </button>
+            </div>
 
             {selectedChart.preview_image && (
               <div
