@@ -15,6 +15,7 @@ const NOTE_WIDTH = LANE_WIDTH - 4;
 const NOTE_HALF = NOTE_WIDTH / 2;
 // 래퍼 전체 너비 (4개 레인 × 100px)
 const CONTENT_WIDTH = LANE_WIDTH * 4;
+const MARQUEE_DRAG_THRESHOLD_PX = 4;
 
 interface ChartEditorTimelineProps {
   notes: Note[];
@@ -304,6 +305,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     width: number;
     height: number;
   } | null>(null);
+  const [isTrackingSelection, setIsTrackingSelection] = useState(false);
   const marqueeStartRef = useRef<{ x: number; y: number } | null>(null);
   const marqueeOpRef = useRef<'replace' | 'add' | 'toggle'>('replace');
 
@@ -438,6 +440,13 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   const isDraggingMoveRef = useRef(false);
   const moveStartRef = useRef<{ time: number; lane: number } | null>(null);
   const suppressNextTimelineClickRef = useRef(false);
+  const selectionPointerStartRef = useRef<{
+    clientX: number;
+    clientY: number;
+    x: number;
+    y: number;
+    op: 'replace' | 'add' | 'toggle';
+  } | null>(null);
 
   const suppressTimelineClick = useCallback(() => {
     suppressNextTimelineClickRef.current = true;
@@ -552,24 +561,16 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
       e.ctrlKey ? 'toggle' : e.shiftKey ? 'add' : 'replace';
     marqueeOpRef.current = op;
 
-    isDraggingSelectionRef.current = true;
+    selectionPointerStartRef.current = {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      x,
+      y,
+      op,
+    };
     marqueeStartRef.current = { x, y };
-
-    const normalized = normalizeRect(x, y, x, y);
-    setMarqueeRect(normalized);
-
-    if (onMarqueeStart) onMarqueeStart(op);
-    if (onMarqueeUpdate) onMarqueeUpdate(computeMarqueeSelectedIds(normalized));
-
-    // 기존 API(시간 선택)는 일단 유지하되, 드래그 박스 모드에서는 lane 제한을 사용하지 않음
-    if (onSelectionStart) {
-      onSelectionStart(yToTime(y), null);
-    }
-    
-    suppressTimelineClick();
-    e.preventDefault();
-    e.stopPropagation();
-  }, [isSelectionMode, isMoveMode, selectedNoteIds, yToTime, onSelectionStart, onMoveStart, timelineContentRef, normalizeRect, onMarqueeStart, onMarqueeUpdate, computeMarqueeSelectedIds, suppressTimelineClick, isScrollbarInteraction]);
+    setIsTrackingSelection(true);
+  }, [isSelectionMode, isMoveMode, selectedNoteIds, yToTime, onMoveStart, timelineContentRef, suppressTimelineClick, isScrollbarInteraction]);
   
   const handleMouseMove = useCallback((e: MouseEvent) => {
     // 이동 모드 드래그 처리
@@ -599,6 +600,35 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
       return;
     }
     
+    if (isTrackingSelection && !isDraggingSelectionRef.current) {
+      const start = selectionPointerStartRef.current;
+      if (!start || !timelineContentRef.current) return;
+
+      const deltaX = e.clientX - start.clientX;
+      const deltaY = e.clientY - start.clientY;
+      if (Math.hypot(deltaX, deltaY) < MARQUEE_DRAG_THRESHOLD_PX) {
+        return;
+      }
+
+      const rect = timelineContentRef.current.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const x = e.clientX - rect.left;
+      const normalized = normalizeRect(start.x, start.y, x, y);
+
+      isDraggingSelectionRef.current = true;
+      marqueeOpRef.current = start.op;
+      setMarqueeRect(normalized);
+
+      if (onMarqueeStart) onMarqueeStart(start.op);
+      if (onMarqueeUpdate) onMarqueeUpdate(computeMarqueeSelectedIds(normalized));
+      if (onSelectionStart) onSelectionStart(yToTime(start.y), null);
+      if (onSelectionUpdate) onSelectionUpdate(yToTime(y));
+
+      suppressTimelineClick();
+      e.preventDefault();
+      return;
+    }
+
     // 선택 모드 드래그 처리 (마퀴 선택은 onSelectionUpdate 없이도 동작)
     if (!isDraggingSelectionRef.current) return;
     if (!timelineContentRef.current) return;
@@ -615,7 +645,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     }
 
     if (onSelectionUpdate) onSelectionUpdate(yToTime(y));
-  }, [yToTime, onSelectionUpdate, onMoveUpdate, timelineContentRef, normalizeRect, onMarqueeUpdate, computeMarqueeSelectedIds]);
+  }, [isTrackingSelection, yToTime, onSelectionStart, onSelectionUpdate, onMoveUpdate, timelineContentRef, normalizeRect, onMarqueeStart, onMarqueeUpdate, computeMarqueeSelectedIds, suppressTimelineClick]);
   
   const handleMouseUp = useCallback(() => {
     if (isDraggingMoveRef.current) {
@@ -638,12 +668,14 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
       if (onMarqueeEnd) onMarqueeEnd();
     }
     isDraggingSelectionRef.current = false;
+    selectionPointerStartRef.current = null;
     marqueeStartRef.current = null;
+    setIsTrackingSelection(false);
     setMarqueeRect(null);
   }, [onSelectionEnd, onMoveEnd, onMarqueeUpdate, onMarqueeEnd, marqueeRect, computeMarqueeSelectedIds]);
   
   useEffect(() => {
-    if (isDraggingSelectionRef.current || isDraggingMoveRef.current) {
+    if (isTrackingSelection || isDraggingSelectionRef.current || isDraggingMoveRef.current) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
       return () => {
@@ -651,7 +683,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         window.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [handleMouseMove, handleMouseUp]);
+  }, [isTrackingSelection, handleMouseMove, handleMouseUp]);
 
   // 기존 세로 선택(selectionBox)은 마퀴 선택으로 대체됨
 
@@ -673,6 +705,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         ref={timelineScrollRef}
         onClick={handleTimelineClick}
         onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
         style={{
           width: '100%',
           height: '100%',
