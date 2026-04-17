@@ -3,6 +3,24 @@ import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { BrandLogo } from './BrandLogo';
 
+const MENU_NOTE_PALETTES = [
+  { head: 'rgba(119, 255, 214, 0.08)', core: 'rgba(119, 255, 214, 0.72)', glow: 'rgba(119, 255, 214, 0.3)' },
+  { head: 'rgba(255, 78, 122, 0.08)', core: 'rgba(255, 78, 122, 0.68)', glow: 'rgba(255, 78, 122, 0.28)' },
+  { head: 'rgba(255, 184, 77, 0.08)', core: 'rgba(255, 184, 77, 0.7)', glow: 'rgba(255, 184, 77, 0.26)' },
+  { head: 'rgba(56, 189, 248, 0.08)', core: 'rgba(56, 189, 248, 0.7)', glow: 'rgba(56, 189, 248, 0.28)' },
+  { head: 'rgba(167, 139, 250, 0.08)', core: 'rgba(167, 139, 250, 0.68)', glow: 'rgba(167, 139, 250, 0.26)' },
+  { head: 'rgba(251, 113, 133, 0.08)', core: 'rgba(251, 113, 133, 0.68)', glow: 'rgba(251, 113, 133, 0.26)' },
+] as const;
+
+const pickMenuNotePalettes = () => {
+  const shuffled = [...MENU_NOTE_PALETTES];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled.slice(0, 4);
+};
+
 type AuthUser = {
   id: string;
   email?: string;
@@ -45,6 +63,7 @@ export const GameMenu: React.FC<GameMenuProps> = ({
   onSettings,
   ensureEditorAccess,
 }) => {
+  const menuNotePalettes = React.useMemo(pickMenuNotePalettes, []);
   const editorTitle =
     !canEditCharts && isSupabaseConfigured
       ? 'Google 로그인 후 이용할 수 있습니다.'
@@ -55,10 +74,16 @@ export const GameMenu: React.FC<GameMenuProps> = ({
       <div className="game-menu-grid" aria-hidden="true" />
       <div className="game-menu-stage-glow" aria-hidden="true" />
       <div className="game-menu-lanes" aria-hidden="true">
-        <span />
-        <span />
-        <span />
-        <span />
+        {menuNotePalettes.map((palette, index) => (
+          <span
+            key={`${palette.core}-${index}`}
+            style={{
+              '--menu-note-head': palette.head,
+              '--menu-note-core': palette.core,
+              '--menu-note-glow': palette.glow,
+            } as React.CSSProperties}
+          />
+        ))}
       </div>
 
       <section className="game-menu-panel" aria-label="UseRhythm main menu">

@@ -943,16 +943,18 @@ body {
   height: 48px;
   border-radius: 8px;
   transform: translateX(-50%);
-  background: linear-gradient(180deg, rgba(0, 229, 176, 0.08), rgba(0, 229, 176, 0.72));
+  background: linear-gradient(
+    180deg,
+    var(--menu-note-head, rgba(0, 229, 176, 0.08)),
+    var(--menu-note-core, rgba(0, 229, 176, 0.72))
+  );
   border: 1px solid rgba(255, 255, 255, 0.28);
-  box-shadow: 0 0 12px rgba(119, 255, 214, 0.28);
+  box-shadow: 0 0 12px var(--menu-note-glow, rgba(119, 255, 214, 0.28));
   animation: menuNoteFall 1900ms cubic-bezier(0.16, 0.92, 0.24, 1) infinite;
 }
 
 .game-menu-lanes span:nth-child(2)::after {
   animation-delay: 180ms;
-  background: linear-gradient(180deg, rgba(255, 78, 122, 0.08), rgba(255, 78, 122, 0.62));
-  box-shadow: 0 0 12px rgba(255, 78, 122, 0.26);
 }
 
 .game-menu-lanes span:nth-child(3)::after {
@@ -961,8 +963,6 @@ body {
 
 .game-menu-lanes span:nth-child(4)::after {
   animation-delay: 620ms;
-  background: linear-gradient(180deg, rgba(255, 184, 77, 0.08), rgba(255, 184, 77, 0.62));
-  box-shadow: 0 0 12px rgba(255, 184, 77, 0.24);
 }
 
 .game-menu-panel {
