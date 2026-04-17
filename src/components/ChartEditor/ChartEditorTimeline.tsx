@@ -443,6 +443,14 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     suppressNextTimelineClickRef.current = true;
   }, []);
 
+  const isOutsideTimelineContent = useCallback((clientX: number, clientY: number) => {
+    const content = timelineContentRef.current;
+    if (!content) return false;
+
+    const rect = content.getBoundingClientRect();
+    return clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom;
+  }, [timelineContentRef]);
+
   const handleTimelineClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (suppressNextTimelineClickRef.current) {
@@ -451,9 +459,16 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         e.stopPropagation();
         return;
       }
+
+      if (isOutsideTimelineContent(e.clientX, e.clientY)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
       onTimelineClick(e);
     },
-    [onTimelineClick]
+    [isOutsideTimelineContent, onTimelineClick]
   );
 
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -462,6 +477,11 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     }
 
     if (e.button !== 0) return;
+
+    if (isOutsideTimelineContent(e.clientX, e.clientY)) {
+      suppressTimelineClick();
+      return;
+    }
 
     // 이동 모드이고 노트를 클릭했으면 이동 드래그 시작
     if (isMoveMode) {
@@ -544,7 +564,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     suppressTimelineClick();
     e.preventDefault();
     e.stopPropagation();
-  }, [isSelectionMode, isMoveMode, selectedNoteIds, yToTime, onSelectionStart, onMoveStart, timelineContentRef, normalizeRect, onMarqueeStart, onMarqueeUpdate, computeMarqueeSelectedIds, suppressTimelineClick]);
+  }, [isSelectionMode, isMoveMode, selectedNoteIds, yToTime, onSelectionStart, onMoveStart, timelineContentRef, normalizeRect, onMarqueeStart, onMarqueeUpdate, computeMarqueeSelectedIds, suppressTimelineClick, isOutsideTimelineContent]);
   
   const handleMouseMove = useCallback((e: MouseEvent) => {
     // 이동 모드 드래그 처리
