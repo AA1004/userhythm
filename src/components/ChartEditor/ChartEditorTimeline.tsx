@@ -465,6 +465,11 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     return isVerticalScrollbar || isHorizontalScrollbar;
   }, [timelineScrollRef]);
 
+  const preventNativeDrag = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
   const handleTimelineClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (suppressNextTimelineClickRef.current) {
@@ -570,6 +575,8 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     };
     marqueeStartRef.current = { x, y };
     setIsTrackingSelection(true);
+    window.getSelection()?.removeAllRanges();
+    e.preventDefault();
   }, [isSelectionMode, isMoveMode, selectedNoteIds, yToTime, onMoveStart, timelineContentRef, suppressTimelineClick, isScrollbarInteraction]);
   
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -625,6 +632,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
       if (onSelectionUpdate) onSelectionUpdate(yToTime(y));
 
       suppressTimelineClick();
+      window.getSelection()?.removeAllRanges();
       e.preventDefault();
       return;
     }
@@ -645,6 +653,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     }
 
     if (onSelectionUpdate) onSelectionUpdate(yToTime(y));
+    e.preventDefault();
   }, [isTrackingSelection, yToTime, onSelectionStart, onSelectionUpdate, onMoveUpdate, timelineContentRef, normalizeRect, onMarqueeStart, onMarqueeUpdate, computeMarqueeSelectedIds, suppressTimelineClick]);
   
   const handleMouseUp = useCallback(() => {
@@ -706,6 +715,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         onClick={handleTimelineClick}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
+        onDragStart={preventNativeDrag}
         style={{
           width: '100%',
           height: '100%',
@@ -713,6 +723,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
           position: 'relative',
           background:
             'radial-gradient(circle at top, rgba(15,23,42,0.9), rgba(15,23,42,1))',
+          userSelect: 'none',
         }}
       >
       {/* 타임라인 컨텐츠 */}
@@ -727,6 +738,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         {/* 중앙 정렬된 컨텐츠 래퍼 */}
         <div
           ref={timelineContentRef}
+          draggable={false}
           style={{
             position: 'absolute',
             top: 0,
@@ -734,6 +746,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
             transform: 'translateX(-50%)',
             width: `${CONTENT_WIDTH}px`,
             height: '100%',
+            userSelect: 'none',
         }}
       >
         {/* 마퀴(드래그 박스) 선택 오버레이 */}
@@ -955,6 +968,8 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
                key={note.id}
                data-note
                data-note-id={note.id}
+               draggable={false}
+               onDragStart={preventNativeDrag}
                onClick={(e) => {
                  e.stopPropagation();
                  // 이동 모드에서는 노트 클릭 시 삭제하지 않고 드래그만 허용
@@ -972,6 +987,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
                  zIndex: isSelected ? (dragOffset ? 15 : 12) : 10,
                  opacity,
                  transition: dragOffset ? 'none' : 'opacity 0.2s',
+                 userSelect: 'none',
                  // 선택 표시(탭/롱 공통): 윈도우식 마퀴 선택이 눈에 띄도록 글로우 추가
                  borderRadius: isHold ? 18 : 14,
                  boxShadow: isSelected
