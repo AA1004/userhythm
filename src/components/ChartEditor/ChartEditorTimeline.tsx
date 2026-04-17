@@ -443,13 +443,18 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     suppressNextTimelineClickRef.current = true;
   }, []);
 
-  const isOutsideTimelineContent = useCallback((clientX: number, clientY: number) => {
-    const content = timelineContentRef.current;
-    if (!content) return false;
+  const isScrollbarInteraction = useCallback((clientX: number, clientY: number) => {
+    const scroll = timelineScrollRef.current;
+    if (!scroll) return false;
 
-    const rect = content.getBoundingClientRect();
-    return clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom;
-  }, [timelineContentRef]);
+    const rect = scroll.getBoundingClientRect();
+    const hasVerticalScrollbar = scroll.scrollHeight > scroll.clientHeight;
+    const hasHorizontalScrollbar = scroll.scrollWidth > scroll.clientWidth;
+    const isVerticalScrollbar = hasVerticalScrollbar && clientX >= rect.left + scroll.clientWidth;
+    const isHorizontalScrollbar = hasHorizontalScrollbar && clientY >= rect.top + scroll.clientHeight;
+
+    return isVerticalScrollbar || isHorizontalScrollbar;
+  }, [timelineScrollRef]);
 
   const handleTimelineClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -460,7 +465,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         return;
       }
 
-      if (isOutsideTimelineContent(e.clientX, e.clientY)) {
+      if (isScrollbarInteraction(e.clientX, e.clientY)) {
         e.preventDefault();
         e.stopPropagation();
         return;
@@ -468,7 +473,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
 
       onTimelineClick(e);
     },
-    [isOutsideTimelineContent, onTimelineClick]
+    [isScrollbarInteraction, onTimelineClick]
   );
 
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -478,7 +483,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
 
     if (e.button !== 0) return;
 
-    if (isOutsideTimelineContent(e.clientX, e.clientY)) {
+    if (isScrollbarInteraction(e.clientX, e.clientY)) {
       suppressTimelineClick();
       return;
     }
@@ -564,7 +569,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     suppressTimelineClick();
     e.preventDefault();
     e.stopPropagation();
-  }, [isSelectionMode, isMoveMode, selectedNoteIds, yToTime, onSelectionStart, onMoveStart, timelineContentRef, normalizeRect, onMarqueeStart, onMarqueeUpdate, computeMarqueeSelectedIds, suppressTimelineClick, isOutsideTimelineContent]);
+  }, [isSelectionMode, isMoveMode, selectedNoteIds, yToTime, onSelectionStart, onMoveStart, timelineContentRef, normalizeRect, onMarqueeStart, onMarqueeUpdate, computeMarqueeSelectedIds, suppressTimelineClick, isScrollbarInteraction]);
   
   const handleMouseMove = useCallback((e: MouseEvent) => {
     // 이동 모드 드래그 처리
