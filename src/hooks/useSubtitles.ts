@@ -30,6 +30,8 @@ interface SubtitleTimelineIndex {
   byEnd: SubtitleTimelineEntry[];
 }
 
+const SUBTITLE_ACTIVE_BUCKET_MS = 80;
+
 const getSubtitleEffectiveEndTime = (cue: SubtitleCue): number => {
   const style: SubtitleStyle = cue.style || ({} as SubtitleStyle);
   const outEffect = style.outEffect ?? 'none';
@@ -79,6 +81,10 @@ const lowerBoundNotEnded = (entries: SubtitleTimelineEntry[], timeMs: number): n
 
 export function useSubtitles(gameState: GameState, currentChartTimeMs: number): UseSubtitlesReturn {
   const [subtitles, setSubtitlesState] = useState<SubtitleCue[]>([]);
+  const subtitleClockTimeMs = useMemo(
+    () => Math.floor(currentChartTimeMs / SUBTITLE_ACTIVE_BUCKET_MS) * SUBTITLE_ACTIVE_BUCKET_MS,
+    [currentChartTimeMs]
+  );
 
   const setSubtitles = useCallback<React.Dispatch<React.SetStateAction<SubtitleCue[]>>>((value) => {
     if (typeof value === 'function') {
@@ -178,7 +184,8 @@ export function useSubtitles(gameState: GameState, currentChartTimeMs: number): 
       return [];
     }
 
-    const t = currentChartTimeMs;
+    // currentTimeRef remains the source time; subtitles use a coarse bucket to favor input stability.
+    const t = subtitleClockTimeMs;
     const { byStart, byEnd } = timelineIndex;
     const startedCount = upperBoundStarted(byStart, t);
     const firstNotEndedIndex = lowerBoundNotEnded(byEnd, t);
@@ -208,7 +215,7 @@ export function useSubtitles(gameState: GameState, currentChartTimeMs: number): 
     active.sort((a, b) => a.originalIndex - b.originalIndex);
     recordProfile(active.length);
     return active.map(({ cue, opacity }) => ({ cue, opacity }));
-  }, [subtitles.length, gameState.gameStarted, currentChartTimeMs, getSubtitleOpacity, timelineIndex]);
+  }, [subtitles.length, gameState.gameStarted, subtitleClockTimeMs, getSubtitleOpacity, timelineIndex]);
 
   return {
     subtitles,
