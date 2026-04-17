@@ -75,6 +75,8 @@ const getNotesRenderIndexSignature = (notes: Note[]) => {
 interface NoteRenderIndex {
   signature: string;
   holdIndicesByEnd: number[];
+  startIndex: number;
+  lastViewportStart: number;
 }
 
 interface GamePlayAreaProps {
@@ -120,6 +122,8 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   const renderIndexRef = useRef<NoteRenderIndex>({
     signature: '',
     holdIndicesByEnd: [],
+    startIndex: 0,
+    lastViewportStart: Number.NEGATIVE_INFINITY,
   });
 
   const visibleNotes = useMemo(() => {
@@ -148,6 +152,8 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
     if (renderIndexRef.current.signature !== renderIndexSignature) {
       renderIndexRef.current = {
         signature: renderIndexSignature,
+        startIndex: 0,
+        lastViewportStart: Number.NEGATIVE_INFINITY,
         holdIndicesByEnd: notes
           .map((note, index) => (note.type === 'hold' && note.duration > 0 ? index : -1))
           .filter((index) => index >= 0)
@@ -159,7 +165,13 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
     const viewportStart = currentTimeSnapshot - baseDuration - NOTE_VISIBILITY_BUFFER_MS;
     const viewportEnd = currentTimeSnapshot + baseDuration + NOTE_VISIBILITY_BUFFER_MS;
 
-    const startIdx = binarySearchStartIndex(notes, viewportStart);
+    const binaryStartIdx = binarySearchStartIndex(notes, viewportStart);
+    const canAdvanceCursor = viewportStart >= renderIndexRef.current.lastViewportStart;
+    const startIdx = canAdvanceCursor
+      ? Math.max(renderIndexRef.current.startIndex, binaryStartIdx)
+      : binaryStartIdx;
+    renderIndexRef.current.startIndex = startIdx;
+    renderIndexRef.current.lastViewportStart = viewportStart;
     const endIdx = binarySearchEndIndex(notes, viewportEnd, startIdx);
     if (shouldProfile) {
       recordGameplayMetric('visibleCursor', 0, startIdx);
