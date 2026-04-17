@@ -126,9 +126,8 @@ export function useGameLoop(
         recordGameplayMetric('missScan', performance.now() - missScanStart, scannedNotes);
       }
 
-      // currentTime 업데이트 주기 (게임 중 리렌더링 부하 감소)
-      // NoteRenderer는 currentTimeRef를 직접 읽으므로 state 업데이트는 자막/BGA 동기화용
-      const TIME_UPDATE_INTERVAL_MS = 50;
+      // currentTimeRef is the source time for gameplay; React state is a coarse UI snapshot.
+      const TIME_UPDATE_INTERVAL_MS = 150;
       const timeSinceLastUpdate = elapsedTime - (gameStateRef.current.currentTime || 0);
       const shouldUpdateTime = timeSinceLastUpdate >= TIME_UPDATE_INTERVAL_MS || hasMiss;
 

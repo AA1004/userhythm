@@ -90,6 +90,7 @@ interface GamePlayAreaProps {
   laneKeyLabels: string[][];
   isFromEditor: boolean;
   currentTimeRef: React.MutableRefObject<number>;
+  currentTimeSnapshot: number;
   fallDuration: number;
   judgeLineY: number;
   playfieldGeometry: PlayfieldGeometry;
@@ -109,6 +110,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   laneKeyLabels,
   isFromEditor: _isFromEditor,
   currentTimeRef,
+  currentTimeSnapshot,
   fallDuration,
   judgeLineY,
   playfieldGeometry,
@@ -154,8 +156,8 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
     }
 
     const baseDuration = BASE_FALL_DURATION / speed;
-    const viewportStart = gameState.currentTime - baseDuration - NOTE_VISIBILITY_BUFFER_MS;
-    const viewportEnd = gameState.currentTime + baseDuration + NOTE_VISIBILITY_BUFFER_MS;
+    const viewportStart = currentTimeSnapshot - baseDuration - NOTE_VISIBILITY_BUFFER_MS;
+    const viewportEnd = currentTimeSnapshot + baseDuration + NOTE_VISIBILITY_BUFFER_MS;
 
     const startIdx = binarySearchStartIndex(notes, viewportStart);
     const endIdx = binarySearchEndIndex(notes, viewportEnd, startIdx);
@@ -188,7 +190,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
 
     recordProfile();
     return result;
-  }, [gameState.notes, gameState.currentTime, speed, isLaneUiVisible, hitNoteIdsRef]);
+  }, [gameState.notes, currentTimeSnapshot, speed, isLaneUiVisible, hitNoteIdsRef]);
 
   const judgeFeedbackTop = Math.max(120, judgeLineY - 140);
 

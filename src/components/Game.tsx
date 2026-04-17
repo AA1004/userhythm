@@ -62,6 +62,8 @@ type ChartSelectTransitionState = {
   refreshToken?: number;
 };
 
+const GAMEPLAY_VISUAL_CLOCK_INTERVAL_MS = 80;
+
 export const Game: React.FC = () => {
   const renderProfileStart = isGameplayProfilerEnabled() ? performance.now() : 0;
   const [viewMode, setViewMode] = useState<ViewMode>({ type: 'menu' });
@@ -75,6 +77,7 @@ export const Game: React.FC = () => {
     useState<ChartSelectTransitionState | null>(null);
   const [testYoutubeVideoId, setTestYoutubeVideoId] = useState<string | null>(null);
   const [testAudioSettings, setTestAudioSettings] = useState<AudioSettings | null>(null);
+  const [gameplayClockSnapshotMs, setGameplayClockSnapshotMs] = useState(0);
   const [viewportSize, setViewportSize] = useState(() => ({
     width: typeof window !== 'undefined' ? window.innerWidth : 1920,
     height:
@@ -153,12 +156,41 @@ export const Game: React.FC = () => {
 
   const currentChartTimeOffsetMs = testAudioSettings?.startTimeMs ?? 0;
 
+  useEffect(() => {
+    if (!gameState.gameStarted || gameState.gameEnded) {
+      setGameplayClockSnapshotMs(gameState.currentTime);
+      return;
+    }
+
+    setGameplayClockSnapshotMs(gameState.currentTime);
+    let frameId: number | null = null;
+    let lastUpdateAt = 0;
+
+    const tick = (now: number) => {
+      if (now - lastUpdateAt >= GAMEPLAY_VISUAL_CLOCK_INTERVAL_MS) {
+        lastUpdateAt = now;
+        const nextTime = currentTimeRef.current;
+        setGameplayClockSnapshotMs((prev) =>
+          Math.abs(prev - nextTime) < 1 ? prev : nextTime
+        );
+      }
+      frameId = requestAnimationFrame(tick);
+    };
+
+    frameId = requestAnimationFrame(tick);
+    return () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+    };
+  }, [gameState.gameStarted, gameState.gameEnded]);
+
   // 현재 게임 시간(ms)을 자막/채보 타임라인 시간(절대 시간)으로 변환
   // 테스트 시작 위치(startTimeMs)를 더해서 절대 시간으로 변환
   // 이렇게 해야 자막/BGA가 올바른 시간에 표시됨
   const currentChartTimeMs = useMemo(
-    () => Math.max(0, gameState.currentTime + currentChartTimeOffsetMs),
-    [gameState.currentTime, currentChartTimeOffsetMs]
+    () => Math.max(0, gameplayClockSnapshotMs + currentChartTimeOffsetMs),
+    [gameplayClockSnapshotMs, currentChartTimeOffsetMs]
   );
 
   // BGA 마스크 훅 - 절대 시간 사용
@@ -315,28 +347,47 @@ export const Game: React.FC = () => {
   } = useTestYoutubePlayer({
     isTestMode,
     gameStarted: gameState.gameStarted,
-    currentTime: gameState.currentTime,
+    currentTime: gameplayClockSnapshotMs,
     videoId: testYoutubeVideoId,
     audioSettings: testAudioSettings,
     externalPlayer: null, // 외부 플레이어 재사용 비활성화 - 미리보기 루프 타이머 충돌 방지
     volume: gameVolume,
   });
 
-  // 게임 종료 체크
+  // currentTimeRef is the source time; this keeps end detection precise without top-level time renders.
   useEffect(() => {
-    if (
-      gameState.gameStarted &&
-      gameState.currentTime >= dynamicGameDuration &&
-      !gameState.gameEnded
-    ) {
-      setGameState((prev) => ({ ...prev, gameEnded: true }));
-      
-      // 게임 종료 시 YouTube 플레이어 정지
-      if (isTestMode && testYoutubePlayerReady) {
-        pauseYoutubePlayer();
+    if (!gameState.gameStarted || gameState.gameEnded) return;
+
+    let frameId: number | null = null;
+    const tick = () => {
+      if (currentTimeRef.current >= dynamicGameDuration) {
+        setGameState((prev) => (
+          prev.gameEnded ? prev : { ...prev, currentTime: currentTimeRef.current, gameEnded: true }
+        ));
+
+        if (isTestMode && testYoutubePlayerReady) {
+          pauseYoutubePlayer();
+        }
+        return;
       }
-    }
-  }, [gameState.currentTime, gameState.gameStarted, gameState.gameEnded, dynamicGameDuration, isTestMode, testYoutubePlayerReady, pauseYoutubePlayer]);
+
+      frameId = requestAnimationFrame(tick);
+    };
+
+    frameId = requestAnimationFrame(tick);
+    return () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+    };
+  }, [
+    gameState.gameStarted,
+    gameState.gameEnded,
+    dynamicGameDuration,
+    isTestMode,
+    testYoutubePlayerReady,
+    pauseYoutubePlayer,
+  ]);
 
   const resetGame = useCallback(() => {
     resetTestSession();
@@ -628,14 +679,14 @@ export const Game: React.FC = () => {
   const backgroundVideoId = testYoutubeVideoId;
   const bgaCurrentSeconds =
     backgroundVideoId && isBgaEnabled
-      ? getAudioPositionSeconds(gameState.currentTime, testAudioSettings)
+      ? getAudioPositionSeconds(gameplayClockSnapshotMs, testAudioSettings)
       : null;
   const shouldPlayBga =
     !!backgroundVideoId &&
     isBgaEnabled &&
     gameState.gameStarted &&
     !gameState.gameEnded &&
-    gameState.currentTime >= 0;
+    gameplayClockSnapshotMs >= 0;
   const isChartSelectTransitioning = chartSelectTransition !== null;
 
   return (
@@ -801,6 +852,7 @@ export const Game: React.FC = () => {
                 laneKeyLabels={laneKeyLabels}
                 isFromEditor={isFromEditor}
                 currentTimeRef={currentTimeRef}
+                currentTimeSnapshot={gameplayClockSnapshotMs}
                 fallDuration={fallDuration}
                 judgeLineY={judgeLineY}
                 playfieldGeometry={playfieldGeometry}
