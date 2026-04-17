@@ -32,6 +32,7 @@ interface ChartEditorTimelineProps {
   zoom: number;
   onTimelineClick: (e: React.MouseEvent<HTMLDivElement>) => void;
   onPlayheadMouseDown: (e: React.MouseEvent) => void;
+  onToggleMoveMode?: () => void;
   onNoteClick: (noteId: number) => void;
   timeToY: (timeMs: number) => number;
   getNoteY: (noteTime: number) => number;
@@ -78,6 +79,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   zoom: _zoom, // 줌은 타임라인 스케일링에만 사용 (노트 크기는 고정)
   onTimelineClick,
   onPlayheadMouseDown,
+  onToggleMoveMode,
   onNoteClick,
   timeToY,
   getNoteY: _getNoteY,
@@ -437,8 +439,43 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   const isDraggingSelectionRef = useRef(false);
   const isDraggingMoveRef = useRef(false);
   const moveStartRef = useRef<{ time: number; lane: number } | null>(null);
+  const suppressNextTimelineClickRef = useRef(false);
+
+  const suppressTimelineClick = useCallback(() => {
+    suppressNextTimelineClickRef.current = true;
+  }, []);
+
+  const handleTimelineClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (suppressNextTimelineClickRef.current) {
+        suppressNextTimelineClickRef.current = false;
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      onTimelineClick(e);
+    },
+    [onTimelineClick]
+  );
+
+  const handleAuxClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 1) return;
+    suppressNextTimelineClickRef.current = false;
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
   
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button === 1) {
+      onToggleMoveMode?.();
+      suppressTimelineClick();
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
+    if (e.button !== 0) return;
+
     // 이동 모드이고 노트를 클릭했으면 이동 드래그 시작
     if (isMoveMode) {
       // 노트를 클릭했는지 확인
@@ -476,6 +513,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
             const noteIdToSelect = selectedNoteIds.size === 0 ? noteId : undefined;
             onMoveStart(time, detectedLane, noteIdToSelect);
           }
+          suppressTimelineClick();
           e.preventDefault();
           e.stopPropagation();
           return;
@@ -516,8 +554,10 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
       onSelectionStart(yToTime(y), null);
     }
     
+    suppressTimelineClick();
     e.preventDefault();
-  }, [isSelectionMode, isMoveMode, selectedNoteIds, yToTime, onSelectionStart, onMoveStart, timelineContentRef, normalizeRect, onMarqueeStart, onMarqueeUpdate, computeMarqueeSelectedIds]);
+    e.stopPropagation();
+  }, [isSelectionMode, isMoveMode, selectedNoteIds, yToTime, onSelectionStart, onMoveStart, timelineContentRef, normalizeRect, onMarqueeStart, onMarqueeUpdate, computeMarqueeSelectedIds, onToggleMoveMode, suppressTimelineClick]);
   
   const handleMouseMove = useCallback((e: MouseEvent) => {
     // 이동 모드 드래그 처리
@@ -619,7 +659,8 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
       `}</style>
       <div
         ref={timelineScrollRef}
-        onClick={onTimelineClick}
+        onClick={handleTimelineClick}
+        onAuxClick={handleAuxClick}
         onMouseDown={handleMouseDown}
         style={{
           width: '100%',
