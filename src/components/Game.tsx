@@ -406,6 +406,9 @@ export const Game: React.FC = () => {
     setTestAudioSettings(null);
     setTestYoutubeVideoId(null);
     setSubtitles([]);
+    setBgaVisibilityIntervals([]);
+    testBgaIntervalsRef.current = [];
+    currentTimeRef.current = 0;
     destroyYoutubePlayer();
     processedMissNotes.current.clear();
     hitNoteIdsRef.current.clear();
@@ -415,7 +418,7 @@ export const Game: React.FC = () => {
       gameEnded: false,
       currentTime: 0,
     }));
-  }, [destroyYoutubePlayer, setSubtitles]);
+  }, [destroyYoutubePlayer, setSubtitles, setBgaVisibilityIntervals]);
 
   const clearChartSelectTransitionTimers = useCallback(() => {
     chartSelectTransitionTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
@@ -459,6 +462,9 @@ export const Game: React.FC = () => {
     setTestAudioSettings(null);
     setTestYoutubeVideoId(null);
     setSubtitles([]);
+    setBgaVisibilityIntervals([]);
+    testBgaIntervalsRef.current = [];
+    currentTimeRef.current = 0;
     destroyYoutubePlayer();
     processedMissNotes.current.clear();
     hitNoteIdsRef.current.clear();
@@ -473,7 +479,7 @@ export const Game: React.FC = () => {
     const nextRefreshToken = chartListRefreshToken + 1;
     setChartListRefreshToken(nextRefreshToken);
     openChartSelect(nextRefreshToken);
-  }, [destroyYoutubePlayer, setSubtitles, chartListRefreshToken, openChartSelect]);
+  }, [destroyYoutubePlayer, setSubtitles, setBgaVisibilityIntervals, chartListRefreshToken, openChartSelect]);
 
   useEffect(() => {
     if (!isTestMode || !gameState.gameStarted || gameState.gameEnded) return;
@@ -523,6 +529,9 @@ export const Game: React.FC = () => {
     setTestAudioSettings(null);
     setTestYoutubeVideoId(null);
     setSubtitles([]);
+    setBgaVisibilityIntervals([]);
+    testBgaIntervalsRef.current = [];
+    currentTimeRef.current = 0;
     destroyYoutubePlayer();
     processedMissNotes.current.clear();
     hitNoteIdsRef.current.clear();
@@ -535,7 +544,7 @@ export const Game: React.FC = () => {
       score: buildInitialScore(),
     }));
     setViewMode({ type: 'menu' });
-  }, [destroyYoutubePlayer, setSubtitles]);
+  }, [destroyYoutubePlayer, setSubtitles, setBgaVisibilityIntervals]);
 
   // 채보 로더 훅
   const { loadChart: handleChartSelect } = useChartLoader({
@@ -688,6 +697,9 @@ export const Game: React.FC = () => {
     !gameState.gameEnded &&
     gameplayClockSnapshotMs >= 0;
   const isChartSelectTransitioning = chartSelectTransition !== null;
+  const isGameplayActive = gameState.gameStarted && !gameState.gameEnded;
+  const activeBgaMaskOpacity = isGameplayActive ? bgaMaskOpacity : 0;
+  const activeLaneUiVisible = isGameplayActive ? isLaneUiVisible : true;
 
   return (
     <>
@@ -706,7 +718,7 @@ export const Game: React.FC = () => {
       {/* Show FPS HUD only during gameplay */}
       {gameState.gameStarted && !gameState.gameEnded && <FpsHud enabled={true} />}
       {/* Keep score HUD outside scaled stage to preserve fixed viewport position */}
-      {gameState.gameStarted && bgaMaskOpacity < 1 && <Score score={gameState.score} />}
+      {isGameplayActive && activeBgaMaskOpacity < 1 && <Score score={gameState.score} />}
       
       {/* Test/play controls (shown outside VideoRhythmLayout, including interlude sections) */}
       {gameState.gameStarted && !gameState.gameEnded && isTestMode && (
@@ -790,7 +802,7 @@ export const Game: React.FC = () => {
         bgaEnabled={isBgaEnabled}
         shouldPlayBga={shouldPlayBga}
         bgaCurrentSeconds={bgaCurrentSeconds ?? undefined}
-        bgaMaskOpacity={bgaMaskOpacity}
+        bgaMaskOpacity={activeBgaMaskOpacity}
         bgaOpacity={visualSettings.bgaOpacity}
       >
       {/* 게임 + 자막 wrapper (자막이 게임 바깥으로 나갈 수 있도록) */}
@@ -800,9 +812,9 @@ export const Game: React.FC = () => {
           display: 'flex',
           justifyContent: 'center',
           fontFamily: 'Arial, sans-serif',
-          opacity: bgaMaskOpacity >= 1 ? 0 : 1,
+          opacity: activeBgaMaskOpacity >= 1 ? 0 : 1,
           transition: 'opacity 80ms linear',
-          pointerEvents: bgaMaskOpacity >= 1 ? 'none' : 'auto',
+          pointerEvents: activeBgaMaskOpacity >= 1 ? 'none' : 'auto',
         }}
       >
         <div
@@ -819,12 +831,12 @@ export const Game: React.FC = () => {
             style={{
               width: '100%',
               height: '100%',
-              backgroundColor: bgaMaskOpacity >= 1 ? 'transparent' : CHART_EDITOR_THEME.surfaceElevated,
+              backgroundColor: activeBgaMaskOpacity >= 1 ? 'transparent' : CHART_EDITOR_THEME.surfaceElevated,
               position: 'relative',
               overflow: 'hidden',
-              borderRadius: bgaMaskOpacity >= 1 ? 0 : CHART_EDITOR_THEME.radiusLg,
-              boxShadow: bgaMaskOpacity >= 1 ? 'none' : CHART_EDITOR_THEME.shadowSoft,
-              border: bgaMaskOpacity >= 1 ? 'none' : `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+              borderRadius: activeBgaMaskOpacity >= 1 ? 0 : CHART_EDITOR_THEME.radiusLg,
+              boxShadow: activeBgaMaskOpacity >= 1 ? 'none' : CHART_EDITOR_THEME.shadowSoft,
+              border: activeBgaMaskOpacity >= 1 ? 'none' : `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
               transition: 'background-color 80ms linear, border 80ms linear, box-shadow 80ms linear, border-radius 80ms linear',
             }}
           >
@@ -842,8 +854,8 @@ export const Game: React.FC = () => {
               <GamePlayArea
                 gameState={gameState}
                 gameStarted={gameState.gameStarted}
-                bgaMaskOpacity={bgaMaskOpacity}
-                isLaneUiVisible={isLaneUiVisible}
+                bgaMaskOpacity={activeBgaMaskOpacity}
+                isLaneUiVisible={activeLaneUiVisible}
                 speed={speed}
                 pressedKeys={pressedKeys}
                 holdingNotes={holdingNotes}
@@ -887,7 +899,7 @@ export const Game: React.FC = () => {
                   isTestMode={isTestMode}
                   accuracy={accuracy}
                   score={gameState.score}
-                  bgaMaskOpacity={bgaMaskOpacity}
+                  bgaMaskOpacity={activeBgaMaskOpacity}
                   onRetest={isTestMode ? handleRetest : undefined}
                   onReturnToEditor={isFromEditor ? handleReturnToEditor : undefined}
                   onReturnToPlayList={!isFromEditor ? handleReturnToPlayList : undefined}
@@ -916,7 +928,7 @@ export const Game: React.FC = () => {
       </div>
 
       {/* 자막 레이어 (게임 컨테이너 바깥, 16:9 영역으로 확장) - 간주 구간에서는 숨김 */}
-      {bgaMaskOpacity < 1 && <LyricOverlay activeSubtitles={activeSubtitles} subtitleArea={subtitleArea} />}
+      {activeBgaMaskOpacity < 1 && <LyricOverlay activeSubtitles={activeSubtitles} subtitleArea={subtitleArea} />}
         </div>
       </div>
 
@@ -940,7 +952,7 @@ export const Game: React.FC = () => {
         onJudgeLineYChange={setJudgeLineY}
         visualSettings={draftVisualSettings}
         hasPendingVisualSettings={hasPendingVisualSettings}
-        isGameplayActive={gameState.gameStarted && !gameState.gameEnded}
+        isGameplayActive={isGameplayActive}
         onVisualSettingsChange={setDraftVisualSettings}
         onVisualSettingsCommit={commitVisualSettings}
         onApplyVisualPreset={applyVisualPreset}
