@@ -62,6 +62,27 @@ export interface SubtitleStyle {
   outDurationMs?: number;
 }
 
+export const normalizeSubtitlePosition = (
+  position?: SubtitlePosition
+): SubtitlePosition => ({
+  x: Math.min(1, Math.max(0, position?.x ?? 0.5)),
+  y: Math.min(1, Math.max(0, position?.y ?? 0.9)),
+});
+
+export const getSubtitleAnchorTransform = (
+  align?: SubtitleStyle['align']
+): string => {
+  const horizontal = align?.horizontal ?? 'center';
+  const vertical = align?.vertical ?? 'middle';
+
+  const translateX =
+    horizontal === 'left' ? '0%' : horizontal === 'right' ? '-100%' : '-50%';
+  const translateY =
+    vertical === 'top' ? '0%' : vertical === 'bottom' ? '-100%' : '-50%';
+
+  return `translate(${translateX}, ${translateY})`;
+};
+
 /**
  * 기본 자막 스타일
  * - 하단 중앙에 배치된 일반 가사 자막을 기준으로 합니다.

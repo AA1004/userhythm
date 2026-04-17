@@ -1,5 +1,10 @@
 import React, { useMemo } from 'react';
-import { SubtitleCue, SubtitleStyle } from '../types/subtitle';
+import {
+  getSubtitleAnchorTransform,
+  normalizeSubtitlePosition,
+  SubtitleCue,
+  SubtitleStyle,
+} from '../types/subtitle';
 import { GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 
 type ActiveSubtitle = {
@@ -37,10 +42,11 @@ const LyricCue = React.memo<LyricCueProps>(
   ({ cue, opacity, subtitleArea }) => {
     const rendered = useMemo(() => {
       const style: SubtitleStyle = cue.style || ({} as SubtitleStyle);
-      const pos = style.position ?? { x: 0.5, y: 0.9 };
+      const pos = normalizeSubtitlePosition(style.position);
       const sizeScale = Math.max(0.1, subtitleArea.height / GAME_VIEW_HEIGHT);
+      const safeMargin = Math.max(8, 16 * sizeScale);
 
-      const transformParts: string[] = ['translate(-50%, -50%)'];
+      const transformParts: string[] = [getSubtitleAnchorTransform(style.align)];
       if (style.rotationDeg) {
         transformParts.push(`rotate(${style.rotationDeg}deg)`);
       }
@@ -72,10 +78,15 @@ const LyricCue = React.memo<LyricCueProps>(
           fontWeight: style.fontWeight ?? 'normal',
           fontStyle: style.fontStyle ?? 'normal',
           textAlign,
-          whiteSpace: 'pre' as const,
+          lineHeight: 1.22,
+          whiteSpace: 'pre-wrap' as const,
+          overflowWrap: 'break-word' as const,
+          wordBreak: 'keep-all' as const,
           width: 'max-content',
-          maxWidth: 'none',
+          maxWidth: `calc(100% - ${safeMargin * 2}px)`,
+          boxSizing: 'border-box' as const,
           pointerEvents: 'none' as const,
+          willChange: 'transform, opacity',
           boxShadow: showBackground
             ? `0 ${10 * sizeScale}px ${30 * sizeScale}px rgba(0,0,0,0.9), 0 0 ${18 * sizeScale}px rgba(15,23,42,0.9)`
             : 'none',

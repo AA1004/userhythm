@@ -1,5 +1,11 @@
 import React, { useCallback, useRef, useState, useEffect } from 'react';
-import { SubtitleCue, SubtitleStyle, ensureSubtitleFontsReady } from '../../types/subtitle';
+import {
+  getSubtitleAnchorTransform,
+  normalizeSubtitlePosition,
+  SubtitleCue,
+  SubtitleStyle,
+  ensureSubtitleFontsReady,
+} from '../../types/subtitle';
 import { CHART_EDITOR_THEME } from '../ChartEditor/constants';
 
 interface SubtitlePreviewCanvasProps {
@@ -146,7 +152,7 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
   const renderCue = useCallback(
     (cue: SubtitleCue) => {
       const style = cue.style;
-      const pos = style.position ?? { x: 0.5, y: 0.9 };
+      const pos = normalizeSubtitlePosition(style.position);
 
       // 0~1 좌표를 퍼센트로 변환
       const left = `${pos.x * 100}%`;
@@ -154,7 +160,7 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
 
       const transform: string[] = [];
 
-      transform.push('translate(-50%, -50%)');
+      transform.push(getSubtitleAnchorTransform(style.align));
       if (style.rotationDeg) {
         transform.push(`rotate(${style.rotationDeg}deg)`);
       }
@@ -190,6 +196,13 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
             fontSize: style.fontSize,
             fontWeight: style.fontWeight,
             fontStyle: style.fontStyle,
+            lineHeight: 1.22,
+            whiteSpace: 'pre-wrap',
+            overflowWrap: 'break-word',
+            wordBreak: 'keep-all',
+            width: 'max-content',
+            maxWidth: 'calc(100% - 32px)',
+            boxSizing: 'border-box',
             border: isSelected
               ? `1px solid ${CHART_EDITOR_THEME.accentStrong}`
               : 'none',
