@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Note } from '../types/game';
 import { LANE_POSITIONS } from '../constants/gameConstants';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
+import { HitNoteIdsRef, isNoteResolved } from '../utils/noteRuntimeState';
 
 const HOLD_MIN_HEIGHT = 60;
 const HOLD_HEAD_HEIGHT = 32;
@@ -180,6 +181,7 @@ interface NoteRendererProps {
   noteWidth?: number;
   noteHeight?: number;
   holdingNotes: Map<number, Note>;
+  hitNoteIdsRef: HitNoteIdsRef;
   visible: boolean;
 }
 
@@ -197,6 +199,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
   noteWidth = 90,
   noteHeight = 42,
   holdingNotes,
+  hitNoteIdsRef,
   visible,
 }) => {
   const rafIdRef = useRef<number>();
@@ -289,7 +292,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
       ctx.clearRect(0, 0, logicalWidth, logicalHeight);
 
       for (const note of renderNotes) {
-        if (note.hit) continue;
+        if (isNoteResolved(note, hitNoteIdsRef)) continue;
 
         const isHoldNote = note.duration > 0 && note.type === 'hold';
         const laneX = activeLaneCenters[note.lane] ?? LANE_POSITIONS[note.lane];
@@ -418,7 +421,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
         rafIdRef.current = undefined;
       }
     };
-  }, [canvasRef, currentTimeRef, visible]);
+  }, [canvasRef, currentTimeRef, hitNoteIdsRef, visible]);
 
   return null;
 };

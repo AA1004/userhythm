@@ -3,6 +3,11 @@ import { GameState, Note } from '../types/game';
 import { judgeConfig } from '../config/judgeConfig';
 import { BASE_FALL_DURATION } from '../constants/gameConstants';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
+import {
+  HitNoteIdsRef,
+  isNoteResolved,
+  markNoteResolved,
+} from '../utils/noteRuntimeState';
 
 const getNoteMissDeadline = (note: Note) =>
   note.duration > 0 ? note.endTime ?? note.time + note.duration : note.time;
@@ -24,7 +29,8 @@ export function useGameLoop(
   onNoteMiss: (note: Note) => void,
   speed: number = 1.0, // 속도 배율 (1.0 = 기본, 높을수록 빠름)
   startDelayMs: number = 0,
-  externalCurrentTimeRef?: MutableRefObject<number>
+  externalCurrentTimeRef?: MutableRefObject<number>,
+  hitNoteIdsRef?: HitNoteIdsRef
 ) {
   // fallDuration을 useMemo로 계산하여 speed 변경 시에만 재계산
   const fallDuration = useMemo(() => BASE_FALL_DURATION / speed, [speed]);
@@ -80,7 +86,6 @@ export function useGameLoop(
       // Miss 판정만 수행 (게임 규칙에 필요한 최소 상태 업데이트)
       const state = gameStateRef.current;
       let missedInFrame: Note[] = [];
-      let missedIndicesInFrame: number[] = [];
       let hasMiss = false;
       const shouldProfile = isGameplayProfilerEnabled();
       const missScanStart = shouldProfile ? performance.now() : 0;
@@ -107,9 +112,11 @@ export function useGameLoop(
         const timeUntilMiss = getNoteMissDeadline(note) - elapsedTime;
         if (timeUntilMiss >= -missThreshold) break;
 
-        if (!note.hit) {
+        const isResolved = hitNoteIdsRef
+          ? isNoteResolved(note, hitNoteIdsRef)
+          : note.hit;
+        if (!isResolved) {
           missedInFrame.push(note);
-          missedIndicesInFrame.push(noteIndex);
           hasMiss = true;
         }
         missScanIndexRef.current += 1;
@@ -132,32 +139,27 @@ export function useGameLoop(
         return;
       }
 
+      let newlyMissed: Note[] = [];
       if (hasMiss) {
-        setGameState((prev: GameState) => {
-          const missedIds = new Set(missedInFrame.map((note) => note.id));
-          const updatedNotes = prev.notes.slice();
-          let missCount = 0;
-
-          for (const noteIndex of missedIndicesInFrame) {
-            const note = updatedNotes[noteIndex];
-            if (!note || note.hit || !missedIds.has(note.id)) continue;
-            updatedNotes[noteIndex] = { ...note, hit: true };
-            missCount += 1;
-          }
-
-          if (missCount < missedIds.size) {
-            for (let i = 0; i < updatedNotes.length; i++) {
-              const note = updatedNotes[i];
-              if (note.hit || !missedIds.has(note.id)) continue;
-              updatedNotes[i] = { ...note, hit: true };
-              missCount += 1;
-              if (missCount >= missedIds.size) break;
+        const hitProcessingStart = shouldProfile ? performance.now() : 0;
+        if (hitNoteIdsRef) {
+          for (const note of missedInFrame) {
+            if (markNoteResolved(note, hitNoteIdsRef)) {
+              newlyMissed.push(note);
             }
           }
+        } else {
+          newlyMissed.push(...missedInFrame);
+        }
+        if (shouldProfile) {
+          recordGameplayMetric('hitProcessing', performance.now() - hitProcessingStart, newlyMissed.length);
+        }
+
+        setGameState((prev: GameState) => {
+          const missCount = newlyMissed.length;
 
           return {
             ...prev,
-            notes: updatedNotes,
             currentTime: elapsedTime,
             score: {
               ...prev.score,
@@ -174,8 +176,9 @@ export function useGameLoop(
         }));
       }
 
-      if (missedInFrame.length && onNoteMiss) {
-        missedInFrame.forEach((note) => onNoteMiss(note));
+      if (hasMiss && onNoteMiss) {
+        const notesToNotify = hitNoteIdsRef ? newlyMissed : missedInFrame;
+        notesToNotify.forEach((note) => onNoteMiss(note));
       }
 
       lastTimeRef.current = currentTime;
@@ -189,7 +192,7 @@ export function useGameLoop(
         cancelAnimationFrame(frameRef.current);
       }
     };
-  }, [gameState.gameStarted, setGameState, onNoteMiss, speed, fallDuration, missThreshold]);
+  }, [gameState.gameStarted, setGameState, onNoteMiss, speed, fallDuration, missThreshold, hitNoteIdsRef]);
 
   // currentTime ref를 반환하여 렌더링 루프에서 사용
   return {

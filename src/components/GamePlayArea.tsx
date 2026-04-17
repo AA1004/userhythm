@@ -11,6 +11,7 @@ import {
 import { PlayfieldGeometry } from '../constants/gameVisualSettings';
 import { JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
+import { HitNoteIdsRef, isNoteResolved } from '../utils/noteRuntimeState';
 
 function binarySearchEndIndex(notes: Note[], targetTime: number, startIdx: number): number {
   let low = startIdx;
@@ -92,6 +93,7 @@ interface GamePlayAreaProps {
   fallDuration: number;
   judgeLineY: number;
   playfieldGeometry: PlayfieldGeometry;
+  hitNoteIdsRef: HitNoteIdsRef;
 }
 
 export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
@@ -110,6 +112,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   fallDuration,
   judgeLineY,
   playfieldGeometry,
+  hitNoteIdsRef,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const renderIndexRef = useRef<NoteRenderIndex>({
@@ -163,7 +166,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
     const result: Note[] = [];
     const addedNoteIds = new Set<number>();
     const addVisibleNote = (note: Note) => {
-      if (note.hit || addedNoteIds.has(note.id)) return;
+      if (isNoteResolved(note, hitNoteIdsRef) || addedNoteIds.has(note.id)) return;
       if (getNoteRenderEndTime(note) < viewportStart || note.time > viewportEnd) return;
       addedNoteIds.add(note.id);
       result.push(note);
@@ -185,7 +188,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
 
     recordProfile();
     return result;
-  }, [gameState.notes, gameState.currentTime, speed, isLaneUiVisible]);
+  }, [gameState.notes, gameState.currentTime, speed, isLaneUiVisible, hitNoteIdsRef]);
 
   const judgeFeedbackTop = Math.max(120, judgeLineY - 140);
 
@@ -244,6 +247,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
             noteWidth={playfieldGeometry.noteWidth}
             noteHeight={playfieldGeometry.noteHeight}
             holdingNotes={holdingNotes}
+            hitNoteIdsRef={hitNoteIdsRef}
             visible={isLaneUiVisible}
           />
         </>

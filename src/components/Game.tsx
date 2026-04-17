@@ -69,6 +69,7 @@ export const Game: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const gameContainerRef = useRef<HTMLDivElement | null>(null);
   const processedMissNotes = useRef<Set<number>>(new Set());
+  const hitNoteIdsRef = useRef<Set<number>>(new Set());
   const chartSelectTransitionTimersRef = useRef<number[]>([]);
   const [chartSelectTransition, setChartSelectTransition] =
     useState<ChartSelectTransitionState | null>(null);
@@ -220,6 +221,7 @@ export const Game: React.FC = () => {
     laneCenters: playfieldGeometry.laneCenters,
     setGameState,
     processedMissNotes,
+    hitNoteIdsRef,
     judgeLineY,
   });
 
@@ -264,7 +266,8 @@ export const Game: React.FC = () => {
     handleNoteMiss,
     speed,
     START_DELAY_MS,
-    currentTimeRef
+    currentTimeRef,
+    hitNoteIdsRef
   );
 
   // 자막 훅
@@ -297,7 +300,10 @@ export const Game: React.FC = () => {
     onEditorClose: () => setViewMode({ type: 'menu' }),
     onPressedKeysReset: () => {},
     onHoldingNotesReset: () => {},
-    onProcessedMissNotesClear: () => processedMissNotes.current.clear(),
+    onProcessedMissNotesClear: () => {
+      processedMissNotes.current.clear();
+      hitNoteIdsRef.current.clear();
+    },
   });
 
   // YouTube 플레이어 훅
@@ -334,6 +340,8 @@ export const Game: React.FC = () => {
 
   const resetGame = useCallback(() => {
     resetTestSession();
+    processedMissNotes.current.clear();
+    hitNoteIdsRef.current.clear();
     setGameState((prev) => ({
       ...prev,
       notes: generateNotes(DEFAULT_GAME_DURATION),
@@ -348,6 +356,8 @@ export const Game: React.FC = () => {
     setTestYoutubeVideoId(null);
     setSubtitles([]);
     destroyYoutubePlayer();
+    processedMissNotes.current.clear();
+    hitNoteIdsRef.current.clear();
     setGameState((prev) => ({
       ...prev,
       gameStarted: false,
@@ -399,6 +409,8 @@ export const Game: React.FC = () => {
     setTestYoutubeVideoId(null);
     setSubtitles([]);
     destroyYoutubePlayer();
+    processedMissNotes.current.clear();
+    hitNoteIdsRef.current.clear();
     setGameState((prev) => ({
       ...prev,
       gameStarted: false,
@@ -461,6 +473,8 @@ export const Game: React.FC = () => {
     setTestYoutubeVideoId(null);
     setSubtitles([]);
     destroyYoutubePlayer();
+    processedMissNotes.current.clear();
+    hitNoteIdsRef.current.clear();
     setGameState((prev) => ({
       ...prev,
       gameStarted: false,
@@ -494,7 +508,10 @@ export const Game: React.FC = () => {
     onBgaIntervalsRefSet: (intervals) => { testBgaIntervalsRef.current = intervals; },
     onDynamicGameDurationSet: setDynamicGameDuration,
     onHoldingNotesReset: () => {},
-    onProcessedMissNotesReset: () => processedMissNotes.current.clear(),
+    onProcessedMissNotesReset: () => {
+      processedMissNotes.current.clear();
+      hitNoteIdsRef.current.clear();
+    },
     onChartSelectClose: () => setViewMode({ type: 'menu' }),
   });
 
@@ -787,6 +804,7 @@ export const Game: React.FC = () => {
                 fallDuration={fallDuration}
                 judgeLineY={judgeLineY}
                 playfieldGeometry={playfieldGeometry}
+                hitNoteIdsRef={hitNoteIdsRef}
               />
 
               {/* 게임 시작 UI */}
