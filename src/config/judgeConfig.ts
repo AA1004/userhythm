@@ -40,11 +40,11 @@ export const judgeConfig: JudgeConfig = {
     great: 90,    // ±90ms
     good: 135,    // ±135ms
   },
-  // 롱노트 떼기 판정은 일반 판정보다 1.25배 더 여유롭게
+  // 롱노트 떼기 판정은 손을 떼는 체감 오차를 감안해 일반 판정보다 1.6배 더 여유롭게
   holdReleaseWindows: {
-    perfect: 56,  // ±56ms (45ms의 1.25배)
-    great: 112,   // ±112ms (90ms의 1.25배)
-    good: 168,    // ±168ms (135ms의 1.25배)
+    perfect: 72,  // ±72ms (45ms의 1.6배)
+    great: 144,   // ±144ms (90ms의 1.6배)
+    good: 216,    // ±216ms (135ms의 1.6배)
   },
   scores: {
     perfect: 100,
