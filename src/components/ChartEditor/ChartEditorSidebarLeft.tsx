@@ -22,6 +22,44 @@ interface ChartEditorSidebarLeftProps {
   beatDuration: number;
 }
 
+const groupLabelStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  margin: '10px 2px 6px',
+  color: CHART_EDITOR_THEME.textSecondary,
+  fontSize: 10,
+  fontWeight: 800,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+};
+
+const valueBadgeStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  minWidth: 34,
+  padding: '2px 6px',
+  borderRadius: 999,
+  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+  backgroundColor: 'rgba(15,23,42,0.72)',
+  color: CHART_EDITOR_THEME.accentStrong,
+  fontSize: 10,
+  fontWeight: 800,
+  lineHeight: 1,
+};
+
+const SidebarGroupLabel: React.FC<{ label: string; detail?: string }> = ({ label, detail }) => (
+  <div style={groupLabelStyle}>
+    <span>{label}</span>
+    {detail && <span style={{ color: CHART_EDITOR_THEME.textMuted, letterSpacing: '0.04em' }}>{detail}</span>}
+  </div>
+);
+
+const ValueBadge: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <span style={valueBadgeStyle}>{children}</span>
+);
+
 const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
   zoom,
   onZoomChange,
@@ -92,6 +130,8 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
         설정
       </h3>
 
+      <SidebarGroupLabel label="View" />
+
       {/* 줌 조절 */}
       <div
         style={{
@@ -104,13 +144,17 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
       >
         <label
           style={{
-            display: 'block',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
             marginBottom: '4px',
             fontSize: '12px',
             fontWeight: 500,
           }}
         >
-          줌: {zoom.toFixed(2)}x
+          <span>줌</span>
+          <ValueBadge>{zoom.toFixed(2)}x</ValueBadge>
         </label>
         <input
           type="range"
@@ -137,13 +181,17 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
       >
         <label
           style={{
-            display: 'block',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
             marginBottom: '4px',
             fontSize: '12px',
             fontWeight: 500,
           }}
         >
-          재생 속도: {playbackSpeed}x
+          <span>재생 속도</span>
+          <ValueBadge>{playbackSpeed}x</ValueBadge>
         </label>
         <input
           type="range"
@@ -195,6 +243,8 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
         </div>
       </div>
 
+      <SidebarGroupLabel label="Audio" />
+
       {/* 볼륨 */}
       <div
         style={{
@@ -207,13 +257,17 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
       >
         <label
           style={{
-            display: 'block',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
             marginBottom: '4px',
             fontSize: '12px',
             fontWeight: 500,
           }}
         >
-          볼륨: {volume}%
+          <span>볼륨</span>
+          <ValueBadge>{volume}%</ValueBadge>
         </label>
         <input
           type="range"
@@ -240,13 +294,17 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
       >
         <label
           style={{
-            display: 'block',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
             marginBottom: '4px',
             fontSize: '12px',
             fontWeight: 500,
           }}
         >
-          키음 볼륨: {hitSoundVolume}%
+          <span>키음 볼륨</span>
+          <ValueBadge>{hitSoundVolume}%</ValueBadge>
         </label>
         <input
           type="range"
@@ -261,6 +319,8 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
         />
       </div>
 
+      <SidebarGroupLabel label="Grid" detail={`${beatsPerMeasure}/4 · 1/${gridDivision}`} />
+
       {/* 박자표 */}
       <div
         style={{
@@ -273,13 +333,17 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
       >
         <label
           style={{
-            display: 'block',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
             marginBottom: '4px',
             fontSize: '12px',
             fontWeight: 500,
           }}
         >
-          박자표: {beatsPerMeasure}/4
+          <span>박자표</span>
+          <ValueBadge>{beatsPerMeasure}/4</ValueBadge>
         </label>
         <select
           value={beatsPerMeasure}
@@ -316,13 +380,17 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
       >
         <label
           style={{
-            display: 'block',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
             marginBottom: '4px',
             fontSize: '12px',
             fontWeight: 500,
           }}
         >
-          그리드 분할: 1/{gridDivision}
+          <span>그리드 분할</span>
+          <ValueBadge>1/{gridDivision}</ValueBadge>
         </label>
         <select
           value={gridDivision}
@@ -363,7 +431,10 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
       >
         <label
           style={{
-            display: 'block',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px',
             marginBottom: '4px',
             fontSize: '12px',
             fontWeight: 500,
