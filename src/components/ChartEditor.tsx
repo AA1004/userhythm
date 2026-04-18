@@ -34,6 +34,13 @@ const KEY_TO_LANE: Record<string, Lane> = {
   f: 3,
 };
 
+const INTERACTIVE_EDITOR_TARGET_SELECTOR =
+  'input, textarea, select, button, a[href], [role="button"], [contenteditable], [tabindex]:not([tabindex="-1"])';
+
+const isInteractiveEditorTarget = (target: EventTarget | null): boolean => {
+  return target instanceof HTMLElement && target.closest(INTERACTIVE_EDITOR_TARGET_SELECTOR) !== null;
+};
+
 interface ChartEditorProps {
   onCancel: () => void;
   onTest?: (payload: ChartTestPayload) => void;
@@ -1597,26 +1604,15 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   // 키보드 핸들러 (스페이스바 재생 등)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 입력 필드나 버튼에 포커스가 있을 때는 스페이스바 동작 방지 (중복 실행 방지)
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement ||
-        e.target instanceof HTMLButtonElement
-      ) {
+      // 인터랙티브 요소가 포커스를 가진 동안에는 에디터 전역 단축키를 먹지 않는다.
+      if (isInteractiveEditorTarget(e.target)) {
         return;
       }
       
       // Space: 롱노트 모드 토글
       if (e.key === ' ' || e.key === 'Space') {
         e.preventDefault();
-        setIsLongNoteMode(prev => {
-          const newMode = !prev;
-          // 롱노트 모드를 끄면 pendingLongNote 초기화
-          if (!newMode && pendingLongNote) {
-            setPendingLongNote(null);
-          }
-          return newMode;
-        });
+        handleToggleLongNoteMode();
         return;
       }
       
@@ -1631,7 +1627,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleLaneInput]);
+  }, [handleLaneInput, handleToggleLongNoteMode]);
 
   return (
     <div

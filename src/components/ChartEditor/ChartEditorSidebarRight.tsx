@@ -27,12 +27,19 @@ export interface ChartEditorSidebarRightProps {
   beatsPerMeasure: number;
 }
 
-const keepButtonFromTakingFocus = (event: React.MouseEvent<HTMLButtonElement>) => {
-  event.preventDefault();
+const isTransientActionButton = (button: HTMLButtonElement) =>
+  button.dataset.editorTransientAction === 'true';
+
+const keepTransientButtonFromTakingFocus = (event: React.MouseEvent<HTMLButtonElement>) => {
+  if (isTransientActionButton(event.currentTarget)) {
+    event.preventDefault();
+  }
 };
 
-const blurButton = (event: React.MouseEvent<HTMLButtonElement>) => {
-  event.currentTarget.blur();
+const blurTransientButton = (event: React.MouseEvent<HTMLButtonElement>) => {
+  if (isTransientActionButton(event.currentTarget) && event.detail > 0) {
+    event.currentTarget.blur();
+  }
 };
 
 const panelSectionStyle: React.CSSProperties = {
@@ -178,11 +185,12 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
 
       <div style={panelSectionStyle}>
         <button
+          data-editor-transient-action="true"
           onClick={(e) => {
             onToggleLongNoteMode();
-            blurButton(e);
+            blurTransientButton(e);
           }}
-          onMouseDown={keepButtonFromTakingFocus}
+          onMouseDown={keepTransientButtonFromTakingFocus}
           style={{
             width: '100%',
             padding: '6px 8px',
@@ -206,11 +214,12 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
 
       <div style={panelSectionStyle}>
         <button
+          data-editor-transient-action="true"
           onClick={(e) => {
             onToggleMoveMode();
-            blurButton(e);
+            blurTransientButton(e);
           }}
-          onMouseDown={keepButtonFromTakingFocus}
+          onMouseDown={keepTransientButtonFromTakingFocus}
           style={{
             width: '100%',
             padding: '6px 8px',
@@ -232,11 +241,12 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
           선택 영역 이동 모드
         </button>
         <button
+          data-editor-transient-action="true"
           onClick={(e) => {
             onMirrorNotes();
-            blurButton(e);
+            blurTransientButton(e);
           }}
-          onMouseDown={keepButtonFromTakingFocus}
+          onMouseDown={keepTransientButtonFromTakingFocus}
           style={{
             width: '100%',
             padding: '6px 8px',
@@ -285,7 +295,12 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
         >
           <span style={{ fontSize: '12px', fontWeight: 600 }}>변속 구간</span>
           <button
-            onClick={onAddSpeedChange}
+            data-editor-transient-action="true"
+            onMouseDown={keepTransientButtonFromTakingFocus}
+            onClick={(e) => {
+              onAddSpeedChange();
+              blurTransientButton(e);
+            }}
             style={{
               padding: '3px 6px',
               fontSize: '10px',
@@ -383,7 +398,12 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
                       style={{ ...inputBaseStyle, flex: 1, padding: '2px 4px', fontSize: '11px' }}
                     />
                     <button
-                      onClick={() => onDeleteSpeedChange(sc.id)}
+                      data-editor-transient-action="true"
+                      onMouseDown={keepTransientButtonFromTakingFocus}
+                      onClick={(e) => {
+                        onDeleteSpeedChange(sc.id);
+                        blurTransientButton(e);
+                      }}
                       style={{
                         padding: '2px 6px',
                         fontSize: '10px',
@@ -447,7 +467,12 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
         />
         <div style={{ display: 'flex', gap: '6px' }}>
           <button
-            onClick={() => onTestStartInputChange(Math.floor(currentTime).toString())}
+            data-editor-transient-action="true"
+            onMouseDown={keepTransientButtonFromTakingFocus}
+            onClick={(e) => {
+              onTestStartInputChange(Math.floor(currentTime).toString());
+              blurTransientButton(e);
+            }}
             style={{
               flex: 1,
               padding: '4px',
@@ -462,7 +487,12 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
             현재 위치
           </button>
           <button
-            onClick={() => onTestStartInputChange('0')}
+            data-editor-transient-action="true"
+            onMouseDown={keepTransientButtonFromTakingFocus}
+            onClick={(e) => {
+              onTestStartInputChange('0');
+              blurTransientButton(e);
+            }}
             style={{
               flex: 1,
               padding: '4px',
@@ -478,7 +508,12 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
           </button>
         </div>
         <button
-          onClick={onTest}
+          data-editor-transient-action="true"
+          onMouseDown={keepTransientButtonFromTakingFocus}
+          onClick={(e) => {
+            onTest();
+            blurTransientButton(e);
+          }}
           style={{
             width: '100%',
             marginTop: '6px',
@@ -498,7 +533,12 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
 
       <SectionHeader label="Share" />
       <button
-        onClick={onShareClick}
+        data-editor-transient-action="true"
+        onMouseDown={keepTransientButtonFromTakingFocus}
+        onClick={(e) => {
+          onShareClick();
+          blurTransientButton(e);
+        }}
         style={{
           width: '100%',
           padding: '6px',
@@ -553,10 +593,11 @@ const BgaEventsSection: React.FC<BgaEventsSectionProps> = ({
       <span style={{ fontSize: 12, fontWeight: 600 }}>이벤트 추가</span>
       <div style={{ display: 'flex', gap: 4 }}>
         <button
-          onMouseDown={keepButtonFromTakingFocus}
+          data-editor-transient-action="true"
+          onMouseDown={keepTransientButtonFromTakingFocus}
           onClick={(e) => {
-            blurButton(e);
             onAddBgaEvent('hidden');
+            blurTransientButton(e);
           }}
           style={{
             padding: '2px 6px',
@@ -571,10 +612,11 @@ const BgaEventsSection: React.FC<BgaEventsSectionProps> = ({
           + Hide
         </button>
         <button
-          onMouseDown={keepButtonFromTakingFocus}
+          data-editor-transient-action="true"
+          onMouseDown={keepTransientButtonFromTakingFocus}
           onClick={(e) => {
-            blurButton(e);
             onAddBgaEvent('visible');
+            blurTransientButton(e);
           }}
           style={{
             padding: '2px 6px',
@@ -614,14 +656,15 @@ const BgaEventsSection: React.FC<BgaEventsSectionProps> = ({
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
                 <button
-                  onMouseDown={keepButtonFromTakingFocus}
+                  data-editor-transient-action="true"
+                  onMouseDown={keepTransientButtonFromTakingFocus}
                   onClick={(e) => {
-                    blurButton(e);
                     onUpdateBgaInterval(it.id, {
                       mode: isHideEvent ? 'visible' : 'hidden',
                       fadeInMs: isHideEvent ? 0 : 300,
                       fadeOutMs: isHideEvent ? 300 : 0,
                     });
+                    blurTransientButton(e);
                   }}
                   style={{
                     fontSize: 10,
@@ -669,10 +712,11 @@ const BgaEventsSection: React.FC<BgaEventsSectionProps> = ({
                 />
                 <div style={{ flex: 1 }} />
                 <button
-                  onMouseDown={keepButtonFromTakingFocus}
+                  data-editor-transient-action="true"
+                  onMouseDown={keepTransientButtonFromTakingFocus}
                   onClick={(e) => {
-                    blurButton(e);
                     onDeleteBgaInterval(it.id);
+                    blurTransientButton(e);
                   }}
                   style={{
                     fontSize: 11,
@@ -704,10 +748,11 @@ const BgaEventsSection: React.FC<BgaEventsSectionProps> = ({
                 />
                 <span style={{ fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>ms</span>
                 <button
-                  onMouseDown={keepButtonFromTakingFocus}
+                  data-editor-transient-action="true"
+                  onMouseDown={keepTransientButtonFromTakingFocus}
                   onClick={(e) => {
-                    blurButton(e);
                     onUpdateBgaInterval(it.id, { fadeInMs: 0, fadeOutMs: 0 });
+                    blurTransientButton(e);
                   }}
                   title="페이드 제거 (하드컷)"
                   style={{
