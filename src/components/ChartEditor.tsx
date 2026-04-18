@@ -41,6 +41,163 @@ const isInteractiveEditorTarget = (target: EventTarget | null): boolean => {
   return target instanceof HTMLElement && target.closest(INTERACTIVE_EDITOR_TARGET_SELECTOR) !== null;
 };
 
+const keepTimelineActionButtonFromTakingFocus = (event: React.MouseEvent<HTMLButtonElement>) => {
+  event.preventDefault();
+};
+
+const blurPointerTimelineActionButton = (event: React.MouseEvent<HTMLButtonElement>) => {
+  if (event.detail > 0) {
+    event.currentTarget.blur();
+  }
+};
+
+interface EditorTimelineActionRailsProps {
+  isLongNoteMode: boolean;
+  isMoveMode: boolean;
+  selectedNoteCount: number;
+  onToggleLongNoteMode: () => void;
+  onToggleMoveMode: () => void;
+  onMirrorNotes: () => void;
+}
+
+const timelineRailButtonStyle = (active = false): React.CSSProperties => ({
+  width: '100%',
+  minHeight: 42,
+  padding: '8px 10px',
+  borderRadius: CHART_EDITOR_THEME.radiusLg,
+  border: `1px solid ${active ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.borderSubtle}`,
+  background: active
+    ? 'linear-gradient(135deg, rgba(34,211,238,0.24), rgba(129,140,248,0.16))'
+    : 'rgba(2,6,23,0.72)',
+  color: active ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.textPrimary,
+  boxShadow: active
+    ? '0 0 18px rgba(34,211,238,0.18)'
+    : '0 10px 24px rgba(0,0,0,0.28)',
+  cursor: 'pointer',
+  fontSize: 12,
+  fontWeight: 800,
+  letterSpacing: '0.02em',
+  textAlign: 'left',
+  transition: 'background-color 120ms ease, border-color 120ms ease, color 120ms ease',
+});
+
+const EditorTimelineActionRails: React.FC<EditorTimelineActionRailsProps> = React.memo(({
+  isLongNoteMode,
+  isMoveMode,
+  selectedNoteCount,
+  onToggleLongNoteMode,
+  onToggleMoveMode,
+  onMirrorNotes,
+}) => {
+  const railBaseStyle: React.CSSProperties = {
+    position: 'absolute',
+    top: 16,
+    width: 150,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+    pointerEvents: 'auto',
+  };
+
+  const railLabelStyle: React.CSSProperties = {
+    padding: '0 4px',
+    color: CHART_EDITOR_THEME.textMuted,
+    fontSize: 10,
+    fontWeight: 900,
+    letterSpacing: '0.14em',
+    textTransform: 'uppercase',
+    textShadow: '0 1px 8px rgba(0,0,0,0.6)',
+  };
+
+  return (
+    <>
+      <style>{`
+        @media (max-width: 1320px) {
+          .chart-editor-lane-action-rail {
+            width: 118px !important;
+          }
+          .chart-editor-lane-action-rail button {
+            min-height: 38px !important;
+            padding: 7px 8px !important;
+            font-size: 11px !important;
+          }
+        }
+      `}</style>
+      <div
+        className="chart-editor-lane-action-rails"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 30,
+          pointerEvents: 'none',
+        }}
+      >
+        <div
+          className="chart-editor-lane-action-rail"
+          style={{
+            ...railBaseStyle,
+            right: 'calc(50% + 224px)',
+          }}
+        >
+          <div style={railLabelStyle}>Edit Mode</div>
+          <button
+            data-editor-transient-action="true"
+            onMouseDown={keepTimelineActionButtonFromTakingFocus}
+            onClick={(e) => {
+              onToggleLongNoteMode();
+              blurPointerTimelineActionButton(e);
+            }}
+            style={timelineRailButtonStyle(isLongNoteMode)}
+          >
+            롱노트
+            <span style={{ display: 'block', marginTop: 3, color: CHART_EDITOR_THEME.textMuted, fontSize: 10 }}>
+              {isLongNoteMode ? 'ON' : 'OFF'} · Space
+            </span>
+          </button>
+          <button
+            data-editor-transient-action="true"
+            onMouseDown={keepTimelineActionButtonFromTakingFocus}
+            onClick={(e) => {
+              onToggleMoveMode();
+              blurPointerTimelineActionButton(e);
+            }}
+            style={timelineRailButtonStyle(isMoveMode)}
+          >
+            선택 이동
+            <span style={{ display: 'block', marginTop: 3, color: CHART_EDITOR_THEME.textMuted, fontSize: 10 }}>
+              {isMoveMode ? 'ON' : 'OFF'}
+            </span>
+          </button>
+        </div>
+
+        <div
+          className="chart-editor-lane-action-rail"
+          style={{
+            ...railBaseStyle,
+            left: 'calc(50% + 224px)',
+          }}
+        >
+          <div style={railLabelStyle}>Selection</div>
+          <button
+            data-editor-transient-action="true"
+            onMouseDown={keepTimelineActionButtonFromTakingFocus}
+            onClick={(e) => {
+              onMirrorNotes();
+              blurPointerTimelineActionButton(e);
+            }}
+            style={timelineRailButtonStyle(selectedNoteCount > 0)}
+          >
+            선대칭 반전
+            <span style={{ display: 'block', marginTop: 3, color: CHART_EDITOR_THEME.textMuted, fontSize: 10 }}>
+              선택 {selectedNoteCount}개
+            </span>
+          </button>
+        </div>
+      </div>
+    </>
+  );
+});
+
 interface ChartEditorProps {
   onCancel: () => void;
   onTest?: (payload: ChartTestPayload) => void;
@@ -1788,6 +1945,15 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                  yToTime={yToTime}
                  pendingLongNote={pendingLongNote}
             />
+
+            <EditorTimelineActionRails
+              isLongNoteMode={isLongNoteMode}
+              isMoveMode={isMoveMode}
+              selectedNoteCount={selectedNoteIds.size}
+              onToggleLongNoteMode={handleToggleLongNoteMode}
+              onToggleMoveMode={handleToggleMoveMode}
+              onMirrorNotes={handleMirrorNotes}
+            />
             
             {/* Hidden Youtube Player */}
             <div
@@ -1805,11 +1971,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
         {/* Right Sidebar */}
         <ChartEditorSidebarRight
-          isLongNoteMode={isLongNoteMode}
-          onToggleLongNoteMode={handleToggleLongNoteMode}
-          isMoveMode={isMoveMode}
-          onToggleMoveMode={handleToggleMoveMode}
-          onMirrorNotes={handleMirrorNotes}
           speedChanges={speedChanges}
           onAddSpeedChange={handleAddSpeedChangeAtCurrent}
           onUpdateSpeedChange={handleUpdateSpeedChange}

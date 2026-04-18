@@ -4,11 +4,6 @@ import { CHART_EDITOR_THEME } from './constants';
 import { timeToMeasure, beatIndexToTime, timeToBeatIndex } from '../../utils/bpmUtils';
 
 export interface ChartEditorSidebarRightProps {
-  isLongNoteMode: boolean;
-  onToggleLongNoteMode: () => void;
-  isMoveMode: boolean;
-  onToggleMoveMode: () => void;
-  onMirrorNotes: () => void;
   speedChanges: SpeedChange[];
   onAddSpeedChange: () => void;
   onUpdateSpeedChange: (id: number, patch: Partial<SpeedChange>) => void;
@@ -126,11 +121,6 @@ const Badge: React.FC<{ tone?: 'accent' | 'green' | 'red' | 'muted'; children: R
 };
 
 const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
-  isLongNoteMode,
-  onToggleLongNoteMode,
-  isMoveMode,
-  onToggleMoveMode,
-  onMirrorNotes,
   speedChanges,
   onAddSpeedChange,
   onUpdateSpeedChange,
@@ -184,100 +174,6 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
       >
         편집
       </h3>
-
-      <SectionHeader label="Edit Mode">
-        <Badge>{isLongNoteMode ? 'LONG ON' : 'LONG OFF'}</Badge>
-        <Badge tone={isMoveMode ? 'green' : 'muted'}>{isMoveMode ? 'MOVE ON' : 'MOVE OFF'}</Badge>
-      </SectionHeader>
-
-      <div style={panelSectionStyle}>
-        <button
-          data-editor-transient-action="true"
-          onClick={(e) => {
-            onToggleLongNoteMode();
-            blurTransientButton(e);
-          }}
-          onMouseDown={keepTransientButtonFromTakingFocus}
-          style={{
-            width: '100%',
-            padding: '6px 8px',
-            borderRadius: CHART_EDITOR_THEME.radiusMd,
-            border: `1px solid ${
-              isLongNoteMode ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.borderSubtle
-            }`,
-            background: isLongNoteMode
-              ? 'linear-gradient(135deg, rgba(56,189,248,0.2), rgba(56,189,248,0.05))'
-              : 'transparent',
-            color: isLongNoteMode ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.textPrimary,
-            fontSize: '12px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-          }}
-        >
-          롱노트 모드
-        </button>
-      </div>
-
-      <div style={panelSectionStyle}>
-        <button
-          data-editor-transient-action="true"
-          onClick={(e) => {
-            onToggleMoveMode();
-            blurTransientButton(e);
-          }}
-          onMouseDown={keepTransientButtonFromTakingFocus}
-          style={{
-            width: '100%',
-            padding: '6px 8px',
-            borderRadius: CHART_EDITOR_THEME.radiusMd,
-            border: `1px solid ${
-              isMoveMode ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.borderSubtle
-            }`,
-            background: isMoveMode
-              ? 'linear-gradient(135deg, rgba(34,197,94,0.2), rgba(34,197,94,0.05))'
-              : 'transparent',
-            color: isMoveMode ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.textPrimary,
-            fontSize: '12px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-            marginBottom: '6px',
-          }}
-        >
-          선택 영역 이동 모드
-        </button>
-        <button
-          data-editor-transient-action="true"
-          onClick={(e) => {
-            onMirrorNotes();
-            blurTransientButton(e);
-          }}
-          onMouseDown={keepTransientButtonFromTakingFocus}
-          style={{
-            width: '100%',
-            padding: '6px 8px',
-            borderRadius: CHART_EDITOR_THEME.radiusMd,
-            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-            background: 'transparent',
-            color: CHART_EDITOR_THEME.textPrimary,
-            fontSize: '12px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = CHART_EDITOR_THEME.buttonGhostBg;
-            e.currentTarget.style.borderColor = CHART_EDITOR_THEME.accentStrong;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.borderColor = CHART_EDITOR_THEME.borderSubtle;
-          }}
-        >
-          🔄 선대칭 반전
-        </button>
-      </div>
 
       <div
         style={{
