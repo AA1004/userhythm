@@ -158,6 +158,13 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
       className="chart-editor-right-panel"
       style={{
         width: '240px',
+        flexShrink: 0,
+        height: '100%',
+        minHeight: 0,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        boxSizing: 'border-box',
+        overscrollBehavior: 'contain',
         backgroundColor: CHART_EDITOR_THEME.sidebarBackground,
         padding: '10px 8px',
         borderLeft: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,

@@ -1636,7 +1636,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: '100vh',
+        height: '100dvh',
+        minHeight: 0,
         overflow: 'hidden',
         background: `radial-gradient(circle at top left, ${CHART_EDITOR_THEME.accentSoft}, ${CHART_EDITOR_THEME.rootBackground})`,
         color: CHART_EDITOR_THEME.textPrimary,
@@ -1708,6 +1709,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         className="chart-editor-workbench"
         style={{
           flex: 1,
+          minHeight: 0,
           display: 'flex',
           overflow: 'hidden',
           position: 'relative',
@@ -1742,7 +1744,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         {/* Main Timeline Canvas */}
         <div
           className="chart-editor-timeline-shell"
-          style={{ flex: 1, position: 'relative', backgroundColor: '#1f1f1f', overflow: 'hidden' }}
+          style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', backgroundColor: '#1f1f1f', overflow: 'hidden' }}
         >
             <ChartEditorTimeline
                 notes={notes}

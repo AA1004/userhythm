@@ -110,6 +110,13 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
       className="chart-editor-left-panel"
       style={{
         width: '240px',
+        flexShrink: 0,
+        height: '100%',
+        minHeight: 0,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        boxSizing: 'border-box',
+        overscrollBehavior: 'contain',
         backgroundColor: CHART_EDITOR_THEME.sidebarBackground,
         padding: '10px 8px',
         borderRight: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
