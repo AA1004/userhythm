@@ -101,7 +101,7 @@ body {
 
 .combo-display__number {
   display: block;
-  margin-left: 0.08em;
+  margin-left: 0;
   opacity: var(--combo-number-opacity, 0.7);
   font-family: 'Bahnschrift', 'DIN Alternate', 'Rajdhani', 'Arial Narrow', sans-serif;
   font-size: 144px;
@@ -187,6 +187,7 @@ body {
 .slot-hud {
   position: absolute;
   z-index: 900;
+  height: 82px;
   pointer-events: none;
   user-select: none;
   border: 1px solid rgba(238, 247, 242, 0.18);
@@ -213,7 +214,7 @@ body {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-  padding: 10px 12px 6px;
+  padding: 8px 12px 4px;
 }
 
 .slot-hud__cell {
@@ -221,7 +222,7 @@ body {
   border-radius: 10px;
   background: rgba(0, 0, 0, 0.24);
   padding: 7px 8px;
-  min-height: 48px;
+  min-height: 42px;
   display: grid;
   align-content: center;
   justify-items: center;
@@ -251,7 +252,7 @@ body {
 
 .slot-hud__progress-track {
   position: relative;
-  margin: 0 12px 10px;
+  margin: 0 12px 8px;
   height: 5px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.1);

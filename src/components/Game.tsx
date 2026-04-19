@@ -29,12 +29,13 @@ import { useTestSession } from '../hooks/useTestSession';
 import { useChartLoader } from '../hooks/useChartLoader';
 import { GameMenu } from './GameMenu';
 import { GamePlayArea } from './GamePlayArea';
+import { GameplaySlotHud } from './GameplaySlotHud';
 import { GameEndScreen } from './GameEndScreen';
 import { FpsHud } from './FpsHud';
 import { Score } from './Score';
 import { TutorialScreen } from './TutorialScreen';
 import { GAME_VIEW_WIDTH, GAME_VIEW_HEIGHT } from '../constants/gameLayout';
-import { buildPlayfieldGeometry } from '../constants/gameVisualSettings';
+import { buildPlayfieldGeometry, KEY_LANE_HEIGHT } from '../constants/gameVisualSettings';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 
 // Subtitle editor chart data
@@ -702,6 +703,14 @@ export const Game: React.FC = () => {
   const activeLaneUiVisible = isGameplayActive ? isLaneUiVisible : true;
   const useNewSlotHud =
     playfieldGeometry.gameplayHudMode === 'new' && playfieldGeometry.slotHudEnabled;
+  const slotHudProgress =
+    dynamicGameDuration > 0
+      ? Math.min(100, Math.max(0, (gameplayClockSnapshotMs / dynamicGameDuration) * 100))
+      : 0;
+  const slotHudTopPx = (playfieldGeometry.keyLaneY + KEY_LANE_HEIGHT + 8) * stageScale;
+  const slotHudLeftPx = playfieldGeometry.laneGroupLeft * stageScale;
+  const slotHudWidthPx = playfieldGeometry.laneGroupWidth * stageScale;
+  const slotHudOpacity = Math.max(0.35, Math.min(1, playfieldGeometry.laneOpacity));
   const gameplayStageBackdropAlpha = 0.1 + playfieldGeometry.laneOpacity * 0.22;
   const gameplayStageBorderAlpha = 0.08 + playfieldGeometry.laneOpacity * 0.12;
   const gameplayStageShadowAlpha = 0.18 + playfieldGeometry.laneOpacity * 0.18;
@@ -888,7 +897,6 @@ export const Game: React.FC = () => {
                 currentTimeRef={currentTimeRef}
                 currentTimeSnapshot={gameplayClockSnapshotMs}
                 fallDuration={fallDuration}
-                gameDurationMs={dynamicGameDuration}
                 judgeLineY={judgeLineY}
                 playfieldGeometry={playfieldGeometry}
                 hitNoteIdsRef={hitNoteIdsRef}
@@ -948,6 +956,18 @@ export const Game: React.FC = () => {
                 />
               )}
             </div>
+            {isGameplayActive && activeLaneUiVisible && useNewSlotHud && (
+              <GameplaySlotHud
+                laneGroupLeft={slotHudLeftPx}
+                laneGroupWidth={slotHudWidthPx}
+                top={slotHudTopPx}
+                combo={gameState.score.combo}
+                accuracy={accuracy}
+                progress={slotHudProgress}
+                visible={true}
+                opacity={slotHudOpacity}
+              />
+            )}
       </div>
 
       {/* 자막 레이어 (게임 컨테이너 바깥, 16:9 영역으로 확장) - 간주 구간에서는 숨김 */}
