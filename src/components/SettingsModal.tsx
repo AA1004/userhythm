@@ -195,6 +195,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     onResetVisualSettings(!isGameplayActive);
   };
 
+  const applyToggleVisualSettings = useCallback(
+    (settings: Partial<GameVisualSettings>) => {
+      const payload: Partial<GameVisualSettings> = {
+        ...settings,
+        presetId: 'custom',
+      };
+      onVisualSettingsChange(payload);
+      onVisualSettingsCommit(!isGameplayActive, payload);
+    },
+    [isGameplayActive, onVisualSettingsChange, onVisualSettingsCommit]
+  );
+
   useEffect(() => {
     if (isOpen) {
       setActiveTab('gameplay');
@@ -481,6 +493,110 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <span>800px (아래)</span>
                 </div>
               </div>
+            </div>
+
+            <div style={sectionCardStyle}>
+              <h3 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px', marginTop: 0, marginBottom: '10px' }}>
+                플레이 HUD 스타일
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+                <button
+                  onClick={() => applyToggleVisualSettings({ gameplayHudMode: 'legacy' })}
+                  style={{
+                    padding: '9px 8px',
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    border: `1px solid ${
+                      visualSettings.gameplayHudMode === 'legacy'
+                        ? CHART_EDITOR_THEME.accent
+                        : CHART_EDITOR_THEME.borderSubtle
+                    }`,
+                    background:
+                      visualSettings.gameplayHudMode === 'legacy'
+                        ? CHART_EDITOR_THEME.accentSoft
+                        : 'transparent',
+                    color: CHART_EDITOR_THEME.textPrimary,
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    fontWeight: visualSettings.gameplayHudMode === 'legacy' ? 700 : 500,
+                  }}
+                >
+                  Legacy HUD
+                </button>
+                <button
+                  onClick={() => applyToggleVisualSettings({ gameplayHudMode: 'new' })}
+                  style={{
+                    padding: '9px 8px',
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    border: `1px solid ${
+                      visualSettings.gameplayHudMode === 'new'
+                        ? CHART_EDITOR_THEME.accent
+                        : CHART_EDITOR_THEME.borderSubtle
+                    }`,
+                    background:
+                      visualSettings.gameplayHudMode === 'new'
+                        ? CHART_EDITOR_THEME.accentSoft
+                        : 'transparent',
+                    color: CHART_EDITOR_THEME.textPrimary,
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    fontWeight: visualSettings.gameplayHudMode === 'new' ? 700 : 500,
+                  }}
+                >
+                  New HUD
+                </button>
+              </div>
+
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginBottom: '8px',
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={visualSettings.topLaneExtensionEnabled}
+                  onChange={(e) =>
+                    applyToggleVisualSettings({ topLaneExtensionEnabled: e.target.checked })
+                  }
+                  style={{ accentColor: CHART_EDITOR_THEME.accent }}
+                />
+                상단 레인 연장 효과
+              </label>
+
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={visualSettings.slotHudEnabled}
+                  onChange={(e) => applyToggleVisualSettings({ slotHudEnabled: e.target.checked })}
+                  style={{ accentColor: CHART_EDITOR_THEME.accent }}
+                />
+                슬롯 HUD (콤보/진행도/정확도)
+              </label>
+              <p
+                style={{
+                  color: CHART_EDITOR_THEME.textSecondary,
+                  fontSize: '11px',
+                  marginTop: '8px',
+                  marginBottom: 0,
+                  lineHeight: 1.45,
+                }}
+              >
+                New HUD + 슬롯 HUD를 함께 켜면 기존 좌하단 점수판 대신 슬롯 HUD를 표시합니다.
+              </p>
             </div>
 
             <div style={sectionCardStyle}>

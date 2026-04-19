@@ -4,11 +4,13 @@ import { KeyLane } from './KeyLane';
 import { JudgeLine } from './JudgeLine';
 import { NoteRenderer } from './NoteRenderer';
 import { ComboDisplay } from './ComboDisplay';
+import { GameplaySlotHud } from './GameplaySlotHud';
 import {
   BASE_FALL_DURATION,
   NOTE_VISIBILITY_BUFFER_MS,
 } from '../constants/gameConstants';
-import { PlayfieldGeometry } from '../constants/gameVisualSettings';
+import { KEY_LANE_HEIGHT, PlayfieldGeometry } from '../constants/gameVisualSettings';
+import { GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 import { JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 import { HitNoteIdsRef, isNoteResolved } from '../utils/noteRuntimeState';
@@ -94,6 +96,7 @@ interface GamePlayAreaProps {
   currentTimeRef: React.MutableRefObject<number>;
   currentTimeSnapshot: number;
   fallDuration: number;
+  gameDurationMs: number;
   judgeLineY: number;
   playfieldGeometry: PlayfieldGeometry;
   hitNoteIdsRef: HitNoteIdsRef;
@@ -114,6 +117,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   currentTimeRef,
   currentTimeSnapshot,
   fallDuration,
+  gameDurationMs,
   judgeLineY,
   playfieldGeometry,
   hitNoteIdsRef,
@@ -205,6 +209,28 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   }, [gameState.notes, currentTimeSnapshot, speed, isLaneUiVisible, hitNoteIdsRef]);
 
   const judgeFeedbackTop = Math.max(120, judgeLineY - 140);
+  const shouldUseSlotHud =
+    playfieldGeometry.gameplayHudMode === 'new' && playfieldGeometry.slotHudEnabled;
+  const shouldShowLegacyCombo = !shouldUseSlotHud;
+  const scoreTotal =
+    gameState.score.perfect + gameState.score.great + gameState.score.good + gameState.score.miss;
+  const accuracy =
+    scoreTotal > 0
+      ? ((gameState.score.perfect * 100 +
+          gameState.score.great * 80 +
+          gameState.score.good * 50) /
+          (scoreTotal * 100)) *
+        100
+      : 0;
+  const progressPercent =
+    gameDurationMs > 0 ? Math.min(100, Math.max(0, (currentTimeSnapshot / gameDurationMs) * 100)) : 0;
+  const keyLaneBottom = playfieldGeometry.keyLaneY + KEY_LANE_HEIGHT;
+  const bottomSpace = Math.max(0, GAME_VIEW_HEIGHT - keyLaneBottom);
+  const slotHudTop =
+    bottomSpace >= 88
+      ? keyLaneBottom + Math.floor((bottomSpace - 74) / 2)
+      : Math.max(8, playfieldGeometry.keyLaneY - 82);
+  const topExtensionHeight = Math.max(100, Math.min(GAME_VIEW_HEIGHT * 0.58, judgeLineY - 36));
 
   return (
     <>
@@ -236,6 +262,23 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
             }}
           />
         ))}
+
+      {isLaneUiVisible && playfieldGeometry.topLaneExtensionEnabled && (
+        <div
+          style={{
+            position: 'absolute',
+            left: `${playfieldGeometry.laneGroupLeft}px`,
+            top: 0,
+            width: `${playfieldGeometry.laneGroupWidth}px`,
+            height: `${topExtensionHeight}px`,
+            pointerEvents: 'none',
+            zIndex: 36,
+            background:
+              'linear-gradient(180deg, rgba(77, 238, 255, 0.16) 0%, rgba(77, 238, 255, 0.06) 42%, rgba(8, 12, 24, 0) 100%)',
+            boxShadow: 'inset 0 -16px 24px rgba(8, 12, 24, 0.34)',
+          }}
+        />
+      )}
 
       {isLaneUiVisible && (
         <>
@@ -276,12 +319,25 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
         />
       )}
 
-      {gameStarted && (
+      {gameStarted && shouldShowLegacyCombo && (
         <ComboDisplay
           combo={gameState.score.combo}
           laneGroupCenterX={playfieldGeometry.laneGroupLeft + playfieldGeometry.laneGroupWidth / 2}
           numberOpacity={playfieldGeometry.comboOpacity}
           visible={isLaneUiVisible}
+        />
+      )}
+
+      {gameStarted && shouldUseSlotHud && (
+        <GameplaySlotHud
+          laneGroupLeft={playfieldGeometry.laneGroupLeft}
+          laneGroupWidth={playfieldGeometry.laneGroupWidth}
+          top={slotHudTop}
+          combo={gameState.score.combo}
+          accuracy={accuracy}
+          progress={progressPercent}
+          visible={isLaneUiVisible}
+          opacity={playfieldGeometry.laneOpacity}
         />
       )}
 

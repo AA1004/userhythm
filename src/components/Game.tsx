@@ -700,6 +700,8 @@ export const Game: React.FC = () => {
   const isGameplayActive = gameState.gameStarted && !gameState.gameEnded;
   const activeBgaMaskOpacity = isGameplayActive ? bgaMaskOpacity : 0;
   const activeLaneUiVisible = isGameplayActive ? isLaneUiVisible : true;
+  const useNewSlotHud =
+    playfieldGeometry.gameplayHudMode === 'new' && playfieldGeometry.slotHudEnabled;
 
   return (
     <>
@@ -718,7 +720,9 @@ export const Game: React.FC = () => {
       {/* Show FPS HUD only during gameplay */}
       {gameState.gameStarted && !gameState.gameEnded && <FpsHud enabled={true} />}
       {/* Keep score HUD outside scaled stage to preserve fixed viewport position */}
-      {isGameplayActive && activeBgaMaskOpacity < 1 && <Score score={gameState.score} />}
+      {isGameplayActive && activeBgaMaskOpacity < 1 && !useNewSlotHud && (
+        <Score score={gameState.score} />
+      )}
       
       {/* Test/play controls (shown outside VideoRhythmLayout, including interlude sections) */}
       {gameState.gameStarted && !gameState.gameEnded && isTestMode && (
@@ -866,6 +870,7 @@ export const Game: React.FC = () => {
                 currentTimeRef={currentTimeRef}
                 currentTimeSnapshot={gameplayClockSnapshotMs}
                 fallDuration={fallDuration}
+                gameDurationMs={dynamicGameDuration}
                 judgeLineY={judgeLineY}
                 playfieldGeometry={playfieldGeometry}
                 hitNoteIdsRef={hitNoteIdsRef}

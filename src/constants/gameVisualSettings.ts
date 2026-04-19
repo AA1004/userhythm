@@ -7,6 +7,7 @@ export const LANE_COUNT = 4;
 export const KEY_LANE_HEIGHT = 100;
 
 export type VisualPresetId = 'classic' | 'compact' | 'wide' | 'custom';
+export type GameplayHudMode = 'legacy' | 'new';
 
 export interface GameVisualSettings {
   version: typeof VISUAL_SETTINGS_VERSION;
@@ -20,6 +21,9 @@ export interface GameVisualSettings {
   noteHeight: number;
   comboOpacity: number;
   bgaOpacity: number;
+  gameplayHudMode: GameplayHudMode;
+  topLaneExtensionEnabled: boolean;
+  slotHudEnabled: boolean;
 }
 
 export interface PlayfieldGeometry {
@@ -38,6 +42,9 @@ export interface PlayfieldGeometry {
   noteHeight: number;
   comboOpacity: number;
   bgaOpacity: number;
+  gameplayHudMode: GameplayHudMode;
+  topLaneExtensionEnabled: boolean;
+  slotHudEnabled: boolean;
 }
 
 export const VISUAL_SETTING_LIMITS = {
@@ -63,6 +70,9 @@ export const DEFAULT_GAME_VISUAL_SETTINGS: GameVisualSettings = {
   noteHeight: 42,
   comboOpacity: 0.7,
   bgaOpacity: 0,
+  gameplayHudMode: 'legacy',
+  topLaneExtensionEnabled: false,
+  slotHudEnabled: false,
 };
 
 export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, GameVisualSettings> = {
@@ -79,6 +89,9 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     noteHeight: 38,
     comboOpacity: 0.7,
     bgaOpacity: 0,
+    gameplayHudMode: 'legacy',
+    topLaneExtensionEnabled: false,
+    slotHudEnabled: false,
   },
   wide: {
     version: VISUAL_SETTINGS_VERSION,
@@ -92,6 +105,9 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     noteHeight: 46,
     comboOpacity: 0.7,
     bgaOpacity: 0,
+    gameplayHudMode: 'legacy',
+    topLaneExtensionEnabled: false,
+    slotHudEnabled: false,
   },
 };
 
@@ -100,6 +116,9 @@ const clamp = (value: number, min: number, max: number) =>
 
 const finiteOr = (value: unknown, fallback: number) =>
   typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+
+const booleanOr = (value: unknown, fallback: boolean) =>
+  typeof value === 'boolean' ? value : fallback;
 
 const getLaneGroupWidth = (laneWidth: number, laneGap: number) =>
   LANE_COUNT * laneWidth + (LANE_COUNT - 1) * laneGap;
@@ -161,6 +180,12 @@ export const normalizeGameVisualSettings = (
     VISUAL_SETTING_LIMITS.bgaOpacity.min,
     VISUAL_SETTING_LIMITS.bgaOpacity.max
   );
+  const gameplayHudMode: GameplayHudMode = raw.gameplayHudMode === 'new' ? 'new' : 'legacy';
+  const topLaneExtensionEnabled = booleanOr(
+    raw.topLaneExtensionEnabled,
+    fallback.topLaneExtensionEnabled
+  );
+  const slotHudEnabled = booleanOr(raw.slotHudEnabled, fallback.slotHudEnabled);
 
   // judgeLineY controls the timing line and note destination.
   // keyLaneY controls only the visual key boxes and is kept below judgeLineY when possible.
@@ -188,6 +213,9 @@ export const normalizeGameVisualSettings = (
     noteHeight,
     comboOpacity,
     bgaOpacity,
+    gameplayHudMode,
+    topLaneExtensionEnabled,
+    slotHudEnabled,
   };
 };
 
@@ -229,5 +257,8 @@ export const buildPlayfieldGeometry = (
     noteHeight: normalized.noteHeight,
     comboOpacity: normalized.comboOpacity,
     bgaOpacity: normalized.bgaOpacity,
+    gameplayHudMode: normalized.gameplayHudMode,
+    topLaneExtensionEnabled: normalized.topLaneExtensionEnabled,
+    slotHudEnabled: normalized.slotHudEnabled,
   };
 };
