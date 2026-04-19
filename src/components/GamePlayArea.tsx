@@ -216,7 +216,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
             top: '0',
             width: `${playfieldGeometry.laneGroupWidth}px`,
             height: '100%',
-            backgroundColor: 'rgba(15, 23, 42, 0.6)',
+            backgroundColor: `rgba(15, 23, 42, ${0.6 * playfieldGeometry.laneOpacity})`,
           }}
         />
       )}
@@ -231,7 +231,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
               top: '0',
               width: '2px',
               height: '100%',
-              backgroundColor: 'rgba(255,255,255,0.1)',
+              backgroundColor: `rgba(255,255,255,${0.1 * playfieldGeometry.laneOpacity})`,
               transform: 'translateX(-50%)',
             }}
           />
@@ -272,6 +272,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
           left={playfieldGeometry.judgeLineLeft}
           width={playfieldGeometry.judgeLineWidth}
           top={judgeLineY}
+          opacity={playfieldGeometry.laneOpacity}
         />
       )}
 
@@ -294,6 +295,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
             width={playfieldGeometry.laneWidth}
             keys={laneKeyLabels[index]}
             isPressed={pressedKeys.has(index as Lane)}
+            opacity={playfieldGeometry.laneOpacity}
           />
         ))}
 

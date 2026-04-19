@@ -6,9 +6,10 @@ interface KeyLaneProps {
   width?: number;
   keys: string[];
   isPressed: boolean;
+  opacity?: number;
 }
 
-const KeyLaneComponent: React.FC<KeyLaneProps> = ({ x, top, width = 100, keys, isPressed }) => {
+const KeyLaneComponent: React.FC<KeyLaneProps> = ({ x, top, width = 100, keys, isPressed, opacity = 1 }) => {
   return (
     <div
       style={{
@@ -29,6 +30,7 @@ const KeyLaneComponent: React.FC<KeyLaneProps> = ({ x, top, width = 100, keys, i
         boxShadow: isPressed
           ? '0 0 20px rgba(255, 193, 7, 0.6)'
           : '0 4px 8px rgba(0,0,0,0.3)',
+        opacity,
       }}
     >
       <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#fff' }}>
@@ -49,6 +51,7 @@ export const KeyLane = React.memo(KeyLaneComponent, (prevProps, nextProps) => {
     prevProps.top === nextProps.top &&
     prevProps.width === nextProps.width &&
     prevProps.isPressed === nextProps.isPressed &&
+    prevProps.opacity === nextProps.opacity &&
     prevProps.keys.length === nextProps.keys.length &&
     prevProps.keys.every((key, i) => key === nextProps.keys[i])
   );

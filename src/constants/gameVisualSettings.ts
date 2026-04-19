@@ -14,6 +14,7 @@ export interface GameVisualSettings {
   laneWidth: number;
   laneGap: number;
   laneOffsetX: number;
+  laneOpacity: number;
   keyLaneY: number;
   noteWidth: number;
   noteHeight: number;
@@ -29,6 +30,7 @@ export interface PlayfieldGeometry {
   laneGroupWidth: number;
   laneCenters: readonly number[];
   laneEdges: readonly number[];
+  laneOpacity: number;
   judgeLineLeft: number;
   judgeLineWidth: number;
   keyLaneY: number;
@@ -41,6 +43,7 @@ export interface PlayfieldGeometry {
 export const VISUAL_SETTING_LIMITS = {
   laneWidth: { min: 70, max: 115 },
   laneGap: { min: 0, max: 28 },
+  laneOpacity: { min: 0.2, max: 1 },
   noteWidth: { min: 48 },
   noteHeight: { min: 28, max: 56 },
   comboOpacity: { min: 0.3, max: 1 },
@@ -54,6 +57,7 @@ export const DEFAULT_GAME_VISUAL_SETTINGS: GameVisualSettings = {
   laneWidth: 100,
   laneGap: 0,
   laneOffsetX: 0,
+  laneOpacity: 1,
   keyLaneY: 700,
   noteWidth: 90,
   noteHeight: 42,
@@ -69,6 +73,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     laneWidth: 84,
     laneGap: 6,
     laneOffsetX: 0,
+    laneOpacity: 1,
     keyLaneY: 700,
     noteWidth: 76,
     noteHeight: 38,
@@ -81,6 +86,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     laneWidth: 108,
     laneGap: 4,
     laneOffsetX: 0,
+    laneOpacity: 1,
     keyLaneY: 700,
     noteWidth: 96,
     noteHeight: 46,
@@ -128,6 +134,11 @@ export const normalizeGameVisualSettings = (
   const laneGroupWidth = getLaneGroupWidth(laneWidth, laneGap);
   const maxOffset = Math.max(0, (GAME_VIEW_WIDTH - laneGroupWidth) / 2);
   const laneOffsetX = clamp(finiteOr(raw.laneOffsetX, fallback.laneOffsetX), -maxOffset, maxOffset);
+  const laneOpacity = clamp(
+    finiteOr(raw.laneOpacity, fallback.laneOpacity),
+    VISUAL_SETTING_LIMITS.laneOpacity.min,
+    VISUAL_SETTING_LIMITS.laneOpacity.max
+  );
 
   const noteWidth = clamp(
     finiteOr(raw.noteWidth, fallback.noteWidth),
@@ -171,6 +182,7 @@ export const normalizeGameVisualSettings = (
     laneWidth,
     laneGap,
     laneOffsetX,
+    laneOpacity,
     keyLaneY,
     noteWidth,
     noteHeight,
@@ -209,6 +221,7 @@ export const buildPlayfieldGeometry = (
     laneGroupWidth,
     laneCenters,
     laneEdges,
+    laneOpacity: normalized.laneOpacity,
     judgeLineLeft: laneGroupLeft,
     judgeLineWidth: laneGroupWidth,
     keyLaneY: normalized.keyLaneY,
