@@ -1758,11 +1758,36 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     };
   }, [clampTime, yToTime]);
 
-  // 키보드 핸들러 (스페이스바 재생 등)
+  // 키보드 핸들러 (에디터 전용 전역 단축키)
+  const handleToggleEditorPlayback = useCallback(async () => {
+    if (!isPlaying) {
+      try {
+        await ensureAudioContext();
+      } catch {
+        // ignore: fallback to play without pre-warm
+      }
+    }
+
+    setIsPlaying(prev => !prev);
+  }, [ensureAudioContext, isPlaying]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // 인터랙티브 요소가 포커스를 가진 동안에는 에디터 전역 단축키를 먹지 않는다.
       if (isInteractiveEditorTarget(e.target)) {
+        return;
+      }
+
+      if (
+        e.key.toLowerCase() === 'c' &&
+        !e.repeat &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey &&
+        !e.shiftKey
+      ) {
+        e.preventDefault();
+        void handleToggleEditorPlayback();
         return;
       }
       
@@ -1784,7 +1809,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleLaneInput, handleToggleLongNoteMode]);
+  }, [handleLaneInput, handleToggleEditorPlayback, handleToggleLongNoteMode]);
 
   return (
     <div
@@ -1820,16 +1845,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           setIsPlaying(false);
           seekTo(0, { shouldPause: true });
         }}
-        onTogglePlayback={async () => {
-          if (!isPlaying) {
-            try {
-              await ensureAudioContext();
-            } catch {
-              // ignore: fallback to play without pre-warm
-            }
-          }
-          setIsPlaying(prev => !prev);
-        }}
+        onTogglePlayback={handleToggleEditorPlayback}
         onStop={() => {
           setIsPlaying(false);
           seekTo(0, { shouldPause: true });

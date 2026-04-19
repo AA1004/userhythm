@@ -5,7 +5,6 @@ import { getAudioBaseSeconds, getAudioPositionSeconds, AudioSettings } from '../
 export interface UseTestYoutubePlayerOptions {
   isTestMode: boolean;
   gameStarted: boolean;
-  paused?: boolean;
   currentTime: number;
   videoId: string | null;
   audioSettings: AudioSettings | null;
@@ -23,7 +22,6 @@ export interface UseTestYoutubePlayerReturn {
 export function useTestYoutubePlayer({
   isTestMode,
   gameStarted,
-  paused = false,
   currentTime,
   videoId,
   audioSettings,
@@ -184,15 +182,6 @@ export function useTestYoutubePlayer({
     if (!player || !playerReadyRef.current) return;
     if (!audioSettings) return;
 
-    if (paused) {
-      try {
-        player.pauseVideo?.();
-      } catch (e) {
-        console.warn("YouTube pause failed:", e);
-      }
-      return;
-    }
-
     const { playbackSpeed } = audioSettings;
 
     try {
@@ -256,7 +245,7 @@ export function useTestYoutubePlayer({
         console.warn("YouTube resync failed:", e);
       }
     }
-  }, [isTestMode, gameStarted, paused, currentTime, player, audioSettings, volume]);
+  }, [isTestMode, gameStarted, currentTime, player, audioSettings, volume]);
 
   // 볼륨 변경 시 실시간 반영
   useEffect(() => {

@@ -241,6 +241,7 @@ const EditorContent: React.FC = () => (
     <Section title="기본 조작">
       <ul style={{ lineHeight: 1.8 }}>
         <li><strong>A, S, D, F</strong>: 각 레인에 노트 배치 (재생 중)</li>
+        <li><strong>C</strong>: 에디터 재생/일시정지</li>
         <li><strong>클릭</strong>: 타임라인에서 노트 선택</li>
         <li><strong>드래그</strong>: 노트 범위 선택</li>
         <li><strong>Space</strong>: 롱노트 모드 토글</li>

@@ -64,17 +64,6 @@ type ChartSelectTransitionState = {
 
 const GAMEPLAY_VISUAL_CLOCK_INTERVAL_MS = 80;
 
-const INTERACTIVE_GAME_SHORTCUT_TARGET_SELECTOR =
-  'input, textarea, select, button, a[href], [role="button"], [contenteditable], [tabindex]:not([tabindex="-1"])';
-
-const isInteractiveGameShortcutTarget = (target: EventTarget | null): boolean => {
-  return target instanceof HTMLElement && target.closest(INTERACTIVE_GAME_SHORTCUT_TARGET_SELECTOR) !== null;
-};
-
-const isPauseKeyShortcut = (event: KeyboardEvent): boolean => {
-  return event.key.toLowerCase() === 'c' && !event.repeat && !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey;
-};
-
 export const Game: React.FC = () => {
   const renderProfileStart = isGameplayProfilerEnabled() ? performance.now() : 0;
   const [viewMode, setViewMode] = useState<ViewMode>({ type: 'menu' });
@@ -89,7 +78,6 @@ export const Game: React.FC = () => {
   const [testYoutubeVideoId, setTestYoutubeVideoId] = useState<string | null>(null);
   const [testAudioSettings, setTestAudioSettings] = useState<AudioSettings | null>(null);
   const [gameplayClockSnapshotMs, setGameplayClockSnapshotMs] = useState(0);
-  const [isGamePaused, setIsGamePaused] = useState(false);
   const [viewportSize, setViewportSize] = useState(() => ({
     width: typeof window !== 'undefined' ? window.innerWidth : 1920,
     height:
@@ -169,7 +157,7 @@ export const Game: React.FC = () => {
   const currentChartTimeOffsetMs = testAudioSettings?.startTimeMs ?? 0;
 
   useEffect(() => {
-    if (!gameState.gameStarted || gameState.gameEnded || isGamePaused) {
+    if (!gameState.gameStarted || gameState.gameEnded) {
       setGameplayClockSnapshotMs(gameState.currentTime);
       return;
     }
@@ -195,7 +183,7 @@ export const Game: React.FC = () => {
         cancelAnimationFrame(frameId);
       }
     };
-  }, [gameState.gameStarted, gameState.gameEnded, gameState.currentTime, isGamePaused]);
+  }, [gameState.gameStarted, gameState.gameEnded, gameState.currentTime]);
 
   // 현재 게임 시간(ms)을 자막/채보 타임라인 시간(절대 시간)으로 변환
   // 테스트 시작 위치(startTimeMs)를 더해서 절대 시간으로 변환
@@ -300,7 +288,7 @@ export const Game: React.FC = () => {
   useKeyboard(
     handleKeyPress,
     handleKeyRelease,
-    gameState.gameStarted && !gameState.gameEnded && !isGamePaused,
+    gameState.gameStarted && !gameState.gameEnded,
     keyBindings
   );
 
@@ -310,7 +298,6 @@ export const Game: React.FC = () => {
     handleNoteMiss,
     speed,
     START_DELAY_MS,
-    isGamePaused,
     currentTimeRef,
     hitNoteIdsRef
   );
@@ -360,7 +347,6 @@ export const Game: React.FC = () => {
   } = useTestYoutubePlayer({
     isTestMode,
     gameStarted: gameState.gameStarted,
-    paused: isGamePaused,
     currentTime: gameplayClockSnapshotMs,
     videoId: testYoutubeVideoId,
     audioSettings: testAudioSettings,
@@ -404,7 +390,6 @@ export const Game: React.FC = () => {
   ]);
 
   const resetGame = useCallback(() => {
-    setIsGamePaused(false);
     resetTestSession();
     processedMissNotes.current.clear();
     hitNoteIdsRef.current.clear();
@@ -415,7 +400,6 @@ export const Game: React.FC = () => {
   }, [resetTestSession]);
 
   const handleReturnToEditor = useCallback(() => {
-    setIsGamePaused(false);
     setViewMode({ type: 'editor' });
     setIsTestMode(false);
     setIsFromEditor(false);
@@ -473,7 +457,6 @@ export const Game: React.FC = () => {
 
   // 플레이 목록으로 돌아가기 핸들러
   const handleReturnToPlayList = useCallback(() => {
-    setIsGamePaused(false);
     setIsTestMode(false);
     setIsFromEditor(false);
     setTestAudioSettings(null);
@@ -497,35 +480,6 @@ export const Game: React.FC = () => {
     setChartListRefreshToken(nextRefreshToken);
     openChartSelect(nextRefreshToken);
   }, [destroyYoutubePlayer, setSubtitles, setBgaVisibilityIntervals, chartListRefreshToken, openChartSelect]);
-
-  useEffect(() => {
-    if (!gameState.gameStarted || gameState.gameEnded) {
-      setIsGamePaused(false);
-      return;
-    }
-
-    const handlePauseShortcut = (event: KeyboardEvent) => {
-      if (!isPauseKeyShortcut(event) || isInteractiveGameShortcutTarget(event.target)) return;
-      if (keyBindings.some((key) => key.toUpperCase() === 'C')) return;
-
-      event.preventDefault();
-      setIsGamePaused((prev) => {
-        const nextPaused = !prev;
-        if (nextPaused) {
-          const pauseTime = currentTimeRef.current;
-          setGameState((prevState) => ({
-            ...prevState,
-            currentTime: pauseTime,
-          }));
-          setGameplayClockSnapshotMs(pauseTime);
-        }
-        return nextPaused;
-      });
-    };
-
-    window.addEventListener('keydown', handlePauseShortcut);
-    return () => window.removeEventListener('keydown', handlePauseShortcut);
-  }, [gameState.gameStarted, gameState.gameEnded, keyBindings]);
 
   useEffect(() => {
     if (!isTestMode || !gameState.gameStarted || gameState.gameEnded) return;
@@ -741,7 +695,6 @@ export const Game: React.FC = () => {
     isBgaEnabled &&
     gameState.gameStarted &&
     !gameState.gameEnded &&
-    !isGamePaused &&
     gameplayClockSnapshotMs >= 0;
   const isChartSelectTransitioning = chartSelectTransition !== null;
   const isGameplayActive = gameState.gameStarted && !gameState.gameEnded;
@@ -766,30 +719,6 @@ export const Game: React.FC = () => {
       {gameState.gameStarted && !gameState.gameEnded && <FpsHud enabled={true} />}
       {/* Keep score HUD outside scaled stage to preserve fixed viewport position */}
       {isGameplayActive && activeBgaMaskOpacity < 1 && <Score score={gameState.score} />}
-      {isGameplayActive && isGamePaused && activeBgaMaskOpacity < 1 && (
-        <div
-          style={{
-            position: 'fixed',
-            left: '50%',
-            top: '50%',
-            transform: 'translate(-50%, -50%)',
-            zIndex: 10001,
-            padding: '18px 28px',
-            borderRadius: CHART_EDITOR_THEME.radiusLg,
-            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-            background: 'rgba(2, 6, 23, 0.82)',
-            color: CHART_EDITOR_THEME.textPrimary,
-            boxShadow: CHART_EDITOR_THEME.shadowStrong,
-            textAlign: 'center',
-            pointerEvents: 'none',
-          }}
-        >
-          <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: '0.16em' }}>PAUSED</div>
-          <div style={{ marginTop: 6, fontSize: 12, color: CHART_EDITOR_THEME.textSecondary }}>
-            C 키로 재개
-          </div>
-        </div>
-      )}
       
       {/* Test/play controls (shown outside VideoRhythmLayout, including interlude sections) */}
       {gameState.gameStarted && !gameState.gameEnded && isTestMode && (

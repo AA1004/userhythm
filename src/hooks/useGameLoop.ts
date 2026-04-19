@@ -29,7 +29,6 @@ export function useGameLoop(
   onNoteMiss: (note: Note) => void,
   speed: number = 1.0, // 속도 배율 (1.0 = 기본, 높을수록 빠름)
   startDelayMs: number = 0,
-  paused: boolean = false,
   externalCurrentTimeRef?: MutableRefObject<number>,
   hitNoteIdsRef?: HitNoteIdsRef
 ) {
@@ -41,7 +40,6 @@ export function useGameLoop(
   const frameRef = useRef<number>();
   const lastTimeRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
-  const pauseStartedAtRef = useRef<number | null>(null);
   const delayRef = useRef<number>(startDelayMs);
   const missScanIndexRef = useRef<number>(0);
   const missOrderRef = useRef<number[]>([]);
@@ -67,24 +65,9 @@ export function useGameLoop(
     if (!gameState.gameStarted) {
       startTimeRef.current = 0;
       lastTimeRef.current = 0;
-      pauseStartedAtRef.current = null;
       currentTimeRef.current = 0;
       missScanIndexRef.current = 0;
       return;
-    }
-
-    if (paused) {
-      if (pauseStartedAtRef.current === null) {
-        pauseStartedAtRef.current = performance.now();
-      }
-      return;
-    }
-
-    if (pauseStartedAtRef.current !== null && startTimeRef.current !== 0) {
-      const pausedDuration = performance.now() - pauseStartedAtRef.current;
-      startTimeRef.current += pausedDuration;
-      lastTimeRef.current += pausedDuration;
-      pauseStartedAtRef.current = null;
     }
 
     if (startTimeRef.current === 0) {
@@ -208,7 +191,7 @@ export function useGameLoop(
         cancelAnimationFrame(frameRef.current);
       }
     };
-  }, [gameState.gameStarted, paused, setGameState, onNoteMiss, speed, fallDuration, missThreshold, hitNoteIdsRef]);
+  }, [gameState.gameStarted, setGameState, onNoteMiss, speed, fallDuration, missThreshold, hitNoteIdsRef]);
 
   // currentTime ref를 반환하여 렌더링 루프에서 사용
   return {
