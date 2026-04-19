@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UseRhythm GPU Diagnostics</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        padding: 18px;
+        background: #020617;
+        color: #e2e8f0;
+        font-family: "Segoe UI", sans-serif;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      .card {
+        border: 1px solid #334155;
+        border-radius: 10px;
+        background: #0f172a;
+        padding: 14px;
+      }
+      .full {
+        grid-column: 1 / -1;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 22px;
+      }
+      h2 {
+        margin: 0 0 10px;
+        font-size: 16px;
+      }
+      .meta {
+        font-size: 13px;
+        color: #93c5fd;
+      }
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 12px;
+        line-height: 1.45;
+        color: #cbd5e1;
+      }
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      button {
+        border: 1px solid #475569;
+        border-radius: 8px;
+        background: #1e293b;
+        color: #e2e8f0;
+        padding: 8px 12px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #334155;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>UseRhythm GPU Diagnostics</h1>
+    <div class="toolbar">
+      <button id="refresh">Refresh</button>
+      <button id="fullscreen">Toggle Fullscreen</button>
+    </div>
+    <div class="layout">
+      <section class="card">
+        <h2>Versions / Target</h2>
+        <pre id="meta">Loading...</pre>
+      </section>
+      <section class="card">
+        <h2>Renderer FPS Sample</h2>
+        <pre id="fps">Sampling...</pre>
+      </section>
+      <section class="card full">
+        <h2>GPU Feature Status</h2>
+        <pre id="features">Loading...</pre>
+      </section>
+      <section class="card full">
+        <h2>GPU Info (basic)</h2>
+        <pre id="gpuInfo">Loading...</pre>
+      </section>
+    </div>
+    <script src="./diagnostics.js"></script>
+  </body>
+</html>
+

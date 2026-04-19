@@ -1,0 +1,43 @@
+{
+  "name": "userhythm-player",
+  "private": true,
+  "version": "0.1.0",
+  "author": "AA1004",
+  "description": "UseRhythm Electron player for GPU acceleration validation",
+  "type": "commonjs",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "electron .",
+    "build": "node ./scripts/validate-config.cjs",
+    "dist": "npm run build && electron-builder --win nsis zip"
+  },
+  "build": {
+    "appId": "kr.userhythm.player",
+    "productName": "UseRhythm Player",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "artifactName": "UseRhythm-Player-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  }
+}

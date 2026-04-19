@@ -1,0 +1,44 @@
+name: Release UseRhythm Player
+
+on:
+  push:
+    tags:
+      - "player-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "apps/player/package-lock.json"
+
+      - name: Install player dependencies
+        working-directory: apps/player
+        run: npm ci
+
+      - name: Validate player config
+        run: npm run player:build
+
+      - name: Build Windows artifacts
+        run: npm run player:dist
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/player-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            apps/player/dist/*.exe
+            apps/player/dist/*.zip
+          generate_release_notes: true
