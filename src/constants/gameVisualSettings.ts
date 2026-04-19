@@ -24,6 +24,8 @@ export interface GameVisualSettings {
   gameplayHudMode: GameplayHudMode;
   topLaneExtensionEnabled: boolean;
   slotHudEnabled: boolean;
+  keyPressGlowEnabled: boolean;
+  keyPressPulseEnabled: boolean;
 }
 
 export interface PlayfieldGeometry {
@@ -45,6 +47,8 @@ export interface PlayfieldGeometry {
   gameplayHudMode: GameplayHudMode;
   topLaneExtensionEnabled: boolean;
   slotHudEnabled: boolean;
+  keyPressGlowEnabled: boolean;
+  keyPressPulseEnabled: boolean;
 }
 
 export const VISUAL_SETTING_LIMITS = {
@@ -73,6 +77,8 @@ export const DEFAULT_GAME_VISUAL_SETTINGS: GameVisualSettings = {
   gameplayHudMode: 'legacy',
   topLaneExtensionEnabled: false,
   slotHudEnabled: false,
+  keyPressGlowEnabled: true,
+  keyPressPulseEnabled: true,
 };
 
 export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, GameVisualSettings> = {
@@ -92,6 +98,8 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     gameplayHudMode: 'legacy',
     topLaneExtensionEnabled: false,
     slotHudEnabled: false,
+    keyPressGlowEnabled: true,
+    keyPressPulseEnabled: true,
   },
   wide: {
     version: VISUAL_SETTINGS_VERSION,
@@ -108,6 +116,8 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     gameplayHudMode: 'legacy',
     topLaneExtensionEnabled: false,
     slotHudEnabled: false,
+    keyPressGlowEnabled: true,
+    keyPressPulseEnabled: true,
   },
 };
 
@@ -186,6 +196,8 @@ export const normalizeGameVisualSettings = (
     fallback.topLaneExtensionEnabled
   );
   const slotHudEnabled = booleanOr(raw.slotHudEnabled, fallback.slotHudEnabled);
+  const keyPressGlowEnabled = booleanOr(raw.keyPressGlowEnabled, fallback.keyPressGlowEnabled);
+  const keyPressPulseEnabled = booleanOr(raw.keyPressPulseEnabled, fallback.keyPressPulseEnabled);
 
   // judgeLineY controls the timing line and note destination.
   // keyLaneY controls only the visual key boxes and is kept below judgeLineY when possible.
@@ -216,6 +228,8 @@ export const normalizeGameVisualSettings = (
     gameplayHudMode,
     topLaneExtensionEnabled,
     slotHudEnabled,
+    keyPressGlowEnabled,
+    keyPressPulseEnabled,
   };
 };
 
@@ -260,5 +274,7 @@ export const buildPlayfieldGeometry = (
     gameplayHudMode: normalized.gameplayHudMode,
     topLaneExtensionEnabled: normalized.topLaneExtensionEnabled,
     slotHudEnabled: normalized.slotHudEnabled,
+    keyPressGlowEnabled: normalized.keyPressGlowEnabled,
+    keyPressPulseEnabled: normalized.keyPressPulseEnabled,
   };
 };

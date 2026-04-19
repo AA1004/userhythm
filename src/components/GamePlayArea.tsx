@@ -315,6 +315,9 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
             keys={laneKeyLabels[index]}
             isPressed={pressedKeys.has(index as Lane)}
             opacity={playfieldGeometry.laneOpacity}
+            styleVariant={playfieldGeometry.gameplayHudMode}
+            glowEnabled={playfieldGeometry.keyPressGlowEnabled}
+            pulseEnabled={playfieldGeometry.keyPressPulseEnabled}
           />
         ))}
 

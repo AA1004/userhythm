@@ -593,6 +593,50 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
                 슬롯 HUD (콤보/진행도/정확도)
               </label>
+
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginTop: '8px',
+                  marginBottom: '8px',
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={visualSettings.keyPressGlowEnabled}
+                  onChange={(e) =>
+                    applyToggleVisualSettings({ keyPressGlowEnabled: e.target.checked })
+                  }
+                  style={{ accentColor: CHART_EDITOR_THEME.accent }}
+                />
+                키 입력 글로우 강조
+              </label>
+
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={visualSettings.keyPressPulseEnabled}
+                  onChange={(e) =>
+                    applyToggleVisualSettings({ keyPressPulseEnabled: e.target.checked })
+                  }
+                  style={{ accentColor: CHART_EDITOR_THEME.accent }}
+                />
+                키 입력 펄스(눌림 스케일)
+              </label>
               <p
                 style={{
                   color: CHART_EDITOR_THEME.textSecondary,
@@ -602,7 +646,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   lineHeight: 1.45,
                 }}
               >
-                New HUD + 슬롯 HUD를 함께 켜면 기존 좌하단 점수판 대신 슬롯 HUD를 표시합니다.
+                Legacy/New HUD 선택에 따라 키 눌림 디자인도 함께 변경됩니다.
+                옵션으로 글로우/펄스 연출을 개별 ON/OFF 할 수 있습니다.
               </p>
             </div>
 
