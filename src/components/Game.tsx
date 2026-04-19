@@ -702,6 +702,9 @@ export const Game: React.FC = () => {
   const activeLaneUiVisible = isGameplayActive ? isLaneUiVisible : true;
   const useNewSlotHud =
     playfieldGeometry.gameplayHudMode === 'new' && playfieldGeometry.slotHudEnabled;
+  const gameplayStageBackdropAlpha = 0.1 + playfieldGeometry.laneOpacity * 0.22;
+  const gameplayStageBorderAlpha = 0.08 + playfieldGeometry.laneOpacity * 0.12;
+  const gameplayStageShadowAlpha = 0.18 + playfieldGeometry.laneOpacity * 0.18;
 
   return (
     <>
@@ -835,12 +838,27 @@ export const Game: React.FC = () => {
             style={{
               width: '100%',
               height: '100%',
-              backgroundColor: activeBgaMaskOpacity >= 1 ? 'transparent' : CHART_EDITOR_THEME.surfaceElevated,
+              backgroundColor:
+                activeBgaMaskOpacity >= 1
+                  ? 'transparent'
+                  : isGameplayActive
+                  ? `rgba(8, 12, 24, ${gameplayStageBackdropAlpha.toFixed(3)})`
+                  : CHART_EDITOR_THEME.surfaceElevated,
               position: 'relative',
               overflow: 'hidden',
               borderRadius: activeBgaMaskOpacity >= 1 ? 0 : CHART_EDITOR_THEME.radiusLg,
-              boxShadow: activeBgaMaskOpacity >= 1 ? 'none' : CHART_EDITOR_THEME.shadowSoft,
-              border: activeBgaMaskOpacity >= 1 ? 'none' : `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+              boxShadow:
+                activeBgaMaskOpacity >= 1
+                  ? 'none'
+                  : isGameplayActive
+                  ? `0 10px 30px rgba(0, 0, 0, ${gameplayStageShadowAlpha.toFixed(3)})`
+                  : CHART_EDITOR_THEME.shadowSoft,
+              border:
+                activeBgaMaskOpacity >= 1
+                  ? 'none'
+                  : isGameplayActive
+                  ? `1px solid rgba(238, 247, 242, ${gameplayStageBorderAlpha.toFixed(3)})`
+                  : `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
               transition: 'background-color 80ms linear, border 80ms linear, box-shadow 80ms linear, border-radius 80ms linear',
             }}
           >

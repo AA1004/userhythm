@@ -68,6 +68,12 @@ const VisualSliderRow = memo<VisualSliderRowProps>(({
   onChange,
   onCommit,
 }) => {
+  const handleValueChange = (next: number) => {
+    if (Number.isFinite(next)) {
+      onChange(next);
+    }
+  };
+
   return (
     <div className="settings-slider-row" style={{ marginBottom: '12px' }}>
       <div
@@ -92,7 +98,8 @@ const VisualSliderRow = memo<VisualSliderRowProps>(({
         max={max}
         step={step}
         value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onInput={(e) => handleValueChange((e.currentTarget as HTMLInputElement).valueAsNumber)}
+        onChange={(e) => handleValueChange((e.currentTarget as HTMLInputElement).valueAsNumber)}
         onPointerUp={onCommit}
         onKeyUp={onCommit}
         onBlur={onCommit}
