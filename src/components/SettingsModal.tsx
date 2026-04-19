@@ -734,6 +734,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 onCommit={commitVisualSettings}
               />
               <VisualSliderRow
+                label="키 박스 투명도"
+                value={Math.round(visualSettings.keyLaneOpacity * 100)}
+                min={VISUAL_SETTING_LIMITS.keyLaneOpacity.min * 100}
+                max={VISUAL_SETTING_LIMITS.keyLaneOpacity.max * 100}
+                step={5}
+                suffix="%"
+                onChange={(value) => scheduleVisualSettingsChange({ keyLaneOpacity: value / 100 })}
+                onCommit={commitVisualSettings}
+              />
+              <VisualSliderRow
+                label="슬롯 HUD 투명도"
+                value={Math.round(visualSettings.slotHudOpacity * 100)}
+                min={VISUAL_SETTING_LIMITS.slotHudOpacity.min * 100}
+                max={VISUAL_SETTING_LIMITS.slotHudOpacity.max * 100}
+                step={5}
+                suffix="%"
+                onChange={(value) => scheduleVisualSettingsChange({ slotHudOpacity: value / 100 })}
+                onCommit={commitVisualSettings}
+              />
+              <VisualSliderRow
                 label="키 박스 위치"
                 value={visualSettings.keyLaneY}
                 min={keyLaneMin}
@@ -772,7 +792,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               />
 
               <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginTop: '6px', lineHeight: 1.5, marginBottom: 0 }}>
-                레인 UI 투명도는 레인 배경, 경계선, 키 박스에만 적용됩니다.
+                레인 UI 투명도는 레인 배경/경계선에만 적용됩니다.
+                키 박스와 슬롯 HUD는 각 전용 투명도 슬라이더를 사용합니다.
                 판정선은 가독성을 위해 항상 100% 불투명으로 유지됩니다.
                 판정 로직은 변경되지 않습니다.
               </p>

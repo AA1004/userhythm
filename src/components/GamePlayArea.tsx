@@ -249,11 +249,25 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
             height: `${topExtensionHeight}px`,
             pointerEvents: 'none',
             zIndex: 36,
-            background:
-              'linear-gradient(180deg, rgba(77, 238, 255, 0.16) 0%, rgba(77, 238, 255, 0.06) 42%, rgba(8, 12, 24, 0) 100%)',
-            boxShadow: 'inset 0 -16px 24px rgba(8, 12, 24, 0.34)',
+            background: 'transparent',
+            boxShadow: 'none',
           }}
-        />
+        >
+          {playfieldGeometry.laneEdges.map((x) => (
+            <div
+              key={`top-edge-${x}`}
+              style={{
+                position: 'absolute',
+                left: `${x - playfieldGeometry.laneGroupLeft}px`,
+                top: 0,
+                width: '2px',
+                height: '100%',
+                transform: 'translateX(-50%)',
+                backgroundColor: `rgba(255,255,255,${0.09 * playfieldGeometry.laneOpacity})`,
+              }}
+            />
+          ))}
+        </div>
       )}
 
       {isLaneUiVisible && (
@@ -314,7 +328,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
             width={playfieldGeometry.laneWidth}
             keys={laneKeyLabels[index]}
             isPressed={pressedKeys.has(index as Lane)}
-            opacity={playfieldGeometry.laneOpacity}
+            opacity={playfieldGeometry.keyLaneOpacity}
             styleVariant={playfieldGeometry.gameplayHudMode}
             glowEnabled={playfieldGeometry.keyPressGlowEnabled}
             pulseEnabled={playfieldGeometry.keyPressPulseEnabled}

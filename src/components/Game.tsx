@@ -710,10 +710,10 @@ export const Game: React.FC = () => {
   const slotHudTopPx = (playfieldGeometry.keyLaneY + KEY_LANE_HEIGHT + 8) * stageScale;
   const slotHudLeftPx = playfieldGeometry.laneGroupLeft * stageScale;
   const slotHudWidthPx = playfieldGeometry.laneGroupWidth * stageScale;
-  const slotHudOpacity = Math.max(0.35, Math.min(1, playfieldGeometry.laneOpacity));
-  const gameplayStageBackdropAlpha = 0.1 + playfieldGeometry.laneOpacity * 0.22;
-  const gameplayStageBorderAlpha = 0.08 + playfieldGeometry.laneOpacity * 0.12;
-  const gameplayStageShadowAlpha = 0.18 + playfieldGeometry.laneOpacity * 0.18;
+  const slotHudOpacity = playfieldGeometry.slotHudOpacity;
+  const gameplayStageBackdropAlpha = 0.16;
+  const gameplayStageBorderAlpha = 0.14;
+  const gameplayStageShadowAlpha = 0.26;
 
   return (
     <>
