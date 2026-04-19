@@ -735,22 +735,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               />
               <VisualSliderRow
                 label="키 박스 투명도"
-                value={Math.round(visualSettings.keyLaneOpacity * 100)}
-                min={VISUAL_SETTING_LIMITS.keyLaneOpacity.min * 100}
-                max={VISUAL_SETTING_LIMITS.keyLaneOpacity.max * 100}
+                value={Math.round((1 - visualSettings.keyLaneOpacity) * 100)}
+                min={0}
+                max={100}
                 step={5}
                 suffix="%"
-                onChange={(value) => scheduleVisualSettingsChange({ keyLaneOpacity: value / 100 })}
+                onChange={(value) =>
+                  scheduleVisualSettingsChange({ keyLaneOpacity: Math.max(0, 1 - value / 100) })
+                }
                 onCommit={commitVisualSettings}
               />
               <VisualSliderRow
                 label="슬롯 HUD 투명도"
-                value={Math.round(visualSettings.slotHudOpacity * 100)}
-                min={VISUAL_SETTING_LIMITS.slotHudOpacity.min * 100}
-                max={VISUAL_SETTING_LIMITS.slotHudOpacity.max * 100}
+                value={Math.round((1 - visualSettings.slotHudOpacity) * 100)}
+                min={0}
+                max={100}
                 step={5}
                 suffix="%"
-                onChange={(value) => scheduleVisualSettingsChange({ slotHudOpacity: value / 100 })}
+                onChange={(value) =>
+                  scheduleVisualSettingsChange({ slotHudOpacity: Math.max(0, 1 - value / 100) })
+                }
                 onCommit={commitVisualSettings}
               />
               <VisualSliderRow
