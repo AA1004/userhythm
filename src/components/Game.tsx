@@ -71,8 +71,8 @@ const isInteractiveGameShortcutTarget = (target: EventTarget | null): boolean =>
   return target instanceof HTMLElement && target.closest(INTERACTIVE_GAME_SHORTCUT_TARGET_SELECTOR) !== null;
 };
 
-const isControlKeyShortcut = (event: KeyboardEvent): boolean => {
-  return event.key === 'Control' && !event.repeat && !event.altKey && !event.metaKey && !event.shiftKey;
+const isPauseKeyShortcut = (event: KeyboardEvent): boolean => {
+  return event.key.toLowerCase() === 'c' && !event.repeat && !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey;
 };
 
 export const Game: React.FC = () => {
@@ -504,8 +504,9 @@ export const Game: React.FC = () => {
       return;
     }
 
-    const handleControlPauseShortcut = (event: KeyboardEvent) => {
-      if (!isControlKeyShortcut(event) || isInteractiveGameShortcutTarget(event.target)) return;
+    const handlePauseShortcut = (event: KeyboardEvent) => {
+      if (!isPauseKeyShortcut(event) || isInteractiveGameShortcutTarget(event.target)) return;
+      if (keyBindings.some((key) => key.toUpperCase() === 'C')) return;
 
       event.preventDefault();
       setIsGamePaused((prev) => {
@@ -522,9 +523,9 @@ export const Game: React.FC = () => {
       });
     };
 
-    window.addEventListener('keydown', handleControlPauseShortcut);
-    return () => window.removeEventListener('keydown', handleControlPauseShortcut);
-  }, [gameState.gameStarted, gameState.gameEnded]);
+    window.addEventListener('keydown', handlePauseShortcut);
+    return () => window.removeEventListener('keydown', handlePauseShortcut);
+  }, [gameState.gameStarted, gameState.gameEnded, keyBindings]);
 
   useEffect(() => {
     if (!isTestMode || !gameState.gameStarted || gameState.gameEnded) return;
@@ -785,7 +786,7 @@ export const Game: React.FC = () => {
         >
           <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: '0.16em' }}>PAUSED</div>
           <div style={{ marginTop: 6, fontSize: 12, color: CHART_EDITOR_THEME.textSecondary }}>
-            Ctrl 키로 재개
+            C 키로 재개
           </div>
         </div>
       )}
