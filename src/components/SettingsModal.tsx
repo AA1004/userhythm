@@ -280,12 +280,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           padding: '24px',
           width: '560px',
           maxHeight: '84vh',
-          overflowY: 'auto',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
           border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '4px', marginRight: '-4px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <h2
             className="settings-modal-title"
@@ -769,7 +772,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               />
 
               <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginTop: '6px', lineHeight: 1.5, marginBottom: 0 }}>
-                레인 UI 투명도는 레인 배경, 경계선, 판정선, 키 박스에만 적용됩니다.
+                레인 UI 투명도는 레인 배경, 경계선, 키 박스에만 적용됩니다.
+                판정선은 가독성을 위해 항상 100% 불투명으로 유지됩니다.
                 판정 로직은 변경되지 않습니다.
               </p>
               {isGameplayActive && (
@@ -846,6 +850,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </>
         )}
+        </div>
 
         <button
           className="settings-modal-close"

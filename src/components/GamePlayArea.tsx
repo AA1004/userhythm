@@ -291,7 +291,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
           left={playfieldGeometry.judgeLineLeft}
           width={playfieldGeometry.judgeLineWidth}
           top={judgeLineY}
-          opacity={playfieldGeometry.laneOpacity}
+          opacity={1}
         />
       )}
 
