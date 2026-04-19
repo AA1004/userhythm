@@ -328,6 +328,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const lastPointerClientYRef = useRef<number | null>(null); // 재생선 드래그 중 마지막 마우스 Y 좌표
   const [pendingLongNote, setPendingLongNote] = useState<{ lane: Lane; startTime: number } | null>(null);
   const playheadRafIdRef = useRef<number | null>(null);
+  const dragPlayheadRafIdRef = useRef<number | null>(null);
   const lastTickTimestampRef = useRef<number | null>(null);
   const lastHitCheckTimeRef = useRef<number>(0);
   const playedNoteIdsRef = useRef<Set<number>>(new Set());
@@ -1328,6 +1329,44 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     handleYouTubeUrlSubmit(trimmed);
   }, [handleYouTubeUrlSubmit, youtubeUrl]);
 
+  const getTimeAtTimelineClientY = useCallback((clientY: number): number | null => {
+    const container = timelineScrollRef.current;
+    if (!container) return null;
+
+    const rect = container.getBoundingClientRect();
+    const relativeY = clientY - rect.top + container.scrollTop;
+    return clampTime(yToTime(relativeY));
+  }, [clampTime, yToTime]);
+
+  const setDraggedPlayheadTimeFromClientY = useCallback((clientY: number): number | null => {
+    const newTime = getTimeAtTimelineClientY(clientY);
+    if (newTime === null) return null;
+
+    internalTimeRef.current = newTime;
+    setCurrentTime(newTime);
+    return newTime;
+  }, [getTimeAtTimelineClientY]);
+
+  const scheduleDraggedPlayheadTimeUpdate = useCallback(() => {
+    if (dragPlayheadRafIdRef.current !== null) return;
+
+    dragPlayheadRafIdRef.current = requestAnimationFrame(() => {
+      dragPlayheadRafIdRef.current = null;
+      if (!isDraggingPlayheadRef.current) return;
+      if (lastPointerClientYRef.current == null) return;
+      setDraggedPlayheadTimeFromClientY(lastPointerClientYRef.current);
+    });
+  }, [setDraggedPlayheadTimeFromClientY]);
+
+  useEffect(() => {
+    return () => {
+      if (dragPlayheadRafIdRef.current !== null) {
+        cancelAnimationFrame(dragPlayheadRafIdRef.current);
+        dragPlayheadRafIdRef.current = null;
+      }
+    };
+  }, []);
+
   // 재생선 드래그 (모니터 주사율에 맞춰 부드럽게)
   const handlePlayheadMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault(); // 기본 드래그 동작 방지 (텍스트 선택 등)
@@ -1341,13 +1380,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     const SEEK_THROTTLE_MS = 100;
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
-      if (!timelineScrollRef.current) return;
-
-      const rect = timelineScrollRef.current.getBoundingClientRect();
-      const relativeY = moveEvent.clientY - rect.top + timelineScrollRef.current.scrollTop;
-      const newTime = clampTime(yToTime(relativeY));
-      setCurrentTime(newTime);
       lastPointerClientYRef.current = moveEvent.clientY;
+      const newTime = setDraggedPlayheadTimeFromClientY(moveEvent.clientY);
+      if (newTime === null) return;
 
       // YouTube 시크는 100ms마다 (드래그 중에도 동기화)
       const now = performance.now();
@@ -1363,12 +1398,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
+      if (dragPlayheadRafIdRef.current !== null) {
+        cancelAnimationFrame(dragPlayheadRafIdRef.current);
+        dragPlayheadRafIdRef.current = null;
+      }
 
       // 최종 위치로 이동 (YouTube 동기화 포함)
-      if (timelineScrollRef.current) {
-        const rect = timelineScrollRef.current.getBoundingClientRect();
-        const relativeY = upEvent.clientY - rect.top + timelineScrollRef.current.scrollTop;
-        const newTime = clampTime(yToTime(relativeY));
+      const newTime = setDraggedPlayheadTimeFromClientY(upEvent.clientY);
+      if (newTime !== null) {
         seekTo(newTime, { shouldPause: true });
         setIsPlaying(false);
       }
@@ -1383,7 +1420,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
-  }, [yToTime, seekTo, clampTime]);
+  }, [seekTo, setDraggedPlayheadTimeFromClientY]);
 
   // BPM Tap
   const handleTapBpm = useCallback(() => {
@@ -1744,19 +1781,18 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     const handleScroll = () => {
       if (!isDraggingPlayheadRef.current) return;
       if (lastPointerClientYRef.current == null) return;
-
-      const rect = container.getBoundingClientRect();
-      const relativeY =
-        lastPointerClientYRef.current - rect.top + container.scrollTop;
-      const newTime = clampTime(yToTime(relativeY));
-      setCurrentTime(newTime);
+      scheduleDraggedPlayheadTimeUpdate();
     };
 
     container.addEventListener('scroll', handleScroll);
     return () => {
       container.removeEventListener('scroll', handleScroll);
+      if (dragPlayheadRafIdRef.current !== null) {
+        cancelAnimationFrame(dragPlayheadRafIdRef.current);
+        dragPlayheadRafIdRef.current = null;
+      }
     };
-  }, [clampTime, yToTime]);
+  }, [scheduleDraggedPlayheadTimeUpdate]);
 
   // 키보드 핸들러 (에디터 전용 전역 단축키)
   const handleToggleEditorPlayback = useCallback(async () => {
