@@ -5,6 +5,17 @@ import { measureToTime } from '../utils/bpmUtils';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { PREVIEW_FADE_DURATION_MS, PREVIEW_TRANSITION_DURATION_MS, PREVIEW_VOLUME, PREVIEW_BGA_OPACITY } from '../constants/gameConstants';
 
+const INTERACTIVE_SHORTCUT_TARGET_SELECTOR =
+  'input, textarea, select, button, a[href], [role="button"], [contenteditable], [tabindex]:not([tabindex="-1"])';
+
+const isInteractiveShortcutTarget = (target: EventTarget | null): boolean => {
+  return target instanceof HTMLElement && target.closest(INTERACTIVE_SHORTCUT_TARGET_SELECTOR) !== null;
+};
+
+const isControlKeyShortcut = (event: KeyboardEvent): boolean => {
+  return event.key === 'Control' && !event.repeat && !event.altKey && !event.metaKey && !event.shiftKey;
+};
+
 interface ChartSelectProps {
   onSelect: (chartData: any) => void;
   onClose: () => void;
@@ -510,7 +521,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
     setCurrentPage(next);
   }, [currentPage, hasMore, isLoadingMore]);
 
-  const handleSelectChart = (chart: ApiChart) => {
+  const handleSelectChart = useCallback((chart: ApiChart) => {
     // Preview 플레이어 정리 - 게임에서 새 플레이어를 생성하므로 여기서 파괴
     if (previewLoopTimerRef.current) {
       clearInterval(previewLoopTimerRef.current);
@@ -561,7 +572,20 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
       console.error('Failed to parse chart data:', error);
       alert('채보 데이터를 불러오는데 실패했습니다.');
     }
-  };
+  }, [onSelect]);
+
+  useEffect(() => {
+    if (!selectedChart) return;
+
+    const handleControlStart = (event: KeyboardEvent) => {
+      if (!isControlKeyShortcut(event) || isInteractiveShortcutTarget(event.target)) return;
+      event.preventDefault();
+      handleSelectChart(selectedChart);
+    };
+
+    window.addEventListener('keydown', handleControlStart);
+    return () => window.removeEventListener('keydown', handleControlStart);
+  }, [handleSelectChart, selectedChart]);
 
   return (
     <div
@@ -1280,7 +1304,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                   e.currentTarget.style.transform = 'translateY(0)';
                 }}
               >
-                🎮 이 채보로 플레이
+                🎮 이 채보로 플레이 <span style={{ opacity: 0.72, fontSize: '12px' }}>(Ctrl)</span>
               </button>
             </div>
 

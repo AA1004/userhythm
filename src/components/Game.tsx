@@ -64,6 +64,17 @@ type ChartSelectTransitionState = {
 
 const GAMEPLAY_VISUAL_CLOCK_INTERVAL_MS = 80;
 
+const INTERACTIVE_GAME_SHORTCUT_TARGET_SELECTOR =
+  'input, textarea, select, button, a[href], [role="button"], [contenteditable], [tabindex]:not([tabindex="-1"])';
+
+const isInteractiveGameShortcutTarget = (target: EventTarget | null): boolean => {
+  return target instanceof HTMLElement && target.closest(INTERACTIVE_GAME_SHORTCUT_TARGET_SELECTOR) !== null;
+};
+
+const isControlKeyShortcut = (event: KeyboardEvent): boolean => {
+  return event.key === 'Control' && !event.repeat && !event.altKey && !event.metaKey && !event.shiftKey;
+};
+
 export const Game: React.FC = () => {
   const renderProfileStart = isGameplayProfilerEnabled() ? performance.now() : 0;
   const [viewMode, setViewMode] = useState<ViewMode>({ type: 'menu' });
@@ -480,6 +491,52 @@ export const Game: React.FC = () => {
     setChartListRefreshToken(nextRefreshToken);
     openChartSelect(nextRefreshToken);
   }, [destroyYoutubePlayer, setSubtitles, setBgaVisibilityIntervals, chartListRefreshToken, openChartSelect]);
+
+  const finishCurrentSong = useCallback(() => {
+    setGameState((prev) => {
+      if (!prev.gameStarted || prev.gameEnded) return prev;
+      return {
+        ...prev,
+        currentTime: currentTimeRef.current,
+        gameEnded: true,
+      };
+    });
+
+    if (isTestMode && testYoutubePlayerReady) {
+      pauseYoutubePlayer();
+    }
+  }, [isTestMode, pauseYoutubePlayer, testYoutubePlayerReady]);
+
+  useEffect(() => {
+    const handleControlSongShortcut = (event: KeyboardEvent) => {
+      if (!isControlKeyShortcut(event) || isInteractiveGameShortcutTarget(event.target)) return;
+
+      if (gameState.gameStarted && !gameState.gameEnded) {
+        event.preventDefault();
+        finishCurrentSong();
+        return;
+      }
+
+      if (gameState.gameEnded) {
+        event.preventDefault();
+        if (isTestMode) {
+          handleRetest();
+        } else {
+          resetGame();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleControlSongShortcut);
+    return () => window.removeEventListener('keydown', handleControlSongShortcut);
+  }, [
+    gameState.gameStarted,
+    gameState.gameEnded,
+    isTestMode,
+    finishCurrentSong,
+    handleRetest,
+    resetGame,
+  ]);
 
   useEffect(() => {
     if (!isTestMode || !gameState.gameStarted || gameState.gameEnded) return;

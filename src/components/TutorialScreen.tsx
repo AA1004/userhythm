@@ -146,6 +146,8 @@ const ControlsContent: React.FC = () => (
     <Section title="게임 시작/종료">
       <ul style={{ lineHeight: 1.8 }}>
         <li><strong>플레이</strong> 버튼을 눌러 채보 목록에서 곡을 선택합니다.</li>
+        <li>채보 목록에서 곡을 선택한 뒤 <strong>Ctrl</strong> 키로 바로 시작할 수 있습니다.</li>
+        <li>게임 중 <strong>Ctrl</strong> 키를 눌러 곡을 종료하고 결과 화면으로 이동합니다.</li>
         <li>게임 중 <strong>ESC</strong> 키를 눌러 나갈 수 있습니다.</li>
         <li>게임이 끝나면 결과 화면이 표시됩니다.</li>
       </ul>
