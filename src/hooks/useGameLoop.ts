@@ -26,7 +26,7 @@ export interface GameLoopState {
 export function useGameLoop(
   gameState: GameState,
   setGameState: (state: GameState | ((prev: GameState) => GameState)) => void,
-  onNoteMiss: (note: Note) => void,
+  onNoteMiss: (note: Note) => 'miss' | 'good' | void,
   speed: number = 1.0, // 속도 배율 (1.0 = 기본, 높을수록 빠름)
   startDelayMs: number = 0,
   externalCurrentTimeRef?: MutableRefObject<number>,
@@ -153,20 +153,6 @@ export function useGameLoop(
         if (shouldProfile) {
           recordGameplayMetric('hitProcessing', performance.now() - hitProcessingStart, newlyMissed.length);
         }
-
-        setGameState((prev: GameState) => {
-          const missCount = newlyMissed.length;
-
-          return {
-            ...prev,
-            currentTime: elapsedTime,
-            score: {
-              ...prev.score,
-              miss: prev.score.miss + missCount,
-              combo: 0,
-            },
-          };
-        });
       } else {
         // 매 프레임 currentTime 업데이트
         setGameState((prev: GameState) => ({
@@ -175,9 +161,34 @@ export function useGameLoop(
         }));
       }
 
-      if (hasMiss && onNoteMiss) {
+      if (hasMiss) {
         const notesToNotify = hitNoteIdsRef ? newlyMissed : missedInFrame;
-        notesToNotify.forEach((note) => onNoteMiss(note));
+        const resolvedJudges: Array<'miss' | 'good'> = notesToNotify.map((note) => {
+          const overrideJudge = onNoteMiss?.(note);
+          return overrideJudge === 'good' ? 'good' : 'miss';
+        });
+
+        setGameState((prev: GameState) => {
+          const nextScore = { ...prev.score };
+          for (const judge of resolvedJudges) {
+            if (judge === 'good') {
+              nextScore.good += 1;
+              nextScore.combo += 1;
+              if (nextScore.combo > nextScore.maxCombo) {
+                nextScore.maxCombo = nextScore.combo;
+              }
+            } else {
+              nextScore.miss += 1;
+              nextScore.combo = 0;
+            }
+          }
+
+          return {
+            ...prev,
+            currentTime: elapsedTime,
+            score: nextScore,
+          };
+        });
       }
 
       lastTimeRef.current = currentTime;

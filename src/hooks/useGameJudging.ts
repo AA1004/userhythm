@@ -55,7 +55,7 @@ export interface UseGameJudgingReturn {
   keyEffects: KeyEffect[];
   handleKeyPress: (lane: Lane) => void;
   handleKeyRelease: (lane: Lane) => void;
-  handleNoteMiss: (note: Note) => void;
+  handleNoteMiss: (note: Note) => 'miss' | 'good';
 }
 
 export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingReturn {
@@ -81,6 +81,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   const keyEffectTimersRef = useRef<Map<number, NodeJS.Timeout>>(new Map());
   const laneEffectIdsRef = useRef<Map<Lane, number>>(new Map());
   const judgeLaneCursorRef = useRef<number[]>([0, 0, 0, 0]);
+  const holdStartJudgeRef = useRef<Map<number, JudgeType>>(new Map());
 
   const updateScoreFromJudge = useCallback((judge: JudgeType, prevScore: GameState['score']): GameState['score'] => {
     const newScore = { ...prevScore };
@@ -221,7 +222,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       if (judge === null) return;
 
       const hitProcessingStart = shouldProfile ? performance.now() : 0;
-      if (!isHoldNote) {
+      if (!isHoldNote || judge === 'miss') {
         markNoteResolved(targetNote, hitNoteIdsRef);
       }
       if (shouldProfile) {
@@ -237,7 +238,8 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         };
       });
 
-      if (isHoldNote) {
+      if (isHoldNote && judge !== 'miss') {
+        holdStartJudgeRef.current.set(targetNote.id, judge);
         setHoldingNotes((prev) => {
           const next = new Map(prev);
           next.set(targetNote.id, targetNote);
@@ -271,16 +273,22 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
             typeof holdNote.endTime === 'number'
               ? holdNote.endTime
               : holdNote.time + (holdNote.duration || 0);
+          const startJudge = holdStartJudgeRef.current.get(holdNote.id);
           const timeDiff = Math.abs(endTime - currentTime);
           const holdReleaseWindow = judgeConfig.holdReleaseWindows.good;
           const isBeforeEnd = currentTime < endTime - holdReleaseWindow;
 
           if (timeDiff <= holdReleaseWindow) {
-            const judge = judgeHoldReleaseTiming(endTime - currentTime);
+            const releaseJudge = judgeHoldReleaseTiming(endTime - currentTime);
+            const finalJudge: JudgeType =
+              startJudge === 'perfect' && releaseJudge !== 'miss'
+                ? 'perfect'
+                : releaseJudge;
             markNoteResolved(holdNote, hitNoteIdsRef);
+            holdStartJudgeRef.current.delete(holdNote.id);
 
             setGameState((prevState) => {
-              const newScore = updateScoreFromJudge(judge, prevState.score);
+              const newScore = updateScoreFromJudge(finalJudge, prevState.score);
 
               return {
                 ...prevState,
@@ -288,14 +296,16 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
               };
             });
 
-            addJudgeFeedback(judge, lane);
+            addJudgeFeedback(finalJudge, lane);
             next.delete(holdNote.id);
           } else if (isBeforeEnd) {
             processedMissNotes.current.add(holdNote.id);
             markNoteResolved(holdNote, hitNoteIdsRef);
+            holdStartJudgeRef.current.delete(holdNote.id);
 
             setGameState((prevState) => {
-              const newScore = updateScoreFromJudge('miss', prevState.score);
+              const releaseFallbackJudge: JudgeType = startJudge ? 'good' : 'miss';
+              const newScore = updateScoreFromJudge(releaseFallbackJudge, prevState.score);
 
               return {
                 ...prevState,
@@ -303,7 +313,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
               };
             });
 
-            addJudgeFeedback('miss', lane);
+            addJudgeFeedback(startJudge ? 'good' : 'miss', lane);
             next.delete(holdNote.id);
           }
         }
@@ -317,9 +327,13 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
 
   const handleNoteMiss = useCallback(
     (note: Note) => {
-      if (processedMissNotes.current.has(note.id)) return;
+      if (processedMissNotes.current.has(note.id)) return 'miss';
       processedMissNotes.current.add(note.id);
       hitNoteIdsRef.current.add(note.id);
+      const startedHoldJudge = holdStartJudgeRef.current.get(note.id);
+      const shouldDowngradeMissToGood =
+        note.type === 'hold' && note.duration > 0 && !!startedHoldJudge;
+      holdStartJudgeRef.current.delete(note.id);
 
       setHoldingNotes((prev) => {
         if (!prev.has(note.id)) return prev;
@@ -329,7 +343,8 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         return next;
       });
 
-      addJudgeFeedback('miss', note.lane);
+      addJudgeFeedback(shouldDowngradeMissToGood ? 'good' : 'miss', note.lane);
+      return shouldDowngradeMissToGood ? 'good' : 'miss';
     },
     [processedMissNotes, hitNoteIdsRef, addJudgeFeedback]
   );
@@ -354,6 +369,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       setPressedKeys(new Set());
       setHoldingNotes(new Map());
       holdingNotesRef.current = new Map();
+      holdStartJudgeRef.current.clear();
       judgeLaneCursorRef.current = [0, 0, 0, 0];
     }
   }, [gameState.gameStarted]);
@@ -369,6 +385,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       });
       keyEffectTimersRef.current.clear();
       laneEffectIdsRef.current.clear();
+      holdStartJudgeRef.current.clear();
     };
   }, []);
 
