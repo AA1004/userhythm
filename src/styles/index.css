@@ -1965,7 +1965,12 @@ body {
 
 .game-end-grade {
   position: absolute;
-  top: 22px;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
   color: #ffcf5f;
   font-size: 28px;
   font-weight: 950;
