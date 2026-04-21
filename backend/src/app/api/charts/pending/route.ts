@@ -30,13 +30,21 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const statusParam = (searchParams.get('status') || 'pending').trim().toLowerCase();
+    const statusFilter =
+      statusParam === 'approved' || statusParam === 'rejected' || statusParam === 'pending' || statusParam === 'all'
+        ? statusParam
+        : 'pending';
+
     const charts = await prisma.chart.findMany({
-      where: { status: 'pending' },
+      where: statusFilter === 'all' ? {} : { status: statusFilter },
       orderBy: { createdAt: 'desc' },
       include: { user: { include: { profile: true } } },
     });
 
     return NextResponse.json({
+      status: statusFilter,
       charts: charts.map((c) =>
         serializeChart(c, {
           authorRole: c.user?.profile?.role || c.user?.role || undefined,

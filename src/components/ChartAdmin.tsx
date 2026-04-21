@@ -8,8 +8,11 @@ interface ChartAdminProps {
   onTestChart?: (chartData: any) => void;
 }
 
+type ChartListStatus = 'pending' | 'approved' | 'rejected' | 'all';
+
 export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) => {
-  const [pendingCharts, setPendingCharts] = useState<ApiChart[]>([]);
+  const [chartList, setChartList] = useState<ApiChart[]>([]);
+  const [listStatus, setListStatus] = useState<ChartListStatus>('approved');
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedChart, setSelectedChart] = useState<ApiChart | null>(null);
   const [adminToken, setAdminToken] = useState<string>('');
@@ -24,18 +27,18 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
     window.location.port === '5173';
 
-  const loadPendingCharts = useCallback(async () => {
+  const loadCharts = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.getPendingCharts();
-      setPendingCharts(res.charts);
+      const res = await api.getPendingCharts(listStatus);
+      setChartList(res.charts);
     } catch (error) {
       console.error('Failed to load pending charts:', error);
       alert('채보 목록을 불러오는데 실패했습니다.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [listStatus]);
 
   // localhost:5173이면 자동으로 인증
   useEffect(() => {
@@ -46,9 +49,9 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
 
   useEffect(() => {
     if (isAuthenticated) {
-      loadPendingCharts();
+      loadCharts();
     }
-  }, [isAuthenticated, loadPendingCharts]);
+  }, [isAuthenticated, loadCharts]);
 
   const handleLogin = () => {
     if (adminToken === ADMIN_TOKEN) {
@@ -67,7 +70,7 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
       alert('채보가 승인되었습니다!');
       setReviewComment('');
       setSelectedChart(null);
-      await loadPendingCharts();
+      await loadCharts();
     } catch (error) {
       console.error('Approval failed:', error);
       alert('승인에 실패했습니다.');
@@ -85,7 +88,7 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
       alert('채보가 거절되었습니다.');
       setReviewComment('');
       setSelectedChart(null);
-      await loadPendingCharts();
+      await loadCharts();
     } catch (error) {
       console.error('Rejection failed:', error);
       alert('거절에 실패했습니다.');
@@ -103,7 +106,7 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
       alert('맵이 삭제되었습니다.');
       setReviewComment('');
       setSelectedChart(null);
-      await loadPendingCharts();
+      await loadCharts();
     } catch (error) {
       console.error('Delete failed:', error);
       alert('맵 삭제에 실패했습니다.');
@@ -320,38 +323,63 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-            <h2 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '18px', margin: 0 }}>
-              대기 중인 채보 ({pendingCharts.length})
+                <h2 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '18px', margin: 0 }}>
+              채보 목록 ({chartList.length})
             </h2>
-            <button
-              onClick={loadPendingCharts}
-              disabled={loading}
-              style={{
-                padding: '6px 12px',
-                fontSize: '12px',
-                background: CHART_EDITOR_THEME.buttonGhostBg,
-                color: CHART_EDITOR_THEME.textPrimary,
-                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                borderRadius: CHART_EDITOR_THEME.radiusSm,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.6 : 1,
-              }}
-            >
-              {loading ? '로딩...' : '새로고침'}
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <select
+                value={listStatus}
+                onChange={(e) => {
+                  const nextStatus = e.target.value as ChartListStatus;
+                  setListStatus(nextStatus);
+                  setSelectedChart(null);
+                }}
+                disabled={loading}
+                style={{
+                  padding: '6px 10px',
+                  fontSize: '12px',
+                  background: CHART_EDITOR_THEME.inputBg,
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  border: `1px solid ${CHART_EDITOR_THEME.inputBorder}`,
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                }}
+              >
+                <option value="approved">승인됨</option>
+                <option value="pending">대기중</option>
+                <option value="rejected">거절됨</option>
+                <option value="all">전체</option>
+              </select>
+              <button
+                onClick={loadCharts}
+                disabled={loading}
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  background: CHART_EDITOR_THEME.buttonGhostBg,
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  opacity: loading ? 0.6 : 1,
+                }}
+              >
+                {loading ? '로딩...' : '새로고침'}
+              </button>
+            </div>
           </div>
 
           {loading ? (
             <div style={{ color: CHART_EDITOR_THEME.textSecondary, textAlign: 'center', padding: '20px' }}>
               로딩 중...
             </div>
-          ) : pendingCharts.length === 0 ? (
+          ) : chartList.length === 0 ? (
             <div style={{ color: CHART_EDITOR_THEME.textSecondary, textAlign: 'center', padding: '20px' }}>
-              대기 중인 채보가 없습니다.
+              선택한 조건의 채보가 없습니다.
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {pendingCharts.map((chart) => {
+              {chartList.map((chart) => {
                 const normalized = normalizeChart(chart);
                 return (
                 <div
@@ -381,7 +409,7 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
                           ADMIN
                         </span>
                       )}
-                      <span> | BPM: {chart.bpm} | 난이도: {chart.difficulty}</span>
+                      <span> | {chart.status} | BPM: {chart.bpm} | 난이도: {chart.difficulty}</span>
                   </div>
                   <div style={{ color: CHART_EDITOR_THEME.textMuted, fontSize: '11px' }}>
                     {chart.created_at ? new Date(chart.created_at).toLocaleString('ko-KR') : '정보 없음'}

@@ -130,12 +130,14 @@ export const api = {
     const res = await fetch(`${API_BASE}/api/charts/${id}`, { credentials: 'include' });
     return toJson(res) as Promise<{ chart: ApiChart }>;
   },
-  async getPendingCharts() {
-    const res = await fetch(`${API_BASE}/api/charts/pending`, {
+  async getPendingCharts(status: 'pending' | 'approved' | 'rejected' | 'all' = 'pending') {
+    const qs = new URLSearchParams();
+    qs.set('status', status);
+    const res = await fetch(`${API_BASE}/api/charts/pending?${qs.toString()}`, {
       headers: { 'x-admin-token': getAdminToken() },
       credentials: 'include',
     });
-    return toJson(res) as Promise<{ charts: ApiChart[] }>;
+    return toJson(res) as Promise<{ status: string; charts: ApiChart[] }>;
   },
   async updateChartStatus(id: string, status: 'approved' | 'rejected' | 'pending', comment?: string) {
     const res = await fetch(`${API_BASE}/api/charts/${id}/status`, {
