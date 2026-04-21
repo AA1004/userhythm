@@ -149,6 +149,16 @@ export const api = {
     });
     return toJson(res);
   },
+  async deleteChart(id: string) {
+    const res = await fetch(`${API_BASE}/api/charts/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'x-admin-token': getAdminToken(),
+      },
+      credentials: 'include',
+    });
+    return toJson(res) as Promise<{ success: boolean; id: string }>;
+  },
 
   async getLeaderboard(chartId?: string) {
     const qs = chartId ? `?chartId=${encodeURIComponent(chartId)}` : '';

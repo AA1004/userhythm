@@ -94,6 +94,24 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
     }
   };
 
+  const handleDelete = async (chartId: string) => {
+    if (!confirm('이 맵을 삭제하시겠습니까?\n삭제 후 복구할 수 없습니다.')) return;
+
+    setProcessing(true);
+    try {
+      await api.deleteChart(chartId);
+      alert('맵이 삭제되었습니다.');
+      setReviewComment('');
+      setSelectedChart(null);
+      await loadPendingCharts();
+    } catch (error) {
+      console.error('Delete failed:', error);
+      alert('맵 삭제에 실패했습니다.');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const normalizeChart = (chart: ApiChart) => {
     try {
       const data = JSON.parse(chart.data_json || '{}');
@@ -568,6 +586,24 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
                     {processing ? '처리 중...' : '✅ 승인'}
                   </button>
                 </div>
+                <button
+                  onClick={() => handleDelete(selectedChart.id)}
+                  disabled={processing}
+                  style={{
+                    width: '100%',
+                    marginTop: '10px',
+                    padding: '12px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    backgroundColor: processing ? '#3f3f46' : '#7f1d1d',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    cursor: processing ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {processing ? '처리 중...' : '🗑 맵 삭제'}
+                </button>
               </div>
             </div>
           ) : (
