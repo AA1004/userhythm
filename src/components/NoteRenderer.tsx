@@ -440,12 +440,14 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
             ? Math.max(0, Math.min(1, (currentTime - note.time) / note.duration))
             : 0;
 
-          ctx.save();
-          ctx.beginPath();
-          ctx.rect(left - 8, visibleTop, activeNoteWidth + 16, visibleBottom - visibleTop);
-          ctx.clip();
+          const bodyTop = Math.max(visibleTop, containerTop);
+          const bodyBottom = Math.min(visibleBottom, containerTop + containerHeight);
+          const bodyHeight = bodyBottom - bodyTop;
+          if (bodyHeight <= 0) return;
 
-          const bgGradient = ctx.createLinearGradient(left, containerTop, left, containerTop + containerHeight);
+          // Long notes can be far taller than the viewport. Draw only the clipped visible span
+          // so a long-note spawn never builds huge paths/gradients for offscreen pixels.
+          const bgGradient = ctx.createLinearGradient(left, bodyTop, left, bodyBottom);
           if (isHolding) {
             bgGradient.addColorStop(0, 'rgba(255,231,157,0.95)');
             bgGradient.addColorStop(1, 'rgba(255,193,7,0.65)');
@@ -458,55 +460,71 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           ctx.strokeStyle = 'rgba(255,255,255,0.25)';
           ctx.lineWidth = 2;
           const radius = 18;
-          drawRoundedRect(ctx, left, containerTop, activeNoteWidth, containerHeight, radius);
+          drawRoundedRect(ctx, left, bodyTop, activeNoteWidth, bodyHeight, radius);
           ctx.fill();
           ctx.stroke();
 
-          ctx.fillStyle = 'rgba(255,255,255,0.4)';
           const highlightRadius = 12;
           const highlightLeft = left + activeNoteWidth * 0.1;
           const highlightTop = containerTop + 4;
           const highlightWidth = activeNoteWidth * 0.8;
           const highlightHeight = 12;
-          drawRoundedRect(ctx, highlightLeft, highlightTop, highlightWidth, highlightHeight, highlightRadius);
-          ctx.fill();
+          const highlightBottom = highlightTop + highlightHeight;
+          if (highlightBottom >= visibleTop && highlightTop <= visibleBottom) {
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            drawRoundedRect(ctx, highlightLeft, highlightTop, highlightWidth, highlightHeight, highlightRadius);
+            ctx.fill();
+          }
 
           if (holdProgress > 0) {
             const progressHeight = (containerHeight - holdHeadHeight) * holdProgress;
-            const progressGradient = ctx.createLinearGradient(
-              left + activeNoteWidth * 0.18,
-              containerTop + containerHeight - holdHeadHeight - progressHeight,
-              left + activeNoteWidth * 0.18,
-              containerTop + containerHeight - holdHeadHeight
-            );
-            if (isHolding) {
-              progressGradient.addColorStop(0, 'rgba(255,255,255,0.85)');
-              progressGradient.addColorStop(0.7, 'rgba(255,255,255,0.4)');
-            } else {
-              progressGradient.addColorStop(0, 'rgba(255,255,255,0.35)');
-              progressGradient.addColorStop(0.7, 'rgba(255,255,255,0.15)');
-            }
-            ctx.fillStyle = progressGradient;
-            const progressRadius = 10;
-            const progressLeft = left + activeNoteWidth * 0.18;
             const progressTop = containerTop + containerHeight - holdHeadHeight - progressHeight;
-            const progressWidth = activeNoteWidth * 0.64;
-            drawRoundedRect(ctx, progressLeft, progressTop, progressWidth, progressHeight, progressRadius);
-            ctx.fill();
+            const progressBottom = containerTop + containerHeight - holdHeadHeight;
+            const visibleProgressTop = Math.max(progressTop, visibleTop);
+            const visibleProgressBottom = Math.min(progressBottom, visibleBottom);
+            const visibleProgressHeight = visibleProgressBottom - visibleProgressTop;
+            if (visibleProgressHeight > 0) {
+              const progressGradient = ctx.createLinearGradient(
+                left + activeNoteWidth * 0.18,
+                visibleProgressTop,
+                left + activeNoteWidth * 0.18,
+                visibleProgressBottom
+              );
+              if (isHolding) {
+                progressGradient.addColorStop(0, 'rgba(255,255,255,0.85)');
+                progressGradient.addColorStop(0.7, 'rgba(255,255,255,0.4)');
+              } else {
+                progressGradient.addColorStop(0, 'rgba(255,255,255,0.35)');
+                progressGradient.addColorStop(0.7, 'rgba(255,255,255,0.15)');
+              }
+              ctx.fillStyle = progressGradient;
+              const progressRadius = 10;
+              const progressLeft = left + activeNoteWidth * 0.18;
+              const progressWidth = activeNoteWidth * 0.64;
+              drawRoundedRect(
+                ctx,
+                progressLeft,
+                visibleProgressTop,
+                progressWidth,
+                visibleProgressHeight,
+                progressRadius
+              );
+              ctx.fill();
+            }
           }
 
           const headLeft = left + 6;
           const headTop = containerTop + containerHeight - holdHeadHeight;
           const headWidth = activeNoteWidth - 12;
-          ctx.drawImage(
-            getNoteSprite('holdHead', headWidth, holdHeadHeight, isHolding),
-            headLeft,
-            headTop,
-            headWidth,
-            holdHeadHeight
-          );
-
-          ctx.restore();
+          if (headTop + holdHeadHeight >= visibleTop && headTop <= visibleBottom) {
+            ctx.drawImage(
+              getNoteSprite('holdHead', headWidth, holdHeadHeight, isHolding),
+              headLeft,
+              headTop,
+              headWidth,
+              holdHeadHeight
+            );
+          }
           drawnNotes += 1;
         }
       };
