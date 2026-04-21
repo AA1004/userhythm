@@ -895,7 +895,6 @@ export const Game: React.FC = () => {
                 laneKeyLabels={laneKeyLabels}
                 isFromEditor={isFromEditor}
                 currentTimeRef={currentTimeRef}
-                currentTimeSnapshot={gameplayClockSnapshotMs}
                 fallDuration={fallDuration}
                 judgeLineY={judgeLineY}
                 playfieldGeometry={playfieldGeometry}

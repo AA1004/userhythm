@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Note } from '../types/game';
-import { LANE_POSITIONS } from '../constants/gameConstants';
+import { LANE_POSITIONS, NOTE_VISIBILITY_BUFFER_MS } from '../constants/gameConstants';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 import { HitNoteIdsRef, isNoteResolved } from '../utils/noteRuntimeState';
 
@@ -13,6 +13,72 @@ const NOTE_SPRITE_CACHE_LIMIT = 24;
 type NoteSpriteType = 'tap' | 'holdHead';
 
 const noteSpriteCache = new Map<string, HTMLCanvasElement>();
+
+function binarySearchEndIndex(notes: Note[], targetTime: number, startIdx: number): number {
+  let low = startIdx;
+  let high = notes.length;
+  while (low < high) {
+    const mid = (low + high) >>> 1;
+    if (notes[mid].time <= targetTime) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  return low - 1;
+}
+
+function binarySearchStartIndex(notes: Note[], targetTime: number): number {
+  let low = 0;
+  let high = notes.length;
+  while (low < high) {
+    const mid = (low + high) >>> 1;
+    if (notes[mid].time < targetTime) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  return low;
+}
+
+const getNoteRenderEndTime = (note: Note) =>
+  note.type === 'hold' && note.duration > 0 ? note.endTime || note.time + note.duration : note.time;
+
+function binarySearchHoldEndIndex(notes: Note[], holdIndicesByEnd: number[], targetTime: number): number {
+  let low = 0;
+  let high = holdIndicesByEnd.length;
+  while (low < high) {
+    const mid = (low + high) >>> 1;
+    if (getNoteRenderEndTime(notes[holdIndicesByEnd[mid]]) < targetTime) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  return low;
+}
+
+const getNotesRenderIndexSignature = (notes: Note[]) => {
+  const first = notes[0];
+  const last = notes[notes.length - 1];
+  return [
+    notes.length,
+    first?.id ?? 'none',
+    first?.time ?? 0,
+    first ? getNoteRenderEndTime(first) : 0,
+    last?.id ?? 'none',
+    last?.time ?? 0,
+    last ? getNoteRenderEndTime(last) : 0,
+  ].join(':');
+};
+
+interface NoteRenderIndex {
+  signature: string;
+  holdIndicesByEnd: number[];
+  startIndex: number;
+  lastViewportStart: number;
+}
 
 const drawRoundedRect = (
   ctx: CanvasRenderingContext2D,
@@ -211,6 +277,12 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
   const noteWidthRef = useRef(noteWidth);
   const noteHeightRef = useRef(noteHeight);
   const visibleRef = useRef(visible);
+  const renderIndexRef = useRef<NoteRenderIndex>({
+    signature: '',
+    holdIndicesByEnd: [],
+    startIndex: 0,
+    lastViewportStart: Number.NEGATIVE_INFINITY,
+  });
 
   useEffect(() => {
     notesRef.current = notes;
@@ -291,8 +363,40 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
       const activeNoteHeight = noteHeightRef.current;
       ctx.clearRect(0, 0, logicalWidth, logicalHeight);
 
-      for (const note of renderNotes) {
-        if (isNoteResolved(note, hitNoteIdsRef)) continue;
+      const filterProfileStart = shouldProfile ? performance.now() : 0;
+      let inspectedNotes = 0;
+
+      const renderIndexSignature = getNotesRenderIndexSignature(renderNotes);
+      if (renderIndexRef.current.signature !== renderIndexSignature) {
+        renderIndexRef.current = {
+          signature: renderIndexSignature,
+          holdIndicesByEnd: renderNotes
+            .map((note, index) => (note.type === 'hold' && note.duration > 0 ? index : -1))
+            .filter((index) => index >= 0)
+            .sort((a, b) => getNoteRenderEndTime(renderNotes[a]) - getNoteRenderEndTime(renderNotes[b])),
+          startIndex: 0,
+          lastViewportStart: Number.NEGATIVE_INFINITY,
+        };
+      }
+
+      const viewportStart = currentTime - activeFallDuration - NOTE_VISIBILITY_BUFFER_MS;
+      const viewportEnd = currentTime + activeFallDuration + NOTE_VISIBILITY_BUFFER_MS;
+      const binaryStartIdx = binarySearchStartIndex(renderNotes, viewportStart);
+      const canAdvanceCursor = viewportStart >= renderIndexRef.current.lastViewportStart;
+      const startIdx = canAdvanceCursor
+        ? Math.max(renderIndexRef.current.startIndex, binaryStartIdx)
+        : binaryStartIdx;
+      renderIndexRef.current.startIndex = startIdx;
+      renderIndexRef.current.lastViewportStart = viewportStart;
+      const endIdx = binarySearchEndIndex(renderNotes, viewportEnd, startIdx);
+
+      if (shouldProfile) {
+        recordGameplayMetric('visibleCursor', 0, startIdx);
+      }
+
+      const drawNote = (note: Note) => {
+        if (isNoteResolved(note, hitNoteIdsRef)) return;
+        if (note.time > viewportEnd || getNoteRenderEndTime(note) < viewportStart) return;
 
         const isHoldNote = note.duration > 0 && note.type === 'hold';
         const laneX = activeLaneCenters[note.lane] ?? LANE_POSITIONS[note.lane];
@@ -307,7 +411,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
             activeNoteWidth,
             activeNoteHeight
           );
-          if (!position) continue;
+          if (!position) return;
           const { left, top } = position;
 
           ctx.drawImage(
@@ -330,7 +434,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
             isHolding,
             logicalHeight
           );
-          if (!segment) continue;
+          if (!segment) return;
           const { containerTop, containerHeight, visibleTop, visibleBottom, holdHeadHeight } = segment;
           const holdProgress = note.duration
             ? Math.max(0, Math.min(1, (currentTime - note.time) / note.duration))
@@ -405,9 +509,24 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           ctx.restore();
           drawnNotes += 1;
         }
+      };
+
+      for (let i = startIdx; i <= endIdx && i < renderNotes.length; i += 1) {
+        inspectedNotes += 1;
+        drawNote(renderNotes[i]);
+      }
+
+      const holdIndicesByEnd = renderIndexRef.current.holdIndicesByEnd;
+      const holdStartIdx = binarySearchHoldEndIndex(renderNotes, holdIndicesByEnd, viewportStart);
+      for (let i = holdStartIdx; i < holdIndicesByEnd.length; i += 1) {
+        const note = renderNotes[holdIndicesByEnd[i]];
+        if (!note || note.time >= viewportStart) continue;
+        inspectedNotes += 1;
+        drawNote(note);
       }
 
       if (shouldProfile) {
+        recordGameplayMetric('visibleNoteFilter', performance.now() - filterProfileStart, inspectedNotes);
         recordGameplayMetric('noteRender', performance.now() - profileStart, drawnNotes);
       }
       rafIdRef.current = requestAnimationFrame(render);

@@ -1,84 +1,13 @@
-import React, { useMemo, useRef } from 'react';
-import { GameState, Note, Lane } from '../types/game';
+import React, { useRef } from 'react';
+import { GameState, Lane, Note } from '../types/game';
 import { KeyLane } from './KeyLane';
 import { JudgeLine } from './JudgeLine';
 import { NoteRenderer } from './NoteRenderer';
 import { ComboDisplay } from './ComboDisplay';
-import {
-  BASE_FALL_DURATION,
-  NOTE_VISIBILITY_BUFFER_MS,
-} from '../constants/gameConstants';
 import { PlayfieldGeometry } from '../constants/gameVisualSettings';
 import { GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 import { JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
-import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
-import { HitNoteIdsRef, isNoteResolved } from '../utils/noteRuntimeState';
-
-function binarySearchEndIndex(notes: Note[], targetTime: number, startIdx: number): number {
-  let low = startIdx;
-  let high = notes.length;
-  while (low < high) {
-    const mid = (low + high) >>> 1;
-    if (notes[mid].time <= targetTime) {
-      low = mid + 1;
-    } else {
-      high = mid;
-    }
-  }
-  return low - 1;
-}
-
-function binarySearchStartIndex(notes: Note[], targetTime: number): number {
-  let low = 0;
-  let high = notes.length;
-  while (low < high) {
-    const mid = (low + high) >>> 1;
-    if (notes[mid].time < targetTime) {
-      low = mid + 1;
-    } else {
-      high = mid;
-    }
-  }
-  return low;
-}
-
-function binarySearchHoldEndIndex(notes: Note[], holdIndicesByEnd: number[], targetTime: number): number {
-  let low = 0;
-  let high = holdIndicesByEnd.length;
-  while (low < high) {
-    const mid = (low + high) >>> 1;
-    if (getNoteRenderEndTime(notes[holdIndicesByEnd[mid]]) < targetTime) {
-      low = mid + 1;
-    } else {
-      high = mid;
-    }
-  }
-  return low;
-}
-
-const getNoteRenderEndTime = (note: Note) =>
-  note.type === 'hold' && note.duration > 0 ? note.endTime || note.time + note.duration : note.time;
-
-const getNotesRenderIndexSignature = (notes: Note[]) => {
-  const first = notes[0];
-  const last = notes[notes.length - 1];
-  return [
-    notes.length,
-    first?.id ?? 'none',
-    first?.time ?? 0,
-    first ? getNoteRenderEndTime(first) : 0,
-    last?.id ?? 'none',
-    last?.time ?? 0,
-    last ? getNoteRenderEndTime(last) : 0,
-  ].join(':');
-};
-
-interface NoteRenderIndex {
-  signature: string;
-  holdIndicesByEnd: number[];
-  startIndex: number;
-  lastViewportStart: number;
-}
+import { HitNoteIdsRef } from '../utils/noteRuntimeState';
 
 interface GamePlayAreaProps {
   gameState: GameState;
@@ -93,7 +22,6 @@ interface GamePlayAreaProps {
   laneKeyLabels: string[][];
   isFromEditor: boolean;
   currentTimeRef: React.MutableRefObject<number>;
-  currentTimeSnapshot: number;
   fallDuration: number;
   judgeLineY: number;
   playfieldGeometry: PlayfieldGeometry;
@@ -105,7 +33,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   gameStarted,
   bgaMaskOpacity,
   isLaneUiVisible,
-  speed,
+  speed: _speed,
   pressedKeys,
   holdingNotes,
   judgeFeedbacks,
@@ -113,97 +41,12 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
   laneKeyLabels,
   isFromEditor: _isFromEditor,
   currentTimeRef,
-  currentTimeSnapshot,
   fallDuration,
   judgeLineY,
   playfieldGeometry,
   hitNoteIdsRef,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const renderIndexRef = useRef<NoteRenderIndex>({
-    signature: '',
-    holdIndicesByEnd: [],
-    startIndex: 0,
-    lastViewportStart: Number.NEGATIVE_INFINITY,
-  });
-
-  const visibleNotes = useMemo(() => {
-    const shouldProfile = isGameplayProfilerEnabled();
-    const profileStart = shouldProfile ? performance.now() : 0;
-    let inspectedNotes = 0;
-
-    const recordProfile = () => {
-      if (shouldProfile) {
-        recordGameplayMetric('visibleNoteFilter', performance.now() - profileStart, inspectedNotes);
-      }
-    };
-
-    if (!isLaneUiVisible) {
-      recordProfile();
-      return [];
-    }
-
-    const notes = gameState.notes;
-    if (notes.length === 0) {
-      recordProfile();
-      return [];
-    }
-
-    const renderIndexSignature = getNotesRenderIndexSignature(notes);
-    if (renderIndexRef.current.signature !== renderIndexSignature) {
-      renderIndexRef.current = {
-        signature: renderIndexSignature,
-        startIndex: 0,
-        lastViewportStart: Number.NEGATIVE_INFINITY,
-        holdIndicesByEnd: notes
-          .map((note, index) => (note.type === 'hold' && note.duration > 0 ? index : -1))
-          .filter((index) => index >= 0)
-          .sort((a, b) => getNoteRenderEndTime(notes[a]) - getNoteRenderEndTime(notes[b])),
-      };
-    }
-
-    const baseDuration = BASE_FALL_DURATION / speed;
-    const viewportStart = currentTimeSnapshot - baseDuration - NOTE_VISIBILITY_BUFFER_MS;
-    const viewportEnd = currentTimeSnapshot + baseDuration + NOTE_VISIBILITY_BUFFER_MS;
-
-    const binaryStartIdx = binarySearchStartIndex(notes, viewportStart);
-    const canAdvanceCursor = viewportStart >= renderIndexRef.current.lastViewportStart;
-    const startIdx = canAdvanceCursor
-      ? Math.max(renderIndexRef.current.startIndex, binaryStartIdx)
-      : binaryStartIdx;
-    renderIndexRef.current.startIndex = startIdx;
-    renderIndexRef.current.lastViewportStart = viewportStart;
-    const endIdx = binarySearchEndIndex(notes, viewportEnd, startIdx);
-    if (shouldProfile) {
-      recordGameplayMetric('visibleCursor', 0, startIdx);
-    }
-
-    const result: Note[] = [];
-    const addedNoteIds = new Set<number>();
-    const addVisibleNote = (note: Note) => {
-      if (isNoteResolved(note, hitNoteIdsRef) || addedNoteIds.has(note.id)) return;
-      if (getNoteRenderEndTime(note) < viewportStart || note.time > viewportEnd) return;
-      addedNoteIds.add(note.id);
-      result.push(note);
-    };
-
-    for (let i = startIdx; i <= endIdx && i < notes.length; i++) {
-      inspectedNotes += 1;
-      addVisibleNote(notes[i]);
-    }
-
-    const holdIndicesByEnd = renderIndexRef.current.holdIndicesByEnd;
-    const holdStartIdx = binarySearchHoldEndIndex(notes, holdIndicesByEnd, viewportStart);
-    for (let i = holdStartIdx; i < holdIndicesByEnd.length; i++) {
-      const note = notes[holdIndicesByEnd[i]];
-      inspectedNotes += 1;
-      if (!note || note.time >= viewportStart) continue;
-      addVisibleNote(note);
-    }
-
-    recordProfile();
-    return result;
-  }, [gameState.notes, currentTimeSnapshot, speed, isLaneUiVisible, hitNoteIdsRef]);
 
   const judgeFeedbackTop = Math.max(120, judgeLineY - 140);
   const topExtensionHeight = Math.max(100, Math.min(GAME_VIEW_HEIGHT * 0.58, judgeLineY - 36));
@@ -286,7 +129,7 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
           />
           <NoteRenderer
             canvasRef={canvasRef}
-            notes={visibleNotes}
+            notes={gameState.notes}
             currentTimeRef={currentTimeRef}
             fallDuration={fallDuration}
             judgeLineY={judgeLineY}
