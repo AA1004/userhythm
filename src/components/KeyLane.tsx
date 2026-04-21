@@ -41,13 +41,13 @@ const KeyLaneComponent: React.FC<KeyLaneProps> = ({
   const laneShadow = isNewVariant
     ? isPressed
       ? glowEnabled
-        ? '0 0 20px rgba(104, 244, 213, 0.45), 0 10px 18px rgba(255, 109, 147, 0.24)'
+        ? '0 0 0 2px rgba(104, 244, 213, 0.5), 0 6px 12px rgba(0, 0, 0, 0.3)'
         : '0 6px 14px rgba(0, 0, 0, 0.3)'
       : glowEnabled
-      ? '0 6px 14px rgba(0, 0, 0, 0.28), 0 0 14px rgba(104, 244, 213, 0.12)'
+      ? '0 6px 12px rgba(0, 0, 0, 0.26)'
       : '0 6px 14px rgba(0, 0, 0, 0.28)'
     : isPressed && glowEnabled
-    ? '0 0 20px rgba(255, 193, 7, 0.6)'
+    ? '0 0 0 2px rgba(255, 193, 7, 0.7), 0 6px 12px rgba(0,0,0,0.3)'
     : '0 4px 8px rgba(0,0,0,0.3)';
 
   return (

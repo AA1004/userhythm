@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { startTransition, useState, useRef, useCallback, useEffect } from 'react';
 import { Lane, Note, JudgeType, GameState } from '../types/game';
 import { judgeTiming, judgeHoldReleaseTiming } from '../utils/judge';
 import { judgeConfig } from '../config/judgeConfig';
@@ -152,6 +152,18 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     return newScore;
   }, []);
 
+  const enqueueScoreJudge = useCallback(
+    (judge: JudgeType) => {
+      startTransition(() => {
+        setGameState((prev) => ({
+          ...prev,
+          score: updateScoreFromJudge(judge, prev.score),
+        }));
+      });
+    },
+    [setGameState, updateScoreFromJudge]
+  );
+
   const addJudgeFeedback = useCallback(
     (judge: JudgeType, lane: Lane) => {
       const currentState = gameStateRef.current;
@@ -159,23 +171,25 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
 
       const expiresAt = Date.now() + JUDGE_FEEDBACK_DURATION_MS;
       const feedbackId = feedbackIdRef.current++;
-      setJudgeFeedbacks(() => {
-        const next = [{ id: feedbackId, judge, expiresAt }];
-        judgeFeedbacksRef.current = next;
-        return next;
-      });
-
       const effectId = keyEffectIdRef.current++;
       const effectX = laneCenters[lane] ?? LANE_POSITIONS[lane];
       const effectY = judgeLineY;
 
-      setKeyEffects((prev) => {
-        const next = [
-          ...prev.filter((effect) => effect.lane !== lane),
-          { id: effectId, lane, x: effectX, y: effectY, judge, expiresAt },
-        ].slice(-4);
-        keyEffectsRef.current = next;
-        return next;
+      startTransition(() => {
+        setJudgeFeedbacks(() => {
+          const next = [{ id: feedbackId, judge, expiresAt }];
+          judgeFeedbacksRef.current = next;
+          return next;
+        });
+
+        setKeyEffects((prev) => {
+          const next = [
+            ...prev.filter((effect) => effect.lane !== lane),
+            { id: effectId, lane, x: effectX, y: effectY, judge, expiresAt },
+          ].slice(-4);
+          keyEffectsRef.current = next;
+          return next;
+        });
       });
     },
     [gameStateRef, laneCenters, judgeLineY]
@@ -243,14 +257,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         recordGameplayMetric('hitProcessing', performance.now() - hitProcessingStart, 1);
       }
 
-      setGameState((prev) => {
-        const newScore = updateScoreFromJudge(judge, prev.score);
-
-        return {
-          ...prev,
-          score: newScore,
-        };
-      });
+      enqueueScoreJudge(judge);
 
       if (isHoldNote && judge !== 'miss') {
         holdStartJudgeRef.current.set(targetNote.id, judge);
@@ -264,7 +271,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
 
       addJudgeFeedback(judge, lane);
     },
-    [gameStateRef, currentTimeRef, hitNoteIdsRef, setGameState, updateScoreFromJudge, addJudgeFeedback]
+    [gameStateRef, currentTimeRef, hitNoteIdsRef, enqueueScoreJudge, addJudgeFeedback]
   );
 
   const handleKeyRelease = useCallback(
@@ -301,14 +308,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
             markNoteResolved(holdNote, hitNoteIdsRef);
             holdStartJudgeRef.current.delete(holdNote.id);
 
-            setGameState((prevState) => {
-              const newScore = updateScoreFromJudge(finalJudge, prevState.score);
-
-              return {
-                ...prevState,
-                score: newScore,
-              };
-            });
+            enqueueScoreJudge(finalJudge);
 
             addJudgeFeedback(finalJudge, lane);
             next.delete(holdNote.id);
@@ -317,17 +317,10 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
             markNoteResolved(holdNote, hitNoteIdsRef);
             holdStartJudgeRef.current.delete(holdNote.id);
 
-            setGameState((prevState) => {
-              const releaseFallbackJudge: JudgeType = startJudge ? 'good' : 'miss';
-              const newScore = updateScoreFromJudge(releaseFallbackJudge, prevState.score);
+            const releaseFallbackJudge: JudgeType = startJudge ? 'good' : 'miss';
+            enqueueScoreJudge(releaseFallbackJudge);
 
-              return {
-                ...prevState,
-                score: newScore,
-              };
-            });
-
-            addJudgeFeedback(startJudge ? 'good' : 'miss', lane);
+            addJudgeFeedback(releaseFallbackJudge, lane);
             next.delete(holdNote.id);
           }
         }
@@ -336,7 +329,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         return next;
       });
     },
-    [currentTimeRef, hitNoteIdsRef, setGameState, processedMissNotes, updateScoreFromJudge, addJudgeFeedback]
+    [currentTimeRef, hitNoteIdsRef, processedMissNotes, enqueueScoreJudge, addJudgeFeedback]
   );
 
   const handleNoteMiss = useCallback(
