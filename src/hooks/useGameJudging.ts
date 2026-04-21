@@ -73,8 +73,11 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   } = options;
 
   const [pressedKeys, setPressedKeys] = useState<Set<Lane>>(new Set());
+  const pressedKeysRef = useRef<Set<Lane>>(new Set());
+  const pressedKeysFrameRef = useRef<number | null>(null);
   const [holdingNotes, setHoldingNotes] = useState<Map<number, Note>>(new Map());
   const holdingNotesRef = useRef<Map<number, Note>>(new Map());
+  const holdingNotesFrameRef = useRef<number | null>(null);
   const [judgeFeedbacks, setJudgeFeedbacks] = useState<JudgeFeedback[]>([]);
   const judgeFeedbacksRef = useRef<JudgeFeedback[]>([]);
   const feedbackIdRef = useRef(0);
@@ -152,6 +155,28 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     return newScore;
   }, []);
 
+  const commitPressedKeysNextFrame = useCallback(() => {
+    if (pressedKeysFrameRef.current !== null) return;
+    pressedKeysFrameRef.current = requestAnimationFrame(() => {
+      pressedKeysFrameRef.current = null;
+      const next = new Set(pressedKeysRef.current);
+      startTransition(() => {
+        setPressedKeys(next);
+      });
+    });
+  }, []);
+
+  const commitHoldingNotesNextFrame = useCallback(() => {
+    if (holdingNotesFrameRef.current !== null) return;
+    holdingNotesFrameRef.current = requestAnimationFrame(() => {
+      holdingNotesFrameRef.current = null;
+      const next = new Map(holdingNotesRef.current);
+      startTransition(() => {
+        setHoldingNotes(next);
+      });
+    });
+  }, []);
+
   const enqueueScoreJudge = useCallback(
     (judge: JudgeType) => {
       startTransition(() => {
@@ -200,12 +225,12 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       const currentState = gameStateRef.current;
       if (!currentState.gameStarted || currentState.gameEnded) return;
 
-      setPressedKeys((prev) => {
-        if (prev.has(lane)) return prev;
-        const next = new Set(prev);
-        next.add(lane);
-        return next;
-      });
+      if (!pressedKeysRef.current.has(lane)) {
+        const nextPressedKeys = new Set(pressedKeysRef.current);
+        nextPressedKeys.add(lane);
+        pressedKeysRef.current = nextPressedKeys;
+        commitPressedKeysNextFrame();
+      }
 
       const currentTime = currentTimeRef.current;
       let targetNote: Note | null = null;
@@ -261,75 +286,90 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
 
       if (isHoldNote && judge !== 'miss') {
         holdStartJudgeRef.current.set(targetNote.id, judge);
-        setHoldingNotes((prev) => {
-          const next = new Map(prev);
-          next.set(targetNote.id, targetNote);
-          holdingNotesRef.current = next;
-          return next;
-        });
+        const nextHoldingNotes = new Map(holdingNotesRef.current);
+        nextHoldingNotes.set(targetNote.id, targetNote);
+        holdingNotesRef.current = nextHoldingNotes;
+        commitHoldingNotesNextFrame();
       }
 
       addJudgeFeedback(judge, lane);
     },
-    [gameStateRef, currentTimeRef, hitNoteIdsRef, enqueueScoreJudge, addJudgeFeedback]
+    [
+      gameStateRef,
+      currentTimeRef,
+      hitNoteIdsRef,
+      enqueueScoreJudge,
+      addJudgeFeedback,
+      commitPressedKeysNextFrame,
+      commitHoldingNotesNextFrame,
+    ]
   );
 
   const handleKeyRelease = useCallback(
     (lane: Lane) => {
-      setPressedKeys((prev) => {
-        const next = new Set(prev);
-        next.delete(lane);
-        return next;
-      });
+      if (pressedKeysRef.current.has(lane)) {
+        const nextPressedKeys = new Set(pressedKeysRef.current);
+        nextPressedKeys.delete(lane);
+        pressedKeysRef.current = nextPressedKeys;
+        commitPressedKeysNextFrame();
+      }
 
-      setHoldingNotes((prev) => {
-        const next = new Map(prev);
-        const laneHoldNotes = Array.from(prev.values()).filter(
-          (note) => note.lane === lane && !isNoteResolved(note, hitNoteIdsRef)
-        );
+      const nextHoldingNotes = new Map(holdingNotesRef.current);
+      const laneHoldNotes = Array.from(nextHoldingNotes.values()).filter(
+        (note) => note.lane === lane && !isNoteResolved(note, hitNoteIdsRef)
+      );
 
-        for (const holdNote of laneHoldNotes) {
-          const currentTime = currentTimeRef.current;
-          const endTime =
-            typeof holdNote.endTime === 'number'
-              ? holdNote.endTime
-              : holdNote.time + (holdNote.duration || 0);
-          const startJudge = holdStartJudgeRef.current.get(holdNote.id);
-          const timeDiff = Math.abs(endTime - currentTime);
-          const holdReleaseWindow = judgeConfig.holdReleaseWindows.good;
-          const isBeforeEnd = currentTime < endTime - holdReleaseWindow;
+      for (const holdNote of laneHoldNotes) {
+        const currentTime = currentTimeRef.current;
+        const endTime =
+          typeof holdNote.endTime === 'number'
+            ? holdNote.endTime
+            : holdNote.time + (holdNote.duration || 0);
+        const startJudge = holdStartJudgeRef.current.get(holdNote.id);
+        const timeDiff = Math.abs(endTime - currentTime);
+        const holdReleaseWindow = judgeConfig.holdReleaseWindows.good;
+        const isBeforeEnd = currentTime < endTime - holdReleaseWindow;
 
-          if (timeDiff <= holdReleaseWindow) {
-            const releaseJudge = judgeHoldReleaseTiming(endTime - currentTime);
-            const finalJudge: JudgeType =
-              startJudge === 'perfect' && releaseJudge !== 'miss'
-                ? 'perfect'
-                : releaseJudge;
-            markNoteResolved(holdNote, hitNoteIdsRef);
-            holdStartJudgeRef.current.delete(holdNote.id);
+        if (timeDiff <= holdReleaseWindow) {
+          const releaseJudge = judgeHoldReleaseTiming(endTime - currentTime);
+          const finalJudge: JudgeType =
+            startJudge === 'perfect' && releaseJudge !== 'miss'
+              ? 'perfect'
+              : releaseJudge;
+          markNoteResolved(holdNote, hitNoteIdsRef);
+          holdStartJudgeRef.current.delete(holdNote.id);
 
-            enqueueScoreJudge(finalJudge);
+          enqueueScoreJudge(finalJudge);
 
-            addJudgeFeedback(finalJudge, lane);
-            next.delete(holdNote.id);
-          } else if (isBeforeEnd) {
-            processedMissNotes.current.add(holdNote.id);
-            markNoteResolved(holdNote, hitNoteIdsRef);
-            holdStartJudgeRef.current.delete(holdNote.id);
+          addJudgeFeedback(finalJudge, lane);
+          nextHoldingNotes.delete(holdNote.id);
+        } else if (isBeforeEnd) {
+          processedMissNotes.current.add(holdNote.id);
+          markNoteResolved(holdNote, hitNoteIdsRef);
+          holdStartJudgeRef.current.delete(holdNote.id);
 
-            const releaseFallbackJudge: JudgeType = startJudge ? 'good' : 'miss';
-            enqueueScoreJudge(releaseFallbackJudge);
+          const releaseFallbackJudge: JudgeType = startJudge ? 'good' : 'miss';
+          enqueueScoreJudge(releaseFallbackJudge);
 
-            addJudgeFeedback(releaseFallbackJudge, lane);
-            next.delete(holdNote.id);
-          }
+          addJudgeFeedback(releaseFallbackJudge, lane);
+          nextHoldingNotes.delete(holdNote.id);
         }
+      }
 
-        holdingNotesRef.current = next;
-        return next;
-      });
+      if (laneHoldNotes.length > 0) {
+        holdingNotesRef.current = nextHoldingNotes;
+        commitHoldingNotesNextFrame();
+      }
     },
-    [currentTimeRef, hitNoteIdsRef, processedMissNotes, enqueueScoreJudge, addJudgeFeedback]
+    [
+      currentTimeRef,
+      hitNoteIdsRef,
+      processedMissNotes,
+      enqueueScoreJudge,
+      addJudgeFeedback,
+      commitPressedKeysNextFrame,
+      commitHoldingNotesNextFrame,
+    ]
   );
 
   const handleNoteMiss = useCallback(
@@ -384,9 +424,10 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       clearEffectCleanupTimer();
       setJudgeFeedbacks([]);
       setKeyEffects([]);
+      pressedKeysRef.current = new Set();
+      holdingNotesRef.current = new Map();
       setPressedKeys(new Set());
       setHoldingNotes(new Map());
-      holdingNotesRef.current = new Map();
       holdStartJudgeRef.current.clear();
       judgeLaneCursorRef.current = [0, 0, 0, 0];
     }
@@ -395,6 +436,14 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   useEffect(() => {
     return () => {
       clearEffectCleanupTimer();
+      if (pressedKeysFrameRef.current !== null) {
+        cancelAnimationFrame(pressedKeysFrameRef.current);
+        pressedKeysFrameRef.current = null;
+      }
+      if (holdingNotesFrameRef.current !== null) {
+        cancelAnimationFrame(holdingNotesFrameRef.current);
+        holdingNotesFrameRef.current = null;
+      }
       holdStartJudgeRef.current.clear();
     };
   }, [clearEffectCleanupTimer]);
