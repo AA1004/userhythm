@@ -9,6 +9,7 @@ import {
   VisualPresetId,
 } from '../constants/gameVisualSettings';
 import { GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH } from '../constants/gameLayout';
+import { getKeyBindingFromInput } from '../utils/keyBinding';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -154,9 +155,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
     if (recordingKeyIndex !== index) return;
     e.preventDefault();
-    const key = e.key.toUpperCase();
-    if (key.length === 1 || ['ARROWUP', 'ARROWDOWN', 'ARROWLEFT', 'ARROWRIGHT', 'SPACE'].includes(key)) {
-      onKeyBindingChange(index, key === ' ' ? 'SPACE' : key);
+    const key = getKeyBindingFromInput({ code: e.code, key: e.key });
+    if (key) {
+      onKeyBindingChange(index, key);
       setRecordingKeyIndex(null);
     }
   };
@@ -396,6 +397,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
               <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginTop: '6px', marginBottom: 0 }}>
                 버튼 클릭 후 원하는 키를 누르세요.
+                넘패드는 Enter/NumLock을 제외하고 설정할 수 있습니다.
               </p>
             </div>
 
