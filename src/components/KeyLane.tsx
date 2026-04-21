@@ -69,7 +69,8 @@ const KeyLaneComponent: React.FC<KeyLaneProps> = ({
           pulseEnabled && isPressed
             ? 'translateX(-50%) translateY(2px) scale(0.97)'
             : 'translateX(-50%) scale(1)',
-        transition: 'transform 50ms ease, background 90ms ease, border-color 90ms ease, box-shadow 90ms ease',
+        transition: 'transform 40ms ease, opacity 80ms linear',
+        willChange: 'transform',
         boxShadow: laneShadow,
         opacity,
         overflow: 'hidden',

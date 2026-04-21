@@ -26,7 +26,7 @@ const ComboDisplayComponent: React.FC<ComboDisplayProps> = ({
       }
       aria-label={`Combo ${combo}`}
     >
-      <span className="combo-display__number" key={combo}>
+      <span className="combo-display__number">
         {combo}
       </span>
       <span className="combo-display__label">COMBO</span>

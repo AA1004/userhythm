@@ -94,9 +94,8 @@ body {
   user-select: none;
   color: rgba(245, 252, 255, 0.96);
   text-align: center;
-  filter:
-    drop-shadow(0 0 10px rgba(119, 255, 214, 0.18))
-    drop-shadow(0 8px 18px rgba(0, 0, 0, 0.36));
+  contain: layout paint style;
+  text-shadow: 0 8px 18px rgba(0, 0, 0, 0.36);
 }
 
 .combo-display__number {
@@ -111,9 +110,7 @@ body {
   font-variant-numeric: tabular-nums;
   text-shadow:
     0 0 1px rgba(255, 255, 255, 0.9),
-    0 0 18px rgba(119, 255, 214, 0.22),
-    0 0 34px rgba(66, 216, 255, 0.12);
-  animation: comboNumberPulse 140ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    0 0 14px rgba(119, 255, 214, 0.16);
 }
 
 .combo-display__label {
@@ -725,6 +722,8 @@ body {
   height: 108px;
   pointer-events: none;
   z-index: 500;
+  contain: layout paint style;
+  will-change: transform, opacity;
   /* CSS vars */
   --hit-color: rgba(34, 211, 238, 1); /* fallback */
   --hit-color-soft: rgba(34, 211, 238, 0.35);
@@ -740,9 +739,7 @@ body {
   transform: translate(-50%, -50%);
   transform-origin: 50% 50%;
   animation: keyHitCross 520ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  filter: drop-shadow(0 0 10px var(--hit-color-soft))
-    drop-shadow(0 0 18px color-mix(in oklab, var(--hit-color) 55%, white 45%));
-  mix-blend-mode: screen;
+  will-change: transform, opacity;
 }
 
 .key-hit__cross::before,
@@ -756,11 +753,12 @@ body {
   background: linear-gradient(
     90deg,
     rgba(255, 255, 255, 0) 0%,
-    color-mix(in oklab, var(--hit-color) 70%, white 30%) 22%,
+    var(--hit-color) 22%,
     rgba(255, 255, 255, 0.95) 50%,
-    color-mix(in oklab, var(--hit-color) 70%, white 30%) 78%,
+    var(--hit-color) 78%,
     rgba(255, 255, 255, 0) 100%
   );
+  box-shadow: 0 0 10px var(--hit-color-soft);
 }
 
 /* 대각선 바 (왼쪽 위 → 오른쪽 아래) */

@@ -169,10 +169,14 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       const effectX = laneCenters[lane] ?? LANE_POSITIONS[lane];
       const effectY = judgeLineY;
 
-      setKeyEffects((prev) => [
-        ...prev.filter((effect) => effect.lane !== lane),
-        { id: effectId, lane, x: effectX, y: effectY, judge, expiresAt },
-      ]);
+      setKeyEffects((prev) => {
+        const next = [
+          ...prev.filter((effect) => effect.lane !== lane),
+          { id: effectId, lane, x: effectX, y: effectY, judge, expiresAt },
+        ].slice(-4);
+        keyEffectsRef.current = next;
+        return next;
+      });
     },
     [gameStateRef, laneCenters, judgeLineY]
   );
