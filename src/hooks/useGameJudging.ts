@@ -76,11 +76,52 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   const [holdingNotes, setHoldingNotes] = useState<Map<number, Note>>(new Map());
   const holdingNotesRef = useRef<Map<number, Note>>(new Map());
   const [judgeFeedbacks, setJudgeFeedbacks] = useState<JudgeFeedback[]>([]);
+  const judgeFeedbacksRef = useRef<JudgeFeedback[]>([]);
   const feedbackIdRef = useRef(0);
   const [keyEffects, setKeyEffects] = useState<KeyEffect[]>([]);
+  const keyEffectsRef = useRef<KeyEffect[]>([]);
   const keyEffectIdRef = useRef(0);
+  const effectCleanupTimerRef = useRef<NodeJS.Timeout | null>(null);
   const judgeLaneCursorRef = useRef<number[]>([0, 0, 0, 0]);
   const holdStartJudgeRef = useRef<Map<number, JudgeType>>(new Map());
+
+  const clearEffectCleanupTimer = useCallback(() => {
+    if (effectCleanupTimerRef.current) {
+      clearTimeout(effectCleanupTimerRef.current);
+      effectCleanupTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleEffectCleanup = useCallback(() => {
+    clearEffectCleanupTimer();
+
+    const candidates = [
+      ...judgeFeedbacksRef.current.map((feedback) => feedback.expiresAt),
+      ...keyEffectsRef.current.map((effect) => effect.expiresAt),
+    ];
+    if (candidates.length === 0) return;
+
+    const nextExpiry = Math.min(...candidates);
+    const delayMs = Math.max(0, nextExpiry - Date.now());
+
+    effectCleanupTimerRef.current = setTimeout(() => {
+      const now = Date.now();
+      setJudgeFeedbacks((prev) => {
+        const next = prev.filter((feedback) => feedback.expiresAt > now);
+        judgeFeedbacksRef.current = next;
+        return next.length === prev.length ? prev : next;
+      });
+      setKeyEffects((prev) => {
+        const next = prev.filter((effect) => effect.expiresAt > now);
+        keyEffectsRef.current = next;
+        return next.length === prev.length ? prev : next;
+      });
+      effectCleanupTimerRef.current = null;
+      if (judgeFeedbacksRef.current.length > 0 || keyEffectsRef.current.length > 0) {
+        scheduleEffectCleanup();
+      }
+    }, delayMs);
+  }, [clearEffectCleanupTimer]);
 
   const updateScoreFromJudge = useCallback((judge: JudgeType, prevScore: GameState['score']): GameState['score'] => {
     const newScore = { ...prevScore };
@@ -118,7 +159,11 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
 
       const expiresAt = Date.now() + JUDGE_FEEDBACK_DURATION_MS;
       const feedbackId = feedbackIdRef.current++;
-      setJudgeFeedbacks([{ id: feedbackId, judge, expiresAt }]);
+      setJudgeFeedbacks(() => {
+        const next = [{ id: feedbackId, judge, expiresAt }];
+        judgeFeedbacksRef.current = next;
+        return next;
+      });
 
       const effectId = keyEffectIdRef.current++;
       const effectX = laneCenters[lane] ?? LANE_POSITIONS[lane];
@@ -319,25 +364,27 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   }, [holdingNotes]);
 
   useEffect(() => {
-    if (!gameState.gameStarted) return;
+    judgeFeedbacksRef.current = judgeFeedbacks;
+    keyEffectsRef.current = keyEffects;
 
-    const cleanupInterval = setInterval(() => {
-      const now = Date.now();
-      setJudgeFeedbacks((prev) => {
-        const next = prev.filter((feedback) => feedback.expiresAt > now);
-        return next.length === prev.length ? prev : next;
-      });
-      setKeyEffects((prev) => {
-        const next = prev.filter((effect) => effect.expiresAt > now);
-        return next.length === prev.length ? prev : next;
-      });
-    }, 33);
+    if (!gameState.gameStarted) {
+      clearEffectCleanupTimer();
+      return;
+    }
 
-    return () => clearInterval(cleanupInterval);
-  }, [gameState.gameStarted]);
+    scheduleEffectCleanup();
+    return clearEffectCleanupTimer;
+  }, [
+    judgeFeedbacks,
+    keyEffects,
+    gameState.gameStarted,
+    scheduleEffectCleanup,
+    clearEffectCleanupTimer,
+  ]);
 
   useEffect(() => {
     if (!gameState.gameStarted) {
+      clearEffectCleanupTimer();
       setJudgeFeedbacks([]);
       setKeyEffects([]);
       setPressedKeys(new Set());
@@ -346,13 +393,14 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       holdStartJudgeRef.current.clear();
       judgeLaneCursorRef.current = [0, 0, 0, 0];
     }
-  }, [gameState.gameStarted]);
+  }, [gameState.gameStarted, clearEffectCleanupTimer]);
 
   useEffect(() => {
     return () => {
+      clearEffectCleanupTimer();
       holdStartJudgeRef.current.clear();
     };
-  }, []);
+  }, [clearEffectCleanupTimer]);
 
   return {
     pressedKeys,
