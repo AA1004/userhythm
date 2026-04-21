@@ -383,12 +383,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
   const youtubeThumbnailUrl = useMemo(() => {
     if (youtubeVideoId) {
-      return `https://img.youtube.com/vi/${youtubeVideoId}/hqdefault.jpg`;
+      return `https://img.youtube.com/vi/${youtubeVideoId}/maxresdefault.jpg`;
     }
     if (youtubeUrl) {
       const fallbackId = extractYouTubeVideoId(youtubeUrl);
       if (fallbackId) {
-        return `https://img.youtube.com/vi/${fallbackId}/hqdefault.jpg`;
+        return `https://img.youtube.com/vi/${fallbackId}/maxresdefault.jpg`;
       }
     }
     return null;

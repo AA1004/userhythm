@@ -11,6 +11,24 @@ interface ChartSelectProps {
   refreshToken?: number; // 외부에서 강제 새로고침 트리거
 }
 
+const DEFAULT_THUMBNAIL_ASPECT_RATIO = 16 / 9;
+
+const preferHighResolutionYouTubeThumbnail = (url: string | null) => {
+  if (!url) return null;
+  return url.replace(
+    /(i\.ytimg\.com|img\.youtube\.com)\/vi\/([^/]+)\/(?:hqdefault|mqdefault|sddefault)\.jpg/,
+    '$1/vi/$2/maxresdefault.jpg'
+  );
+};
+
+const getYouTubeThumbnailFallback = (url: string | null) => {
+  if (!url) return null;
+  return url.replace(
+    /(i\.ytimg\.com|img\.youtube\.com)\/vi\/([^/]+)\/maxresdefault\.jpg/,
+    '$1/vi/$2/hqdefault.jpg'
+  );
+};
+
 export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, refreshToken }) => {
   const requestControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
@@ -31,6 +49,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
   const chartsPerPage = 12;
   const [isInsaneMode, setIsInsaneMode] = useState<boolean>(false);
   const [insaneOnly, setInsaneOnly] = useState<boolean>(false);
+  const [thumbnailAspectRatios, setThumbnailAspectRatios] = useState<Record<string, number>>({});
 
   // leaderboards
   const [perChartScores, setPerChartScores] = useState<ApiScore[]>([]);
@@ -110,13 +129,25 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
 
       // preview image
       let preview = chart.preview_image || null;
+      let previewFallback = preview;
       if (!preview) {
         const youtubeUrl: string = chartData.youtubeUrl || chart.youtube_url || '';
         const youtubeVideoId: string | null =
           chartData.youtubeVideoId || (youtubeUrl ? extractYouTubeVideoId(youtubeUrl) : null);
         if (youtubeVideoId) {
-          preview = `https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg`;
+          previewFallback = `https://i.ytimg.com/vi/${youtubeVideoId}/hqdefault.jpg`;
+          preview = `https://i.ytimg.com/vi/${youtubeVideoId}/maxresdefault.jpg`;
         }
+      } else {
+        const highResolutionPreview = preferHighResolutionYouTubeThumbnail(preview);
+        const maxresFallback = getYouTubeThumbnailFallback(preview);
+        previewFallback =
+          highResolutionPreview !== preview
+            ? preview
+            : maxresFallback !== preview
+            ? maxresFallback
+            : null;
+        preview = highResolutionPreview;
       }
 
       const notes = Array.isArray(chartData.notes) ? chartData.notes : [];
@@ -129,6 +160,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
       return {
         ...chart,
         preview_image: preview,
+        _previewFallbackImage: previewFallback,
         _authorChess: authorChess,
         _authorLabel: authorLabel,
         _isAdmin: chart.author_role === 'admin',
@@ -142,6 +174,22 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
       };
     });
   }, []);
+
+  const handleThumbnailLoad = useCallback(
+    (chartId: string, event: React.SyntheticEvent<HTMLImageElement>) => {
+      const image = event.currentTarget;
+      if (image.naturalWidth <= 0 || image.naturalHeight <= 0) return;
+
+      const nextRatio = image.naturalWidth / image.naturalHeight;
+      if (!Number.isFinite(nextRatio) || nextRatio <= 0) return;
+
+      setThumbnailAspectRatios((prev) => {
+        if (Math.abs((prev[chartId] ?? 0) - nextRatio) < 0.01) return prev;
+        return { ...prev, [chartId]: nextRatio };
+      });
+    },
+    []
+  );
 
   const fetchAllCharts = useCallback(
     async (showLoading: boolean = true) => {
@@ -1006,14 +1054,13 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                       className="chart-select-card__thumb"
                       style={{
                         width: '100%',
-                        height: '180px',
+                        aspectRatio: String(
+                          thumbnailAspectRatios[chart.id] ?? DEFAULT_THUMBNAIL_ASPECT_RATIO
+                        ),
                         marginBottom: '12px',
                         borderRadius: CHART_EDITOR_THEME.radiusSm,
                         overflow: 'hidden',
                         backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
                         boxShadow: `0 0 0 1px ${CHART_EDITOR_THEME.borderSubtle}`,
                       }}
                     >
@@ -1025,10 +1072,16 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                           width: '100%',
                           height: '100%',
                           objectFit: 'cover',
+                          display: 'block',
                         }}
                         loading="lazy"
+                        onLoad={(e) => handleThumbnailLoad(chart.id, e)}
                         onError={(e) => {
-                          // 이미지 로드 실패 시 숨김
+                          const fallbackSrc = (chart as any)._previewFallbackImage;
+                          if (fallbackSrc && e.currentTarget.src !== fallbackSrc) {
+                            e.currentTarget.src = fallbackSrc;
+                            return;
+                          }
                           e.currentTarget.style.display = 'none';
                         }}
                       />
