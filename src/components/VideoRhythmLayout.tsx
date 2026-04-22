@@ -40,9 +40,8 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   const backgroundPlayerContainerRef = useRef<HTMLDivElement | null>(null);
   const [backgroundPlayer, setBackgroundPlayer] = useState<any>(null);
   const backgroundPlayerReadyRef = useRef(false);
-  const lastBgaSeekRef = useRef<number | null>(null);
-  const lastBgaSyncCheckAtRef = useRef<number>(0);
-  const lastBgaSeekAtRef = useRef<number>(0);
+  const hasSyncedBgaStartRef = useRef(false);
+  const lastBgaPlayAttemptAtRef = useRef<number>(0);
   const userInteractedRef = useRef(false);
 
   // 배경용 YouTube 플레이어 초기화
@@ -99,6 +98,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
               setBackgroundPlayer(player);
               try {
                 player.mute?.();
+                hasSyncedBgaStartRef.current = false;
                 // 게임 시작 전에 미리 재생해서 UI를 띄워놓기
                 // 사용자 인터랙션이 필요하므로 pointerdown 이벤트에서 처리
               } catch {
@@ -135,6 +135,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
         backgroundPlayer.playVideo?.();
       } else {
         backgroundPlayer.pauseVideo?.();
+        hasSyncedBgaStartRef.current = false;
       }
     } catch {
       // ignore
@@ -147,14 +148,19 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
 
     const retryTimer = window.setInterval(() => {
       try {
+        const now = performance.now();
+        if (now - lastBgaPlayAttemptAtRef.current < 1200) {
+          return;
+        }
         const state = backgroundPlayer.getPlayerState?.();
         if (state !== window.YT?.PlayerState?.PLAYING) {
           backgroundPlayer.playVideo?.();
+          lastBgaPlayAttemptAtRef.current = now;
         }
       } catch {
         // ignore
       }
-    }, 400);
+    }, 1200);
 
     return () => {
       window.clearInterval(retryTimer);
@@ -186,33 +192,15 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     };
   }, [backgroundPlayer, shouldPlayBga, bgaEnabled, videoId]);
 
-  // 게임 타임라인에 맞춰 BGA 위치도 함께 시크
+  // BGA는 시작 지점만 맞춘 뒤 독립 재생합니다. 지속적인 iframe sync는 프레임 스터터를 만들 수 있습니다.
   useEffect(() => {
     if (!backgroundPlayer || !backgroundPlayerReadyRef.current) return;
     if (typeof bgaCurrentSeconds !== 'number') return;
+    if (!shouldPlayBga || hasSyncedBgaStartRef.current) return;
 
     try {
-      const now = performance.now();
-      if (now - lastBgaSyncCheckAtRef.current < 250) {
-        return;
-      }
-      lastBgaSyncCheckAtRef.current = now;
-
-      const currentSeconds = backgroundPlayer.getCurrentTime?.() ?? 0;
-      const diff = Math.abs(currentSeconds - bgaCurrentSeconds);
-
-      const shouldSeek =
-        diff > 1.0 &&
-        (lastBgaSeekRef.current === null || now - lastBgaSeekAtRef.current > 2500);
-
-      if (shouldSeek) {
-        backgroundPlayer.seekTo(bgaCurrentSeconds, true);
-        lastBgaSeekRef.current = bgaCurrentSeconds;
-        lastBgaSeekAtRef.current = now;
-        if (!shouldPlayBga) {
-          backgroundPlayer.pauseVideo?.();
-        }
-      }
+      backgroundPlayer.seekTo(bgaCurrentSeconds, true);
+      hasSyncedBgaStartRef.current = true;
     } catch {
       // ignore
     }
