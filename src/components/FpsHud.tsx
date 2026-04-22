@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface FpsHudProps {
   enabled?: boolean;
@@ -10,10 +10,7 @@ interface FpsHudProps {
  * EMA(지수이동평균)로 스무딩하여 표시합니다.
  */
 export const FpsHud: React.FC<FpsHudProps> = ({ enabled = true }) => {
-  const [fps, setFps] = useState<number>(0);
-  const [minFps, setMinFps] = useState<number>(0);
-  const [lowFps, setLowFps] = useState<number>(0);
-  const [spikeMs, setSpikeMs] = useState<number>(0);
+  const hudRef = useRef<HTMLDivElement | null>(null);
   const lastFrameTimeRef = useRef<number>(0);
   const smoothedFpsRef = useRef<number>(0);
   const frameCountRef = useRef<number>(0);
@@ -68,13 +65,17 @@ export const FpsHud: React.FC<FpsHudProps> = ({ enabled = true }) => {
       // 주기적으로만 setState로 업데이트 (과도한 리렌더 방지)
       const timeSinceLastUpdate = timestamp - lastUpdateTimeRef.current;
       if (timeSinceLastUpdate >= UPDATE_INTERVAL_MS) {
-        setFps(Math.round(smoothedFpsRef.current));
         const samples = [...samplesRef.current].sort((a, b) => a - b);
         if (samples.length > 0) {
           const lowIndex = Math.max(0, Math.floor(samples.length * 0.01));
-          setMinFps(Math.round(samples[0]));
-          setLowFps(Math.round(samples[lowIndex]));
-          setSpikeMs(Math.round(maxFrameMsRef.current));
+          const fps = Math.round(smoothedFpsRef.current);
+          const minFps = Math.round(samples[0]);
+          const lowFps = Math.round(samples[lowIndex]);
+          const spikeMs = Math.round(maxFrameMsRef.current);
+          if (hudRef.current) {
+            hudRef.current.textContent = `${fps} FPS | min ${minFps} | 1% ${lowFps} | spike ${spikeMs}ms`;
+            hudRef.current.style.color = getFpsColor(fps);
+          }
         }
         maxFrameMsRef.current = 0;
         lastUpdateTimeRef.current = timestamp;
@@ -100,8 +101,8 @@ export const FpsHud: React.FC<FpsHudProps> = ({ enabled = true }) => {
 
   if (!enabled) return null;
 
-  // FPS에 따른 색상 결정
-  const getFpsColor = () => {
+  // FPS HUD must not trigger React commits during gameplay.
+  const getFpsColor = (fps: number) => {
     if (fps >= 150) return '#00ff00'; // 녹색 (165Hz 목표)
     if (fps >= 120) return '#90ee90'; // 연한 녹색
     if (fps >= 60) return '#ffff00'; // 노란색
@@ -111,6 +112,7 @@ export const FpsHud: React.FC<FpsHudProps> = ({ enabled = true }) => {
 
   return (
     <div
+      ref={hudRef}
       className="fps-hud"
       style={{
         position: 'fixed',
@@ -118,7 +120,7 @@ export const FpsHud: React.FC<FpsHudProps> = ({ enabled = true }) => {
         left: '8px',
         padding: '4px 8px',
         backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        color: getFpsColor(),
+        color: '#00ff00',
         fontSize: '14px',
         fontFamily: 'monospace',
         fontWeight: 'bold',
@@ -128,7 +130,7 @@ export const FpsHud: React.FC<FpsHudProps> = ({ enabled = true }) => {
         userSelect: 'none',
       }}
     >
-      {fps} FPS | min {minFps} | 1% {lowFps} | spike {spikeMs}ms
+      0 FPS | min 0 | 1% 0 | spike 0ms
     </div>
   );
 };
