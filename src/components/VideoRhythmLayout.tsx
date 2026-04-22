@@ -158,14 +158,19 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     const retryTimer = window.setInterval(() => {
       try {
         const now = performance.now();
-        const retryDelay = now < aggressivePlayRetryUntilRef.current ? 120 : 1200;
-        if (now - lastBgaPlayAttemptAtRef.current < retryDelay) {
+        if (now >= aggressivePlayRetryUntilRef.current) {
+          window.clearInterval(retryTimer);
+          return;
+        }
+        if (now - lastBgaPlayAttemptAtRef.current < 120) {
           return;
         }
         const state = backgroundPlayer.getPlayerState?.();
         if (state !== window.YT?.PlayerState?.PLAYING) {
           backgroundPlayer.playVideo?.();
           lastBgaPlayAttemptAtRef.current = now;
+        } else {
+          window.clearInterval(retryTimer);
         }
       } catch {
         // ignore
