@@ -38,6 +38,8 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   const [backgroundPlayer, setBackgroundPlayer] = useState<any>(null);
   const backgroundPlayerReadyRef = useRef(false);
   const lastBgaSeekRef = useRef<number | null>(null);
+  const lastBgaSyncCheckAtRef = useRef<number>(0);
+  const lastBgaSeekAtRef = useRef<number>(0);
   const userInteractedRef = useRef(false);
 
   // 배경용 YouTube 플레이어 초기화
@@ -167,12 +169,23 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     if (typeof bgaCurrentSeconds !== 'number') return;
 
     try {
+      const now = performance.now();
+      if (now - lastBgaSyncCheckAtRef.current < 250) {
+        return;
+      }
+      lastBgaSyncCheckAtRef.current = now;
+
       const currentSeconds = backgroundPlayer.getCurrentTime?.() ?? 0;
       const diff = Math.abs(currentSeconds - bgaCurrentSeconds);
 
-      if (diff > 0.3 || lastBgaSeekRef.current === null) {
+      const shouldSeek =
+        diff > 1.0 &&
+        (lastBgaSeekRef.current === null || now - lastBgaSeekAtRef.current > 2500);
+
+      if (shouldSeek) {
         backgroundPlayer.seekTo(bgaCurrentSeconds, true);
         lastBgaSeekRef.current = bgaCurrentSeconds;
+        lastBgaSeekAtRef.current = now;
         if (!shouldPlayBga) {
           backgroundPlayer.pauseVideo?.();
         }
