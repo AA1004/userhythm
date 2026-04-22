@@ -84,8 +84,10 @@ export function useChartLoader({
       }
       
       // 선택된 채보 데이터로 게임 상태 초기화 (키 중복 방지 및 기본 필드 보정 + 유령노트 정리)
+      type PreparedNoteDraft = Note & { __originalIndex: number };
+
       const preparedNotes = chartData.notes
-        .map((note: Note, index: number) => {
+        .map((note: Note, index: number): PreparedNoteDraft => {
           // 유령노트 정리: hit 상태를 항상 false로 리셋
           const cleanedNote = {
             ...note,
@@ -127,16 +129,16 @@ export function useChartLoader({
           
           return {
             ...cleanedNote,
-            id: index + 1, // React key/게임 로직 모두에서 고유 ID 보장
             time: Math.max(0, cleanedNote.time),
             duration: safeDuration,
             endTime,
             type: safeDuration > 0 ? 'hold' : 'tap',
             y: -100, // 게임 시작 시 모든 노트는 화면 위에서 시작
             hit: false,
+            __originalIndex: index,
           };
         })
-        .filter((note: Note) => {
+        .filter((note: PreparedNoteDraft) => {
           // 유효하지 않은 노트 필터링 (유령노트 제거)
           // time이 음수이거나 NaN인 경우 제거
           if (note.time < 0 || isNaN(note.time)) return false;
@@ -146,7 +148,15 @@ export function useChartLoader({
           if (note.duration > 0 && note.endTime < note.time) return false;
           return true;
         })
-        .sort((a: Note, b: Note) => a.time - b.time);
+        .sort((a: PreparedNoteDraft, b: PreparedNoteDraft) => a.time - b.time || a.__originalIndex - b.__originalIndex)
+        .map((note: PreparedNoteDraft, index: number): Note => {
+          const { __originalIndex, ...sortedNote } = note;
+          return {
+            ...sortedNote,
+            // Runtime hit sets and scan cursors assume ids are assigned after sorting.
+            id: index + 1,
+          };
+        });
       
       if (preparedNotes.length === 0) {
         alert('이 채보에는 노트가 없습니다.');
