@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api, ApiChart } from '../lib/api';
 import { extractYouTubeVideoId } from '../utils/youtube';
+import { validateNotes } from '../utils/noteValidation';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 
 interface ChartAdminProps {
@@ -123,7 +124,8 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
       if (!youtubeVideoId && youtubeUrl) {
         youtubeVideoId = extractYouTubeVideoId(youtubeUrl);
       }
-      const notesLength = Array.isArray(data.notes) ? data.notes.length : '?';
+      const notes = Array.isArray(data.notes) ? validateNotes(data.notes) : [];
+      const notesLength = Array.isArray(data.notes) ? notes.length : '?';
       const authorChess =
         chart.author_role === 'admin'
           ? '♛'
@@ -137,7 +139,10 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
         '알 수 없음';
       return {
         ...chart,
-        _data: data,
+        _data: {
+          ...data,
+          notes,
+        },
         _youtubeVideoId: youtubeVideoId,
         _youtubeUrl: youtubeUrl,
         _notesLength: notesLength,

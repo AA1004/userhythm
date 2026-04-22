@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { api, ApiChart, ApiScore, ApiUserAggregate } from '../lib/api';
 import { extractYouTubeVideoId, waitForYouTubeAPI } from '../utils/youtube';
 import { measureToTime } from '../utils/bpmUtils';
+import { validateNotes } from '../utils/noteValidation';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { PREVIEW_FADE_DURATION_MS, PREVIEW_TRANSITION_DURATION_MS, PREVIEW_VOLUME, PREVIEW_BGA_OPACITY } from '../constants/gameConstants';
 
@@ -590,8 +591,10 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         youtubeVideoId = extractYouTubeVideoId(youtubeUrl);
       }
 
+      const playableNotes = Array.isArray(chartData.notes) ? validateNotes(chartData.notes) : [];
+
       onSelect({
-        notes: chartData.notes || [],
+        notes: playableNotes,
         bpm: chart.bpm,
         timeSignatures: chartData.timeSignatures || [{ id: 0, beatIndex: 0, beatsPerMeasure: 4 }],
         timeSignatureOffset: chartData.timeSignatureOffset || 0,
