@@ -29,7 +29,7 @@ interface GamePlayAreaProps {
   hitNoteIdsRef: HitNoteIdsRef;
 }
 
-export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
+const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
   gameState,
   gameStarted,
   bgaMaskOpacity,
@@ -275,3 +275,5 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
     </>
   );
 };
+
+export const GamePlayArea = React.memo(GamePlayAreaComponent);

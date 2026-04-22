@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef, RefObject } from 'react';
+import { useState, useEffect, useRef, RefObject, MutableRefObject } from 'react';
 import { waitForYouTubeAPI } from '../utils/youtube';
 import { getAudioBaseSeconds, getAudioPositionSeconds, AudioSettings } from '../utils/gameHelpers';
 
 export interface UseTestYoutubePlayerOptions {
   isTestMode: boolean;
   gameStarted: boolean;
-  currentTime: number;
+  currentTimeRef: MutableRefObject<number>;
   videoId: string | null;
   audioSettings: AudioSettings | null;
   externalPlayer?: any | null;
@@ -22,7 +22,7 @@ export interface UseTestYoutubePlayerReturn {
 export function useTestYoutubePlayer({
   isTestMode,
   gameStarted,
-  currentTime,
+  currentTimeRef,
   videoId,
   audioSettings,
   externalPlayer,
@@ -34,6 +34,11 @@ export function useTestYoutubePlayer({
   const audioHasStartedRef = useRef(false);
   const lastResyncTimeRef = useRef(0);
   const isExternalPlayerRef = useRef(false);
+  const latestVolumeRef = useRef(volume);
+
+  useEffect(() => {
+    latestVolumeRef.current = volume;
+  }, [volume]);
 
   // External player가 있으면 재사용
   useEffect(() => {
@@ -176,7 +181,8 @@ export function useTestYoutubePlayer({
     };
   }, [isTestMode, videoId, audioSettings]);
 
-  // Test mode YouTube audio sync
+  // Test mode YouTube audio sync.
+  // Keep this off React's visual clock path; currentTimeRef is the gameplay source time.
   useEffect(() => {
     if (!isTestMode || !gameStarted) return;
     if (!player || !playerReadyRef.current) return;
@@ -191,61 +197,74 @@ export function useTestYoutubePlayer({
     }
 
     const cueSeconds = getAudioBaseSeconds(audioSettings);
+    let timerId: number | null = null;
 
-    if (currentTime < 0) {
-      audioHasStartedRef.current = false;
-      try {
-        player.pauseVideo?.();
-        player.seekTo(cueSeconds, true);
-      } catch (e) {
-        console.warn("YouTube cueing failed:", e);
+    const syncOnce = () => {
+      const currentTime = currentTimeRef.current;
+
+      if (currentTime < 0) {
+        audioHasStartedRef.current = false;
+        try {
+          player.pauseVideo?.();
+          player.seekTo(cueSeconds, true);
+        } catch (e) {
+          console.warn("YouTube cueing failed:", e);
+        }
+        return;
       }
-      return;
-    }
 
-    if (!audioHasStartedRef.current) {
+      if (!audioHasStartedRef.current) {
+        try {
+          // 미리듣기에서 볼륨이 낮아져 있을 수 있으므로 설정 볼륨으로 복원하고 음소거 해제
+          player.unMute?.();
+          player.setVolume?.(latestVolumeRef.current);
+          player.seekTo(cueSeconds, true);
+          player.playVideo?.();
+          audioHasStartedRef.current = true;
+          console.log(`YouTube test playback start (${cueSeconds.toFixed(2)}s, volume: ${latestVolumeRef.current})`);
+        } catch (e) {
+          console.warn("YouTube initial playback failed:", e);
+        }
+        return;
+      }
+
       try {
-        // 미리듣기에서 볼륨이 낮아져 있을 수 있으므로 설정 볼륨으로 복원하고 음소거 해제
-        player.unMute?.();
-        player.setVolume?.(volume);
-        player.seekTo(cueSeconds, true);
         player.playVideo?.();
-        audioHasStartedRef.current = true;
-        console.log(`YouTube test playback start (${cueSeconds.toFixed(2)}s, volume: ${volume})`);
       } catch (e) {
-        console.warn("YouTube initial playback failed:", e);
+        console.warn("YouTube resume failed:", e);
       }
-      return;
-    }
 
-    try {
-      player.playVideo?.();
-    } catch (e) {
-      console.warn("YouTube resume failed:", e);
-    }
+      const desiredSeconds = getAudioPositionSeconds(currentTime, audioSettings);
+      const currentSeconds = player.getCurrentTime?.() ?? 0;
+      const now = Date.now();
 
-    const desiredSeconds = getAudioPositionSeconds(currentTime, audioSettings);
-    const currentSeconds = player.getCurrentTime?.() ?? 0;
-    const now = Date.now();
+      // 임계값: 0.5초 이상 차이날 때만 리싱크
+      // 쿨다운: 마지막 리싱크 후 2초 이내에는 리싱크하지 않음
+      const RESYNC_THRESHOLD = 0.5;
+      const RESYNC_COOLDOWN = 2000;
 
-    // 임계값: 0.5초 이상 차이날 때만 리싱크
-    // 쿨다운: 마지막 리싱크 후 2초 이내에는 리싱크하지 않음
-    const RESYNC_THRESHOLD = 0.5;
-    const RESYNC_COOLDOWN = 2000;
-
-    if (
-      Math.abs(currentSeconds - desiredSeconds) > RESYNC_THRESHOLD &&
-      now - lastResyncTimeRef.current > RESYNC_COOLDOWN
-    ) {
-      try {
-        player.seekTo(desiredSeconds, true);
-        lastResyncTimeRef.current = now;
-        console.log(`YouTube resync: ${currentSeconds.toFixed(2)}s → ${desiredSeconds.toFixed(2)}s (차이: ${Math.abs(currentSeconds - desiredSeconds).toFixed(2)}s)`);
-      } catch (e) {
-        console.warn("YouTube resync failed:", e);
+      if (
+        Math.abs(currentSeconds - desiredSeconds) > RESYNC_THRESHOLD &&
+        now - lastResyncTimeRef.current > RESYNC_COOLDOWN
+      ) {
+        try {
+          player.seekTo(desiredSeconds, true);
+          lastResyncTimeRef.current = now;
+          console.log(`YouTube resync: ${currentSeconds.toFixed(2)}s -> ${desiredSeconds.toFixed(2)}s (diff: ${Math.abs(currentSeconds - desiredSeconds).toFixed(2)}s)`);
+        } catch (e) {
+          console.warn("YouTube resync failed:", e);
+        }
       }
-    }
-  }, [isTestMode, gameStarted, currentTime, player, audioSettings, volume]);
+    };
+
+    syncOnce();
+    timerId = window.setInterval(syncOnce, 1000);
+    return () => {
+      if (timerId !== null) {
+        window.clearInterval(timerId);
+      }
+    };
+  }, [isTestMode, gameStarted, currentTimeRef, player, audioSettings]);
 
   // 볼륨 변경 시 실시간 반영
   useEffect(() => {

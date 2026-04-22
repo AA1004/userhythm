@@ -350,7 +350,7 @@ export const Game: React.FC = () => {
   } = useTestYoutubePlayer({
     isTestMode,
     gameStarted: gameState.gameStarted,
-    currentTime: gameplayClockSnapshotMs,
+    currentTimeRef,
     videoId: testYoutubeVideoId,
     audioSettings: testAudioSettings,
     externalPlayer: null, // 외부 플레이어 재사용 비활성화 - 미리보기 루프 타이머 충돌 방지
