@@ -585,26 +585,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   Canvas 2D
                 </button>
                 <button
-                  onClick={() => applyToggleVisualSettings({ renderBackend: 'webgl-beta' })}
+                  onClick={() => applyToggleVisualSettings({ renderBackend: 'webgl' })}
                   style={{
                     padding: '9px 8px',
                     borderRadius: CHART_EDITOR_THEME.radiusSm,
                     border: `1px solid ${
-                      visualSettings.renderBackend === 'webgl-beta'
+                      visualSettings.renderBackend === 'webgl'
                         ? CHART_EDITOR_THEME.accent
                         : CHART_EDITOR_THEME.borderSubtle
                     }`,
                     background:
-                      visualSettings.renderBackend === 'webgl-beta'
+                      visualSettings.renderBackend === 'webgl'
                         ? CHART_EDITOR_THEME.accentSoft
                         : 'transparent',
                     color: CHART_EDITOR_THEME.textPrimary,
                     fontSize: '12px',
                     cursor: 'pointer',
-                    fontWeight: visualSettings.renderBackend === 'webgl-beta' ? 700 : 500,
+                    fontWeight: visualSettings.renderBackend === 'webgl' ? 700 : 500,
                   }}
                 >
-                  WebGL Beta
+                  WebGL
                 </button>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '12px' }}>

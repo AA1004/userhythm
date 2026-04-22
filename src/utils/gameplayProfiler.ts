@@ -6,7 +6,11 @@ type GameplayMetricName =
   | 'judgeScan'
   | 'hitProcessing'
   | 'reactRender'
-  | 'activeSubtitle';
+  | 'activeSubtitle'
+  | 'bgaSync'
+  | 'webglRender'
+  | 'spritePoolUpdate'
+  | 'effectRender';
 
 interface MetricBucket {
   count: number;

@@ -116,8 +116,9 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
 
       {isLaneUiVisible && (
         <>
-          {playfieldGeometry.renderBackend === 'webgl-beta' ? (
+          {playfieldGeometry.renderBackend === 'webgl' ? (
             <WebglBetaNoteRenderer
+              key={`webgl-${playfieldGeometry.noteWidth}-${playfieldGeometry.noteHeight}`}
               notes={gameState.notes}
               currentTimeRef={currentTimeRef}
               fallDuration={fallDuration}

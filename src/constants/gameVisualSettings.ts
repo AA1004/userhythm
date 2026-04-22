@@ -8,7 +8,7 @@ export const KEY_LANE_HEIGHT = 100;
 
 export type VisualPresetId = 'classic' | 'compact' | 'wide' | 'custom';
 export type GameplayHudMode = 'legacy' | 'new';
-export type RenderBackend = 'canvas2d' | 'webgl-beta';
+export type RenderBackend = 'canvas2d' | 'webgl';
 export type PerformanceMode = 'quality' | 'balanced' | 'performance';
 
 export interface GameVisualSettings {
@@ -232,7 +232,11 @@ export const normalizeGameVisualSettings = (
   const slotHudEnabled = booleanOr(raw.slotHudEnabled, fallback.slotHudEnabled);
   const keyPressGlowEnabled = booleanOr(raw.keyPressGlowEnabled, fallback.keyPressGlowEnabled);
   const keyPressPulseEnabled = booleanOr(raw.keyPressPulseEnabled, fallback.keyPressPulseEnabled);
-  const renderBackend: RenderBackend = raw.renderBackend === 'webgl-beta' ? 'webgl-beta' : 'canvas2d';
+  const rawRenderBackend = (raw as { renderBackend?: unknown }).renderBackend;
+  const renderBackend: RenderBackend =
+    rawRenderBackend === 'webgl' || rawRenderBackend === 'webgl-beta'
+      ? 'webgl'
+      : 'canvas2d';
   const performanceMode: PerformanceMode =
     raw.performanceMode === 'quality' || raw.performanceMode === 'performance'
       ? raw.performanceMode
