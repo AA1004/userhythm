@@ -386,6 +386,24 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
       const activeLaneCenters = laneCentersRef.current;
       const activeNoteWidth = noteWidthRef.current;
       const activeNoteHeight = noteHeightRef.current;
+      const holdHeadHeight = Math.min(HOLD_HEAD_HEIGHT, Math.max(24, activeNoteHeight));
+      const holdHeadWidth = Math.max(1, activeNoteWidth - 12);
+      const holdProgressWidth = Math.max(1, Math.round(activeNoteWidth * 0.64));
+      const highlightWidthBase = Math.max(1, Math.round(activeNoteWidth * 0.8));
+      const highlightHeightBase = 12;
+      const holdBodySpriteIdle = getNoteSprite('holdBody', activeNoteWidth, 64, false);
+      const holdBodySpriteHolding = getNoteSprite('holdBody', activeNoteWidth, 64, true);
+      const holdProgressSpriteIdle = getNoteSprite('holdProgress', holdProgressWidth, 64, false);
+      const holdProgressSpriteHolding = getNoteSprite('holdProgress', holdProgressWidth, 64, true);
+      const holdHighlightSprite = getNoteSprite(
+        'holdProgress',
+        highlightWidthBase,
+        highlightHeightBase,
+        false
+      );
+      const tapSprite = getNoteSprite('tap', activeNoteWidth, activeNoteHeight, false);
+      const holdHeadSpriteIdle = getNoteSprite('holdHead', holdHeadWidth, holdHeadHeight, false);
+      const holdHeadSpriteHolding = getNoteSprite('holdHead', holdHeadWidth, holdHeadHeight, true);
       ctx.clearRect(0, 0, logicalWidth, logicalHeight);
 
       const filterProfileStart = shouldProfile ? performance.now() : 0;
@@ -439,13 +457,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           if (!position) return;
           const { left, top } = position;
 
-          ctx.drawImage(
-            getNoteSprite('tap', activeNoteWidth, activeNoteHeight, false),
-            left,
-            top,
-            activeNoteWidth,
-            activeNoteHeight
-          );
+          ctx.drawImage(tapSprite, left, top, activeNoteWidth, activeNoteHeight);
           drawnNotes += 1;
         } else {
           const left = laneX - activeNoteWidth / 2;
@@ -460,7 +472,13 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
             logicalHeight
           );
           if (!segment) return;
-          const { containerTop, containerHeight, visibleTop, visibleBottom, holdHeadHeight } = segment;
+          const {
+            containerTop,
+            containerHeight,
+            visibleTop,
+            visibleBottom,
+            holdHeadHeight: segmentHoldHeadHeight,
+          } = segment;
           const holdProgress = note.duration
             ? Math.max(0, Math.min(1, (currentTime - note.time) / note.duration))
             : 0;
@@ -473,7 +491,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           // Playback rendering stays sprite/stretch based. Expensive path/gradient work is
           // limited to cache creation so long-note cost does not scale with visual length.
           ctx.drawImage(
-            getNoteSprite('holdBody', activeNoteWidth, 64, isHolding),
+            isHolding ? holdBodySpriteHolding : holdBodySpriteIdle,
             left,
             bodyTop,
             activeNoteWidth,
@@ -487,7 +505,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           const highlightBottom = highlightTop + highlightHeight;
           if (highlightBottom >= visibleTop && highlightTop <= visibleBottom) {
             ctx.drawImage(
-              getNoteSprite('holdProgress', highlightWidth, highlightHeight, false),
+              holdHighlightSprite,
               highlightLeft,
               highlightTop,
               highlightWidth,
@@ -496,9 +514,9 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           }
 
           if (holdProgress > 0) {
-            const progressHeight = (containerHeight - holdHeadHeight) * holdProgress;
-            const progressTop = containerTop + containerHeight - holdHeadHeight - progressHeight;
-            const progressBottom = containerTop + containerHeight - holdHeadHeight;
+            const progressHeight = (containerHeight - segmentHoldHeadHeight) * holdProgress;
+            const progressTop = containerTop + containerHeight - segmentHoldHeadHeight - progressHeight;
+            const progressBottom = containerTop + containerHeight - segmentHoldHeadHeight;
             const visibleProgressTop = Math.max(progressTop, visibleTop);
             const visibleProgressBottom = Math.min(progressBottom, visibleBottom);
             const visibleProgressHeight = visibleProgressBottom - visibleProgressTop;
@@ -506,7 +524,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
               const progressLeft = left + activeNoteWidth * 0.18;
               const progressWidth = activeNoteWidth * 0.64;
               ctx.drawImage(
-                getNoteSprite('holdProgress', progressWidth, 64, isHolding),
+                isHolding ? holdProgressSpriteHolding : holdProgressSpriteIdle,
                 progressLeft,
                 visibleProgressTop,
                 progressWidth,
@@ -517,13 +535,12 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
 
           const headLeft = left + 6;
           const headTop = containerTop + containerHeight - holdHeadHeight;
-          const headWidth = activeNoteWidth - 12;
           if (headTop + holdHeadHeight >= visibleTop && headTop <= visibleBottom) {
             ctx.drawImage(
-              getNoteSprite('holdHead', headWidth, holdHeadHeight, isHolding),
+              isHolding ? holdHeadSpriteHolding : holdHeadSpriteIdle,
               headLeft,
               headTop,
-              headWidth,
+              holdHeadWidth,
               holdHeadHeight
             );
           }
