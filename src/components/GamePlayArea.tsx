@@ -5,7 +5,6 @@ import { JudgeLine } from './JudgeLine';
 import { NoteRenderer } from './NoteRenderer';
 import { WebglBetaNoteRenderer } from './WebglBetaNoteRenderer';
 import { ComboDisplay } from './ComboDisplay';
-import { GameplayEffectsCanvas } from './GameplayEffectsCanvas';
 import { PlayfieldGeometry } from '../constants/gameVisualSettings';
 import { GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 import { JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
@@ -197,14 +196,34 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
           />
         ))}
 
-      {gameStarted && (
-        <GameplayEffectsCanvas
-          judgeFeedbacks={judgeFeedbacks}
-          keyEffects={keyEffects}
-          judgeFeedbackTop={judgeFeedbackTop}
-          visible={isLaneUiVisible}
-        />
-      )}
+      {gameStarted &&
+        isLaneUiVisible &&
+        keyEffects.map((effect) => {
+          const judgeColors = {
+            perfect: { main: '#FFD700', soft: 'rgba(255, 215, 0, 0.4)' },
+            great: { main: '#00FF00', soft: 'rgba(0, 255, 0, 0.4)' },
+            good: { main: '#00BFFF', soft: 'rgba(0, 191, 255, 0.4)' },
+            miss: { main: '#FF4500', soft: 'rgba(255, 69, 0, 0.4)' },
+          };
+          const colors = judgeColors[effect.judge];
+
+          return (
+            <div
+              key={effect.id}
+              className="key-hit"
+              style={
+                {
+                  left: `${effect.x}px`,
+                  top: `${effect.y}px`,
+                  '--hit-color': colors.main,
+                  '--hit-color-soft': colors.soft,
+                } as React.CSSProperties
+              }
+            >
+              <div className="key-hit__cross" />
+            </div>
+          );
+        })}
 
       <div
         style={{
@@ -220,6 +239,37 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
           zIndex: 1000,
         }}
       />
+
+      {isLaneUiVisible &&
+        judgeFeedbacks.map((feedback) =>
+          feedback.judge ? (
+            <div
+              key={feedback.id}
+              style={{
+                position: 'absolute',
+                left: '50%',
+                top: `${judgeFeedbackTop}px`,
+                transform: 'translateX(-50%)',
+                fontSize: '48px',
+                fontWeight: 'bold',
+                color:
+                  feedback.judge === 'perfect'
+                    ? '#FFD700'
+                    : feedback.judge === 'great'
+                    ? '#00FF00'
+                    : feedback.judge === 'good'
+                    ? '#00BFFF'
+                    : '#FF4500',
+                textShadow: '0 0 20px rgba(255,255,255,0.9), 0 0 40px currentColor',
+                animation: 'judgePopUp 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+                zIndex: 1000 + feedback.id,
+                pointerEvents: 'none',
+              }}
+            >
+              {feedback.judge.toUpperCase()}
+            </div>
+          ) : null
+        )}
 
     </>
   );
