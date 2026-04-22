@@ -33,7 +33,7 @@ export function useTestYoutubePlayer({
   const playerReadyRef = useRef(false);
   const audioHasStartedRef = useRef(false);
   const lastResyncTimeRef = useRef(0);
-  const lastPlayCommandAtRef = useRef(0);
+  const lastPlayAttemptAtRef = useRef(0);
   const isExternalPlayerRef = useRef(false);
 
   // External player가 있으면 재사용
@@ -211,6 +211,7 @@ export function useTestYoutubePlayer({
         player.setVolume?.(volume);
         player.seekTo(cueSeconds, true);
         player.playVideo?.();
+        lastPlayAttemptAtRef.current = Date.now();
         audioHasStartedRef.current = true;
         console.log(`YouTube test playback start (${cueSeconds.toFixed(2)}s, volume: ${volume})`);
       } catch (e) {
@@ -220,15 +221,12 @@ export function useTestYoutubePlayer({
     }
 
     const now = Date.now();
-    if (now - lastPlayCommandAtRef.current > 1000) {
+    if (now - lastPlayAttemptAtRef.current > 250) {
       try {
-        const playerState = player.getPlayerState?.();
-        if (playerState !== window.YT?.PlayerState?.PLAYING) {
-          player.playVideo?.();
-        }
-        lastPlayCommandAtRef.current = now;
+        player.playVideo?.();
+        lastPlayAttemptAtRef.current = now;
       } catch (e) {
-        console.warn("YouTube resume check failed:", e);
+        console.warn("YouTube resume failed:", e);
       }
     }
 

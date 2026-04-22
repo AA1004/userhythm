@@ -138,6 +138,26 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     }
   }, [shouldPlayBga, bgaEnabled, videoId, backgroundPlayer]);
 
+  useEffect(() => {
+    if (!backgroundPlayer || !backgroundPlayerReadyRef.current) return;
+    if (!shouldPlayBga || !bgaEnabled || !videoId) return;
+
+    const retryTimer = window.setInterval(() => {
+      try {
+        const state = backgroundPlayer.getPlayerState?.();
+        if (state !== window.YT?.PlayerState?.PLAYING) {
+          backgroundPlayer.playVideo?.();
+        }
+      } catch {
+        // ignore
+      }
+    }, 400);
+
+    return () => {
+      window.clearInterval(retryTimer);
+    };
+  }, [backgroundPlayer, shouldPlayBga, bgaEnabled, videoId]);
+
   // 자동재생 정책 회피: 사용자 입력(pointerdown)이 들어오면 즉시 재생 시도
   useEffect(() => {
     if (!backgroundPlayer) return;
