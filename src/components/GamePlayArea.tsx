@@ -3,6 +3,7 @@ import { GameState, Lane, Note } from '../types/game';
 import { KeyLane } from './KeyLane';
 import { JudgeLine } from './JudgeLine';
 import { NoteRenderer } from './NoteRenderer';
+import { WebglBetaNoteRenderer } from './WebglBetaNoteRenderer';
 import { ComboDisplay } from './ComboDisplay';
 import { GameplayEffectsCanvas } from './GameplayEffectsCanvas';
 import { PlayfieldGeometry } from '../constants/gameVisualSettings';
@@ -116,31 +117,48 @@ export const GamePlayArea: React.FC<GamePlayAreaProps> = ({
 
       {isLaneUiVisible && (
         <>
-          <canvas
-            ref={canvasRef}
-            style={{
-              position: 'absolute',
-              left: 0,
-              top: 0,
-              width: '100%',
-              height: '100%',
-              pointerEvents: 'none',
-              zIndex: 100,
-            }}
-          />
-          <NoteRenderer
-            canvasRef={canvasRef}
-            notes={gameState.notes}
-            currentTimeRef={currentTimeRef}
-            fallDuration={fallDuration}
-            judgeLineY={judgeLineY}
-            laneCenters={playfieldGeometry.laneCenters}
-            noteWidth={playfieldGeometry.noteWidth}
-            noteHeight={playfieldGeometry.noteHeight}
-            holdingNotes={holdingNotes}
-            hitNoteIdsRef={hitNoteIdsRef}
-            visible={isLaneUiVisible}
-          />
+          {playfieldGeometry.renderBackend === 'webgl-beta' ? (
+            <WebglBetaNoteRenderer
+              notes={gameState.notes}
+              currentTimeRef={currentTimeRef}
+              fallDuration={fallDuration}
+              judgeLineY={judgeLineY}
+              laneCenters={playfieldGeometry.laneCenters}
+              noteWidth={playfieldGeometry.noteWidth}
+              noteHeight={playfieldGeometry.noteHeight}
+              holdingNotes={holdingNotes}
+              hitNoteIdsRef={hitNoteIdsRef}
+              visible={isLaneUiVisible}
+            />
+          ) : (
+            <>
+              <canvas
+                ref={canvasRef}
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  width: '100%',
+                  height: '100%',
+                  pointerEvents: 'none',
+                  zIndex: 100,
+                }}
+              />
+              <NoteRenderer
+                canvasRef={canvasRef}
+                notes={gameState.notes}
+                currentTimeRef={currentTimeRef}
+                fallDuration={fallDuration}
+                judgeLineY={judgeLineY}
+                laneCenters={playfieldGeometry.laneCenters}
+                noteWidth={playfieldGeometry.noteWidth}
+                noteHeight={playfieldGeometry.noteHeight}
+                holdingNotes={holdingNotes}
+                hitNoteIdsRef={hitNoteIdsRef}
+                visible={isLaneUiVisible}
+              />
+            </>
+          )}
         </>
       )}
 
