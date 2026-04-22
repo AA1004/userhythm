@@ -34,7 +34,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   bgaCurrentSeconds = null,
   bgaMaskOpacity = 0,
   bgaOpacity = 1,
-  bgaRenderMode = 'lite',
+  bgaRenderMode = 'video',
   children,
 }) => {
   const backgroundPlayerContainerRef = useRef<HTMLDivElement | null>(null);

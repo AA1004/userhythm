@@ -91,7 +91,7 @@ export const DEFAULT_GAME_VISUAL_SETTINGS: GameVisualSettings = {
   noteHeight: 42,
   comboOpacity: 0.7,
   bgaOpacity: 0,
-  bgaRenderMode: 'lite',
+  bgaRenderMode: 'video',
   gameplayHudMode: 'legacy',
   topLaneExtensionEnabled: false,
   slotHudEnabled: false,
@@ -117,7 +117,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     noteHeight: 38,
     comboOpacity: 0.7,
     bgaOpacity: 0,
-    bgaRenderMode: 'lite',
+    bgaRenderMode: 'video',
     gameplayHudMode: 'legacy',
     topLaneExtensionEnabled: false,
     slotHudEnabled: false,
@@ -140,7 +140,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     noteHeight: 46,
     comboOpacity: 0.7,
     bgaOpacity: 0,
-    bgaRenderMode: 'lite',
+    bgaRenderMode: 'video',
     gameplayHudMode: 'legacy',
     topLaneExtensionEnabled: false,
     slotHudEnabled: false,
@@ -231,7 +231,7 @@ export const normalizeGameVisualSettings = (
     VISUAL_SETTING_LIMITS.bgaOpacity.max
   );
   const gameplayHudMode: GameplayHudMode = raw.gameplayHudMode === 'new' ? 'new' : 'legacy';
-  const bgaRenderMode: BgaRenderMode = raw.bgaRenderMode === 'video' ? 'video' : 'lite';
+  const bgaRenderMode: BgaRenderMode = raw.bgaRenderMode === 'lite' ? 'lite' : 'video';
   const topLaneExtensionEnabled = booleanOr(
     raw.topLaneExtensionEnabled,
     fallback.topLaneExtensionEnabled
