@@ -1,13 +1,15 @@
 import { JUDGE_LINE_Y } from './gameConstants';
 import { GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH } from './gameLayout';
 
-export const VISUAL_SETTINGS_VERSION = 1;
+export const VISUAL_SETTINGS_VERSION = 2;
 export const VISUAL_SETTINGS_STORAGE_KEY = 'RHYTHM_GAME_VISUAL_SETTINGS';
 export const LANE_COUNT = 4;
 export const KEY_LANE_HEIGHT = 100;
 
 export type VisualPresetId = 'classic' | 'compact' | 'wide' | 'custom';
 export type GameplayHudMode = 'legacy' | 'new';
+export type RenderBackend = 'canvas2d' | 'webgl-beta';
+export type PerformanceMode = 'quality' | 'balanced' | 'performance';
 
 export interface GameVisualSettings {
   version: typeof VISUAL_SETTINGS_VERSION;
@@ -28,6 +30,8 @@ export interface GameVisualSettings {
   slotHudEnabled: boolean;
   keyPressGlowEnabled: boolean;
   keyPressPulseEnabled: boolean;
+  renderBackend: RenderBackend;
+  performanceMode: PerformanceMode;
 }
 
 export interface PlayfieldGeometry {
@@ -53,6 +57,8 @@ export interface PlayfieldGeometry {
   slotHudEnabled: boolean;
   keyPressGlowEnabled: boolean;
   keyPressPulseEnabled: boolean;
+  renderBackend: RenderBackend;
+  performanceMode: PerformanceMode;
 }
 
 export const VISUAL_SETTING_LIMITS = {
@@ -87,6 +93,8 @@ export const DEFAULT_GAME_VISUAL_SETTINGS: GameVisualSettings = {
   slotHudEnabled: false,
   keyPressGlowEnabled: true,
   keyPressPulseEnabled: true,
+  renderBackend: 'canvas2d',
+  performanceMode: 'balanced',
 };
 
 export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, GameVisualSettings> = {
@@ -110,6 +118,8 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     slotHudEnabled: false,
     keyPressGlowEnabled: true,
     keyPressPulseEnabled: true,
+    renderBackend: 'canvas2d',
+    performanceMode: 'balanced',
   },
   wide: {
     version: VISUAL_SETTINGS_VERSION,
@@ -130,6 +140,8 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     slotHudEnabled: false,
     keyPressGlowEnabled: true,
     keyPressPulseEnabled: true,
+    renderBackend: 'canvas2d',
+    performanceMode: 'balanced',
   },
 };
 
@@ -220,6 +232,11 @@ export const normalizeGameVisualSettings = (
   const slotHudEnabled = booleanOr(raw.slotHudEnabled, fallback.slotHudEnabled);
   const keyPressGlowEnabled = booleanOr(raw.keyPressGlowEnabled, fallback.keyPressGlowEnabled);
   const keyPressPulseEnabled = booleanOr(raw.keyPressPulseEnabled, fallback.keyPressPulseEnabled);
+  const renderBackend: RenderBackend = raw.renderBackend === 'webgl-beta' ? 'webgl-beta' : 'canvas2d';
+  const performanceMode: PerformanceMode =
+    raw.performanceMode === 'quality' || raw.performanceMode === 'performance'
+      ? raw.performanceMode
+      : 'balanced';
 
   // judgeLineY controls the timing line and note destination.
   // keyLaneY controls only the visual key boxes and is kept below judgeLineY when possible.
@@ -254,6 +271,8 @@ export const normalizeGameVisualSettings = (
     slotHudEnabled,
     keyPressGlowEnabled,
     keyPressPulseEnabled,
+    renderBackend,
+    performanceMode,
   };
 };
 
@@ -302,5 +321,7 @@ export const buildPlayfieldGeometry = (
     slotHudEnabled: normalized.slotHudEnabled,
     keyPressGlowEnabled: normalized.keyPressGlowEnabled,
     keyPressPulseEnabled: normalized.keyPressPulseEnabled,
+    renderBackend: normalized.renderBackend,
+    performanceMode: normalized.performanceMode,
   };
 };

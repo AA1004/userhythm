@@ -558,6 +558,84 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </button>
               </div>
 
+              <h4 style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', margin: '10px 0 8px' }}>
+                렌더링 / 성능
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                <button
+                  onClick={() => applyToggleVisualSettings({ renderBackend: 'canvas2d' })}
+                  style={{
+                    padding: '9px 8px',
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    border: `1px solid ${
+                      visualSettings.renderBackend === 'canvas2d'
+                        ? CHART_EDITOR_THEME.accent
+                        : CHART_EDITOR_THEME.borderSubtle
+                    }`,
+                    background:
+                      visualSettings.renderBackend === 'canvas2d'
+                        ? CHART_EDITOR_THEME.accentSoft
+                        : 'transparent',
+                    color: CHART_EDITOR_THEME.textPrimary,
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    fontWeight: visualSettings.renderBackend === 'canvas2d' ? 700 : 500,
+                  }}
+                >
+                  Canvas 2D
+                </button>
+                <button
+                  onClick={() => applyToggleVisualSettings({ renderBackend: 'webgl-beta' })}
+                  style={{
+                    padding: '9px 8px',
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    border: `1px solid ${
+                      visualSettings.renderBackend === 'webgl-beta'
+                        ? CHART_EDITOR_THEME.accent
+                        : CHART_EDITOR_THEME.borderSubtle
+                    }`,
+                    background:
+                      visualSettings.renderBackend === 'webgl-beta'
+                        ? CHART_EDITOR_THEME.accentSoft
+                        : 'transparent',
+                    color: CHART_EDITOR_THEME.textPrimary,
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    fontWeight: visualSettings.renderBackend === 'webgl-beta' ? 700 : 500,
+                  }}
+                >
+                  WebGL Beta
+                </button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '12px' }}>
+                {(['quality', 'balanced', 'performance'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => applyToggleVisualSettings({ performanceMode: mode })}
+                    style={{
+                      padding: '8px 6px',
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      border: `1px solid ${
+                        visualSettings.performanceMode === mode
+                          ? CHART_EDITOR_THEME.accent
+                          : CHART_EDITOR_THEME.borderSubtle
+                      }`,
+                      background:
+                        visualSettings.performanceMode === mode
+                          ? CHART_EDITOR_THEME.accentSoft
+                          : 'transparent',
+                      color: CHART_EDITOR_THEME.textPrimary,
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      textTransform: 'capitalize',
+                      fontWeight: visualSettings.performanceMode === mode ? 700 : 500,
+                    }}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+
               <label
                 style={{
                   display: 'flex',

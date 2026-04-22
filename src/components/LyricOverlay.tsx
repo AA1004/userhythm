@@ -6,6 +6,7 @@ import {
   SubtitleStyle,
 } from '../types/subtitle';
 import { GAME_VIEW_HEIGHT } from '../constants/gameLayout';
+import { PerformanceMode } from '../constants/gameVisualSettings';
 
 type ActiveSubtitle = {
   cue: SubtitleCue;
@@ -22,12 +23,14 @@ type SubtitleArea = {
 type LyricOverlayProps = {
   activeSubtitles: ActiveSubtitle[];
   subtitleArea: SubtitleArea;
+  performanceMode?: PerformanceMode;
 };
 
 type LyricCueProps = {
   cue: SubtitleCue;
   opacity: number;
   subtitleArea: SubtitleArea;
+  performanceMode: PerformanceMode;
 };
 
 const hexToRgba = (hex: string, opacity: number): string => {
@@ -39,9 +42,10 @@ const hexToRgba = (hex: string, opacity: number): string => {
 };
 
 const LyricCue = React.memo<LyricCueProps>(
-  ({ cue, opacity, subtitleArea }) => {
+  ({ cue, opacity, subtitleArea, performanceMode }) => {
     const rendered = useMemo(() => {
       const style: SubtitleStyle = cue.style || ({} as SubtitleStyle);
+      const lightweight = performanceMode === 'performance';
       const pos = normalizeSubtitlePosition(style.position);
       const sizeScale = Math.max(0.1, subtitleArea.height / GAME_VIEW_HEIGHT);
       const safeMargin = Math.max(8, 16 * sizeScale);
@@ -87,19 +91,19 @@ const LyricCue = React.memo<LyricCueProps>(
           boxSizing: 'border-box' as const,
           pointerEvents: 'none' as const,
           willChange: 'transform, opacity',
-          boxShadow: showBackground
+          boxShadow: showBackground && !lightweight
             ? `0 ${10 * sizeScale}px ${30 * sizeScale}px rgba(0,0,0,0.9), 0 0 ${18 * sizeScale}px rgba(15,23,42,0.9)`
             : 'none',
           border:
             showBackground && style.outlineColor
               ? `1px solid ${style.outlineColor}`
               : 'none',
-          textShadow: !showBackground
+          textShadow: !showBackground && !lightweight
             ? `0 0 ${8 * sizeScale}px rgba(0,0,0,0.9), 0 ${2 * sizeScale}px ${4 * sizeScale}px rgba(0,0,0,0.8), 0 0 ${20 * sizeScale}px rgba(0,0,0,0.6)`
             : 'none',
         },
       };
-    }, [cue, subtitleArea.left, subtitleArea.top, subtitleArea.width, subtitleArea.height]);
+    }, [cue, subtitleArea.left, subtitleArea.top, subtitleArea.width, subtitleArea.height, performanceMode]);
 
     return (
       <div
@@ -120,6 +124,7 @@ const LyricCue = React.memo<LyricCueProps>(
   (prev, next) =>
     prev.cue === next.cue &&
     prev.opacity === next.opacity &&
+    prev.performanceMode === next.performanceMode &&
     prev.subtitleArea.left === next.subtitleArea.left &&
     prev.subtitleArea.top === next.subtitleArea.top &&
     prev.subtitleArea.width === next.subtitleArea.width &&
@@ -129,6 +134,7 @@ const LyricCue = React.memo<LyricCueProps>(
 export const LyricOverlay: React.FC<LyricOverlayProps> = ({
   activeSubtitles,
   subtitleArea,
+  performanceMode = 'balanced',
 }) => {
   if (!activeSubtitles.length) {
     return null;
@@ -145,6 +151,7 @@ export const LyricOverlay: React.FC<LyricOverlayProps> = ({
         overflow: 'visible',
         pointerEvents: 'none',
         zIndex: 300,
+        contain: 'layout paint style',
       }}
     >
       {activeSubtitles.map(({ cue, opacity }) => (
@@ -153,6 +160,7 @@ export const LyricOverlay: React.FC<LyricOverlayProps> = ({
           cue={cue}
           opacity={opacity}
           subtitleArea={subtitleArea}
+          performanceMode={performanceMode}
         />
       ))}
     </div>

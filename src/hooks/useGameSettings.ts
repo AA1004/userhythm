@@ -44,7 +44,7 @@ const readStoredVisualSettings = (): GameVisualSettings => {
 
   try {
     const parsed = JSON.parse(stored) as Partial<GameVisualSettings>;
-    if (parsed.version !== VISUAL_SETTINGS_VERSION) {
+    if (parsed.version !== VISUAL_SETTINGS_VERSION && parsed.version !== 1) {
       console.warn('[settings] Unknown visual settings version. Restoring defaults.', parsed);
       return DEFAULT_GAME_VISUAL_SETTINGS;
     }

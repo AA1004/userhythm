@@ -970,7 +970,13 @@ export const Game: React.FC = () => {
           )}
 
       {/* 자막 레이어 (게임 컨테이너 바깥, 16:9 영역으로 확장) - 간주 구간에서는 숨김 */}
-      {activeBgaMaskOpacity < 1 && <LyricOverlay activeSubtitles={activeSubtitles} subtitleArea={subtitleArea} />}
+      {activeBgaMaskOpacity < 1 && (
+        <LyricOverlay
+          activeSubtitles={activeSubtitles}
+          subtitleArea={subtitleArea}
+          performanceMode={visualSettings.performanceMode}
+        />
+      )}
         </div>
       </div>
 
