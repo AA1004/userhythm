@@ -24,7 +24,7 @@ function binarySearchFirstNoteAtOrAfter(notes: Note[], targetTime: number): numb
   return low;
 }
 
-const SCORE_SNAPSHOT_INTERVAL_MS = 80;
+const SCORE_SNAPSHOT_INTERVAL_MS = 120;
 
 const scoresEqual = (a: GameState['score'], b: GameState['score']) =>
   a.perfect === b.perfect &&

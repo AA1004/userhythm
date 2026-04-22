@@ -127,7 +127,7 @@ export function useGameLoop(
       }
 
       // currentTimeRef is the source time for gameplay; React state is a coarse UI snapshot.
-      const TIME_UPDATE_INTERVAL_MS = 150;
+      const TIME_UPDATE_INTERVAL_MS = 300;
       const timeSinceLastUpdate = elapsedTime - (gameStateRef.current.currentTime || 0);
       const shouldUpdateTime = timeSinceLastUpdate >= TIME_UPDATE_INTERVAL_MS || hasMiss;
 
