@@ -13,6 +13,8 @@ type VideoRhythmLayoutProps = {
   bgaMaskOpacity?: number;
   /** 배경 동영상 투명도 (0~1, 값이 클수록 더 투명) */
   bgaOpacity?: number;
+  /** BGA 표시 방식: lite는 썸네일만 사용해 두 번째 YouTube 디코더를 피합니다. */
+  bgaRenderMode?: 'lite' | 'video';
   children: React.ReactNode;
 };
 
@@ -32,6 +34,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   bgaCurrentSeconds = null,
   bgaMaskOpacity = 0,
   bgaOpacity = 1,
+  bgaRenderMode = 'lite',
   children,
 }) => {
   const backgroundPlayerContainerRef = useRef<HTMLDivElement | null>(null);
@@ -44,7 +47,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
 
   // 배경용 YouTube 플레이어 초기화
   useEffect(() => {
-    if (!videoId || !bgaEnabled) {
+    if (!videoId || !bgaEnabled || bgaRenderMode !== 'video') {
       if (backgroundPlayer) {
         try {
           backgroundPlayer.destroy?.();
@@ -121,7 +124,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       }
       setBackgroundPlayer(null);
     };
-  }, [videoId, bgaEnabled]);
+  }, [videoId, bgaEnabled, bgaRenderMode]);
 
   // 게임 상태에 따라 BGA 재생/일시정지
   useEffect(() => {
@@ -239,16 +242,28 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
             pointerEvents: 'none', // 배경은 클릭 불가, 게임 영역만 인터랙션
           }}
         >
-          {/* 화면에 딱 맞게 배치 */}
-          <div
-            ref={backgroundPlayerContainerRef}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-            }}
-          />
+          {bgaRenderMode === 'video' ? (
+            <div
+              ref={backgroundPlayerContainerRef}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                backgroundImage: `url(https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg)`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                transform: 'scale(1.02)',
+              }}
+            />
+          )}
           {/* 여백과 영상 경계를 자연스럽게 블렌딩하는 그라디언트 마스크 */}
           <div
             style={{
