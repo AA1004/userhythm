@@ -42,6 +42,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   const backgroundPlayerReadyRef = useRef(false);
   const hasSyncedBgaStartRef = useRef(false);
   const lastBgaPlayAttemptAtRef = useRef<number>(0);
+  const aggressivePlayRetryUntilRef = useRef<number>(0);
   const userInteractedRef = useRef(false);
 
   // 배경용 YouTube 플레이어 초기화
@@ -80,7 +81,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
         playerInstance = new window.YT.Player(playerId, {
           videoId,
           playerVars: {
-            autoplay: 0,
+            autoplay: 1,
             controls: 0,
             mute: 1,
             playsinline: 1,
@@ -99,6 +100,12 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
               try {
                 player.mute?.();
                 hasSyncedBgaStartRef.current = false;
+                if (typeof bgaCurrentSeconds === 'number') {
+                  player.seekTo?.(bgaCurrentSeconds, true);
+                  hasSyncedBgaStartRef.current = true;
+                }
+                player.playVideo?.();
+                aggressivePlayRetryUntilRef.current = performance.now() + 3000;
                 // 게임 시작 전에 미리 재생해서 UI를 띄워놓기
                 // 사용자 인터랙션이 필요하므로 pointerdown 이벤트에서 처리
               } catch {
@@ -132,6 +139,8 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
 
     try {
       if (shouldPlayBga && bgaEnabled && videoId) {
+        aggressivePlayRetryUntilRef.current = performance.now() + 3000;
+        lastBgaPlayAttemptAtRef.current = 0;
         backgroundPlayer.playVideo?.();
       } else {
         backgroundPlayer.pauseVideo?.();
@@ -149,7 +158,8 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     const retryTimer = window.setInterval(() => {
       try {
         const now = performance.now();
-        if (now - lastBgaPlayAttemptAtRef.current < 1200) {
+        const retryDelay = now < aggressivePlayRetryUntilRef.current ? 120 : 1200;
+        if (now - lastBgaPlayAttemptAtRef.current < retryDelay) {
           return;
         }
         const state = backgroundPlayer.getPlayerState?.();
@@ -160,7 +170,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       } catch {
         // ignore
       }
-    }, 1200);
+    }, 120);
 
     return () => {
       window.clearInterval(retryTimer);
