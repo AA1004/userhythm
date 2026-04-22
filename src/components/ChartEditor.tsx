@@ -1502,10 +1502,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setUploadStatus('업로드 중...');
 
     try {
+      const playableNotes = validateNotes(notes);
       // 공유 시에는 채보 데이터만 포함 (에디터 상태 제외)
       const subtitles = localSubtitleStorage.get(subtitleSessionId);
       const chartData = {
-        notes,
+        notes: playableNotes,
         bpm,
         youtubeUrl,
         youtubeVideoId,
@@ -1549,6 +1550,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
   const handleExportJson = useCallback(() => {
     try {
+      const playableNotes = validateNotes(notes);
       // 자막 데이터 가져오기
       const subtitles = localSubtitleStorage.get(subtitleSessionId);
       
@@ -1557,6 +1559,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         exportedAt: new Date().toISOString(),
         chart: {
           ...autoSaveData,
+          notes: playableNotes,
           subtitles: subtitles.length > 0 ? subtitles : undefined,
           previewStartMeasure: sharePreviewStartMeasure,
           previewEndMeasure: sharePreviewEndMeasure,
@@ -1576,7 +1579,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       console.error('JSON 내보내기 실패:', error);
       alert('JSON 내보내기 중 오류가 발생했습니다.');
     }
-  }, [autoSaveData, shareTitle, subtitleSessionId]);
+  }, [autoSaveData, notes, shareTitle, subtitleSessionId, sharePreviewStartMeasure, sharePreviewEndMeasure]);
 
   const handleImportJsonClick = useCallback(() => {
     importInputRef.current?.click();
@@ -1674,27 +1677,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const handleRunEditorTest = useCallback(() => {
     if (!onTest) return;
 
-    const validatedNotes = notes.map((note) => {
-      if (note.type === 'hold' || note.duration > 0) {
-        if (note.duration <= 0 || note.endTime <= note.time) {
-          return {
-            ...note,
-            type: 'tap' as const,
-            duration: 0,
-            endTime: note.time,
-          };
-        }
-        if (note.duration < MIN_LONG_NOTE_DURATION) {
-          return {
-            ...note,
-            type: 'tap' as const,
-            duration: 0,
-            endTime: note.time,
-          };
-        }
-      }
-      return note;
-    });
+    const validatedNotes = validateNotes(notes);
 
     onTest({
       notes: validatedNotes,

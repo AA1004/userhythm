@@ -100,9 +100,18 @@ export function isValidNote(note: Note): boolean {
  */
 export function validateNotes(notes: Note[]): Note[] {
   return notes
-    .map(validateNote)
-    .filter(isValidNote)
-    .sort((a, b) => a.time - b.time);
+    .map((note, originalIndex) => ({
+      note: validateNote(note),
+      originalIndex,
+    }))
+    .filter(({ note }) => isValidNote(note))
+    .sort((a, b) => a.note.time - b.note.time || a.originalIndex - b.originalIndex)
+    .map(({ note }, index) => ({
+      ...note,
+      // Runtime Set/cursor logic depends on ids following the sorted session order.
+      id: index + 1,
+      hit: false,
+    }));
 }
 
 /**
