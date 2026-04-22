@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { waitForYouTubeAPI } from '../utils/youtube';
+import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 
 type VideoRhythmLayoutProps = {
   videoId?: string | null;
@@ -34,11 +35,55 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   bgaOpacity = 1,
   children,
 }) => {
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const backgroundPlayerContainerRef = useRef<HTMLDivElement | null>(null);
   const [backgroundPlayer, setBackgroundPlayer] = useState<any>(null);
   const backgroundPlayerReadyRef = useRef(false);
   const lastBgaSeekRef = useRef<number | null>(null);
+  const lastElectronBgaStateAtRef = useRef(0);
   const userInteractedRef = useRef(false);
+
+  useEffect(() => {
+    const sendBounds = () => {
+      const rect = rootRef.current?.getBoundingClientRect();
+      if (!rect || !window.playerApi?.setBgaLayerBounds) return;
+      window.playerApi.setBgaLayerBounds({
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+      });
+    };
+
+    sendBounds();
+    if (!rootRef.current || !window.playerApi?.setBgaLayerBounds) return;
+
+    const observer = new ResizeObserver(sendBounds);
+    observer.observe(rootRef.current);
+    window.addEventListener('resize', sendBounds);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', sendBounds);
+      window.playerApi?.setBgaLayerBounds?.(null);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!window.playerApi?.setBgaLayerState) return;
+
+    const now = performance.now();
+    const forceStateUpdate = !videoId || !bgaEnabled || !shouldPlayBga || bgaMaskOpacity >= 1;
+    if (!forceStateUpdate && now - lastElectronBgaStateAtRef.current < 250) return;
+    lastElectronBgaStateAtRef.current = now;
+
+    window.playerApi.setBgaLayerState({
+      videoId: videoId ?? null,
+      visible: Boolean(videoId && bgaEnabled && bgaMaskOpacity < 1),
+      opacity: Math.max(0, Math.min(1, 1 - bgaOpacity)),
+      currentSeconds: typeof bgaCurrentSeconds === 'number' ? bgaCurrentSeconds : 0,
+      shouldPlay: Boolean(shouldPlayBga && bgaEnabled && videoId),
+    });
+  }, [videoId, bgaEnabled, bgaMaskOpacity, bgaOpacity, bgaCurrentSeconds, shouldPlayBga]);
 
   // 배경용 YouTube 플레이어 초기화
   useEffect(() => {
@@ -167,6 +212,8 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     if (typeof bgaCurrentSeconds !== 'number') return;
 
     try {
+      const shouldProfile = isGameplayProfilerEnabled();
+      const syncStart = shouldProfile ? performance.now() : 0;
       const currentSeconds = backgroundPlayer.getCurrentTime?.() ?? 0;
       const diff = Math.abs(currentSeconds - bgaCurrentSeconds);
 
@@ -177,6 +224,9 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
           backgroundPlayer.pauseVideo?.();
         }
       }
+      if (shouldProfile) {
+        recordGameplayMetric('bgaSync', performance.now() - syncStart, diff);
+      }
     } catch {
       // ignore
     }
@@ -184,6 +234,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
 
   return (
     <div
+      ref={rootRef}
       style={{
         position: 'relative',
         minHeight: '100dvh',

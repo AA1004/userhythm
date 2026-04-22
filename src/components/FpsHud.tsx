@@ -11,9 +11,14 @@ interface FpsHudProps {
  */
 export const FpsHud: React.FC<FpsHudProps> = ({ enabled = true }) => {
   const [fps, setFps] = useState<number>(0);
+  const [minFps, setMinFps] = useState<number>(0);
+  const [lowFps, setLowFps] = useState<number>(0);
+  const [spikeMs, setSpikeMs] = useState<number>(0);
   const lastFrameTimeRef = useRef<number>(0);
   const smoothedFpsRef = useRef<number>(0);
   const frameCountRef = useRef<number>(0);
+  const samplesRef = useRef<number[]>([]);
+  const maxFrameMsRef = useRef<number>(0);
   const lastUpdateTimeRef = useRef<number>(0);
   const rafIdRef = useRef<number>();
 
@@ -46,6 +51,11 @@ export const FpsHud: React.FC<FpsHudProps> = ({ enabled = true }) => {
       if (deltaTime > 0) {
         // instant FPS 계산
         const instantFps = 1000 / deltaTime;
+        maxFrameMsRef.current = Math.max(maxFrameMsRef.current, deltaTime);
+        samplesRef.current.push(instantFps);
+        if (samplesRef.current.length > 300) {
+          samplesRef.current.shift();
+        }
         
         // EMA로 스무딩
         smoothedFpsRef.current = smoothedFpsRef.current === 0
@@ -59,6 +69,14 @@ export const FpsHud: React.FC<FpsHudProps> = ({ enabled = true }) => {
       const timeSinceLastUpdate = timestamp - lastUpdateTimeRef.current;
       if (timeSinceLastUpdate >= UPDATE_INTERVAL_MS) {
         setFps(Math.round(smoothedFpsRef.current));
+        const samples = [...samplesRef.current].sort((a, b) => a - b);
+        if (samples.length > 0) {
+          const lowIndex = Math.max(0, Math.floor(samples.length * 0.01));
+          setMinFps(Math.round(samples[0]));
+          setLowFps(Math.round(samples[lowIndex]));
+          setSpikeMs(Math.round(maxFrameMsRef.current));
+        }
+        maxFrameMsRef.current = 0;
         lastUpdateTimeRef.current = timestamp;
       }
 
@@ -75,6 +93,8 @@ export const FpsHud: React.FC<FpsHudProps> = ({ enabled = true }) => {
       lastFrameTimeRef.current = 0;
       smoothedFpsRef.current = 0;
       frameCountRef.current = 0;
+      samplesRef.current = [];
+      maxFrameMsRef.current = 0;
     };
   }, [enabled]);
 
@@ -108,7 +128,7 @@ export const FpsHud: React.FC<FpsHudProps> = ({ enabled = true }) => {
         userSelect: 'none',
       }}
     >
-      {fps} FPS
+      {fps} FPS | min {minFps} | 1% {lowFps} | spike {spikeMs}ms
     </div>
   );
 };

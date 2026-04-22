@@ -52,8 +52,11 @@ const loadDiagnostics = async () => {
       `Timestamp: ${diagnostics.timestamp}`,
       `Target URL: ${diagnostics.targetUrl}`,
       `Profile Path: ${diagnostics.profilePath}`,
+      `BGA Mode: ${diagnostics.runtime?.bgaMode || "unknown"}`,
       "",
       formatJson(diagnostics.versions),
+      "",
+      formatJson(diagnostics.runtime),
     ].join("\n");
 
     featuresEl.textContent = formatJson(diagnostics.gpuFeatureStatus);
@@ -80,4 +83,3 @@ fullscreenButton.addEventListener("click", () => {
 });
 
 loadDiagnostics();
-

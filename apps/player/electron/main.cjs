@@ -32,6 +32,16 @@ app.setPath("userData", isolatedProfilePath);
 
 let mainWindow = null;
 let diagnosticsWindow = null;
+let bgaLayerState = {
+  mode: "web-iframe",
+  videoId: null,
+  visible: false,
+  opacity: 1,
+  currentSeconds: 0,
+  shouldPlay: false,
+  updatedAt: null,
+};
+let bgaLayerBounds = null;
 
 const isMac = process.platform === "darwin";
 
@@ -286,10 +296,47 @@ const collectGpuDiagnostics = async () => {
     gpuFeatureStatus,
     gpuInfo,
     switches: GPU_SWITCHES,
+    runtime: {
+      isElectronPlayer: true,
+      chromeVersion: process.versions.chrome,
+      bgaMode: bgaLayerState.mode,
+      bgaLayerState,
+      bgaLayerBounds,
+    },
   };
 };
 
 ipcMain.handle("player:getGpuDiagnostics", () => collectGpuDiagnostics());
+ipcMain.handle("player:getRuntimeInfo", () => ({
+  isElectronPlayer: true,
+  gpuFeatureStatus: app.getGPUFeatureStatus(),
+  chromeVersion: process.versions.chrome,
+  bgaMode: bgaLayerState.mode,
+}));
+ipcMain.on("player:setBgaLayerState", (_event, state = {}) => {
+  bgaLayerState = {
+    mode: "web-iframe",
+    videoId: typeof state.videoId === "string" ? state.videoId : null,
+    visible: Boolean(state.visible),
+    opacity: Number.isFinite(state.opacity) ? state.opacity : 1,
+    currentSeconds: Number.isFinite(state.currentSeconds) ? state.currentSeconds : 0,
+    shouldPlay: Boolean(state.shouldPlay),
+    updatedAt: new Date().toISOString(),
+  };
+});
+ipcMain.on("player:setBgaLayerBounds", (_event, bounds = null) => {
+  if (!bounds) {
+    bgaLayerBounds = null;
+    return;
+  }
+
+  bgaLayerBounds = {
+    x: Number.isFinite(bounds.x) ? bounds.x : 0,
+    y: Number.isFinite(bounds.y) ? bounds.y : 0,
+    width: Number.isFinite(bounds.width) ? bounds.width : 0,
+    height: Number.isFinite(bounds.height) ? bounds.height : 0,
+  };
+});
 ipcMain.on("player:openDiagnostics", () => openDiagnosticsWindow());
 ipcMain.on("player:retryLoad", () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -318,4 +365,3 @@ app.on("activate", () => {
     createMainWindow();
   }
 });
-
