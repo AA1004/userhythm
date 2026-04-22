@@ -163,30 +163,13 @@ export function useGameLoop(
 
       if (hasMiss) {
         const notesToNotify = hitNoteIdsRef ? newlyMissed : missedInFrame;
-        const resolvedJudges: Array<'miss' | 'good'> = notesToNotify.map((note) => {
-          const overrideJudge = onNoteMiss?.(note);
-          return overrideJudge === 'good' ? 'good' : 'miss';
+        notesToNotify.forEach((note) => {
+          onNoteMiss?.(note);
         });
-
         setGameState((prev: GameState) => {
-          const nextScore = { ...prev.score };
-          for (const judge of resolvedJudges) {
-            if (judge === 'good') {
-              nextScore.good += 1;
-              nextScore.combo += 1;
-              if (nextScore.combo > nextScore.maxCombo) {
-                nextScore.maxCombo = nextScore.combo;
-              }
-            } else {
-              nextScore.miss += 1;
-              nextScore.combo = 0;
-            }
-          }
-
           return {
             ...prev,
             currentTime: elapsedTime,
-            score: nextScore,
           };
         });
       }
