@@ -33,7 +33,6 @@ export function useTestYoutubePlayer({
   const playerReadyRef = useRef(false);
   const audioHasStartedRef = useRef(false);
   const lastResyncTimeRef = useRef(0);
-  const lastPlayAttemptAtRef = useRef(0);
   const isExternalPlayerRef = useRef(false);
 
   // External player가 있으면 재사용
@@ -211,7 +210,6 @@ export function useTestYoutubePlayer({
         player.setVolume?.(volume);
         player.seekTo(cueSeconds, true);
         player.playVideo?.();
-        lastPlayAttemptAtRef.current = Date.now();
         audioHasStartedRef.current = true;
         console.log(`YouTube test playback start (${cueSeconds.toFixed(2)}s, volume: ${volume})`);
       } catch (e) {
@@ -220,22 +218,20 @@ export function useTestYoutubePlayer({
       return;
     }
 
-    const now = Date.now();
-    if (now - lastPlayAttemptAtRef.current > 250) {
-      try {
-        player.playVideo?.();
-        lastPlayAttemptAtRef.current = now;
-      } catch (e) {
-        console.warn("YouTube resume failed:", e);
-      }
+    try {
+      player.playVideo?.();
+    } catch (e) {
+      console.warn("YouTube resume failed:", e);
     }
 
     const desiredSeconds = getAudioPositionSeconds(currentTime, audioSettings);
     const currentSeconds = player.getCurrentTime?.() ?? 0;
+    const now = Date.now();
 
-    // 임계값/쿨다운을 완화해 seek 폭주로 인한 스터터를 줄인다.
-    const RESYNC_THRESHOLD = 0.8;
-    const RESYNC_COOLDOWN = 5000;
+    // 임계값: 0.5초 이상 차이날 때만 리싱크
+    // 쿨다운: 마지막 리싱크 후 2초 이내에는 리싱크하지 않음
+    const RESYNC_THRESHOLD = 0.5;
+    const RESYNC_COOLDOWN = 2000;
 
     if (
       Math.abs(currentSeconds - desiredSeconds) > RESYNC_THRESHOLD &&

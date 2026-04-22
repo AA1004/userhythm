@@ -446,52 +446,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   배경 영상 표시
                 </span>
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '12px' }}>
-                <button
-                  onClick={() => applyToggleVisualSettings({ bgaRenderMode: 'lite' })}
-                  style={{
-                    padding: '9px 8px',
-                    borderRadius: CHART_EDITOR_THEME.radiusSm,
-                    border: `1px solid ${
-                      visualSettings.bgaRenderMode === 'lite'
-                        ? CHART_EDITOR_THEME.accent
-                        : CHART_EDITOR_THEME.borderSubtle
-                    }`,
-                    background:
-                      visualSettings.bgaRenderMode === 'lite'
-                        ? CHART_EDITOR_THEME.accentSoft
-                        : 'transparent',
-                    color: CHART_EDITOR_THEME.textPrimary,
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    fontWeight: visualSettings.bgaRenderMode === 'lite' ? 700 : 500,
-                  }}
-                >
-                  Lite
-                </button>
-                <button
-                  onClick={() => applyToggleVisualSettings({ bgaRenderMode: 'video' })}
-                  style={{
-                    padding: '9px 8px',
-                    borderRadius: CHART_EDITOR_THEME.radiusSm,
-                    border: `1px solid ${
-                      visualSettings.bgaRenderMode === 'video'
-                        ? CHART_EDITOR_THEME.accent
-                        : CHART_EDITOR_THEME.borderSubtle
-                    }`,
-                    background:
-                      visualSettings.bgaRenderMode === 'video'
-                        ? CHART_EDITOR_THEME.accentSoft
-                        : 'transparent',
-                    color: CHART_EDITOR_THEME.textPrimary,
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    fontWeight: visualSettings.bgaRenderMode === 'video' ? 700 : 500,
-                  }}
-                >
-                  Video
-                </button>
-              </div>
               <div style={{ marginTop: '12px' }}>
                 <VisualSliderRow
                   label="BGA 투명도"

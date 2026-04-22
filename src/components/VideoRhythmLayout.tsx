@@ -13,8 +13,6 @@ type VideoRhythmLayoutProps = {
   bgaMaskOpacity?: number;
   /** 배경 동영상 투명도 (0~1, 값이 클수록 더 투명) */
   bgaOpacity?: number;
-  /** BGA 표시 방식: lite는 썸네일만 사용해 두 번째 YouTube 디코더를 피합니다. */
-  bgaRenderMode?: 'lite' | 'video';
   children: React.ReactNode;
 };
 
@@ -34,20 +32,17 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   bgaCurrentSeconds = null,
   bgaMaskOpacity = 0,
   bgaOpacity = 1,
-  bgaRenderMode = 'video',
   children,
 }) => {
   const backgroundPlayerContainerRef = useRef<HTMLDivElement | null>(null);
   const [backgroundPlayer, setBackgroundPlayer] = useState<any>(null);
   const backgroundPlayerReadyRef = useRef(false);
-  const hasSyncedBgaStartRef = useRef(false);
-  const lastBgaPlayAttemptAtRef = useRef<number>(0);
-  const aggressivePlayRetryUntilRef = useRef<number>(0);
+  const lastBgaSeekRef = useRef<number | null>(null);
   const userInteractedRef = useRef(false);
 
   // 배경용 YouTube 플레이어 초기화
   useEffect(() => {
-    if (!videoId || !bgaEnabled || bgaRenderMode !== 'video') {
+    if (!videoId || !bgaEnabled) {
       if (backgroundPlayer) {
         try {
           backgroundPlayer.destroy?.();
@@ -81,7 +76,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
         playerInstance = new window.YT.Player(playerId, {
           videoId,
           playerVars: {
-            autoplay: 1,
+            autoplay: 0,
             controls: 0,
             mute: 1,
             playsinline: 1,
@@ -99,13 +94,6 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
               setBackgroundPlayer(player);
               try {
                 player.mute?.();
-                hasSyncedBgaStartRef.current = false;
-                if (typeof bgaCurrentSeconds === 'number') {
-                  player.seekTo?.(bgaCurrentSeconds, true);
-                  hasSyncedBgaStartRef.current = true;
-                }
-                player.playVideo?.();
-                aggressivePlayRetryUntilRef.current = performance.now() + 3000;
                 // 게임 시작 전에 미리 재생해서 UI를 띄워놓기
                 // 사용자 인터랙션이 필요하므로 pointerdown 이벤트에서 처리
               } catch {
@@ -131,7 +119,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       }
       setBackgroundPlayer(null);
     };
-  }, [videoId, bgaEnabled, bgaRenderMode]);
+  }, [videoId, bgaEnabled]);
 
   // 게임 상태에 따라 BGA 재생/일시정지
   useEffect(() => {
@@ -139,48 +127,14 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
 
     try {
       if (shouldPlayBga && bgaEnabled && videoId) {
-        aggressivePlayRetryUntilRef.current = performance.now() + 3000;
-        lastBgaPlayAttemptAtRef.current = 0;
         backgroundPlayer.playVideo?.();
       } else {
         backgroundPlayer.pauseVideo?.();
-        hasSyncedBgaStartRef.current = false;
       }
     } catch {
       // ignore
     }
   }, [shouldPlayBga, bgaEnabled, videoId, backgroundPlayer]);
-
-  useEffect(() => {
-    if (!backgroundPlayer || !backgroundPlayerReadyRef.current) return;
-    if (!shouldPlayBga || !bgaEnabled || !videoId) return;
-
-    const retryTimer = window.setInterval(() => {
-      try {
-        const now = performance.now();
-        if (now >= aggressivePlayRetryUntilRef.current) {
-          window.clearInterval(retryTimer);
-          return;
-        }
-        if (now - lastBgaPlayAttemptAtRef.current < 120) {
-          return;
-        }
-        const state = backgroundPlayer.getPlayerState?.();
-        if (state !== window.YT?.PlayerState?.PLAYING) {
-          backgroundPlayer.playVideo?.();
-          lastBgaPlayAttemptAtRef.current = now;
-        } else {
-          window.clearInterval(retryTimer);
-        }
-      } catch {
-        // ignore
-      }
-    }, 120);
-
-    return () => {
-      window.clearInterval(retryTimer);
-    };
-  }, [backgroundPlayer, shouldPlayBga, bgaEnabled, videoId]);
 
   // 자동재생 정책 회피: 사용자 입력(pointerdown)이 들어오면 즉시 재생 시도
   useEffect(() => {
@@ -207,15 +161,22 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     };
   }, [backgroundPlayer, shouldPlayBga, bgaEnabled, videoId]);
 
-  // BGA는 시작 지점만 맞춘 뒤 독립 재생합니다. 지속적인 iframe sync는 프레임 스터터를 만들 수 있습니다.
+  // 게임 타임라인에 맞춰 BGA 위치도 함께 시크
   useEffect(() => {
     if (!backgroundPlayer || !backgroundPlayerReadyRef.current) return;
     if (typeof bgaCurrentSeconds !== 'number') return;
-    if (!shouldPlayBga || hasSyncedBgaStartRef.current) return;
 
     try {
-      backgroundPlayer.seekTo(bgaCurrentSeconds, true);
-      hasSyncedBgaStartRef.current = true;
+      const currentSeconds = backgroundPlayer.getCurrentTime?.() ?? 0;
+      const diff = Math.abs(currentSeconds - bgaCurrentSeconds);
+
+      if (diff > 0.3 || lastBgaSeekRef.current === null) {
+        backgroundPlayer.seekTo(bgaCurrentSeconds, true);
+        lastBgaSeekRef.current = bgaCurrentSeconds;
+        if (!shouldPlayBga) {
+          backgroundPlayer.pauseVideo?.();
+        }
+      }
     } catch {
       // ignore
     }
@@ -245,28 +206,16 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
             pointerEvents: 'none', // 배경은 클릭 불가, 게임 영역만 인터랙션
           }}
         >
-          {bgaRenderMode === 'video' ? (
-            <div
-              ref={backgroundPlayerContainerRef}
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-              }}
-            />
-          ) : (
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                backgroundImage: `url(https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg)`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                transform: 'scale(1.02)',
-              }}
-            />
-          )}
+          {/* 화면에 딱 맞게 배치 */}
+          <div
+            ref={backgroundPlayerContainerRef}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+            }}
+          />
           {/* 여백과 영상 경계를 자연스럽게 블렌딩하는 그라디언트 마스크 */}
           <div
             style={{

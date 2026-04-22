@@ -820,7 +820,6 @@ export const Game: React.FC = () => {
         bgaCurrentSeconds={bgaCurrentSeconds ?? undefined}
         bgaMaskOpacity={activeBgaMaskOpacity}
         bgaOpacity={visualSettings.bgaOpacity}
-        bgaRenderMode={visualSettings.bgaRenderMode}
       >
       {/* 게임 + 자막 wrapper (자막이 게임 바깥으로 나갈 수 있도록) */}
       <div

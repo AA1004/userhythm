@@ -10,7 +10,6 @@ export type VisualPresetId = 'classic' | 'compact' | 'wide' | 'custom';
 export type GameplayHudMode = 'legacy' | 'new';
 export type RenderBackend = 'canvas2d' | 'webgl-beta';
 export type PerformanceMode = 'quality' | 'balanced' | 'performance';
-export type BgaRenderMode = 'lite' | 'video';
 
 export interface GameVisualSettings {
   version: typeof VISUAL_SETTINGS_VERSION;
@@ -26,7 +25,6 @@ export interface GameVisualSettings {
   noteHeight: number;
   comboOpacity: number;
   bgaOpacity: number;
-  bgaRenderMode: BgaRenderMode;
   gameplayHudMode: GameplayHudMode;
   topLaneExtensionEnabled: boolean;
   slotHudEnabled: boolean;
@@ -54,7 +52,6 @@ export interface PlayfieldGeometry {
   noteHeight: number;
   comboOpacity: number;
   bgaOpacity: number;
-  bgaRenderMode: BgaRenderMode;
   gameplayHudMode: GameplayHudMode;
   topLaneExtensionEnabled: boolean;
   slotHudEnabled: boolean;
@@ -91,7 +88,6 @@ export const DEFAULT_GAME_VISUAL_SETTINGS: GameVisualSettings = {
   noteHeight: 42,
   comboOpacity: 0.7,
   bgaOpacity: 0,
-  bgaRenderMode: 'video',
   gameplayHudMode: 'legacy',
   topLaneExtensionEnabled: false,
   slotHudEnabled: false,
@@ -117,7 +113,6 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     noteHeight: 38,
     comboOpacity: 0.7,
     bgaOpacity: 0,
-    bgaRenderMode: 'video',
     gameplayHudMode: 'legacy',
     topLaneExtensionEnabled: false,
     slotHudEnabled: false,
@@ -140,7 +135,6 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     noteHeight: 46,
     comboOpacity: 0.7,
     bgaOpacity: 0,
-    bgaRenderMode: 'video',
     gameplayHudMode: 'legacy',
     topLaneExtensionEnabled: false,
     slotHudEnabled: false,
@@ -231,7 +225,6 @@ export const normalizeGameVisualSettings = (
     VISUAL_SETTING_LIMITS.bgaOpacity.max
   );
   const gameplayHudMode: GameplayHudMode = raw.gameplayHudMode === 'new' ? 'new' : 'legacy';
-  const bgaRenderMode: BgaRenderMode = raw.bgaRenderMode === 'lite' ? 'lite' : 'video';
   const topLaneExtensionEnabled = booleanOr(
     raw.topLaneExtensionEnabled,
     fallback.topLaneExtensionEnabled
@@ -273,7 +266,6 @@ export const normalizeGameVisualSettings = (
     noteHeight,
     comboOpacity,
     bgaOpacity,
-    bgaRenderMode,
     gameplayHudMode,
     topLaneExtensionEnabled,
     slotHudEnabled,
@@ -324,7 +316,6 @@ export const buildPlayfieldGeometry = (
     noteHeight: normalized.noteHeight,
     comboOpacity: normalized.comboOpacity,
     bgaOpacity: normalized.bgaOpacity,
-    bgaRenderMode: normalized.bgaRenderMode,
     gameplayHudMode: normalized.gameplayHudMode,
     topLaneExtensionEnabled: normalized.topLaneExtensionEnabled,
     slotHudEnabled: normalized.slotHudEnabled,
