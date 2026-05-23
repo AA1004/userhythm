@@ -214,14 +214,17 @@ export function useTestYoutubePlayer({
       }
 
       if (!audioHasStartedRef.current) {
+        const desiredSeconds = getAudioPositionSeconds(currentTime, audioSettings);
         try {
           // 미리듣기에서 볼륨이 낮아져 있을 수 있으므로 설정 볼륨으로 복원하고 음소거 해제
           player.unMute?.();
           player.setVolume?.(latestVolumeRef.current);
-          player.seekTo(cueSeconds, true);
+          player.seekTo(desiredSeconds, true);
           player.playVideo?.();
           audioHasStartedRef.current = true;
-          console.log(`YouTube test playback start (${cueSeconds.toFixed(2)}s, volume: ${latestVolumeRef.current})`);
+          console.log(
+            `YouTube test playback start (${desiredSeconds.toFixed(2)}s, volume: ${latestVolumeRef.current})`
+          );
         } catch (e) {
           console.warn("YouTube initial playback failed:", e);
         }
