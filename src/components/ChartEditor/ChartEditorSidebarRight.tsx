@@ -16,6 +16,7 @@ export interface ChartEditorSidebarRightProps {
   onTestStartInputChange: (value: string) => void;
   currentTime: number;
   onSetTestStartToCurrent: () => void;
+  onResetTestStartMode: () => void;
   onTest: () => void;
   onShareClick: () => void;
   bpm: number;
@@ -134,6 +135,7 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
   onTestStartInputChange,
   currentTime,
   onSetTestStartToCurrent,
+  onResetTestStartMode,
   onTest,
   onShareClick,
   bpm,
@@ -359,9 +361,12 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
           type="text"
           inputMode="numeric"
           data-select-on-focus="true"
-          value={testStartInput}
-          onChange={(e) => onTestStartInputChange(e.target.value)}
-          placeholder="ms"
+            value={testStartInput}
+            onChange={(e) => {
+              onResetTestStartMode();
+              onTestStartInputChange(e.target.value);
+            }}
+            placeholder="ms"
           style={{
             ...inputBaseStyle,
             width: '100%',
@@ -393,11 +398,12 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
           </button>
           <button
             data-editor-transient-action="true"
-            onMouseDown={keepTransientButtonFromTakingFocus}
-            onClick={(e) => {
-              onTestStartInputChange('0');
-              blurTransientButton(e);
-            }}
+              onMouseDown={keepTransientButtonFromTakingFocus}
+              onClick={(e) => {
+                onResetTestStartMode();
+                onTestStartInputChange('0');
+                blurTransientButton(e);
+              }}
             style={{
               flex: 1,
               padding: '4px',
