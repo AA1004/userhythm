@@ -357,6 +357,19 @@ export const Game: React.FC = () => {
     volume: gameVolume,
   });
 
+  const handleEditorTestWithRuntimeReset = useCallback(
+    (payload: Parameters<typeof handleEditorTest>[0]) => {
+      currentTimeRef.current = -START_DELAY_MS;
+      handleEditorTest(payload);
+    },
+    [handleEditorTest]
+  );
+
+  const handleRetestWithRuntimeReset = useCallback(() => {
+    currentTimeRef.current = -START_DELAY_MS;
+    handleRetest();
+  }, [handleRetest]);
+
   // currentTimeRef is the source time; this keeps end detection precise without top-level time renders.
   useEffect(() => {
     if (!gameState.gameStarted || gameState.gameEnded) return;
@@ -583,17 +596,17 @@ export const Game: React.FC = () => {
     // 관리자 화면을 먼저 닫고, 다음 렌더링 사이클에서 테스트 시작
     setViewMode({ type: 'menu' });
     // 상태 업데이트가 완료된 후 테스트 시작 (다음 틱에서 실행)
-    setTimeout(() => {
-    handleEditorTest({
-      notes: chartData.notes || [],
-      startTimeMs: 0,
-      youtubeVideoId: chartData.youtubeVideoId || null,
-      youtubeUrl: chartData.youtubeUrl || '',
-      playbackSpeed: 1,
-      audioOffsetMs: typeof chartData.audioOffsetMs === 'number' ? chartData.audioOffsetMs : 0,
-    });
-    }, 0);
-  }, [handleEditorTest]);
+      setTimeout(() => {
+    handleEditorTestWithRuntimeReset({
+        notes: chartData.notes || [],
+        startTimeMs: 0,
+        youtubeVideoId: chartData.youtubeVideoId || null,
+        youtubeUrl: chartData.youtubeUrl || '',
+        playbackSpeed: 1,
+        audioOffsetMs: typeof chartData.audioOffsetMs === 'number' ? chartData.audioOffsetMs : 0,
+      });
+      }, 0);
+    }, [handleEditorTestWithRuntimeReset]);
 
   // Subtitle editor open handler
   const handleOpenSubtitleEditor = useCallback((chartData: SubtitleEditorChartData) => {
@@ -669,7 +682,7 @@ export const Game: React.FC = () => {
   }
 
   if (viewMode.type === 'editor') {
-    return <ChartEditor onCancel={handleEditorCancel} onTest={handleEditorTest} onOpenSubtitleEditor={handleOpenSubtitleEditor} />;
+      return <ChartEditor onCancel={handleEditorCancel} onTest={handleEditorTestWithRuntimeReset} onOpenSubtitleEditor={handleOpenSubtitleEditor} />;
   }
 
   if (viewMode.type === 'chartSelect') {
@@ -932,7 +945,7 @@ export const Game: React.FC = () => {
                   accuracy={accuracy}
                   score={gameState.score}
                   bgaMaskOpacity={activeBgaMaskOpacity}
-                  onRetest={isTestMode ? handleRetest : undefined}
+                  onRetest={isTestMode ? handleRetestWithRuntimeReset : undefined}
                   onReturnToEditor={isFromEditor ? handleReturnToEditor : undefined}
                   onReturnToPlayList={!isFromEditor ? handleReturnToPlayList : undefined}
                   onReset={resetGame}
