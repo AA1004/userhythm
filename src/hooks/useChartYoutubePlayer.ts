@@ -42,12 +42,12 @@ export function useChartYoutubePlayer({
     [audioOffsetMs]
   );
   const syncPlayerToTimeline = useCallback(
-    (timeMs: number, shouldAutoplay: boolean) => {
+    (timeMs: number, shouldAutoplay: boolean, forceReload = false) => {
       if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
       const timeSeconds = getPlayerTimeSeconds(timeMs);
 
       try {
-        if (youtubeVideoId && shouldAutoplay && typeof youtubePlayer.loadVideoById === 'function') {
+        if (forceReload && youtubeVideoId && shouldAutoplay && typeof youtubePlayer.loadVideoById === 'function') {
           youtubePlayer.loadVideoById({
             videoId: youtubeVideoId,
             startSeconds: timeSeconds,
@@ -55,7 +55,7 @@ export function useChartYoutubePlayer({
           return;
         }
 
-        if (youtubeVideoId && !shouldAutoplay && typeof youtubePlayer.cueVideoById === 'function') {
+        if (forceReload && youtubeVideoId && !shouldAutoplay && typeof youtubePlayer.cueVideoById === 'function') {
           youtubePlayer.cueVideoById({
             videoId: youtubeVideoId,
             startSeconds: timeSeconds,
@@ -341,7 +341,7 @@ export function useChartYoutubePlayer({
     if (lastAppliedAudioOffsetRef.current === audioOffsetMs) return;
 
     try {
-      syncPlayerToTimeline(latestTimeRef.current, isPlaying);
+      syncPlayerToTimeline(latestTimeRef.current, isPlaying, true);
     } catch (e) {
       console.warn('오디오 시작 보정 반영 실패:', e);
     }
