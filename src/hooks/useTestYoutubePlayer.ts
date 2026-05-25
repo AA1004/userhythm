@@ -143,20 +143,26 @@ export function useTestYoutubePlayer({
 
               console.log('✅ 테스트 YouTube 플레이어 준비 완료');
               
-              // 플레이어가 준비되면 설정만 하고, 실제 재생은 게임 시작 후에 수행
+              // 플레이어가 준비되면 현재 게임 진행 상태에 맞는 위치만 맞춘다.
               setTimeout(() => {
                 if (!isCancelled && player && audioSettings) {
                   try {
                     const { playbackSpeed } = audioSettings;
-                    const startTimeSec = getAudioBaseSeconds(audioSettings);
+                    const currentGameTime = currentTimeRef.current;
+                    const targetSeconds =
+                      currentGameTime >= 0
+                        ? getAudioPositionSeconds(currentGameTime, audioSettings)
+                        : getAudioBaseSeconds(audioSettings);
                     
                     // 재생 속도 설정
                     player.setPlaybackRate?.(playbackSpeed);
                     
-                    // 시작 위치로 이동 (미리 이동)
-                    player.seekTo(startTimeSec, true);
+                    // 현재 게임 시각에 맞는 위치로 이동
+                    player.seekTo(targetSeconds, true);
                     
-                    console.log(`🎵 YouTube 플레이어 준비 완료 (${startTimeSec}초, ${playbackSpeed}x) - 게임 시작 후 재생`);
+                    console.log(
+                      `🎵 YouTube 플레이어 준비 완료 (${targetSeconds}초, ${playbackSpeed}x) - 게임 상태 동기화`
+                    );
                   } catch (e) {
                     console.warn('YouTube 플레이어 설정 실패:', e);
                   }
