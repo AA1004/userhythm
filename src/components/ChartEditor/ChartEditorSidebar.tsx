@@ -97,10 +97,18 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
 }) => {
   const gridCellMs = beatDuration / Math.max(1, gridDivision);
   const offsetInCells = timeSignatureOffset / gridCellMs;
+  const timelineExtraCells = timelineExtraMs / gridCellMs;
   const displayOffset =
     offsetInCells === 0
       ? '0'
       : `${offsetInCells > 0 ? '+' : ''}${offsetInCells
+          .toFixed(2)
+          .replace(/\\.0+$/, '')
+          .replace(/(\\.\\d*?)0+$/, '$1')}`;
+  const displayTimelineExtra =
+    timelineExtraCells === 0
+      ? '0'
+      : `${timelineExtraCells > 0 ? '+' : ''}${timelineExtraCells
           .toFixed(2)
           .replace(/\\.0+$/, '')
           .replace(/(\\.\\d*?)0+$/, '$1')}`;
@@ -495,9 +503,17 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
               color: CHART_EDITOR_THEME.textPrimary,
             }}
           >
-            {timelineExtraMs >= 0 ? '+' : ''}
-            {(timelineExtraMs / 1000).toFixed(0)}초
+            {displayTimelineExtra}칸
           </span>
+        </div>
+        <div
+          style={{
+            marginBottom: 8,
+            fontSize: 11,
+            color: CHART_EDITOR_THEME.textMuted,
+          }}
+        >
+          현재 그리드 기준 1칸 = {(gridCellMs / 1000).toFixed(3).replace(/0+$/, '').replace(/\.$/, '')}초
         </div>
         <div
           style={{
@@ -506,7 +522,7 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
           }}
         >
           <button
-            onClick={() => onTimelineExtraChange((prev) => prev - 5000)}
+            onClick={() => onTimelineExtraChange((prev) => Math.round(prev - gridCellMs))}
             style={{
               flex: 1,
               padding: '8px',
@@ -519,10 +535,10 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
               fontWeight: 600,
             }}
           >
-            -5초
+            -1칸
           </button>
           <button
-            onClick={() => onTimelineExtraChange((prev) => prev + 5000)}
+            onClick={() => onTimelineExtraChange((prev) => Math.round(prev + gridCellMs))}
             style={{
               flex: 1,
               padding: '8px',
@@ -535,7 +551,7 @@ export const ChartEditorSidebar: React.FC<ChartEditorSidebarProps> = ({
               fontWeight: 600,
           }}
           >
-            +5초
+            +1칸
           </button>
         </div>
       </div>
