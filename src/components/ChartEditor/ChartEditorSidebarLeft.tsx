@@ -87,7 +87,10 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
   const gridCellMs = beatDuration / Math.max(1, gridDivision);
   const offsetInCells = timeSignatureOffset / gridCellMs;
   const timelineExtraCells = timelineExtraMs / gridCellMs;
-  const audioOffsetCells = audioOffsetMs / gridCellMs;
+  const displayAudioOffsetSeconds = (audioOffsetMs / 1000)
+    .toFixed(3)
+    .replace(/\.0+$/, '')
+    .replace(/(\.\d*?)0+$/, '$1');
   const displayOffset =
     offsetInCells === 0
       ? '0'
@@ -99,13 +102,6 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
     timelineExtraCells === 0
       ? '0'
       : `${timelineExtraCells > 0 ? '+' : ''}${timelineExtraCells
-          .toFixed(2)
-          .replace(/\.0+$/, '')
-          .replace(/(\.\d*?)0+$/, '$1')}`;
-  const displayAudioOffset =
-    audioOffsetCells === 0
-      ? '0'
-      : `${audioOffsetCells > 0 ? '+' : ''}${audioOffsetCells
           .toFixed(2)
           .replace(/\.0+$/, '')
           .replace(/(\.\d*?)0+$/, '$1')}`;
@@ -334,7 +330,7 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
           >
             오디오 시작 보정
           </span>
-          <ValueBadge>{displayAudioOffset}칸</ValueBadge>
+          <ValueBadge>{displayAudioOffsetSeconds}초</ValueBadge>
         </div>
         <div
           style={{
@@ -345,6 +341,28 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
         >
           +면 노래가 늦게, -면 노래가 빨리 시작됩니다.
         </div>
+        <input
+          type="number"
+          step="0.1"
+          value={Number(displayAudioOffsetSeconds)}
+          onChange={(e) => {
+            const nextSeconds = parseFloat(e.target.value);
+            onAudioOffsetChange(() => (Number.isFinite(nextSeconds) ? Math.round(nextSeconds * 1000) : 0));
+          }}
+          onFocus={(e) => e.currentTarget.select()}
+          onWheel={(e) => e.currentTarget.blur()}
+          style={{
+            width: '100%',
+            boxSizing: 'border-box',
+            marginBottom: 6,
+            padding: '6px 8px',
+            borderRadius: CHART_EDITOR_THEME.radiusSm,
+            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            backgroundColor: 'rgba(2,6,23,0.72)',
+            color: CHART_EDITOR_THEME.textPrimary,
+            fontSize: '12px',
+          }}
+        />
         <div
           style={{
             display: 'flex',
@@ -354,7 +372,7 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
           <button
             onClick={(e) => {
               e.currentTarget.blur();
-              onAudioOffsetChange((prev) => Math.round(prev - gridCellMs));
+              onAudioOffsetChange((prev) => prev - 100);
             }}
             style={{
               flex: 1,
@@ -368,7 +386,7 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
               fontWeight: 600,
             }}
           >
-            -1칸
+            -0.1초
           </button>
           <button
             onClick={(e) => {
@@ -387,12 +405,12 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
               fontWeight: 600,
             }}
           >
-            0칸
+            0초
           </button>
           <button
             onClick={(e) => {
               e.currentTarget.blur();
-              onAudioOffsetChange((prev) => Math.round(prev + gridCellMs));
+              onAudioOffsetChange((prev) => prev + 100);
             }}
             style={{
               flex: 1,
@@ -406,7 +424,7 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
               fontWeight: 600,
             }}
           >
-            +1칸
+            +0.1초
           </button>
         </div>
       </div>
