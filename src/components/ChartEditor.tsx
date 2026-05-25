@@ -51,6 +51,25 @@ const blurPointerTimelineActionButton = (event: React.MouseEvent<HTMLButtonEleme
   }
 };
 
+const getTransientEditorActionButton = (target: EventTarget | null): HTMLButtonElement | null => {
+  if (!(target instanceof HTMLElement)) return null;
+  const candidate = target.closest('button[data-editor-transient-action="true"]');
+  return candidate instanceof HTMLButtonElement ? candidate : null;
+};
+
+const preventTransientEditorButtonFocus = (event: React.MouseEvent<HTMLElement>) => {
+  if (event.detail <= 0) return;
+  if (getTransientEditorActionButton(event.target)) {
+    event.preventDefault();
+  }
+};
+
+const blurTransientEditorButtonAfterClick = (event: React.MouseEvent<HTMLElement>) => {
+  if (event.detail <= 0) return;
+  const button = getTransientEditorActionButton(event.target);
+  button?.blur();
+};
+
 interface EditorTimelineActionRailsProps {
   isLongNoteMode: boolean;
   isMoveMode: boolean;
@@ -1915,6 +1934,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
       <div
         className="chart-editor-workbench"
+        onMouseDownCapture={preventTransientEditorButtonFocus}
+        onClickCapture={blurTransientEditorButtonAfterClick}
         style={{
           flex: 1,
           minHeight: 0,

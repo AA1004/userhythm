@@ -370,6 +370,7 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
           }}
         >
           <button
+            data-editor-transient-action="true"
             onClick={(e) => {
               e.currentTarget.blur();
               onAudioOffsetChange((prev) => prev - 100);
@@ -389,6 +390,7 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
             -0.1초
           </button>
           <button
+            data-editor-transient-action="true"
             onClick={(e) => {
               e.currentTarget.blur();
               onAudioOffsetChange(() => 0);
@@ -408,6 +410,7 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
             0초
           </button>
           <button
+            data-editor-transient-action="true"
             onClick={(e) => {
               e.currentTarget.blur();
               onAudioOffsetChange((prev) => prev + 100);
@@ -597,6 +600,7 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
           }}
         >
           <button
+            data-editor-transient-action="true"
             onClick={(e) => {
               e.currentTarget.blur();
               handleOffsetAdjust(-1);
@@ -627,6 +631,7 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
             {displayOffset}칸
           </div>
           <button
+            data-editor-transient-action="true"
             onClick={(e) => {
               e.currentTarget.blur();
               handleOffsetAdjust(1);
@@ -700,6 +705,7 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
           }}
         >
           <button
+            data-editor-transient-action="true"
             onClick={(e) => {
               e.currentTarget.blur();
               onTimelineExtraChange((prev) => Math.round(prev - gridCellMs));
@@ -719,6 +725,7 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
             -1칸
           </button>
           <button
+            data-editor-transient-action="true"
             onClick={(e) => {
               e.currentTarget.blur();
               onTimelineExtraChange((prev) => Math.round(prev + gridCellMs));
