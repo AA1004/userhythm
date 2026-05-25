@@ -15,6 +15,7 @@ export interface ChartEditorSidebarRightProps {
   testStartInput: string;
   onTestStartInputChange: (value: string) => void;
   currentTime: number;
+  onSetTestStartToCurrent: () => void;
   onTest: () => void;
   onShareClick: () => void;
   bpm: number;
@@ -132,6 +133,7 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
   testStartInput,
   onTestStartInputChange,
   currentTime,
+  onSetTestStartToCurrent,
   onTest,
   onShareClick,
   bpm,
@@ -369,14 +371,14 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
           }}
         />
         <div style={{ display: 'flex', gap: '6px' }}>
-          <button
-            data-editor-transient-action="true"
-            onMouseDown={keepTransientButtonFromTakingFocus}
-            onClick={(e) => {
-              onTestStartInputChange(Math.floor(currentTime).toString());
-              blurTransientButton(e);
-            }}
-            style={{
+            <button
+              data-editor-transient-action="true"
+              onMouseDown={keepTransientButtonFromTakingFocus}
+              onClick={(e) => {
+                onSetTestStartToCurrent();
+                blurTransientButton(e);
+              }}
+              style={{
               flex: 1,
               padding: '4px',
               backgroundColor: 'rgba(34,211,238,0.14)',

@@ -391,6 +391,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     isLoadingDuration,
     handleYouTubeUrlSubmit,
     seekTo,
+    youtubePlayer,
     youtubePlayerRef,
   } = useChartYoutubePlayer({
     currentTime,
@@ -1734,6 +1735,17 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     subtitleSessionId,
   ]);
 
+  const handleSetTestStartToCurrent = useCallback(() => {
+    const playerSeconds = youtubePlayer?.getCurrentTime?.();
+    if (typeof playerSeconds === 'number' && Number.isFinite(playerSeconds)) {
+      const chartTimeMs = Math.max(0, Math.floor(playerSeconds * 1000 + audioOffsetMs));
+      setTestStartInput(chartTimeMs.toString());
+      return;
+    }
+
+    setTestStartInput(Math.floor(currentTime).toString());
+  }, [youtubePlayer, audioOffsetMs, currentTime]);
+
   const handleOpenShareModal = useCallback(() => {
     const subtitles = localSubtitleStorage.get(subtitleSessionId);
     if (subtitles.length > 0) {
@@ -2056,6 +2068,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           testStartInput={testStartInput}
           onTestStartInputChange={setTestStartInput}
           currentTime={currentTime}
+          onSetTestStartToCurrent={handleSetTestStartToCurrent}
           onTest={handleRunEditorTest}
           onShareClick={handleOpenShareModal}
           bpm={bpm}
