@@ -391,7 +391,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     isLoadingDuration,
     handleYouTubeUrlSubmit,
     seekTo,
-    youtubePlayer,
     youtubePlayerRef,
   } = useChartYoutubePlayer({
     currentTime,
@@ -474,8 +473,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       lastTickTimestampRef.current = null;
       // 최종 시간 동기화
       setCurrentTime(internalTimeRef.current);
-    };
+      };
   }, [isPlaying, playbackSpeed]);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      internalTimeRef.current = currentTime;
+    }
+  }, [currentTime, isPlaying]);
 
   // --- 계산된 값들 ---
   const beatDuration = useMemo(() => (60000 / bpm), [bpm]);
@@ -1701,14 +1706,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setIsMoveMode((prev) => !prev);
   }, []);
 
-  const resolveEditorPreviewChartTimeMs = useCallback(() => {
-    const playerSeconds = youtubePlayer?.getCurrentTime?.();
-    if (typeof playerSeconds === 'number' && Number.isFinite(playerSeconds)) {
-      return Math.max(0, Math.floor(playerSeconds * 1000 + audioOffsetMs));
-    }
-
-    return Math.max(0, Math.floor(currentTime));
-  }, [youtubePlayer, audioOffsetMs, currentTime]);
+  const resolveEditorPreviewChartTimeMs = useCallback(
+    () => Math.max(0, Math.floor(isPlaying ? internalTimeRef.current : currentTime)),
+    [currentTime, isPlaying]
+  );
 
   const handleRunEditorTest = useCallback(() => {
     if (!onTest) return;
