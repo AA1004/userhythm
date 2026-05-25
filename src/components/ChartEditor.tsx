@@ -335,7 +335,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState<boolean>(true);
   const [isLongNoteMode, setIsLongNoteMode] = useState<boolean>(false);
   const [testStartInput, setTestStartInput] = useState<string>('0');
-  const useLiveCurrentPositionForTestStartRef = useRef(false);
   
   // --- Refs & 기타 ---
   const noteIdRef = useRef(0);
@@ -1702,22 +1701,20 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setIsMoveMode((prev) => !prev);
   }, []);
 
+  const resolveEditorPreviewChartTimeMs = useCallback(() => {
+    const playerSeconds = youtubePlayer?.getCurrentTime?.();
+    if (typeof playerSeconds === 'number' && Number.isFinite(playerSeconds)) {
+      return Math.max(0, Math.floor(playerSeconds * 1000 + audioOffsetMs));
+    }
+
+    return Math.max(0, Math.floor(currentTime));
+  }, [youtubePlayer, audioOffsetMs, currentTime]);
+
   const handleRunEditorTest = useCallback(() => {
     if (!onTest) return;
 
     const validatedNotes = validateNotes(notes);
-    const livePlayerSeconds = youtubePlayer?.getCurrentTime?.();
-    const computedCurrentPositionMs =
-      typeof livePlayerSeconds === 'number' && Number.isFinite(livePlayerSeconds)
-        ? Math.max(0, Math.floor(livePlayerSeconds * 1000 + audioOffsetMs))
-        : null;
-    const startTimeMs = useLiveCurrentPositionForTestStartRef.current && computedCurrentPositionMs !== null
-      ? computedCurrentPositionMs
-      : (parseInt(testStartInput, 10) || 0);
-
-    if (useLiveCurrentPositionForTestStartRef.current) {
-      setTestStartInput(startTimeMs.toString());
-    }
+    const startTimeMs = parseInt(testStartInput, 10) || 0;
 
     // 에디터 미리듣기 플레이어가 잠깐 더 재생되면 테스트 플레이어와 이중으로 들릴 수 있으므로
     // 테스트 시작 전에 즉시 멈추고 목표 시작 위치에 고정한다.
@@ -1741,28 +1738,16 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setIsPlaying,
     seekTo,
     youtubeVideoId,
-    youtubeUrl,
-    audioOffsetMs,
-    bgaVisibilityIntervals,
+      youtubeUrl,
+      audioOffsetMs,
+      bgaVisibilityIntervals,
       subtitleSessionId,
+      resolveEditorPreviewChartTimeMs,
     ]);
 
   const handleSetTestStartToCurrent = useCallback(() => {
-    const playerSeconds = youtubePlayer?.getCurrentTime?.();
-    if (typeof playerSeconds === 'number' && Number.isFinite(playerSeconds)) {
-      const chartTimeMs = Math.max(0, Math.floor(playerSeconds * 1000 + audioOffsetMs));
-      useLiveCurrentPositionForTestStartRef.current = true;
-      setTestStartInput(chartTimeMs.toString());
-      return;
-    }
-
-    useLiveCurrentPositionForTestStartRef.current = true;
-    setTestStartInput(Math.floor(currentTime).toString());
-  }, [youtubePlayer, audioOffsetMs, currentTime]);
-
-  const handleResetTestStartMode = useCallback(() => {
-    useLiveCurrentPositionForTestStartRef.current = false;
-  }, []);
+    setTestStartInput(resolveEditorPreviewChartTimeMs().toString());
+  }, [resolveEditorPreviewChartTimeMs]);
 
   const handleOpenShareModal = useCallback(() => {
     const subtitles = localSubtitleStorage.get(subtitleSessionId);
@@ -2087,7 +2072,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           onTestStartInputChange={setTestStartInput}
           currentTime={currentTime}
           onSetTestStartToCurrent={handleSetTestStartToCurrent}
-          onResetTestStartMode={handleResetTestStartMode}
           onTest={handleRunEditorTest}
           onShareClick={handleOpenShareModal}
           bpm={bpm}
