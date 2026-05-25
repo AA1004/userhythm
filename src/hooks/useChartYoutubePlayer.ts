@@ -7,6 +7,7 @@ interface UseChartYoutubePlayerOptions {
   isPlaying: boolean;
   setIsPlaying: (playing: boolean) => void;
   playbackSpeed: number;
+  audioOffsetMs: number;
   volume: number;
 }
 
@@ -20,6 +21,7 @@ export function useChartYoutubePlayer({
   isPlaying,
   setIsPlaying,
   playbackSpeed,
+  audioOffsetMs,
   volume,
 }: UseChartYoutubePlayerOptions) {
   const [youtubeUrl, setYoutubeUrl] = useState<string>('');
@@ -34,6 +36,10 @@ export function useChartYoutubePlayer({
   const lastSyncTimeRef = useRef(0);
   const wasPlayingRef = useRef(false);
   const latestTimeRef = useRef(0);
+  const getPlayerTimeSeconds = useCallback(
+    (timeMs: number) => Math.max(0, timeMs + audioOffsetMs) / 1000,
+    [audioOffsetMs]
+  );
 
   // YouTube URL에서 Video ID 추출
   useEffect(() => {
@@ -246,9 +252,9 @@ export function useChartYoutubePlayer({
     };
 
     try {
-      if (isPlaying) {
-        if (!wasPlayingRef.current) {
-          const timeSeconds = latestTimeRef.current / 1000;
+        if (isPlaying) {
+          if (!wasPlayingRef.current) {
+          const timeSeconds = getPlayerTimeSeconds(latestTimeRef.current);
           youtubePlayer.seekTo(timeSeconds, true);
           youtubePlayer.playVideo?.();
         } else {
@@ -262,7 +268,7 @@ export function useChartYoutubePlayer({
     }
 
     wasPlayingRef.current = isPlaying;
-  }, [isPlaying, youtubePlayer]);
+  }, [isPlaying, youtubePlayer, getPlayerTimeSeconds]);
 
   // 플레이어가 새로 생성되면 재생 상태 초기화
   useEffect(() => {
@@ -301,7 +307,7 @@ export function useChartYoutubePlayer({
       const { shouldPause = false, snapOnly = false } = options || {};
 
       try {
-        const timeSeconds = timeMs / 1000;
+        const timeSeconds = getPlayerTimeSeconds(timeMs);
         
         // snapOnly 모드: 플레이어에는 시크하지 않고 에디터 시간만 업데이트
         if (!snapOnly) {
@@ -320,7 +326,7 @@ export function useChartYoutubePlayer({
         console.warn('시크 실패:', e);
       }
     },
-    [youtubePlayer, setCurrentTime]
+    [youtubePlayer, setCurrentTime, getPlayerTimeSeconds]
   );
 
   // YouTube URL 제출 핸들러

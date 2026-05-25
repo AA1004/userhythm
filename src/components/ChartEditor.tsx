@@ -379,6 +379,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     isPlaying,
     setIsPlaying,
     playbackSpeed,
+    audioOffsetMs,
     volume,
   });
 
