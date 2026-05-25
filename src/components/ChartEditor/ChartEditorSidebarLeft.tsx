@@ -17,8 +17,10 @@ interface ChartEditorSidebarLeftProps {
   onGridDivisionChange: (division: number) => void;
   timeSignatureOffset: number;
   timelineExtraMs: number;
+  audioOffsetMs: number;
   onTimeSignatureOffsetChange: (offset: number) => void;
   onTimelineExtraChange: (updater: (prev: number) => number) => void;
+  onAudioOffsetChange: (updater: (prev: number) => number) => void;
   beatDuration: number;
 }
 
@@ -76,13 +78,16 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
   onGridDivisionChange,
   timeSignatureOffset,
   timelineExtraMs,
+  audioOffsetMs,
   onTimeSignatureOffsetChange,
   onTimelineExtraChange,
+  onAudioOffsetChange,
   beatDuration,
 }) => {
   const gridCellMs = beatDuration / Math.max(1, gridDivision);
   const offsetInCells = timeSignatureOffset / gridCellMs;
   const timelineExtraCells = timelineExtraMs / gridCellMs;
+  const audioOffsetCells = audioOffsetMs / gridCellMs;
   const displayOffset =
     offsetInCells === 0
       ? '0'
@@ -94,6 +99,13 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
     timelineExtraCells === 0
       ? '0'
       : `${timelineExtraCells > 0 ? '+' : ''}${timelineExtraCells
+          .toFixed(2)
+          .replace(/\.0+$/, '')
+          .replace(/(\.\d*?)0+$/, '$1')}`;
+  const displayAudioOffset =
+    audioOffsetCells === 0
+      ? '0'
+      : `${audioOffsetCells > 0 ? '+' : ''}${audioOffsetCells
           .toFixed(2)
           .replace(/\.0+$/, '')
           .replace(/(\.\d*?)0+$/, '$1')}`;
@@ -295,6 +307,108 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
           onTouchEnd={(e) => e.currentTarget.blur()}
           style={{ width: '100%' }}
         />
+      </div>
+
+      <div
+        style={{
+          marginBottom: '10px',
+          padding: '6px 8px',
+          borderRadius: CHART_EDITOR_THEME.radiusMd,
+          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 6,
+          }}
+        >
+          <span
+            style={{
+              fontSize: '12px',
+              fontWeight: 500,
+            }}
+          >
+            오디오 시작 보정
+          </span>
+          <ValueBadge>{displayAudioOffset}칸</ValueBadge>
+        </div>
+        <div
+          style={{
+            marginBottom: 6,
+            fontSize: 10,
+            color: CHART_EDITOR_THEME.textMuted,
+          }}
+        >
+          +면 노래가 늦게, -면 노래가 빨리 시작됩니다.
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            gap: 6,
+          }}
+        >
+          <button
+            onClick={(e) => {
+              e.currentTarget.blur();
+              onAudioOffsetChange((prev) => Math.round(prev - gridCellMs));
+            }}
+            style={{
+              flex: 1,
+              padding: '6px',
+              backgroundColor: 'rgba(148,163,184,0.14)',
+              color: CHART_EDITOR_THEME.textPrimary,
+              border: 'none',
+              borderRadius: CHART_EDITOR_THEME.radiusSm,
+              cursor: 'pointer',
+              fontSize: '11px',
+              fontWeight: 600,
+            }}
+          >
+            -1칸
+          </button>
+          <button
+            onClick={(e) => {
+              e.currentTarget.blur();
+              onAudioOffsetChange(() => 0);
+            }}
+            style={{
+              flex: 1,
+              padding: '6px',
+              backgroundColor: 'rgba(15,23,42,0.72)',
+              color: CHART_EDITOR_THEME.textSecondary,
+              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+              borderRadius: CHART_EDITOR_THEME.radiusSm,
+              cursor: 'pointer',
+              fontSize: '11px',
+              fontWeight: 600,
+            }}
+          >
+            0칸
+          </button>
+          <button
+            onClick={(e) => {
+              e.currentTarget.blur();
+              onAudioOffsetChange((prev) => Math.round(prev + gridCellMs));
+            }}
+            style={{
+              flex: 1,
+              padding: '6px',
+              backgroundColor: 'rgba(34,211,238,0.14)',
+              color: CHART_EDITOR_THEME.accentStrong,
+              border: 'none',
+              borderRadius: CHART_EDITOR_THEME.radiusSm,
+              cursor: 'pointer',
+              fontSize: '11px',
+              fontWeight: 600,
+            }}
+          >
+            +1칸
+          </button>
+        </div>
       </div>
 
       {/* 키음 볼륨 */}

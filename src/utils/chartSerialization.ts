@@ -12,6 +12,7 @@ export interface ChartData {
   beatsPerMeasure: number;
   timeSignatureOffset: number;
   timelineExtraMs: number;
+  audioOffsetMs?: number;
   bpmChanges: BPMChange[];
   speedChanges: SpeedChange[];
   bgaVisibilityIntervals: BgaVisibilityInterval[];
@@ -94,6 +95,7 @@ export function restoreChartData(data: ChartData): {
     beatsPerMeasure: typeof data.beatsPerMeasure === 'number' ? data.beatsPerMeasure : 4,
     timeSignatureOffset: data.timeSignatureOffset ?? 0,
     timelineExtraMs: typeof data.timelineExtraMs === 'number' ? data.timelineExtraMs : 0,
+    audioOffsetMs: typeof data.audioOffsetMs === 'number' ? data.audioOffsetMs : 0,
     bpmChanges: Array.isArray(data.bpmChanges) ? data.bpmChanges : [],
     speedChanges: Array.isArray(data.speedChanges) ? data.speedChanges : [],
     bgaVisibilityIntervals: Array.isArray(data.bgaVisibilityIntervals) ? data.bgaVisibilityIntervals : [],
@@ -125,6 +127,7 @@ export function createExportData(data: ChartData): ChartData {
     beatsPerMeasure: data.beatsPerMeasure,
     timeSignatureOffset: data.timeSignatureOffset,
     timelineExtraMs: data.timelineExtraMs,
+    audioOffsetMs: data.audioOffsetMs,
     bpmChanges: data.bpmChanges,
     speedChanges: data.speedChanges,
     bgaVisibilityIntervals: data.bgaVisibilityIntervals,

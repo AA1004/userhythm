@@ -176,6 +176,7 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
           youtubeVideoId: normalized._youtubeVideoId,
           youtubeUrl: normalized._youtubeUrl,
           playbackSpeed: normalized._data?.playbackSpeed || 1,
+          audioOffsetMs: typeof normalized._data?.audioOffsetMs === 'number' ? normalized._data.audioOffsetMs : 0,
           bpm: normalized.bpm,
           speedChanges: normalized._data?.speedChanges || [],
         });

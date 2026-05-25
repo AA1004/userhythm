@@ -590,7 +590,7 @@ export const Game: React.FC = () => {
       youtubeVideoId: chartData.youtubeVideoId || null,
       youtubeUrl: chartData.youtubeUrl || '',
       playbackSpeed: 1,
-      audioOffsetMs: 0,
+      audioOffsetMs: typeof chartData.audioOffsetMs === 'number' ? chartData.audioOffsetMs : 0,
     });
     }, 0);
   }, [handleEditorTest]);

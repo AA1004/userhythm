@@ -256,6 +256,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [beatsPerMeasure, setBeatsPerMeasure] = useState<number>(4);
   const [timeSignatureOffset, setTimeSignatureOffset] = useState<number>(0);
   const [timelineExtraMs, setTimelineExtraMs] = useState<number>(0);
+  const [audioOffsetMs, setAudioOffsetMs] = useState<number>(0);
   const [gridDivision, setGridDivision] = useState<number>(1);
   const [speedChanges, setSpeedChanges] = useState<SpeedChange[]>([]);
   const [bgaVisibilityIntervals, setBgaVisibilityIntervals] = useState<BgaVisibilityInterval[]>([]);
@@ -614,6 +615,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       beatsPerMeasure,
       timeSignatureOffset,
       timelineExtraMs,
+      audioOffsetMs,
       bpmChanges,
       speedChanges,
       bgaVisibilityIntervals,
@@ -636,6 +638,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     youtubeVideoId,
     beatsPerMeasure,
     timeSignatureOffset,
+    audioOffsetMs,
     bpmChanges,
       speedChanges,
       bgaVisibilityIntervals,
@@ -674,6 +677,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     if (typeof data.beatsPerMeasure === 'number') setBeatsPerMeasure(data.beatsPerMeasure);
     if (data.timeSignatureOffset !== undefined) setTimeSignatureOffset(data.timeSignatureOffset);
     if (typeof data.timelineExtraMs === 'number') setTimelineExtraMs(data.timelineExtraMs);
+    if (typeof data.audioOffsetMs === 'number') setAudioOffsetMs(data.audioOffsetMs);
     if (Array.isArray(data.bpmChanges)) setBpmChanges(data.bpmChanges);
     if (Array.isArray(data.speedChanges)) {
       setSpeedChanges(data.speedChanges);
@@ -762,6 +766,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setBeatsPerMeasure(4);
     setTimeSignatureOffset(0);
     setTimelineExtraMs(0);
+    setAudioOffsetMs(0);
     setGridDivision(1);
     setSpeedChanges([]);
     setBgaVisibilityIntervals([]);
@@ -1513,6 +1518,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         beatsPerMeasure,
         timeSignatureOffset,
         timelineExtraMs,
+        audioOffsetMs,
         bpmChanges,
         speedChanges,
         bgaVisibilityIntervals,
@@ -1546,7 +1552,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     } finally {
       setIsUploading(false);
     }
-  }, [shareTitle, shareAuthor, shareDifficulty, shareDescription, bpm, youtubeUrl, youtubeVideoId, youtubeThumbnailUrl, notes, beatsPerMeasure, timeSignatureOffset, timelineExtraMs, bpmChanges, speedChanges, bgaVisibilityIntervals, gridDivision, isLongNoteMode, user, subtitleSessionId, sharePreviewStartMeasure, sharePreviewEndMeasure]);
+  }, [shareTitle, shareAuthor, shareDifficulty, shareDescription, bpm, youtubeUrl, youtubeVideoId, youtubeThumbnailUrl, notes, beatsPerMeasure, timeSignatureOffset, timelineExtraMs, audioOffsetMs, bpmChanges, speedChanges, bgaVisibilityIntervals, gridDivision, isLongNoteMode, user, subtitleSessionId, sharePreviewStartMeasure, sharePreviewEndMeasure]);
 
   const handleExportJson = useCallback(() => {
     try {
@@ -1691,7 +1697,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       youtubeVideoId,
       youtubeUrl,
       playbackSpeed: 1,
-      audioOffsetMs: 0,
+      audioOffsetMs,
       bgaVisibilityIntervals,
       chartId: subtitleSessionId,
     });
@@ -1703,6 +1709,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     seekTo,
     youtubeVideoId,
     youtubeUrl,
+    audioOffsetMs,
     bgaVisibilityIntervals,
     subtitleSessionId,
   ]);
@@ -1936,8 +1943,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           onGridDivisionChange={setGridDivision}
           timeSignatureOffset={timeSignatureOffset}
           timelineExtraMs={timelineExtraMs}
+          audioOffsetMs={audioOffsetMs}
           onTimeSignatureOffsetChange={setTimeSignatureOffset}
           onTimelineExtraChange={(updater) => setTimelineExtraMs((prev) => updater(prev))}
+          onAudioOffsetChange={(updater) => setAudioOffsetMs((prev) => updater(prev))}
           beatDuration={beatDuration}
         />
 

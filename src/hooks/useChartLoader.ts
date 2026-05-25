@@ -66,6 +66,7 @@ export function useChartLoader({
           youtubeUrl: chartData.youtubeUrl || '',
           startTimeMs: 0,
           playbackSpeed: 1,
+          audioOffsetMs: typeof chartData.audioOffsetMs === 'number' ? chartData.audioOffsetMs : 0,
           chartId: chartData.chartId,
         };
         onYoutubeSetup(chartData.youtubeVideoId, audioSettings);
@@ -78,6 +79,7 @@ export function useChartLoader({
               youtubeUrl: chartData.youtubeUrl || '',
               startTimeMs: 0,
               playbackSpeed: 1,
+              audioOffsetMs: typeof chartData.audioOffsetMs === 'number' ? chartData.audioOffsetMs : 0,
               chartId: chartData.chartId,
             }
           : null);
