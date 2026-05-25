@@ -38,7 +38,7 @@ export function useChartYoutubePlayer({
   const latestTimeRef = useRef(0);
   const lastAppliedAudioOffsetRef = useRef(audioOffsetMs);
   const getPlayerTimeSeconds = useCallback(
-    (timeMs: number) => Math.max(0, timeMs + audioOffsetMs) / 1000,
+    (timeMs: number) => Math.max(0, timeMs - audioOffsetMs) / 1000,
     [audioOffsetMs]
   );
 

@@ -31,14 +31,14 @@ export interface AudioSettings {
 export const getAudioBaseSeconds = (audioSettings: AudioSettings | null): number => {
   if (!audioSettings) return 0;
   const { startTimeMs, audioOffsetMs = 0 } = audioSettings;
-  return Math.max(0, (startTimeMs + audioOffsetMs) / 1000);
+  return Math.max(0, (startTimeMs - audioOffsetMs) / 1000);
 };
 
 export const getAudioPositionSeconds = (gameTimeMs: number, audioSettings: AudioSettings | null): number => {
   if (!audioSettings) return 0;
   const { startTimeMs, audioOffsetMs = 0 } = audioSettings;
   const effectiveTime = Math.max(0, gameTimeMs);
-  return Math.max(0, (startTimeMs + audioOffsetMs + effectiveTime) / 1000);
+  return Math.max(0, (startTimeMs - audioOffsetMs + effectiveTime) / 1000);
 };
 
 export const calculateGameDuration = (notes: Note[]): number => {
