@@ -359,10 +359,17 @@ export const Game: React.FC = () => {
 
   const handleEditorTestWithRuntimeReset = useCallback(
     (payload: Parameters<typeof handleEditorTest>[0]) => {
+      setIsTestMode(false);
+      setIsFromEditor(false);
+      setTestAudioSettings(null);
+      setTestYoutubeVideoId(null);
+      destroyYoutubePlayer();
       currentTimeRef.current = -START_DELAY_MS;
-      handleEditorTest(payload);
+      window.setTimeout(() => {
+        handleEditorTest(payload);
+      }, 0);
     },
-    [handleEditorTest]
+    [handleEditorTest, destroyYoutubePlayer]
   );
 
   const handleRetestWithRuntimeReset = useCallback(() => {
