@@ -41,6 +41,41 @@ export function useChartYoutubePlayer({
     (timeMs: number) => Math.max(0, timeMs - audioOffsetMs) / 1000,
     [audioOffsetMs]
   );
+  const syncPlayerToTimeline = useCallback(
+    (timeMs: number, shouldAutoplay: boolean) => {
+      if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
+      const timeSeconds = getPlayerTimeSeconds(timeMs);
+
+      try {
+        if (youtubeVideoId && shouldAutoplay && typeof youtubePlayer.loadVideoById === 'function') {
+          youtubePlayer.loadVideoById({
+            videoId: youtubeVideoId,
+            startSeconds: timeSeconds,
+          });
+          return;
+        }
+
+        if (youtubeVideoId && !shouldAutoplay && typeof youtubePlayer.cueVideoById === 'function') {
+          youtubePlayer.cueVideoById({
+            videoId: youtubeVideoId,
+            startSeconds: timeSeconds,
+          });
+          youtubePlayer.pauseVideo?.();
+          return;
+        }
+
+        youtubePlayer.seekTo(timeSeconds, true);
+        if (shouldAutoplay) {
+          youtubePlayer.playVideo?.();
+        } else {
+          youtubePlayer.pauseVideo?.();
+        }
+      } catch (e) {
+        console.warn('플레이어 시간 동기화 실패:', e);
+      }
+    },
+    [getPlayerTimeSeconds, youtubePlayer, youtubeVideoId]
+  );
 
   // YouTube URL에서 Video ID 추출
   useEffect(() => {
@@ -255,9 +290,7 @@ export function useChartYoutubePlayer({
     try {
         if (isPlaying) {
           if (!wasPlayingRef.current) {
-          const timeSeconds = getPlayerTimeSeconds(latestTimeRef.current);
-          youtubePlayer.seekTo(timeSeconds, true);
-          youtubePlayer.playVideo?.();
+          syncPlayerToTimeline(latestTimeRef.current, true);
         } else {
           ensurePlaying();
         }
@@ -269,7 +302,7 @@ export function useChartYoutubePlayer({
     }
 
     wasPlayingRef.current = isPlaying;
-  }, [isPlaying, youtubePlayer, getPlayerTimeSeconds]);
+  }, [isPlaying, youtubePlayer, syncPlayerToTimeline]);
 
   // 플레이어가 새로 생성되면 재생 상태 초기화
   useEffect(() => {
@@ -308,19 +341,13 @@ export function useChartYoutubePlayer({
     if (lastAppliedAudioOffsetRef.current === audioOffsetMs) return;
 
     try {
-      const timeSeconds = getPlayerTimeSeconds(latestTimeRef.current);
-      youtubePlayer.seekTo(timeSeconds, true);
-      if (isPlaying) {
-        youtubePlayer.playVideo?.();
-      } else {
-        youtubePlayer.pauseVideo?.();
-      }
+      syncPlayerToTimeline(latestTimeRef.current, isPlaying);
     } catch (e) {
       console.warn('오디오 시작 보정 반영 실패:', e);
     }
 
     lastAppliedAudioOffsetRef.current = audioOffsetMs;
-  }, [audioOffsetMs, getPlayerTimeSeconds, isPlaying, youtubePlayer]);
+  }, [audioOffsetMs, isPlaying, syncPlayerToTimeline, youtubePlayer]);
 
   // 현재 시간 동기화 제거: 에디터 타이머가 단일 시간 소스가 되도록 유지
 
@@ -332,11 +359,9 @@ export function useChartYoutubePlayer({
       const { shouldPause = false, snapOnly = false } = options || {};
 
       try {
-        const timeSeconds = getPlayerTimeSeconds(timeMs);
-        
         // snapOnly 모드: 플레이어에는 시크하지 않고 에디터 시간만 업데이트
         if (!snapOnly) {
-          youtubePlayer.seekTo(timeSeconds, true);
+          syncPlayerToTimeline(timeMs, !shouldPause && isPlaying);
         }
         
         setCurrentTime(timeMs);
@@ -344,14 +369,11 @@ export function useChartYoutubePlayer({
         latestTimeRef.current = timeMs;
         
         // 재생선 클릭 시 명시적으로 일시정지
-        if (shouldPause) {
-          youtubePlayer.pauseVideo?.();
-        }
       } catch (e) {
         console.warn('시크 실패:', e);
       }
     },
-    [youtubePlayer, setCurrentTime, getPlayerTimeSeconds]
+    [youtubePlayer, setCurrentTime, syncPlayerToTimeline, isPlaying]
   );
 
   // YouTube URL 제출 핸들러
