@@ -1678,10 +1678,16 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     if (!onTest) return;
 
     const validatedNotes = validateNotes(notes);
+    const startTimeMs = parseInt(testStartInput, 10) || 0;
+
+    // 에디터 미리듣기 플레이어가 잠깐 더 재생되면 테스트 플레이어와 이중으로 들릴 수 있으므로
+    // 테스트 시작 전에 즉시 멈추고 목표 시작 위치에 고정한다.
+    setIsPlaying(false);
+    seekTo(startTimeMs, { shouldPause: true });
 
     onTest({
       notes: validatedNotes,
-      startTimeMs: parseInt(testStartInput, 10) || 0,
+      startTimeMs,
       youtubeVideoId,
       youtubeUrl,
       playbackSpeed: 1,
@@ -1693,6 +1699,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     onTest,
     notes,
     testStartInput,
+    setIsPlaying,
+    seekTo,
     youtubeVideoId,
     youtubeUrl,
     bgaVisibilityIntervals,
