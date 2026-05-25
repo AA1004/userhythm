@@ -36,6 +36,7 @@ export function useChartYoutubePlayer({
   const lastSyncTimeRef = useRef(0);
   const wasPlayingRef = useRef(false);
   const latestTimeRef = useRef(0);
+  const lastAppliedAudioOffsetRef = useRef(audioOffsetMs);
   const getPlayerTimeSeconds = useCallback(
     (timeMs: number) => Math.max(0, timeMs + audioOffsetMs) / 1000,
     [audioOffsetMs]
@@ -296,6 +297,30 @@ export function useChartYoutubePlayer({
       console.warn('볼륨 설정 실패:', e);
     }
   }, [volume, youtubePlayer]);
+
+  // 오디오 시작 보정값이 바뀌면 현재 재생 위치에 즉시 반영한다.
+  useEffect(() => {
+    if (!youtubePlayer || !youtubePlayerReadyRef.current) {
+      lastAppliedAudioOffsetRef.current = audioOffsetMs;
+      return;
+    }
+
+    if (lastAppliedAudioOffsetRef.current === audioOffsetMs) return;
+
+    try {
+      const timeSeconds = getPlayerTimeSeconds(latestTimeRef.current);
+      youtubePlayer.seekTo(timeSeconds, true);
+      if (isPlaying) {
+        youtubePlayer.playVideo?.();
+      } else {
+        youtubePlayer.pauseVideo?.();
+      }
+    } catch (e) {
+      console.warn('오디오 시작 보정 반영 실패:', e);
+    }
+
+    lastAppliedAudioOffsetRef.current = audioOffsetMs;
+  }, [audioOffsetMs, getPlayerTimeSeconds, isPlaying, youtubePlayer]);
 
   // 현재 시간 동기화 제거: 에디터 타이머가 단일 시간 소스가 되도록 유지
 
