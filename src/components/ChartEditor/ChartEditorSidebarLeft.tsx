@@ -371,6 +371,7 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
         >
           <button
             data-editor-transient-action="true"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={(e) => {
               e.currentTarget.blur();
               onAudioOffsetChange((prev) => prev - 100);
@@ -391,6 +392,7 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
           </button>
           <button
             data-editor-transient-action="true"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={(e) => {
               e.currentTarget.blur();
               onAudioOffsetChange(() => 0);
@@ -411,6 +413,7 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
           </button>
           <button
             data-editor-transient-action="true"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={(e) => {
               e.currentTarget.blur();
               onAudioOffsetChange((prev) => prev + 100);
@@ -601,6 +604,7 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
         >
           <button
             data-editor-transient-action="true"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={(e) => {
               e.currentTarget.blur();
               handleOffsetAdjust(-1);
@@ -632,6 +636,7 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
           </div>
           <button
             data-editor-transient-action="true"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={(e) => {
               e.currentTarget.blur();
               handleOffsetAdjust(1);
@@ -706,6 +711,7 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
         >
           <button
             data-editor-transient-action="true"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={(e) => {
               e.currentTarget.blur();
               onTimelineExtraChange((prev) => Math.round(prev - gridCellMs));
@@ -726,6 +732,7 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
           </button>
           <button
             data-editor-transient-action="true"
+            onMouseDown={(e) => e.preventDefault()}
             onClick={(e) => {
               e.currentTarget.blur();
               onTimelineExtraChange((prev) => Math.round(prev + gridCellMs));

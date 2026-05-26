@@ -1,7 +1,7 @@
 import { JUDGE_LINE_Y } from './gameConstants';
 import { GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH } from './gameLayout';
 
-export const VISUAL_SETTINGS_VERSION = 2;
+export const VISUAL_SETTINGS_VERSION = 3;
 export const VISUAL_SETTINGS_STORAGE_KEY = 'RHYTHM_GAME_VISUAL_SETTINGS';
 export const LANE_COUNT = 4;
 export const KEY_LANE_HEIGHT = 100;
@@ -28,6 +28,7 @@ export interface GameVisualSettings {
   gameplayHudMode: GameplayHudMode;
   topLaneExtensionEnabled: boolean;
   slotHudEnabled: boolean;
+  lanePressTintEnabled: boolean;
   keyPressGlowEnabled: boolean;
   keyPressPulseEnabled: boolean;
   renderBackend: RenderBackend;
@@ -55,6 +56,7 @@ export interface PlayfieldGeometry {
   gameplayHudMode: GameplayHudMode;
   topLaneExtensionEnabled: boolean;
   slotHudEnabled: boolean;
+  lanePressTintEnabled: boolean;
   keyPressGlowEnabled: boolean;
   keyPressPulseEnabled: boolean;
   renderBackend: RenderBackend;
@@ -91,6 +93,7 @@ export const DEFAULT_GAME_VISUAL_SETTINGS: GameVisualSettings = {
   gameplayHudMode: 'legacy',
   topLaneExtensionEnabled: false,
   slotHudEnabled: false,
+  lanePressTintEnabled: true,
   keyPressGlowEnabled: true,
   keyPressPulseEnabled: true,
   renderBackend: 'canvas2d',
@@ -116,6 +119,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     gameplayHudMode: 'legacy',
     topLaneExtensionEnabled: false,
     slotHudEnabled: false,
+    lanePressTintEnabled: true,
     keyPressGlowEnabled: true,
     keyPressPulseEnabled: true,
     renderBackend: 'canvas2d',
@@ -138,6 +142,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     gameplayHudMode: 'legacy',
     topLaneExtensionEnabled: false,
     slotHudEnabled: false,
+    lanePressTintEnabled: true,
     keyPressGlowEnabled: true,
     keyPressPulseEnabled: true,
     renderBackend: 'canvas2d',
@@ -230,6 +235,7 @@ export const normalizeGameVisualSettings = (
     fallback.topLaneExtensionEnabled
   );
   const slotHudEnabled = booleanOr(raw.slotHudEnabled, fallback.slotHudEnabled);
+  const lanePressTintEnabled = booleanOr(raw.lanePressTintEnabled, fallback.lanePressTintEnabled);
   const keyPressGlowEnabled = booleanOr(raw.keyPressGlowEnabled, fallback.keyPressGlowEnabled);
   const keyPressPulseEnabled = booleanOr(raw.keyPressPulseEnabled, fallback.keyPressPulseEnabled);
   const rawRenderBackend = (raw as { renderBackend?: unknown }).renderBackend;
@@ -273,6 +279,7 @@ export const normalizeGameVisualSettings = (
     gameplayHudMode,
     topLaneExtensionEnabled,
     slotHudEnabled,
+    lanePressTintEnabled,
     keyPressGlowEnabled,
     keyPressPulseEnabled,
     renderBackend,
@@ -323,6 +330,7 @@ export const buildPlayfieldGeometry = (
     gameplayHudMode: normalized.gameplayHudMode,
     topLaneExtensionEnabled: normalized.topLaneExtensionEnabled,
     slotHudEnabled: normalized.slotHudEnabled,
+    lanePressTintEnabled: normalized.lanePressTintEnabled,
     keyPressGlowEnabled: normalized.keyPressGlowEnabled,
     keyPressPulseEnabled: normalized.keyPressPulseEnabled,
     renderBackend: normalized.renderBackend,

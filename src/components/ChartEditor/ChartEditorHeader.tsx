@@ -121,6 +121,7 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
           }}
         >
           <button
+            data-editor-transient-action="true"
             onClick={(e) => {
               onRewind();
               e.currentTarget.blur();
@@ -139,6 +140,7 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
           ⏮
         </button>
         <button
+          data-editor-transient-action="true"
           onClick={(e) => {
             onTogglePlayback();
             e.currentTarget.blur();
@@ -159,6 +161,7 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
           {isPlaying ? '⏸' : '▶'}
         </button>
         <button
+          data-editor-transient-action="true"
           onClick={(e) => {
             onStop();
             e.currentTarget.blur();
@@ -241,6 +244,7 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
           />
         ) : (
           <button
+            data-editor-transient-action="true"
             onClick={onToggleBpmInput}
             style={{
               padding: '4px 8px',
@@ -256,6 +260,7 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
           </button>
         )}
         <button
+          data-editor-transient-action="true"
           onClick={onTapBpm}
           style={{
             padding: '4px 8px',
@@ -298,6 +303,7 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
           }}
         >
         <button
+            data-editor-transient-action="true"
             onClick={onYoutubePasteButton}
             disabled={isLoadingYoutubeMeta}
           style={{
@@ -367,6 +373,7 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
           {actionButtons.map((button) => (
             <button
               key={button.label}
+              data-editor-transient-action="true"
               onClick={button.onClick}
               style={{
                 padding: '6px 12px',

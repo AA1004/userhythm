@@ -37,15 +37,19 @@ const KEY_TO_LANE: Record<string, Lane> = {
 const INTERACTIVE_EDITOR_TARGET_SELECTOR =
   'input, textarea, select, button, a[href], [role="button"], [contenteditable], [tabindex]:not([tabindex="-1"])';
 
+const TEXT_EDITING_TARGET_SELECTOR =
+  'input, textarea, select, [contenteditable="true"], [contenteditable=""], [role="textbox"]';
+
+const TRANSIENT_EDITOR_ACTION_SELECTOR =
+  '[data-editor-transient-action="true"], button:not([data-allow-editor-focus="true"])';
+
 const isInteractiveEditorTarget = (target: EventTarget | null): boolean => {
   return target instanceof HTMLElement && target.closest(INTERACTIVE_EDITOR_TARGET_SELECTOR) !== null;
 };
 
 const isTextEditingTarget = (target: EventTarget | null): boolean => {
   if (!(target instanceof HTMLElement)) return false;
-  return (
-    target.closest('input, textarea, [contenteditable="true"], [contenteditable=""], [role="textbox"]') !== null
-  );
+  return target.closest(TEXT_EDITING_TARGET_SELECTOR) !== null;
 };
 
 const keepTimelineActionButtonFromTakingFocus = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -58,23 +62,34 @@ const blurPointerTimelineActionButton = (event: React.MouseEvent<HTMLButtonEleme
   }
 };
 
-const getTransientEditorActionButton = (target: EventTarget | null): HTMLButtonElement | null => {
+const getTransientEditorActionElement = (target: EventTarget | null): HTMLElement | null => {
   if (!(target instanceof HTMLElement)) return null;
-  const candidate = target.closest('button[data-editor-transient-action="true"]');
-  return candidate instanceof HTMLButtonElement ? candidate : null;
+  const candidate = target.closest(TRANSIENT_EDITOR_ACTION_SELECTOR);
+  return candidate instanceof HTMLElement ? candidate : null;
 };
 
-const preventTransientEditorButtonFocus = (event: React.MouseEvent<HTMLElement>) => {
+const preventTransientEditorActionFocus = (
+  event: React.MouseEvent<HTMLElement> | React.PointerEvent<HTMLElement>
+) => {
   if (event.detail <= 0) return;
-  if (getTransientEditorActionButton(event.target)) {
+  if (isTextEditingTarget(event.target)) return;
+  if (getTransientEditorActionElement(event.target)) {
     event.preventDefault();
   }
 };
 
-const blurTransientEditorButtonAfterClick = (event: React.MouseEvent<HTMLElement>) => {
+const blurTransientEditorActionAfterClick = (event: React.MouseEvent<HTMLElement>) => {
   if (event.detail <= 0) return;
-  const button = getTransientEditorActionButton(event.target);
-  button?.blur();
+  const actionElement = getTransientEditorActionElement(event.target);
+  actionElement?.blur();
+};
+
+const blurTransientEditorActionOnFocus = (event: React.FocusEvent<HTMLElement>) => {
+  if (isTextEditingTarget(event.target)) return;
+  const actionElement = getTransientEditorActionElement(event.target);
+  if (actionElement && document.activeElement === actionElement) {
+    actionElement.blur();
+  }
 };
 
 interface EditorTimelineActionRailsProps {
@@ -1963,8 +1978,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
       <div
         className="chart-editor-workbench"
-        onMouseDownCapture={preventTransientEditorButtonFocus}
-        onClickCapture={blurTransientEditorButtonAfterClick}
+        onPointerDownCapture={preventTransientEditorActionFocus}
+        onMouseDownCapture={preventTransientEditorActionFocus}
+        onClickCapture={blurTransientEditorActionAfterClick}
+        onFocusCapture={blurTransientEditorActionOnFocus}
         style={{
           flex: 1,
           minHeight: 0,

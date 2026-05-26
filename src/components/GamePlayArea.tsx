@@ -71,6 +71,35 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       )}
 
       {isLaneUiVisible &&
+        playfieldGeometry.lanePressTintEnabled &&
+        playfieldGeometry.laneCenters.map((x, index) => {
+          const isPressed = pressedKeys.has(index as Lane);
+          return (
+            <div
+              key={`lane-press-${index}`}
+              style={{
+                position: 'absolute',
+                left: `${x}px`,
+                top: 0,
+                width: `${playfieldGeometry.laneWidth}px`,
+                height: `${playfieldGeometry.keyLaneY + 100}px`,
+                transform: 'translateX(-50%)',
+                pointerEvents: 'none',
+                zIndex: 24,
+                opacity: isPressed ? 1 : 0,
+                transition: isPressed ? 'opacity 22ms linear' : 'opacity 90ms ease-out',
+                background: isPressed
+                  ? 'linear-gradient(180deg, rgba(34,139,255,0.14) 0%, rgba(56,189,248,0.08) 34%, rgba(76,160,255,0.06) 68%, rgba(44,130,255,0.18) 100%)'
+                  : 'transparent',
+                boxShadow: isPressed
+                  ? 'inset 0 0 32px rgba(70,170,255,0.2), 0 0 28px rgba(35,130,255,0.12)'
+                  : 'none',
+              }}
+            />
+          );
+        })}
+
+      {isLaneUiVisible &&
         playfieldGeometry.laneEdges.map((x) => (
           <div
             key={x}

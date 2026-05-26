@@ -705,6 +705,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
+                  marginBottom: '8px',
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={visualSettings.lanePressTintEnabled}
+                  onChange={(e) =>
+                    applyToggleVisualSettings({ lanePressTintEnabled: e.target.checked })
+                  }
+                  style={{ accentColor: CHART_EDITOR_THEME.accent }}
+                />
+                레인 눌림 블루 틴트
+              </label>
+
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
                   color: CHART_EDITOR_THEME.textPrimary,
                   fontSize: '12px',
                   cursor: 'pointer',
