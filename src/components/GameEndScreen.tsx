@@ -54,10 +54,12 @@ export const GameEndScreen: React.FC<GameEndScreenProps> = ({
   const grade = getResultGrade(accuracy);
   const totalNotes = score.perfect + score.great + score.good + score.miss;
   const accuracyAngle = Math.max(0, Math.min(100, accuracy)) * 3.6;
+  const isFullCombo = totalNotes > 0 && score.miss === 0 && score.maxCombo >= totalNotes;
   const title = isTestMode ? '테스트 종료' : '게임 종료';
   const subtitle = isTestMode
     ? '채보 테스트 결과를 확인하고 바로 수정 흐름으로 돌아갈 수 있습니다.'
     : '플레이 결과가 정산되었습니다.';
+  const accentLabel = isFullCombo ? 'FULL COMBO' : grade === 'SS' ? 'MAXIMUM' : 'RESULT';
 
   const stats = [
     { label: 'Perfect', value: score.perfect, tone: 'gold' },
@@ -85,22 +87,60 @@ export const GameEndScreen: React.FC<GameEndScreenProps> = ({
     <div className="game-end-screen" role="dialog" aria-modal="true" aria-label={title}>
       <div className="game-end-panel">
         <div className="game-end-ambient" aria-hidden="true" />
+        <div className="game-end-grid" aria-hidden="true" />
 
-        <div className="game-end-copy">
-          <p className="game-end-eyebrow">{isTestMode ? 'TEST RESULT' : 'PLAY RESULT'}</p>
-          <h1>{title}</h1>
-          <p>{subtitle}</p>
+        {isFullCombo && (
+          <div className="game-end-full-combo" aria-hidden="true">
+            <div className="game-end-full-combo__flare game-end-full-combo__flare--left" />
+            <div className="game-end-full-combo__flare game-end-full-combo__flare--right" />
+            <span className="game-end-full-combo__eyebrow">CLEAR BONUS</span>
+            <strong>FULL COMBO</strong>
+            <small>모든 노트를 끊김 없이 연결했습니다.</small>
+          </div>
+        )}
+
+        <div className="game-end-hero">
+          <div className="game-end-copy">
+            <p className="game-end-eyebrow">{isTestMode ? 'TEST RESULT' : 'PLAY RESULT'}</p>
+            <h1>{title}</h1>
+            <p>{subtitle}</p>
+          </div>
+
+          <div className="game-end-rank-block">
+            <span className="game-end-rank-block__label">{accentLabel}</span>
+            <strong className="game-end-rank-block__grade">{grade}</strong>
+            <span className="game-end-rank-block__caption">
+              {isFullCombo ? '노 미스 클리어' : score.miss === 0 ? '클린 클리어' : '결과 정산 완료'}
+            </span>
+          </div>
         </div>
 
         <div className="game-end-summary">
-          <div
-            className="game-end-accuracy-ring"
-            style={{ '--accuracy-angle': `${accuracyAngle}deg` } as React.CSSProperties}
-            aria-label={`정확도 ${accuracy.toFixed(2)} 퍼센트`}
-          >
-            <span className="game-end-grade">{grade}</span>
-            <strong>{accuracy.toFixed(2)}%</strong>
-            <small>ACCURACY</small>
+          <div className="game-end-primary-metrics">
+            <div
+              className="game-end-accuracy-ring"
+              style={{ '--accuracy-angle': `${accuracyAngle}deg` } as React.CSSProperties}
+              aria-label={`정확도 ${accuracy.toFixed(2)} 퍼센트`}
+            >
+              <span className="game-end-grade">{grade}</span>
+              <strong>{accuracy.toFixed(2)}%</strong>
+              <small>ACCURACY</small>
+            </div>
+
+            <div className="game-end-primary-stack">
+              <div className="game-end-primary-card">
+                <span>MAX COMBO</span>
+                <strong>{score.maxCombo}</strong>
+              </div>
+              <div className="game-end-primary-card">
+                <span>TOTAL NOTES</span>
+                <strong>{totalNotes}</strong>
+              </div>
+              <div className={`game-end-primary-card game-end-primary-card--${isFullCombo ? 'highlight' : 'subtle'}`}>
+                <span>CLEAR STATE</span>
+                <strong>{isFullCombo ? 'FULL COMBO' : score.miss === 0 ? 'NO MISS' : `${score.miss} MISS`}</strong>
+              </div>
+            </div>
           </div>
 
           <div className="game-end-stats">

@@ -1875,10 +1875,10 @@ body {
 .game-end-panel {
   position: relative;
   overflow: hidden;
-  width: min(440px, calc(100% - 36px));
-  padding: 28px;
-  border: 1px solid rgba(238, 247, 242, 0.16);
-  border-radius: 30px;
+  width: min(960px, calc(100% - 44px));
+  padding: 32px;
+  border: 1px solid rgba(238, 247, 242, 0.14);
+  border-radius: 34px;
   background:
     linear-gradient(145deg, rgba(9, 14, 26, 0.94), rgba(7, 10, 18, 0.9)),
     rgba(5, 8, 14, 0.92);
@@ -1886,6 +1886,18 @@ body {
     0 34px 88px rgba(0, 0, 0, 0.52),
     inset 0 0 44px rgba(119, 255, 214, 0.05);
   animation: gameEndPanelIn 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.game-end-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.24;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 100% 56px, 56px 100%;
+  mask-image: linear-gradient(180deg, rgba(255,255,255,0.45), transparent 88%);
 }
 
 .game-end-ambient {
@@ -1906,8 +1918,17 @@ body {
   z-index: 1;
 }
 
+.game-end-hero {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: end;
+}
+
 .game-end-copy {
-  text-align: center;
+  text-align: left;
 }
 
 .game-end-eyebrow {
@@ -1928,27 +1949,73 @@ body {
 }
 
 .game-end-copy p:not(.game-end-eyebrow) {
-  max-width: 420px;
-  margin: 14px auto 0;
+  max-width: 480px;
+  margin: 14px 0 0;
   color: rgba(238, 247, 242, 0.64);
   font-size: 14px;
   line-height: 1.55;
 }
 
+.game-end-rank-block {
+  min-width: 200px;
+  padding: 18px 20px;
+  border-radius: 24px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background:
+    linear-gradient(145deg, rgba(10, 16, 28, 0.9), rgba(8, 12, 22, 0.78));
+  text-align: right;
+  box-shadow: inset 0 0 28px rgba(119, 255, 214, 0.06);
+  animation: gameEndStatIn 420ms 120ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.game-end-rank-block__label {
+  display: block;
+  color: rgba(238, 247, 242, 0.55);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.game-end-rank-block__grade {
+  display: block;
+  margin-top: 6px;
+  color: #ffcf5f;
+  font-size: clamp(42px, 7vw, 72px);
+  line-height: 0.95;
+  letter-spacing: -0.08em;
+  text-shadow: 0 0 26px rgba(255, 207, 95, 0.22);
+}
+
+.game-end-rank-block__caption {
+  display: block;
+  margin-top: 10px;
+  color: rgba(238, 247, 242, 0.64);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .game-end-summary {
   display: grid;
-  grid-template-columns: 150px 1fr;
-  gap: 16px;
-  align-items: center;
-  margin-top: 30px;
+  grid-template-columns: minmax(0, 1.12fr) minmax(320px, 0.88fr);
+  gap: 18px;
+  align-items: stretch;
+  margin-top: 26px;
+}
+
+.game-end-primary-metrics {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
 }
 
 .game-end-accuracy-ring {
   --accuracy-angle: 0deg;
   position: relative;
   display: block;
-  width: 142px;
-  height: 142px;
+  width: 164px;
+  height: 164px;
   margin: 0 auto;
   border-radius: 50%;
   background:
@@ -1962,7 +2029,7 @@ body {
 
 .game-end-grade {
   position: absolute;
-  top: 14px;
+  top: 18px;
   left: 50%;
   transform: translateX(-50%);
   line-height: 1;
@@ -1977,11 +2044,11 @@ body {
 
 .game-end-accuracy-ring strong {
   position: absolute;
-  top: 74px;
+  top: 86px;
   left: 50%;
   transform: translate(-50%, -50%);
   color: #ffffff;
-  font-size: 21px;
+  font-size: 24px;
   line-height: 1;
   white-space: nowrap;
   letter-spacing: -0.04em;
@@ -1989,7 +2056,7 @@ body {
 
 .game-end-accuracy-ring small {
   position: absolute;
-  top: 111px;
+  top: 128px;
   left: 50%;
   transform: translate(-50%, -50%);
   color: rgba(238, 247, 242, 0.5);
@@ -2000,6 +2067,59 @@ body {
   letter-spacing: 0.18em;
 }
 
+.game-end-primary-stack {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.game-end-primary-card {
+  min-height: 164px;
+  padding: 16px 14px;
+  border-radius: 24px;
+  border: 1px solid rgba(238, 247, 242, 0.1);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  animation: gameEndStatIn 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.game-end-primary-card:nth-child(1) { animation-delay: 130ms; }
+.game-end-primary-card:nth-child(2) { animation-delay: 170ms; }
+.game-end-primary-card:nth-child(3) { animation-delay: 210ms; }
+
+.game-end-primary-card span {
+  color: rgba(238, 247, 242, 0.54);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.game-end-primary-card strong {
+  color: #ffffff;
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.game-end-primary-card--highlight {
+  border-color: rgba(255, 207, 95, 0.4);
+  background:
+    linear-gradient(180deg, rgba(255, 207, 95, 0.16), rgba(255, 95, 133, 0.08)),
+    rgba(255,255,255,0.03);
+  box-shadow: inset 0 0 24px rgba(255, 207, 95, 0.08);
+}
+
+.game-end-primary-card--highlight strong {
+  color: #ffcf5f;
+}
+
+.game-end-primary-card--subtle strong {
+  color: #77ffd6;
+}
+
 .game-end-stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2007,11 +2127,12 @@ body {
 }
 
 .game-end-stat {
-  min-height: 60px;
-  padding: 10px 12px;
+  min-height: 74px;
+  padding: 12px 14px;
   border: 1px solid rgba(238, 247, 242, 0.1);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.045);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03));
   animation: gameEndStatIn 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
@@ -2046,9 +2167,9 @@ body {
 
 .game-end-actions {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-  margin-top: 26px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 28px;
 }
 
 .game-end-action {
@@ -2079,17 +2200,120 @@ body {
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.32);
 }
 
+.game-end-full-combo {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  gap: 5px;
+  margin-bottom: 18px;
+  padding: 18px 24px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 207, 95, 0.42);
+  background:
+    linear-gradient(90deg, rgba(255, 207, 95, 0.18), rgba(119, 255, 214, 0.18), rgba(255, 95, 133, 0.18)),
+    rgba(10, 14, 24, 0.86);
+  overflow: hidden;
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.28),
+    inset 0 0 28px rgba(255, 207, 95, 0.12);
+  animation: fullComboBannerIn 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.game-end-full-combo__eyebrow {
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.26em;
+}
+
+.game-end-full-combo strong {
+  color: #fff5cf;
+  font-size: clamp(32px, 5vw, 52px);
+  line-height: 0.92;
+  letter-spacing: -0.06em;
+  text-shadow:
+    0 0 14px rgba(255, 207, 95, 0.35),
+    0 0 30px rgba(119, 255, 214, 0.18);
+  animation: fullComboPulse 1800ms ease-in-out infinite;
+}
+
+.game-end-full-combo small {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.game-end-full-combo__flare {
+  position: absolute;
+  top: 50%;
+  width: 220px;
+  height: 4px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.92), transparent);
+  filter: blur(1px);
+  opacity: 0.9;
+}
+
+.game-end-full-combo__flare--left {
+  left: -10px;
+  transform: translateY(-50%) rotate(-14deg);
+}
+
+.game-end-full-combo__flare--right {
+  right: -10px;
+  transform: translateY(-50%) rotate(14deg);
+}
+
 @media (max-width: 680px) {
   .game-end-panel {
-    padding: 26px 20px;
+    padding: 22px 18px;
   }
 
+  .game-end-hero,
   .game-end-summary {
     grid-template-columns: 1fr;
   }
 
+  .game-end-rank-block {
+    text-align: left;
+  }
+
+  .game-end-primary-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .game-end-primary-stack {
+    grid-template-columns: 1fr;
+  }
+
+  .game-end-primary-card {
+    min-height: 92px;
+  }
+
   .game-end-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@keyframes fullComboBannerIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-18px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fullComboPulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.03);
+    filter: brightness(1.08);
   }
 }
 
