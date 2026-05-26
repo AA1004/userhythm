@@ -904,11 +904,12 @@ export const Game: React.FC = () => {
                 transformOrigin: 'top left',
               }}
             >
-              <GamePlayArea
-                gameState={gameState}
-                gameStarted={gameState.gameStarted}
-                bgaMaskOpacity={activeBgaMaskOpacity}
-                isLaneUiVisible={activeLaneUiVisible}
+                <GamePlayArea
+                  notes={gameState.notes}
+                  combo={gameState.score.combo}
+                  gameStarted={gameState.gameStarted}
+                  bgaMaskOpacity={activeBgaMaskOpacity}
+                  isLaneUiVisible={activeLaneUiVisible}
                 speed={speed}
                 pressedKeys={pressedKeys}
                 holdingNotes={holdingNotes}

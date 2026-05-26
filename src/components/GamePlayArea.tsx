@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { GameState, Lane, Note } from '../types/game';
+import { Lane, Note } from '../types/game';
 import { KeyLane } from './KeyLane';
 import { JudgeLine } from './JudgeLine';
 import { NoteRenderer } from './NoteRenderer';
@@ -12,7 +12,8 @@ import { JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
 import { HitNoteIdsRef } from '../utils/noteRuntimeState';
 
 interface GamePlayAreaProps {
-  gameState: GameState;
+  notes: Note[];
+  combo: number;
   gameStarted: boolean;
   bgaMaskOpacity: number;
   isLaneUiVisible: boolean;
@@ -31,7 +32,8 @@ interface GamePlayAreaProps {
 }
 
 const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
-  gameState,
+  notes,
+  combo,
   gameStarted,
   bgaMaskOpacity,
   isLaneUiVisible,
@@ -120,7 +122,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
           {playfieldGeometry.renderBackend === 'webgl' ? (
             <WebglBetaNoteRenderer
               key={`webgl-${playfieldGeometry.noteWidth}-${playfieldGeometry.noteHeight}`}
-              notes={gameState.notes}
+              notes={notes}
               currentTimeRef={currentTimeRef}
               fallDuration={fallDuration}
               judgeLineY={judgeLineY}
@@ -147,7 +149,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
               />
               <NoteRenderer
                 canvasRef={canvasRef}
-                notes={gameState.notes}
+                notes={notes}
                 currentTimeRef={currentTimeRef}
                 fallDuration={fallDuration}
                 judgeLineY={judgeLineY}
@@ -174,7 +176,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
 
       {gameStarted && (
         <ComboDisplay
-          combo={gameState.score.combo}
+          combo={combo}
           laneGroupCenterX={playfieldGeometry.laneGroupLeft + playfieldGeometry.laneGroupWidth / 2}
           numberOpacity={playfieldGeometry.comboOpacity}
           visible={isLaneUiVisible}
