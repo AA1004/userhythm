@@ -54,10 +54,10 @@ export function useTestYoutubePlayer({
         try {
           const { playbackSpeed } = audioSettings;
           const startTimeSec = getAudioBaseSeconds(audioSettings);
+          externalPlayer.mute?.();
+          externalPlayer.pauseVideo?.();
           externalPlayer.setPlaybackRate?.(playbackSpeed);
           externalPlayer.seekTo(startTimeSec, true);
-          // 미리듣기에서 볼륨이 낮아져 있을 수 있으므로 설정 볼륨으로 복원하고 음소거 해제
-          externalPlayer.unMute?.();
           externalPlayer.setVolume?.(volume);
         } catch (e) {
           console.warn('External player 설정 실패:', e);
@@ -130,7 +130,10 @@ export function useTestYoutubePlayer({
           playerVars: {
             autoplay: 0,
             controls: 0,
+            mute: 1,
             enablejsapi: 1,
+            rel: 0,
+            playsinline: 1,
           } as any,
           events: {
             onReady: (event: any) => {
@@ -155,6 +158,9 @@ export function useTestYoutubePlayer({
                         : getAudioBaseSeconds(audioSettings);
                     
                     // 재생 속도 설정
+                    player.mute?.();
+                    player.pauseVideo?.();
+                    player.setVolume?.(latestVolumeRef.current);
                     player.setPlaybackRate?.(playbackSpeed);
                     
                     // 현재 게임 시각에 맞는 위치로 이동

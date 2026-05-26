@@ -708,9 +708,11 @@ export const Game: React.FC = () => {
     return <ChartAdmin onClose={() => setViewMode({ type: 'menu' })} onTestChart={handleAdminTest} />;
   }
 
-  const backgroundVideoId = testYoutubeVideoId;
+  const isChartSelectTransitioning = chartSelectTransition !== null;
+  const isGameplayActive = gameState.gameStarted && !gameState.gameEnded;
+  const backgroundVideoId = isGameplayActive ? testYoutubeVideoId : null;
   const bgaCurrentSeconds =
-    backgroundVideoId && isBgaEnabled
+    isGameplayActive && backgroundVideoId && isBgaEnabled
       ? getAudioPositionSeconds(gameplayClockSnapshotMs, testAudioSettings)
       : null;
   const shouldPlayBga =
@@ -719,8 +721,6 @@ export const Game: React.FC = () => {
     gameState.gameStarted &&
     !gameState.gameEnded &&
     gameplayClockSnapshotMs >= 0;
-  const isChartSelectTransitioning = chartSelectTransition !== null;
-  const isGameplayActive = gameState.gameStarted && !gameState.gameEnded;
   const activeBgaMaskOpacity = isGameplayActive ? bgaMaskOpacity : 0;
   const activeLaneUiVisible = isGameplayActive ? isLaneUiVisible : true;
   const useNewSlotHud =
