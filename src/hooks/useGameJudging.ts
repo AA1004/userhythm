@@ -98,6 +98,7 @@ export interface UseGameJudgingOptions {
 }
 
 export interface UseGameJudgingReturn {
+  combo: number;
   pressedKeys: Set<Lane>;
   holdingNotes: Map<number, Note>;
   judgeFeedbacks: JudgeFeedback[];
@@ -122,6 +123,9 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   const [pressedKeys, setPressedKeys] = useState<Set<Lane>>(new Set());
   const pressedKeysRef = useRef<Set<Lane>>(new Set());
   const pressedKeysFrameRef = useRef<number | null>(null);
+  const [combo, setCombo] = useState<number>(gameState.score.combo);
+  const comboRef = useRef<number>(gameState.score.combo);
+  const comboFrameRef = useRef<number | null>(null);
   const [holdingNotes, setHoldingNotes] = useState<Map<number, Note>>(new Map());
   const holdingNotesRef = useRef<Map<number, Note>>(new Map());
   const holdingNotesFrameRef = useRef<number | null>(null);
@@ -255,6 +259,17 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     });
   }, []);
 
+  const commitComboNextFrame = useCallback(() => {
+    if (comboFrameRef.current !== null) return;
+    comboFrameRef.current = requestAnimationFrame(() => {
+      comboFrameRef.current = null;
+      const nextCombo = comboRef.current;
+      startTransition(() => {
+        setCombo((prev) => (prev === nextCombo ? prev : nextCombo));
+      });
+    });
+  }, []);
+
   const commitHoldingNotesNextFrame = useCallback(() => {
     if (holdingNotesFrameRef.current !== null) return;
     holdingNotesFrameRef.current = requestAnimationFrame(() => {
@@ -269,13 +284,15 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   const enqueueScoreJudge = useCallback(
     (judge: JudgeType) => {
       scoreRuntimeRef.current = updateScoreFromJudge(judge, scoreRuntimeRef.current);
+      comboRef.current = scoreRuntimeRef.current.combo;
+      commitComboNextFrame();
       gameStateRef.current = {
         ...gameStateRef.current,
         score: scoreRuntimeRef.current,
       };
       scheduleScoreSnapshot();
     },
-    [gameStateRef, scheduleScoreSnapshot, updateScoreFromJudge]
+    [commitComboNextFrame, gameStateRef, scheduleScoreSnapshot, updateScoreFromJudge]
   );
 
   const addJudgeFeedback = useCallback(
@@ -490,10 +507,52 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   }, [gameState.gameStarted, clearEffectCleanupTimer]);
 
   useEffect(() => {
+    const isFreshSession =
+      gameState.gameStarted &&
+      gameState.currentTime < 0 &&
+      gameState.score.perfect === 0 &&
+      gameState.score.great === 0 &&
+      gameState.score.good === 0 &&
+      gameState.score.miss === 0 &&
+      gameState.score.combo === 0 &&
+      gameState.score.maxCombo === 0;
+
+    if (isFreshSession) {
+      clearEffectCleanupTimer();
+      clearScoreSnapshotTimer();
+      scoreRuntimeRef.current = gameState.score;
+      comboRef.current = 0;
+      setCombo(0);
+      judgeFeedbacksRef.current = [];
+      keyEffectsRef.current = [];
+      setJudgeFeedbacks([]);
+      setKeyEffects([]);
+      pressedKeysRef.current = new Set();
+      holdingNotesRef.current = new Map();
+      setPressedKeys(new Set());
+      setHoldingNotes(new Map());
+      holdStartJudgeRef.current.clear();
+      judgeLaneCursorRef.current = [0, 0, 0, 0];
+      processedMissNotes.current.clear();
+      hitNoteIdsRef.current.clear();
+    }
+  }, [
+    gameState.gameStarted,
+    gameState.currentTime,
+    gameState.score,
+    clearEffectCleanupTimer,
+    clearScoreSnapshotTimer,
+    processedMissNotes,
+    hitNoteIdsRef,
+  ]);
+
+  useEffect(() => {
     if (!gameState.gameStarted) {
       clearEffectCleanupTimer();
       clearScoreSnapshotTimer();
       scoreRuntimeRef.current = gameState.score;
+      comboRef.current = 0;
+      setCombo(0);
       judgeFeedbacksRef.current = [];
       keyEffectsRef.current = [];
       setJudgeFeedbacks([]);
@@ -529,11 +588,16 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         cancelAnimationFrame(effectsFrameRef.current);
         effectsFrameRef.current = null;
       }
+      if (comboFrameRef.current !== null) {
+        cancelAnimationFrame(comboFrameRef.current);
+        comboFrameRef.current = null;
+      }
       holdStartJudgeRef.current.clear();
     };
   }, [clearEffectCleanupTimer, clearScoreSnapshotTimer]);
 
   return {
+    combo,
     pressedKeys,
     holdingNotes,
     judgeFeedbacks,

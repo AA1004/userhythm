@@ -242,6 +242,7 @@ export const Game: React.FC = () => {
 
   // 판정 훅
   const {
+    combo,
     pressedKeys,
     holdingNotes,
     judgeFeedbacks,
@@ -906,7 +907,7 @@ export const Game: React.FC = () => {
             >
                 <GamePlayArea
                   notes={gameState.notes}
-                  combo={gameState.score.combo}
+                  combo={combo}
                   gameStarted={gameState.gameStarted}
                   bgaMaskOpacity={activeBgaMaskOpacity}
                   isLaneUiVisible={activeLaneUiVisible}
@@ -984,7 +985,7 @@ export const Game: React.FC = () => {
               laneGroupLeft={slotHudLeftPx}
               laneGroupWidth={slotHudWidthPx}
               top={slotHudTopPx}
-              combo={gameState.score.combo}
+              combo={combo}
               accuracy={accuracy}
               progress={slotHudProgress}
               visible={activeLaneUiVisible}
