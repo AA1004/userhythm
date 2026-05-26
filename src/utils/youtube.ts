@@ -33,6 +33,15 @@ declare global {
             controls?: number;
             start?: number;
             enablejsapi?: number;
+            mute?: number;
+            rel?: number;
+            playsinline?: number;
+            fs?: number;
+            disablekb?: number;
+            iv_load_policy?: number;
+            modestbranding?: number;
+            loop?: number;
+            playlist?: string;
           };
           events?: {
             onReady?: (event: any) => void;

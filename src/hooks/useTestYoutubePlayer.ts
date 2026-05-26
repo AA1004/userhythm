@@ -134,6 +134,10 @@ export function useTestYoutubePlayer({
             enablejsapi: 1,
             rel: 0,
             playsinline: 1,
+            fs: 0,
+            disablekb: 1,
+            iv_load_policy: 3,
+            modestbranding: 1,
           } as any,
           events: {
             onReady: (event: any) => {
@@ -145,35 +149,20 @@ export function useTestYoutubePlayer({
               playerInstance = player;
 
               console.log('✅ 테스트 YouTube 플레이어 준비 완료');
-              
-              // 플레이어가 준비되면 현재 게임 진행 상태에 맞는 위치만 맞춘다.
-              setTimeout(() => {
-                if (!isCancelled && player && audioSettings) {
-                  try {
-                    const { playbackSpeed } = audioSettings;
-                    const currentGameTime = currentTimeRef.current;
-                    const targetSeconds =
-                      currentGameTime >= 0
-                        ? getAudioPositionSeconds(currentGameTime, audioSettings)
-                        : getAudioBaseSeconds(audioSettings);
-                    
-                    // 재생 속도 설정
-                    player.mute?.();
-                    player.pauseVideo?.();
-                    player.setVolume?.(latestVolumeRef.current);
-                    player.setPlaybackRate?.(playbackSpeed);
-                    
-                    // 현재 게임 시각에 맞는 위치로 이동
-                    player.seekTo(targetSeconds, true);
-                    
-                    console.log(
-                      `🎵 YouTube 플레이어 준비 완료 (${targetSeconds}초, ${playbackSpeed}x) - 게임 상태 동기화`
-                    );
-                  } catch (e) {
-                    console.warn('YouTube 플레이어 설정 실패:', e);
-                  }
+
+              if (audioSettings) {
+                try {
+                  const { playbackSpeed } = audioSettings;
+                  const cueSeconds = getAudioBaseSeconds(audioSettings);
+                  player.mute?.();
+                  player.pauseVideo?.();
+                  player.setVolume?.(latestVolumeRef.current);
+                  player.setPlaybackRate?.(playbackSpeed);
+                  player.seekTo(cueSeconds, true);
+                } catch (e) {
+                  console.warn('YouTube 플레이어 초기 큐 설정 실패:', e);
                 }
-              }, 100);
+              }
             },
           },
         });
