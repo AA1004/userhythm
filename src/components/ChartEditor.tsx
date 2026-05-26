@@ -41,6 +41,13 @@ const isInteractiveEditorTarget = (target: EventTarget | null): boolean => {
   return target instanceof HTMLElement && target.closest(INTERACTIVE_EDITOR_TARGET_SELECTOR) !== null;
 };
 
+const isTextEditingTarget = (target: EventTarget | null): boolean => {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target.closest('input, textarea, [contenteditable="true"], [contenteditable=""], [role="textbox"]') !== null
+  );
+};
+
 const keepTimelineActionButtonFromTakingFocus = (event: React.MouseEvent<HTMLButtonElement>) => {
   event.preventDefault();
 };
@@ -1153,41 +1160,47 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   // 키보드 단축키 (Ctrl+C, Ctrl+V, Ctrl+Z, Ctrl+Y, ESC, Delete)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // 입력 필드(input, textarea)에 포커스가 있으면 기본 동작 허용
-      const target = e.target as HTMLElement;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
-        // 입력 필드에서는 기본 브라우저 동작 사용
+      if (isTextEditingTarget(e.target)) {
         return;
       }
-      
-      // Ctrl+Z: 실행 취소
-      if (e.ctrlKey && e.key === 'z' && !e.shiftKey && !e.altKey) {
+
+      const hasCommandModifier = e.ctrlKey || e.metaKey;
+      const isUndoShortcut =
+        hasCommandModifier && !e.altKey && !e.shiftKey && e.code === 'KeyZ';
+      const isRedoShortcut =
+        hasCommandModifier &&
+        !e.altKey &&
+        ((e.shiftKey && e.code === 'KeyZ') || (!e.shiftKey && e.code === 'KeyY'));
+      const isCopyShortcut = hasCommandModifier && !e.shiftKey && !e.altKey && e.code === 'KeyC';
+      const isPasteShortcut = hasCommandModifier && !e.shiftKey && !e.altKey && e.code === 'KeyV';
+
+      if (isUndoShortcut) {
         e.preventDefault();
+        e.stopPropagation();
         handleUndo();
         return;
       }
-      
-      // Ctrl+Y 또는 Ctrl+Shift+Z: 다시 실행
-      if ((e.ctrlKey && e.key === 'y' && !e.shiftKey && !e.altKey) ||
-          (e.ctrlKey && e.key === 'z' && e.shiftKey && !e.altKey)) {
+
+      if (isRedoShortcut) {
         e.preventDefault();
+        e.stopPropagation();
         handleRedo();
         return;
       }
-      
-      // Ctrl+C: 복사
-      if (e.ctrlKey && e.key === 'c' && !e.shiftKey && !e.altKey) {
+
+      if (isCopyShortcut) {
         if (selectedNoteIds.size > 0) {
           e.preventDefault();
+          e.stopPropagation();
           handleCopySelection();
         }
         return;
       }
-      
-      // Ctrl+V: 붙여넣기
-      if (e.ctrlKey && e.key === 'v' && !e.shiftKey && !e.altKey) {
+
+      if (isPasteShortcut) {
         if (copiedNotes.length > 0) {
           e.preventDefault();
+          e.stopPropagation();
           handlePasteNotes();
         }
         return;
@@ -1212,9 +1225,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, true);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown, true);
     };
   }, [selectionStartTime, selectionEndTime, selectedNoteIds, copiedNotes, handleCopySelection, handlePasteNotes, handleClearSelection, handleUndo, handleRedo, deleteSelectedNotes]);
 
