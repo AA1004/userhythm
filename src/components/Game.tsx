@@ -37,6 +37,8 @@ import { TutorialScreen } from './TutorialScreen';
 import { GAME_VIEW_WIDTH, GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 import { buildPlayfieldGeometry, KEY_LANE_HEIGHT } from '../constants/gameVisualSettings';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
+import { api } from '../lib/api';
+import { chartAPI } from '../lib/supabaseClient';
 
 // Subtitle editor chart data
 interface SubtitleEditorChartData {
@@ -153,11 +155,14 @@ export const Game: React.FC = () => {
   // gameState를 ref로 유지하여 최신 값을 항상 참조
   const gameStateRef = useRef(gameState);
   const currentTimeRef = useRef<number>(0);
+  const hasRecordedPlayRef = useRef(false);
+  const hasSubmittedScoreRef = useRef(false);
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
 
   const currentChartTimeOffsetMs = testAudioSettings?.startTimeMs ?? 0;
+  const activePlayableChartId = testAudioSettings?.chartId ?? null;
 
   useEffect(() => {
     if (!gameState.gameStarted || gameState.gameEnded) {
@@ -187,6 +192,13 @@ export const Game: React.FC = () => {
       }
     };
   }, [gameState.gameStarted, gameState.gameEnded, gameState.currentTime]);
+
+  useEffect(() => {
+    if (!gameState.gameStarted) {
+      hasRecordedPlayRef.current = false;
+      hasSubmittedScoreRef.current = false;
+    }
+  }, [gameState.gameStarted]);
 
   // 현재 게임 시간(ms)을 자막/채보 타임라인 시간(절대 시간)으로 변환
   // 테스트 시작 위치(startTimeMs)를 더해서 절대 시간으로 변환
@@ -533,6 +545,29 @@ export const Game: React.FC = () => {
           (total * 100)) *
         100
       : 0;
+
+  useEffect(() => {
+    if (!gameState.gameStarted || gameState.gameEnded || isTestMode) return;
+    if (gameplayClockSnapshotMs < 0) return;
+    if (!activePlayableChartId || hasRecordedPlayRef.current) return;
+
+    hasRecordedPlayRef.current = true;
+    void chartAPI.incrementPlayCount(activePlayableChartId).catch((error: unknown) => {
+      hasRecordedPlayRef.current = false;
+      console.error('Failed to increment play count:', error);
+    });
+  }, [gameState.gameStarted, gameState.gameEnded, isTestMode, activePlayableChartId, gameplayClockSnapshotMs]);
+
+  useEffect(() => {
+    if (!gameState.gameEnded || isTestMode) return;
+    if (!activePlayableChartId || hasSubmittedScoreRef.current) return;
+
+    hasSubmittedScoreRef.current = true;
+    void api.submitScore(activePlayableChartId, accuracy).catch((error: unknown) => {
+      hasSubmittedScoreRef.current = false;
+      console.error('Failed to submit leaderboard score:', error);
+    });
+  }, [gameState.gameEnded, isTestMode, activePlayableChartId, accuracy]);
 
   // 채보 저장 핸들러 (현재 미사용)
   // const handleChartSave = useCallback((notes: Note[]) => {

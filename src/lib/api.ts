@@ -130,6 +130,13 @@ export const api = {
     const res = await fetch(`${API_BASE}/api/charts/${id}`, { credentials: 'include' });
     return toJson(res) as Promise<{ chart: ApiChart }>;
   },
+  async incrementChartPlayCount(id: string) {
+    const res = await fetch(`${API_BASE}/api/charts/${id}`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+    return toJson(res) as Promise<{ chart: ApiChart }>;
+  },
   async getPendingCharts(status: 'pending' | 'approved' | 'rejected' | 'all' = 'pending') {
     const qs = new URLSearchParams();
     qs.set('status', status);

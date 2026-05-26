@@ -69,3 +69,31 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   }
 }
 
+export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const chart = await prisma.chart.update({
+      where: { id: params.id },
+      data: {
+        playCount: {
+          increment: 1,
+        },
+      },
+      include: { user: { include: { profile: true } } },
+    });
+
+    return NextResponse.json({
+      chart: serializeChart(chart, {
+        authorRole: chart.user?.profile?.role || chart.user?.role || undefined,
+        authorNickname: chart.user?.profile?.nickname || (chart.user?.profile as any)?.display_name || undefined,
+        authorEmail: chart.user?.email || undefined,
+      }),
+    });
+  } catch (error: any) {
+    if (error?.code === 'P2025') {
+      return NextResponse.json({ error: 'not found' }, { status: 404 });
+    }
+    console.error('chart play count increment error', error);
+    return NextResponse.json({ error: 'failed to increment play count' }, { status: 500 });
+  }
+}
+
