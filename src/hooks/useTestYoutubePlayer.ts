@@ -5,6 +5,7 @@ import { getAudioBaseSeconds, getAudioPositionSeconds, AudioSettings } from '../
 export interface UseTestYoutubePlayerOptions {
   audioSessionActive: boolean;
   gameStarted: boolean;
+  gameEnded: boolean;
   currentTimeRef: MutableRefObject<number>;
   videoId: string | null;
   audioSettings: AudioSettings | null;
@@ -22,6 +23,7 @@ export interface UseTestYoutubePlayerReturn {
 export function useTestYoutubePlayer({
   audioSessionActive,
   gameStarted,
+  gameEnded,
   currentTimeRef,
   videoId,
   audioSettings,
@@ -188,9 +190,17 @@ export function useTestYoutubePlayer({
   // Gameplay YouTube audio sync.
   // Keep this off React's visual clock path; currentTimeRef is the gameplay source time.
   useEffect(() => {
-    if (!audioSessionActive || !gameStarted) return;
     if (!player || !playerReadyRef.current) return;
-    if (!audioSettings) return;
+
+    if (!audioSessionActive || !gameStarted || gameEnded || !audioSettings) {
+      try {
+        audioHasStartedRef.current = false;
+        player.pauseVideo?.();
+      } catch (e) {
+        console.warn("YouTube stop on inactive session failed:", e);
+      }
+      return;
+    }
 
     const { playbackSpeed } = audioSettings;
 
@@ -291,7 +301,7 @@ export function useTestYoutubePlayer({
         window.clearTimeout(timerId);
       }
     };
-  }, [audioSessionActive, gameStarted, currentTimeRef, player, audioSettings]);
+  }, [audioSessionActive, gameStarted, gameEnded, currentTimeRef, player, audioSettings]);
 
   // 볼륨 변경 시 실시간 반영
   useEffect(() => {

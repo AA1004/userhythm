@@ -371,6 +371,7 @@ export const Game: React.FC = () => {
   } = useTestYoutubePlayer({
     audioSessionActive: hasYoutubeAudioSession,
     gameStarted: gameState.gameStarted,
+    gameEnded: gameState.gameEnded,
     currentTimeRef,
     videoId: testYoutubeVideoId,
     audioSettings: testAudioSettings,
@@ -963,7 +964,7 @@ export const Game: React.FC = () => {
                 <GamePlayArea
                   notes={gameState.notes}
                   combo={combo}
-                  gameStarted={gameState.gameStarted}
+                  gameStarted={isGameplayActive}
                   bgaMaskOpacity={activeBgaMaskOpacity}
                   isLaneUiVisible={activeLaneUiVisible}
                 speed={speed}
