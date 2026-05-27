@@ -11,6 +11,8 @@ export function useKeyboard(
   keyBindings: string[] = DEFAULT_KEY_BINDINGS
 ) {
   const pressedLanesRef = useRef<Set<Lane>>(new Set());
+  const onKeyPressRef = useRef(onKeyPress);
+  const onKeyReleaseRef = useRef(onKeyRelease);
 
   const keyToLane = useMemo(() => {
     const map: Record<string, Lane> = {};
@@ -23,13 +25,21 @@ export function useKeyboard(
   }, [keyBindings]);
 
   useEffect(() => {
+    onKeyPressRef.current = onKeyPress;
+  }, [onKeyPress]);
+
+  useEffect(() => {
+    onKeyReleaseRef.current = onKeyRelease;
+  }, [onKeyRelease]);
+
+  useEffect(() => {
     if (!enabled) {
       pressedLanesRef.current.clear();
       return;
     }
 
     const releaseAllPressedKeys = () => {
-      pressedLanesRef.current.forEach((lane) => onKeyRelease(lane));
+      pressedLanesRef.current.forEach((lane) => onKeyReleaseRef.current(lane));
       pressedLanesRef.current.clear();
     };
 
@@ -41,7 +51,7 @@ export function useKeyboard(
       if (lane !== undefined) {
         event.preventDefault();
         pressedLanesRef.current.add(lane);
-        onKeyPress(lane);
+        onKeyPressRef.current(lane);
       }
     };
 
@@ -52,7 +62,7 @@ export function useKeyboard(
       if (lane !== undefined) {
         event.preventDefault();
         pressedLanesRef.current.delete(lane);
-        onKeyRelease(lane);
+        onKeyReleaseRef.current(lane);
       }
     };
 
@@ -78,5 +88,5 @@ export function useKeyboard(
       window.removeEventListener('blur', handleWindowBlur);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [onKeyPress, onKeyRelease, enabled, keyToLane]);
+  }, [enabled, keyToLane]);
 }
