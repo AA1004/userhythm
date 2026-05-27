@@ -32,6 +32,9 @@ const meanAbs = (values: number[], center: number) =>
     ? 0
     : values.reduce((sum, value) => sum + Math.abs(value - center), 0) / values.length;
 
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
+
 export const CalibrationGame: React.FC<CalibrationGameProps> = ({
   keyBindings,
   currentOffsetMs,
@@ -145,6 +148,10 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
   );
   const fastCount = useMemo(() => samples.filter((sample) => sample < 0).length, [samples]);
   const slowCount = useMemo(() => samples.filter((sample) => sample > 0).length, [samples]);
+  const maxSampleMagnitude = useMemo(
+    () => Math.max(HIT_WINDOW_MS, ...samples.map((sample) => Math.abs(sample))),
+    [samples]
+  );
 
   const handleApply = useCallback(() => {
     onApplyOffset(recommendedOffsetMs);
@@ -353,6 +360,122 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
             <MetricCard label="평균 편차" value={samples.length > 0 ? `${averageDeviationMs}ms` : '--'} />
             <MetricCard label="FAST" value={String(fastCount)} />
             <MetricCard label="SLOW" value={String(slowCount)} />
+          </div>
+
+          <div
+            style={{
+              padding: '14px',
+              borderRadius: CHART_EDITOR_THEME.radiusMd,
+              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+              background: CHART_EDITOR_THEME.surface,
+            }}
+          >
+            <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontWeight: 700, marginBottom: '10px' }}>
+              FAST / SLOW 분포
+            </div>
+            <div style={{ display: 'flex', height: '14px', borderRadius: '999px', overflow: 'hidden', background: 'rgba(255,255,255,0.05)' }}>
+              <div
+                style={{
+                  width: `${samples.length > 0 ? (fastCount / samples.length) * 100 : 0}%`,
+                  background: 'linear-gradient(90deg, rgba(56,189,248,0.75), rgba(59,130,246,0.9))',
+                }}
+              />
+              <div
+                style={{
+                  width: `${samples.length > 0 ? (slowCount / samples.length) * 100 : 0}%`,
+                  background: 'linear-gradient(90deg, rgba(251,146,60,0.8), rgba(239,68,68,0.9))',
+                }}
+              />
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                color: CHART_EDITOR_THEME.textSecondary,
+                fontSize: '11px',
+                marginTop: '8px',
+              }}
+            >
+              <span>FAST {fastCount}</span>
+              <span>SLOW {slowCount}</span>
+            </div>
+          </div>
+
+          <div
+            style={{
+              padding: '14px',
+              borderRadius: CHART_EDITOR_THEME.radiusMd,
+              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+              background: CHART_EDITOR_THEME.surface,
+            }}
+          >
+            <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontWeight: 700, marginBottom: '10px' }}>
+              타점 흐름
+            </div>
+            <div
+              style={{
+                position: 'relative',
+                height: '146px',
+                borderRadius: CHART_EDITOR_THEME.radiusSm,
+                overflow: 'hidden',
+                background: 'linear-gradient(180deg, rgba(11,17,32,0.92), rgba(8,12,24,0.76))',
+                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+              }}
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  left: '50%',
+                  top: 0,
+                  bottom: 0,
+                  width: '1px',
+                  background: 'rgba(255,255,255,0.28)',
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  top: '50%',
+                  height: '1px',
+                  background: 'rgba(255,255,255,0.08)',
+                }}
+              />
+              {samples.map((sample, index) => {
+                const x = clamp(((sample + maxSampleMagnitude) / (maxSampleMagnitude * 2)) * 100, 0, 100);
+                const y = clamp(((index + 1) / (MEASURE_BEATS + 1)) * 100, 8, 92);
+                const isFast = sample < 0;
+                return (
+                  <div
+                    key={`${index}-${sample}`}
+                    style={{
+                      position: 'absolute',
+                      left: `calc(${x}% - 5px)`,
+                      top: `calc(${y}% - 5px)`,
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      background: isFast ? '#38bdf8' : sample > 0 ? '#fb923c' : '#e5e7eb',
+                      boxShadow: `0 0 10px ${isFast ? 'rgba(56,189,248,0.65)' : sample > 0 ? 'rgba(251,146,60,0.65)' : 'rgba(229,231,235,0.55)'}`,
+                    }}
+                  />
+                );
+              })}
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                color: CHART_EDITOR_THEME.textSecondary,
+                fontSize: '11px',
+                marginTop: '8px',
+              }}
+            >
+              <span>FAST</span>
+              <span>정중앙</span>
+              <span>SLOW</span>
+            </div>
           </div>
 
           <div
