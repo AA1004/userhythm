@@ -199,6 +199,7 @@ export function useTestYoutubePlayer({
 
     const cueSeconds = getAudioBaseSeconds(audioSettings);
     let timerId: number | null = null;
+    let cancelled = false;
 
     const syncOnce = () => {
       const currentTime = currentTimeRef.current;
@@ -261,11 +262,25 @@ export function useTestYoutubePlayer({
       }
     };
 
+    const scheduleNext = () => {
+      if (cancelled) return;
+      const currentTime = currentTimeRef.current;
+      const delayMs =
+        currentTime < 250 || !audioHasStartedRef.current
+          ? 33
+          : 1000;
+      timerId = window.setTimeout(() => {
+        syncOnce();
+        scheduleNext();
+      }, delayMs);
+    };
+
     syncOnce();
-    timerId = window.setInterval(syncOnce, 1000);
+    scheduleNext();
     return () => {
+      cancelled = true;
       if (timerId !== null) {
-        window.clearInterval(timerId);
+        window.clearTimeout(timerId);
       }
     };
   }, [isTestMode, gameStarted, currentTimeRef, player, audioSettings]);
