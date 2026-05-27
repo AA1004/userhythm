@@ -6,8 +6,6 @@ import { ChartSelectTransition } from './ChartSelectTransition';
 import { ChartAdmin } from './ChartAdmin';
 import { SubtitleEditor } from './SubtitleEditor';
 import { SettingsModal } from './SettingsModal';
-import { useGameLoop } from '../hooks/useGameLoop';
-import { useKeyboard } from '../hooks/useKeyboard';
 import { generateNotes } from '../utils/noteGenerator';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { VideoRhythmLayout } from './VideoRhythmLayout';
@@ -20,7 +18,6 @@ import {
 import { buildInitialScore, getAudioPositionSeconds, AudioSettings } from '../utils/gameHelpers';
 import { useAuth } from '../hooks/useAuth';
 import { useGameSettings } from '../hooks/useGameSettings';
-import { useGameJudging } from '../hooks/useGameJudging';
 import { useSubtitles } from '../hooks/useSubtitles';
 import { useBgaMask } from '../hooks/useBgaMask';
 import { useGameViewSize } from '../hooks/useGameViewSize';
@@ -28,15 +25,14 @@ import { useTestYoutubePlayer } from '../hooks/useTestYoutubePlayer';
 import { useTestSession } from '../hooks/useTestSession';
 import { useChartLoader } from '../hooks/useChartLoader';
 import { GameMenu } from './GameMenu';
-import { GamePlayArea } from './GamePlayArea';
-import { GameplaySlotHud } from './GameplaySlotHud';
 import { GameEndScreen } from './GameEndScreen';
 import { FpsHud } from './FpsHud';
 import { Score } from './Score';
 import { TutorialScreen } from './TutorialScreen';
 import { CalibrationGame } from './CalibrationGame';
+import { GameplayRuntimeLayer } from './GameplayRuntimeLayer';
 import { GAME_VIEW_WIDTH, GAME_VIEW_HEIGHT } from '../constants/gameLayout';
-import { buildPlayfieldGeometry, KEY_LANE_HEIGHT } from '../constants/gameVisualSettings';
+import { buildPlayfieldGeometry } from '../constants/gameVisualSettings';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 import { api } from '../lib/api';
 import { chartAPI } from '../lib/supabaseClient';
@@ -257,31 +253,6 @@ export const Game: React.FC = () => {
     };
   }, []);
 
-  // 판정 훅
-  const {
-    combo,
-    pressedKeys,
-    holdingNotes,
-    judgeFeedbacksRef,
-    keyEffectsRef,
-    effectsRevision,
-    handleKeyPress,
-    handleKeyRelease,
-    handleNoteMiss,
-  } = useGameJudging({
-    gameState,
-    gameStateRef,
-    currentTimeRef,
-    laneCenters: playfieldGeometry.laneCenters,
-    setGameState,
-    processedMissNotes,
-    hitNoteIdsRef,
-    judgeLineY,
-    timingOffsetMs,
-  });
-
-  // speed는 noteSpeed를 사용
-  const speed = noteSpeed;
   const userDisplayName = getUserDisplayName(displayName);
   const stageScale = useMemo(() => {
     const horizontalPadding = 32;
@@ -302,29 +273,13 @@ export const Game: React.FC = () => {
     recordGameplayMetric('reactRender', performance.now() - renderProfileStart, 1);
   });
 
+  // speed는 noteSpeed를 사용
+  const speed = noteSpeed;
+
   // 속도가 변경될 때마다 localStorage에 저장
   useEffect(() => {
     localStorage.setItem('rhythmGameSpeed', speed.toString());
   }, [speed]);
-
-  // 키보드 입력 처리
-  useKeyboard(
-    handleKeyPress,
-    handleKeyRelease,
-    gameState.gameStarted && !gameState.gameEnded,
-    keyBindings
-  );
-
-  const { fallDuration } = useGameLoop(
-    gameState,
-    setGameState,
-    handleNoteMiss,
-    speed,
-    START_DELAY_MS,
-    currentTimeRef,
-    hitNoteIdsRef,
-    timingOffsetMs
-  );
 
   // 자막 훅
   const {
@@ -782,14 +737,6 @@ export const Game: React.FC = () => {
   const activeLaneUiVisible = isGameplayActive ? isLaneUiVisible : true;
   const useNewSlotHud =
     playfieldGeometry.gameplayHudMode === 'new' && playfieldGeometry.slotHudEnabled;
-  const slotHudProgress =
-    dynamicGameDuration > 0
-      ? Math.min(100, Math.max(0, (gameplayClockSnapshotMs / dynamicGameDuration) * 100))
-      : 0;
-  const slotHudTopPx = (playfieldGeometry.keyLaneY + KEY_LANE_HEIGHT + 8) * stageScale;
-  const slotHudLeftPx = playfieldGeometry.laneGroupLeft * stageScale;
-  const slotHudWidthPx = playfieldGeometry.laneGroupWidth * stageScale;
-  const slotHudOpacity = playfieldGeometry.slotHudOpacity;
   const gameplayStageBackdropAlpha = 0.16;
   const gameplayStageBorderAlpha = 0.14;
   const gameplayStageShadowAlpha = 0.26;
@@ -961,25 +908,28 @@ export const Game: React.FC = () => {
                 transformOrigin: 'top left',
               }}
             >
-                <GamePlayArea
-                  notes={gameState.notes}
-                  combo={combo}
-                  gameStarted={isGameplayActive}
-                  bgaMaskOpacity={activeBgaMaskOpacity}
-                  isLaneUiVisible={activeLaneUiVisible}
-                speed={speed}
-                pressedKeys={pressedKeys}
-                holdingNotes={holdingNotes}
-                judgeFeedbacksRef={judgeFeedbacksRef}
-                keyEffectsRef={keyEffectsRef}
-                effectsRevision={effectsRevision}
-                laneKeyLabels={laneKeyLabels}
-                isFromEditor={isFromEditor}
+              <GameplayRuntimeLayer
+                gameState={gameState}
+                gameStateRef={gameStateRef}
                 currentTimeRef={currentTimeRef}
-                fallDuration={fallDuration}
+                setGameState={setGameState}
+                processedMissNotes={processedMissNotes}
+                hitNoteIdsRef={hitNoteIdsRef}
+                keyBindings={keyBindings}
+                laneKeyLabels={laneKeyLabels}
+                noteSpeed={speed}
+                timingOffsetMs={timingOffsetMs}
                 judgeLineY={judgeLineY}
                 playfieldGeometry={playfieldGeometry}
-                hitNoteIdsRef={hitNoteIdsRef}
+                bgaMaskOpacity={activeBgaMaskOpacity}
+                isLaneUiVisible={activeLaneUiVisible}
+                isFromEditor={isFromEditor}
+                gameplayClockSnapshotMs={gameplayClockSnapshotMs}
+                dynamicGameDuration={dynamicGameDuration}
+                accuracy={accuracy}
+                stageScale={stageScale}
+                testAudioSettings={testAudioSettings}
+                isGameplayActive={isGameplayActive}
               />
 
               {/* 게임 시작 UI */}
@@ -1037,19 +987,6 @@ export const Game: React.FC = () => {
               )}
             </div>
           </div>
-          {isGameplayActive && useNewSlotHud && (
-            <GameplaySlotHud
-              laneGroupLeft={slotHudLeftPx}
-              laneGroupWidth={slotHudWidthPx}
-              top={slotHudTopPx}
-              combo={combo}
-              accuracy={accuracy}
-              progress={slotHudProgress}
-              visible={activeLaneUiVisible}
-              opacity={slotHudOpacity}
-            />
-          )}
-
       {/* 자막 레이어 (게임 컨테이너 바깥, 16:9 영역으로 확장) - 간주 구간에서는 숨김 */}
       {activeBgaMaskOpacity < 1 && (
         <LyricOverlay
