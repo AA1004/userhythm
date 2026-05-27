@@ -327,11 +327,13 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
       <div
         style={{
           flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
           display: 'grid',
-          gridTemplateColumns: 'minmax(340px, 520px) minmax(320px, 420px)',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 420px))',
           gap: '24px',
-          padding: '32px',
-          alignItems: 'stretch',
+          padding: '24px',
+          alignItems: 'start',
           justifyContent: 'center',
         }}
       >
@@ -350,8 +352,9 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
             <div
               style={{
                 width: '100%',
-                height: '430px',
-                margin: '8px auto 24px',
+                height: '320px',
+                minHeight: '320px',
+                margin: '4px auto 20px',
                 borderRadius: '28px',
                 border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
                 background: 'linear-gradient(180deg, rgba(4,10,18,0.92), rgba(8,12,24,0.84))',
@@ -384,7 +387,7 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
                   top: '54%',
                   width: `${GAME_VIEW_WIDTH}px`,
                   height: `${GAME_VIEW_HEIGHT}px`,
-                  transform: 'translate(-50%, -50%) scale(0.8)',
+                  transform: 'translate(-50%, -50%) scale(0.6)',
                   transformOrigin: 'center center',
                 }}
               >
