@@ -6,10 +6,17 @@ interface GameEndScreenProps {
   accuracy: number;
   score: GameState['score'];
   bgaMaskOpacity: number;
+  timingOffsetRecommendation?: {
+    recommendedOffsetMs: number | null;
+    sampleCount: number;
+    source: 'speed' | 'global' | null;
+    averageDeviationMs: number | null;
+  };
   onRetest?: () => void;
   onReturnToEditor?: () => void;
   onReturnToPlayList?: () => void;
   onReset: () => void;
+  onApplyTimingOffsetRecommendation?: () => void;
 }
 
 interface ResultAction {
@@ -41,10 +48,12 @@ export const GameEndScreen: React.FC<GameEndScreenProps> = ({
   accuracy,
   score,
   bgaMaskOpacity,
+  timingOffsetRecommendation,
   onRetest,
   onReturnToEditor,
   onReturnToPlayList,
   onReset,
+  onApplyTimingOffsetRecommendation,
 }) => {
   // Hide result UI during BGA-only interlude sections.
   if (bgaMaskOpacity >= 1) {
@@ -82,6 +91,11 @@ export const GameEndScreen: React.FC<GameEndScreenProps> = ({
         { label: '메인 메뉴', variant: 'secondary', onClick: onReset },
       ]
     : [{ label: '다시 시작', variant: 'primary', onClick: onReset }];
+
+  const showTimingRecommendation =
+    !isTestMode &&
+    !!timingOffsetRecommendation &&
+    timingOffsetRecommendation.recommendedOffsetMs !== null;
 
   return (
     <div className="game-end-screen" role="dialog" aria-modal="true" aria-label={title}>
@@ -152,6 +166,56 @@ export const GameEndScreen: React.FC<GameEndScreenProps> = ({
             ))}
           </div>
         </div>
+
+        {!isTestMode && timingOffsetRecommendation && (
+          <div
+            style={{
+              marginTop: '18px',
+              padding: '16px',
+              borderRadius: '18px',
+              border: '1px solid rgba(148, 163, 184, 0.2)',
+              background: 'rgba(15, 23, 42, 0.58)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '16px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div>
+              <div style={{ color: 'rgba(226,232,240,0.72)', fontSize: '12px', marginBottom: '6px' }}>
+                실전 플레이 기반 보정
+              </div>
+              <div style={{ color: '#f8fafc', fontSize: '22px', fontWeight: 800 }}>
+                {showTimingRecommendation
+                  ? `${timingOffsetRecommendation.recommendedOffsetMs! > 0 ? '+' : ''}${timingOffsetRecommendation.recommendedOffsetMs}ms`
+                  : `표본 ${timingOffsetRecommendation.sampleCount}개`}
+              </div>
+              <div style={{ color: 'rgba(226,232,240,0.72)', fontSize: '12px', marginTop: '4px' }}>
+                {showTimingRecommendation
+                  ? `${timingOffsetRecommendation.source === 'speed' ? '현재 노트속도 기준' : '전체 플레이 기준'} · 평균 편차 ${timingOffsetRecommendation.averageDeviationMs}ms`
+                  : '최소 12개 이상 쌓이면 추천값이 계산됩니다.'}
+              </div>
+            </div>
+            {showTimingRecommendation && onApplyTimingOffsetRecommendation && (
+              <button
+                type="button"
+                onClick={onApplyTimingOffsetRecommendation}
+                style={{
+                  padding: '12px 18px',
+                  borderRadius: '14px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #5eead4 0%, #facc15 48%, #fb7185 100%)',
+                  color: '#0f172a',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                }}
+              >
+                추천값 적용
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="game-end-actions">
           {actions.map((action) => (

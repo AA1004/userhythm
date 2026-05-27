@@ -1026,10 +1026,12 @@ export const Game: React.FC = () => {
                   accuracy={accuracy}
                   score={gameState.score}
                   bgaMaskOpacity={activeBgaMaskOpacity}
+                  timingOffsetRecommendation={timingOffsetRecommendation}
                   onRetest={isTestMode ? handleRetestWithRuntimeReset : undefined}
                   onReturnToEditor={isFromEditor ? handleReturnToEditor : undefined}
                   onReturnToPlayList={!isFromEditor ? handleReturnToPlayList : undefined}
                   onReset={resetGame}
+                  onApplyTimingOffsetRecommendation={!isTestMode ? applyTimingOffsetRecommendation : undefined}
                 />
               )}
 
