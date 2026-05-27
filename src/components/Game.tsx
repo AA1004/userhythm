@@ -118,10 +118,6 @@ export const Game: React.FC = () => {
     setNoteSpeed,
     timingOffsetMs,
     setTimingOffsetMs,
-    timingOffsetRecommendation,
-    appendTimingSamples,
-    applyTimingOffsetRecommendation,
-    clearTimingSamples,
     isBgaEnabled,
     setIsBgaEnabled,
     judgeLineY,
@@ -165,7 +161,6 @@ export const Game: React.FC = () => {
   const currentTimeRef = useRef<number>(0);
   const hasRecordedPlayRef = useRef(false);
   const hasSubmittedScoreRef = useRef(false);
-  const collectedTimingSamplesRef = useRef<number[]>([]);
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
@@ -206,7 +201,6 @@ export const Game: React.FC = () => {
     if (!gameState.gameStarted) {
       hasRecordedPlayRef.current = false;
       hasSubmittedScoreRef.current = false;
-      collectedTimingSamplesRef.current = [];
     }
   }, [gameState.gameStarted]);
 
@@ -282,12 +276,6 @@ export const Game: React.FC = () => {
     hitNoteIdsRef,
     judgeLineY,
     timingOffsetMs,
-    onTimingSample: ({ diffMs }) => {
-      if (isTestMode) return;
-      if (!gameStateRef.current.gameStarted || gameStateRef.current.gameEnded) return;
-      if (currentTimeRef.current < 0) return;
-      collectedTimingSamplesRef.current.push(diffMs);
-    },
   });
 
   // speed는 noteSpeed를 사용
@@ -587,14 +575,6 @@ export const Game: React.FC = () => {
     });
   }, [gameState.gameEnded, isTestMode, activePlayableChartId, accuracy]);
 
-  useEffect(() => {
-    if (!gameState.gameEnded || isTestMode) return;
-    if (!collectedTimingSamplesRef.current.length) return;
-
-    appendTimingSamples(collectedTimingSamplesRef.current, noteSpeed);
-    collectedTimingSamplesRef.current = [];
-  }, [gameState.gameEnded, isTestMode, noteSpeed, appendTimingSamples]);
-
   // 채보 저장 핸들러 (현재 미사용)
   // const handleChartSave = useCallback((notes: Note[]) => {
   //   setIsTestMode(false);
@@ -746,9 +726,7 @@ export const Game: React.FC = () => {
         keyBindings={keyBindings}
         currentOffsetMs={timingOffsetMs}
         currentNoteSpeed={noteSpeed}
-        timingOffsetRecommendation={timingOffsetRecommendation}
-        appendTimingSamples={appendTimingSamples}
-        onApplyTimingOffsetRecommendation={applyTimingOffsetRecommendation}
+        onApplyTimingOffset={setTimingOffsetMs}
         onClose={() => setViewMode({ type: 'menu' })}
       />
     );
@@ -1029,12 +1007,10 @@ export const Game: React.FC = () => {
                   accuracy={accuracy}
                   score={gameState.score}
                   bgaMaskOpacity={activeBgaMaskOpacity}
-                  timingOffsetRecommendation={timingOffsetRecommendation}
                   onRetest={isTestMode ? handleRetestWithRuntimeReset : undefined}
                   onReturnToEditor={isFromEditor ? handleReturnToEditor : undefined}
                   onReturnToPlayList={!isFromEditor ? handleReturnToPlayList : undefined}
                   onReset={resetGame}
-                  onApplyTimingOffsetRecommendation={!isTestMode ? applyTimingOffsetRecommendation : undefined}
                 />
               )}
 
@@ -1097,9 +1073,6 @@ export const Game: React.FC = () => {
         onNoteSpeedChange={setNoteSpeed}
         timingOffsetMs={timingOffsetMs}
         onTimingOffsetChange={setTimingOffsetMs}
-        timingOffsetRecommendation={timingOffsetRecommendation}
-        onApplyTimingOffsetRecommendation={applyTimingOffsetRecommendation}
-        onClearTimingSamples={clearTimingSamples}
         isBgaEnabled={isBgaEnabled}
         onBgaChange={setIsBgaEnabled}
         judgeLineY={judgeLineY}

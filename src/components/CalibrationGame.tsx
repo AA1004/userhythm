@@ -1,22 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
-import { getKeyBindingFromInput } from '../utils/keyBinding';
-import { GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH } from '../constants/gameLayout';
+import { GamePlayArea } from './GamePlayArea';
+import { BASE_FALL_DURATION, JUDGE_FEEDBACK_DURATION_MS, JUDGE_LINE_Y, START_DELAY_MS } from '../constants/gameConstants';
 import { buildPlayfieldGeometry, DEFAULT_GAME_VISUAL_SETTINGS } from '../constants/gameVisualSettings';
-import { JUDGE_LINE_Y } from '../constants/gameConstants';
+import { GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH } from '../constants/gameLayout';
+import { getKeyBindingFromInput } from '../utils/keyBinding';
+import { JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
+import { Lane, Note } from '../types/game';
 
 interface CalibrationGameProps {
   keyBindings: string[];
   currentOffsetMs: number;
   currentNoteSpeed: number;
-  timingOffsetRecommendation: {
-    recommendedOffsetMs: number | null;
-    sampleCount: number;
-    source: 'speed' | 'global' | null;
-    averageDeviationMs: number | null;
-  };
-  appendTimingSamples: (samples: number[], speed: number) => void;
-  onApplyTimingOffsetRecommendation: () => void;
+  onApplyTimingOffset: (offsetMs: number) => void;
   onClose: () => void;
 }
 
@@ -27,16 +23,14 @@ const BEAT_INTERVAL_MS = 60000 / BPM;
 const COUNT_IN_BEATS = 4;
 const MEASURE_BEATS = 24;
 const HIT_WINDOW_MS = 220;
-const CALIBRATION_FALL_DURATION_MS = 1600;
 
 const median = (values: number[]) => {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
   const middle = Math.floor(sorted.length / 2);
-  if (sorted.length % 2 === 0) {
-    return (sorted[middle - 1] + sorted[middle]) / 2;
-  }
-  return sorted[middle];
+  return sorted.length % 2 === 0
+    ? (sorted[middle - 1] + sorted[middle]) / 2
+    : sorted[middle];
 };
 
 const meanAbs = (values: number[], center: number) =>
@@ -44,39 +38,59 @@ const meanAbs = (values: number[], center: number) =>
     ? 0
     : values.reduce((sum, value) => sum + Math.abs(value - center), 0) / values.length;
 
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, value));
+const buildCalibrationNotes = (): Note[] =>
+  Array.from({ length: MEASURE_BEATS }, (_, index) => {
+    const lane = (index % 4) as Lane;
+    const time = index * BEAT_INTERVAL_MS;
+    return {
+      id: index + 1,
+      lane,
+      time,
+      duration: 0,
+      endTime: time,
+      type: 'tap',
+      y: -100,
+      hit: false,
+    };
+  });
 
 export const CalibrationGame: React.FC<CalibrationGameProps> = ({
   keyBindings,
   currentOffsetMs,
   currentNoteSpeed,
-  timingOffsetRecommendation,
-  appendTimingSamples,
-  onApplyTimingOffsetRecommendation,
+  onApplyTimingOffset,
   onClose,
 }) => {
   const [phase, setPhase] = useState<Phase>('ready');
   const [displayBeat, setDisplayBeat] = useState(0);
   const [samples, setSamples] = useState<number[]>([]);
-  const [samplesSubmitted, setSamplesSubmitted] = useState(false);
-  const [animationNow, setAnimationNow] = useState(0);
+  const [combo, setCombo] = useState(0);
+  const [pressedKeys, setPressedKeys] = useState<Set<Lane>>(new Set());
+  const [judgeFeedbacks, setJudgeFeedbacks] = useState<JudgeFeedback[]>([]);
+  const [keyEffects, setKeyEffects] = useState<KeyEffect[]>([]);
 
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const startTimeRef = useRef(0);
-  const sampleSetRef = useRef<number[]>([]);
-  const hitBeatSetRef = useRef<Set<number>>(new Set());
-  const timerIdsRef = useRef<number[]>([]);
-  const activeRef = useRef(false);
-  const animationFrameRef = useRef<number | null>(null);
-  const submittedRunRef = useRef(false);
-
+  const notes = useMemo(() => buildCalibrationNotes(), []);
   const playfieldGeometry = useMemo(
     () => buildPlayfieldGeometry(DEFAULT_GAME_VISUAL_SETTINGS, JUDGE_LINE_Y),
     []
   );
-
+  const laneKeyLabels = useMemo(() => keyBindings.map((key) => [key]), [keyBindings]);
   const allowedKeys = useMemo(() => new Set(keyBindings.map((key) => key.toUpperCase())), [keyBindings]);
+  const fallDuration = useMemo(() => BASE_FALL_DURATION / currentNoteSpeed, [currentNoteSpeed]);
+
+  const currentTimeRef = useRef(-START_DELAY_MS);
+  const hitNoteIdsRef = useRef<Set<number>>(new Set());
+  const holdingNotesRef = useRef<Map<number, Note>>(new Map());
+  const sampleSetRef = useRef<number[]>([]);
+  const hitBeatSetRef = useRef<Set<number>>(new Set());
+  const missedBeatSetRef = useRef<Set<number>>(new Set());
+  const activeRef = useRef(false);
+  const startTimeRef = useRef(0);
+  const animationFrameRef = useRef<number | null>(null);
+  const timerIdsRef = useRef<number[]>([]);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const feedbackIdRef = useRef(0);
+  const effectIdRef = useRef(0);
 
   const clearTimers = useCallback(() => {
     timerIdsRef.current.forEach((timerId) => window.clearTimeout(timerId));
@@ -117,34 +131,51 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
     oscillator.stop(now + 0.08);
   }, []);
 
+  const pushFeedback = useCallback((judge: 'perfect' | 'great' | 'good' | 'miss', lane: Lane, timingDirection: 'fast' | 'slow' | null) => {
+    const expiresAt = Date.now() + JUDGE_FEEDBACK_DURATION_MS;
+    const x = playfieldGeometry.laneCenters[lane];
+    const y = JUDGE_LINE_Y;
+    setJudgeFeedbacks([{ id: feedbackIdRef.current++, judge, expiresAt, x, y, lane, timingDirection }]);
+    setKeyEffects((prev) => [
+      ...prev.filter((effect) => effect.lane !== lane),
+      { id: effectIdRef.current++, lane, x, y, judge, expiresAt },
+    ].slice(-4));
+  }, [playfieldGeometry.laneCenters]);
+
   const finishMeasurement = useCallback(() => {
     activeRef.current = false;
     setPhase('complete');
     setSamples([...sampleSetRef.current]);
+    setPressedKeys(new Set());
   }, []);
 
   const startMeasurement = useCallback(async () => {
     clearTimers();
+    hitNoteIdsRef.current.clear();
+    holdingNotesRef.current.clear();
     sampleSetRef.current = [];
-    hitBeatSetRef.current = new Set();
+    hitBeatSetRef.current.clear();
+    missedBeatSetRef.current.clear();
     setSamples([]);
-    setSamplesSubmitted(false);
-    setDisplayBeat(0);
-    submittedRunRef.current = false;
+    setCombo(0);
+    setJudgeFeedbacks([]);
+    setKeyEffects([]);
+    setPressedKeys(new Set());
+    setDisplayBeat(COUNT_IN_BEATS);
 
     const audioContext = await ensureAudioContext();
-    if (!audioContext) {
-      return;
-    }
+    if (!audioContext) return;
 
     const now = performance.now();
-    startTimeRef.current = now + 800;
+    const measureStart = now + 800 + COUNT_IN_BEATS * BEAT_INTERVAL_MS;
+    startTimeRef.current = measureStart;
+    currentTimeRef.current = -COUNT_IN_BEATS * BEAT_INTERVAL_MS;
     activeRef.current = true;
     setPhase('countdown');
 
     for (let beatIndex = 0; beatIndex < COUNT_IN_BEATS + MEASURE_BEATS; beatIndex += 1) {
       const delay = 800 + beatIndex * BEAT_INTERVAL_MS;
-      const timerId = window.setTimeout(() => {
+      timerIdsRef.current.push(window.setTimeout(() => {
         if (!activeRef.current) return;
         playClick(beatIndex % 4 === 0);
         if (beatIndex < COUNT_IN_BEATS) {
@@ -154,75 +185,24 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
           setDisplayBeat(beatIndex - COUNT_IN_BEATS + 1);
           setPhase('measuring');
         }
-      }, delay);
-      timerIdsRef.current.push(timerId);
+      }, delay));
     }
 
-    const finishDelay = 800 + (COUNT_IN_BEATS + MEASURE_BEATS) * BEAT_INTERVAL_MS + 120;
-    timerIdsRef.current.push(window.setTimeout(finishMeasurement, finishDelay));
+    timerIdsRef.current.push(
+      window.setTimeout(finishMeasurement, 800 + (COUNT_IN_BEATS + MEASURE_BEATS) * BEAT_INTERVAL_MS + 180)
+    );
   }, [clearTimers, ensureAudioContext, finishMeasurement, playClick]);
 
-  const localMedianOffsetMs = useMemo(
-    () => Math.round(median(samples)),
-    [samples]
-  );
-  const averageDeviationMs = useMemo(
-    () => Math.round(meanAbs(samples, localMedianOffsetMs)),
-    [samples, localMedianOffsetMs]
-  );
-  const fastCount = useMemo(() => samples.filter((sample) => sample < 0).length, [samples]);
-  const slowCount = useMemo(() => samples.filter((sample) => sample > 0).length, [samples]);
-  const maxSampleMagnitude = useMemo(
-    () => Math.max(HIT_WINDOW_MS, ...samples.map((sample) => Math.abs(sample))),
-    [samples]
-  );
-
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!activeRef.current || phase === 'ready' || phase === 'complete') return;
-      const key = getKeyBindingFromInput(event);
-      if (!key || !allowedKeys.has(key)) return;
-      event.preventDefault();
-
-      const now = performance.now();
-      const measureStart = startTimeRef.current + COUNT_IN_BEATS * BEAT_INTERVAL_MS;
-      const beatIndex = Math.round((now - measureStart) / BEAT_INTERVAL_MS);
-      if (beatIndex < 0 || beatIndex >= MEASURE_BEATS) return;
-      if (hitBeatSetRef.current.has(beatIndex)) return;
-
-      const expectedTime = measureStart + beatIndex * BEAT_INTERVAL_MS;
-      const delta = now - expectedTime;
-      if (Math.abs(delta) > HIT_WINDOW_MS) return;
-
-      hitBeatSetRef.current.add(beatIndex);
-      sampleSetRef.current = [...sampleSetRef.current, delta];
-      setSamples([...sampleSetRef.current]);
+    const cleanupExpiredEffects = () => {
+      const now = Date.now();
+      setJudgeFeedbacks((prev) => prev.filter((item) => item.expiresAt > now));
+      setKeyEffects((prev) => prev.filter((item) => item.expiresAt > now));
     };
 
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keydown', handleEscape);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keydown', handleEscape);
-    };
-  }, [allowedKeys, onClose, phase]);
-
-  useEffect(() => {
-    if (phase !== 'complete') return;
-    if (submittedRunRef.current) return;
-    if (sampleSetRef.current.length < 8) return;
-
-    appendTimingSamples(sampleSetRef.current, currentNoteSpeed);
-    submittedRunRef.current = true;
-    setSamplesSubmitted(true);
-  }, [appendTimingSamples, currentNoteSpeed, phase]);
+    const timerId = window.setInterval(cleanupExpiredEffects, 40);
+    return () => window.clearInterval(timerId);
+  }, []);
 
   useEffect(() => {
     if (phase !== 'countdown' && phase !== 'measuring') {
@@ -234,7 +214,21 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
     }
 
     const tick = () => {
-      setAnimationNow(performance.now());
+      const elapsed = performance.now() - startTimeRef.current;
+      currentTimeRef.current = elapsed;
+
+      if (activeRef.current) {
+        notes.forEach((note, index) => {
+          if (hitBeatSetRef.current.has(index) || missedBeatSetRef.current.has(index)) return;
+          if (elapsed > note.time + HIT_WINDOW_MS) {
+            missedBeatSetRef.current.add(index);
+            hitNoteIdsRef.current.add(note.id);
+            setCombo(0);
+            pushFeedback('miss', note.lane, 'slow');
+          }
+        });
+      }
+
       animationFrameRef.current = requestAnimationFrame(tick);
     };
 
@@ -245,7 +239,75 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
         animationFrameRef.current = null;
       }
     };
-  }, [phase]);
+  }, [notes, phase, pushFeedback]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const key = getKeyBindingFromInput(event);
+      if (!key || !allowedKeys.has(key)) return;
+      event.preventDefault();
+
+      const lane = keyBindings.findIndex((binding) => binding.toUpperCase() === key) as Lane;
+      setPressedKeys((prev) => {
+        if (prev.has(lane)) return prev;
+        const next = new Set(prev);
+        next.add(lane);
+        return next;
+      });
+
+      if (!activeRef.current || phase === 'ready' || phase === 'complete') return;
+
+      const currentTime = currentTimeRef.current;
+      const measureBeatIndex = Math.round(currentTime / BEAT_INTERVAL_MS);
+      if (measureBeatIndex < 0 || measureBeatIndex >= MEASURE_BEATS) return;
+      if (hitBeatSetRef.current.has(measureBeatIndex) || missedBeatSetRef.current.has(measureBeatIndex)) return;
+
+      const note = notes[measureBeatIndex];
+      if (!note || note.lane !== lane) return;
+
+      const signedDiff = note.time - currentTime;
+      if (Math.abs(signedDiff) > HIT_WINDOW_MS) return;
+
+      hitBeatSetRef.current.add(measureBeatIndex);
+      hitNoteIdsRef.current.add(note.id);
+      sampleSetRef.current = [...sampleSetRef.current, signedDiff];
+      setSamples([...sampleSetRef.current]);
+      setCombo((prev) => prev + 1);
+
+      const judge = Math.abs(signedDiff) <= 45 ? 'perfect' : Math.abs(signedDiff) <= 100 ? 'great' : 'good';
+      const timingDirection = judge === 'perfect' ? null : signedDiff > 0 ? 'fast' : 'slow';
+      pushFeedback(judge, lane, timingDirection);
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      const key = getKeyBindingFromInput(event);
+      if (!key || !allowedKeys.has(key)) return;
+      event.preventDefault();
+      const lane = keyBindings.findIndex((binding) => binding.toUpperCase() === key) as Lane;
+      setPressedKeys((prev) => {
+        if (!prev.has(lane)) return prev;
+        const next = new Set(prev);
+        next.delete(lane);
+        return next;
+      });
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('keydown', handleEscape);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('keydown', handleEscape);
+    };
+  }, [allowedKeys, keyBindings, notes, onClose, phase, pushFeedback]);
 
   useEffect(() => {
     return () => {
@@ -253,52 +315,17 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
       clearTimers();
       if (animationFrameRef.current !== null) {
         cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = null;
       }
       void audioContextRef.current?.close();
     };
   }, [clearTimers]);
 
-  const activeBeatIndex = useMemo(() => {
-    if (phase !== 'countdown' && phase !== 'measuring') return -1;
-    const elapsed = animationNow - startTimeRef.current;
-    if (elapsed < 0) return -1;
-    return Math.floor(elapsed / BEAT_INTERVAL_MS);
-  }, [animationNow, phase]);
-
-  const fallingNotes = useMemo(() => {
-    if (phase !== 'countdown' && phase !== 'measuring') return [];
-
-    const beatIndices = Array.from({ length: COUNT_IN_BEATS + MEASURE_BEATS }, (_, index) => index);
-    return beatIndices
-      .map((beatIndex) => {
-        const beatTime = startTimeRef.current + beatIndex * BEAT_INTERVAL_MS;
-        const timeUntilHit = beatTime - animationNow;
-        if (timeUntilHit < -180 || timeUntilHit > CALIBRATION_FALL_DURATION_MS) {
-          return null;
-        }
-
-        const progress = 1 - timeUntilHit / CALIBRATION_FALL_DURATION_MS;
-        const clampedProgress = clamp(progress, 0, 1);
-        const lane = beatIndex % 4;
-        const xCenter = playfieldGeometry.laneCenters[lane];
-        const startY = -64;
-        const endY = JUDGE_LINE_Y;
-        const y = startY + (endY - startY) * clampedProgress;
-        const isMeasureBeat = beatIndex >= COUNT_IN_BEATS;
-        const isAccent = beatIndex % 4 === 0;
-        return {
-          beatIndex,
-          lane,
-          xCenter,
-          y,
-          isMeasureBeat,
-          isAccent,
-          progress: clampedProgress,
-        };
-      })
-      .filter((note): note is NonNullable<typeof note> => note !== null);
-  }, [animationNow, phase, playfieldGeometry.laneCenters]);
+  const localMedianOffsetMs = useMemo(() => Math.round(median(samples)), [samples]);
+  const averageDeviationMs = useMemo(() => Math.round(meanAbs(samples, localMedianOffsetMs)), [samples, localMedianOffsetMs]);
+  const fastCount = useMemo(() => samples.filter((sample) => sample > 0).length, [samples]);
+  const slowCount = useMemo(() => samples.filter((sample) => sample < 0).length, [samples]);
+  const sampleCount = samples.length;
+  const canApply = sampleCount >= 8;
 
   return (
     <div
@@ -324,7 +351,7 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
         <div>
           <h1 style={{ margin: 0, fontSize: '24px', color: CHART_EDITOR_THEME.textPrimary }}>판정 보정</h1>
           <p style={{ margin: '6px 0 0', color: CHART_EDITOR_THEME.textSecondary, fontSize: '13px' }}>
-            보정 곡으로 {MEASURE_BEATS}번 입력합니다. 현재 보정값: {currentOffsetMs}ms · 현재 속도: {currentNoteSpeed.toFixed(1)}x
+            실제 게임 플레이 UI 기준 · {MEASURE_BEATS}노트 · 현재 보정값 {currentOffsetMs}ms
           </p>
         </div>
         <button
@@ -348,185 +375,60 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
           minHeight: 0,
           overflowY: 'auto',
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 420px))',
+          gridTemplateColumns: 'minmax(340px, 540px) minmax(320px, 420px)',
           gap: '24px',
           padding: '24px',
-          alignItems: 'start',
           justifyContent: 'center',
+          alignItems: 'start',
         }}
       >
         <div
           style={{
+            position: 'relative',
+            width: '100%',
+            aspectRatio: `${GAME_VIEW_WIDTH} / ${GAME_VIEW_HEIGHT}`,
             borderRadius: CHART_EDITOR_THEME.radiusLg,
+            overflow: 'hidden',
             border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-            background: CHART_EDITOR_THEME.surfaceElevated,
-            padding: '28px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
+            background: 'rgba(8, 12, 24, 0.9)',
+            boxShadow: CHART_EDITOR_THEME.shadowSoft,
           }}
         >
-          <div>
-            <div
-              style={{
-                width: '100%',
-                height: '320px',
-                minHeight: '320px',
-                margin: '4px auto 20px',
-                borderRadius: '28px',
-                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                background: 'linear-gradient(180deg, rgba(4,10,18,0.92), rgba(8,12,24,0.84))',
-                overflow: 'hidden',
-                position: 'relative',
-              }}
-            >
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: '18px 18px auto',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  color: CHART_EDITOR_THEME.textSecondary,
-                  fontSize: '11px',
-                  letterSpacing: '0.18em',
-                  textTransform: 'uppercase',
-                }}
-              >
-                <span>Calibration Lane</span>
-                <span>
-                  {phase === 'ready' ? 'READY' : phase === 'complete' ? 'DONE' : `Beat ${displayBeat}`}
-                </span>
-              </div>
+          <GamePlayArea
+            notes={notes}
+            combo={combo}
+            gameStarted={true}
+            bgaMaskOpacity={0}
+            isLaneUiVisible={true}
+            speed={currentNoteSpeed}
+            pressedKeys={pressedKeys}
+            holdingNotes={holdingNotesRef.current}
+            judgeFeedbacks={judgeFeedbacks}
+            keyEffects={keyEffects}
+            laneKeyLabels={laneKeyLabels}
+            isFromEditor={false}
+            currentTimeRef={currentTimeRef}
+            fallDuration={fallDuration}
+            judgeLineY={JUDGE_LINE_Y}
+            playfieldGeometry={playfieldGeometry}
+            hitNoteIdsRef={hitNoteIdsRef}
+          />
 
-              <div
-                style={{
-                  position: 'absolute',
-                  left: '50%',
-                  top: '54%',
-                  width: `${GAME_VIEW_WIDTH}px`,
-                  height: `${GAME_VIEW_HEIGHT}px`,
-                  transform: 'translate(-50%, -50%) scale(0.6)',
-                  transformOrigin: 'center center',
-                }}
-              >
-                {playfieldGeometry.laneEdges.map((laneLeft, index) => (
-                  <div
-                    key={`lane-${index}`}
-                    style={{
-                      position: 'absolute',
-                      left: `${laneLeft}px`,
-                      top: 0,
-                      width: `${playfieldGeometry.laneWidth}px`,
-                      height: `${GAME_VIEW_HEIGHT}px`,
-                      borderLeft: '1px solid rgba(255,255,255,0.14)',
-                      borderRight: '1px solid rgba(255,255,255,0.14)',
-                      background:
-                        activeBeatIndex >= COUNT_IN_BEATS && index === activeBeatIndex % 4
-                          ? 'linear-gradient(180deg, rgba(59,130,246,0.18), rgba(59,130,246,0.06) 45%, rgba(8,12,24,0.02))'
-                          : 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015))',
-                      transition: 'background 80ms linear',
-                    }}
-                  />
-                ))}
-
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: `${playfieldGeometry.judgeLineLeft}px`,
-                    top: `${JUDGE_LINE_Y}px`,
-                    width: `${playfieldGeometry.judgeLineWidth}px`,
-                    height: '6px',
-                    borderRadius: '999px',
-                    background: 'linear-gradient(90deg, rgba(255,109,61,0.9), rgba(255,68,0,1), rgba(255,109,61,0.9))',
-                    boxShadow: '0 0 18px rgba(255,93,41,0.85)',
-                  }}
-                />
-
-                {fallingNotes.map((note) => (
-                  <div
-                    key={`falling-${note.beatIndex}`}
-                    style={{
-                      position: 'absolute',
-                      left: `${note.xCenter - DEFAULT_GAME_VISUAL_SETTINGS.noteWidth / 2}px`,
-                      top: `${note.y}px`,
-                      width: `${DEFAULT_GAME_VISUAL_SETTINGS.noteWidth}px`,
-                      height: `${DEFAULT_GAME_VISUAL_SETTINGS.noteHeight}px`,
-                      borderRadius: '14px',
-                      background: note.isMeasureBeat
-                        ? note.isAccent
-                          ? 'linear-gradient(180deg, #7dd3fc, #38bdf8)'
-                          : 'linear-gradient(180deg, #93c5fd, #60a5fa)'
-                        : 'linear-gradient(180deg, #c084fc, #8b5cf6)',
-                      boxShadow: note.isMeasureBeat
-                        ? '0 0 16px rgba(96,165,250,0.55)'
-                        : '0 0 16px rgba(168,85,247,0.45)',
-                      opacity: note.progress < 0.08 ? 0.5 : 1,
-                    }}
-                  />
-                ))}
-
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: `${playfieldGeometry.judgeLineLeft}px`,
-                    top: `${JUDGE_LINE_Y + 18}px`,
-                    width: `${playfieldGeometry.judgeLineWidth}px`,
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(4, 1fr)',
-                    gap: `${playfieldGeometry.laneGap}px`,
-                  }}
-                >
-                  {keyBindings.map((key, index) => (
-                    <div
-                      key={`label-${key}-${index}`}
-                      style={{
-                        height: '72px',
-                        borderRadius: '18px',
-                        border: '1px solid rgba(94,234,212,0.34)',
-                        background: 'linear-gradient(180deg, rgba(15,23,42,0.95), rgba(15,23,42,0.7))',
-                        color: '#f8fafc',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '28px',
-                        fontWeight: 800,
-                        letterSpacing: '0.04em',
-                      }}
-                    >
-                      {key}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <p style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '18px', textAlign: 'center', margin: 0 }}>
-              {phase === 'ready' && '시작을 누른 뒤 보정 곡 노트를 판정선에 맞춰 입력'}
-              {phase === 'countdown' && '카운트인을 듣고 준비'}
-              {phase === 'measuring' && '아무 레인 키로나 박자를 맞춰 입력'}
-              {phase === 'complete' && '보정 곡 측정이 끝났습니다'}
-            </p>
-            <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '13px', textAlign: 'center', margin: '8px 0 0' }}>
-              사용 키: {keyBindings.join(' / ')}
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button
-              onClick={startMeasurement}
-              style={{
-                flex: 1,
-                padding: '14px 16px',
-                borderRadius: CHART_EDITOR_THEME.radiusMd,
-                border: 'none',
-                background: CHART_EDITOR_THEME.ctaButtonGradient,
-                color: CHART_EDITOR_THEME.textPrimary,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {phase === 'complete' ? '다시 측정' : '보정 곡 시작'}
-            </button>
+          <div
+            style={{
+              position: 'absolute',
+              top: 18,
+              left: 18,
+              padding: '8px 12px',
+              borderRadius: 12,
+              background: 'rgba(0,0,0,0.42)',
+              color: '#e2e8f0',
+              fontSize: 12,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {phase === 'ready' ? 'Ready' : phase === 'complete' ? 'Complete' : `Beat ${displayBeat}`}
           </div>
         </div>
 
@@ -535,29 +437,19 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
             borderRadius: CHART_EDITOR_THEME.radiusLg,
             border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
             background: CHART_EDITOR_THEME.surfaceElevated,
-            padding: '28px',
+            padding: '24px',
             display: 'flex',
             flexDirection: 'column',
             gap: '18px',
           }}
         >
           <div>
-            <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>이번 보정 곡 중앙값</div>
-            <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '42px', fontWeight: 800 }}>
-              {samples.length > 0 ? `${localMedianOffsetMs > 0 ? '+' : ''}${localMedianOffsetMs}ms` : '--'}
-            </div>
-            <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', margin: '6px 0 0' }}>
-              이 값은 참고용이고, 실제 적용은 아래 실전 보정 엔진 추천값을 사용합니다.
+            <h2 style={{ margin: 0, color: CHART_EDITOR_THEME.textPrimary, fontSize: '18px' }}>보정 곡 안내</h2>
+            <p style={{ margin: '8px 0 0', color: CHART_EDITOR_THEME.textSecondary, fontSize: '13px', lineHeight: 1.6 }}>
+              실제 플레이처럼 떨어지는 노트를 맞춰 입력한다. 샘플은 중앙값으로 계산한다.
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
-            <MetricCard label="샘플 수" value={`${samples.length}/${MEASURE_BEATS}`} />
-            <MetricCard label="평균 편차" value={samples.length > 0 ? `${averageDeviationMs}ms` : '--'} />
-            <MetricCard label="FAST" value={String(fastCount)} />
-            <MetricCard label="SLOW" value={String(slowCount)} />
-          </div>
-
           <div
             style={{
               padding: '14px',
@@ -566,206 +458,59 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
               background: CHART_EDITOR_THEME.surface,
             }}
           >
-            <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontWeight: 700, marginBottom: '10px' }}>
-              FAST / SLOW 분포
+            <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>현재 측정</div>
+            <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '28px', fontWeight: 800 }}>
+              {canApply ? `${localMedianOffsetMs > 0 ? '+' : ''}${localMedianOffsetMs}ms` : `표본 ${sampleCount}개`}
             </div>
-            <div style={{ display: 'flex', height: '14px', borderRadius: '999px', overflow: 'hidden', background: 'rgba(255,255,255,0.05)' }}>
-              <div
-                style={{
-                  width: `${samples.length > 0 ? (fastCount / samples.length) * 100 : 0}%`,
-                  background: 'linear-gradient(90deg, rgba(56,189,248,0.75), rgba(59,130,246,0.9))',
-                }}
-              />
-              <div
-                style={{
-                  width: `${samples.length > 0 ? (slowCount / samples.length) * 100 : 0}%`,
-                  background: 'linear-gradient(90deg, rgba(251,146,60,0.8), rgba(239,68,68,0.9))',
-                }}
-              />
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                color: CHART_EDITOR_THEME.textSecondary,
-                fontSize: '11px',
-                marginTop: '8px',
-              }}
-            >
-              <span>FAST {fastCount}</span>
-              <span>SLOW {slowCount}</span>
+            <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginTop: '6px' }}>
+              FAST {fastCount} · SLOW {slowCount} · 평균 편차 {averageDeviationMs}ms
             </div>
           </div>
 
-          <div
-            style={{
-              padding: '14px',
-              borderRadius: CHART_EDITOR_THEME.radiusMd,
-              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-              background: CHART_EDITOR_THEME.surface,
-            }}
-          >
-            <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontWeight: 700, marginBottom: '10px' }}>
-              타점 흐름
-            </div>
-            <div
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              onClick={startMeasurement}
               style={{
-                position: 'relative',
-                height: '146px',
-                borderRadius: CHART_EDITOR_THEME.radiusSm,
-                overflow: 'hidden',
-                background: 'linear-gradient(180deg, rgba(11,17,32,0.92), rgba(8,12,24,0.76))',
-                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-              }}
-            >
-              <div
-                style={{
-                  position: 'absolute',
-                  left: '50%',
-                  top: 0,
-                  bottom: 0,
-                  width: '1px',
-                  background: 'rgba(255,255,255,0.28)',
-                }}
-              />
-              <div
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  top: '50%',
-                  height: '1px',
-                  background: 'rgba(255,255,255,0.08)',
-                }}
-              />
-              {samples.map((sample, index) => {
-                const x = clamp(((sample + maxSampleMagnitude) / (maxSampleMagnitude * 2)) * 100, 0, 100);
-                const y = clamp(((index + 1) / (MEASURE_BEATS + 1)) * 100, 8, 92);
-                const isFast = sample < 0;
-                return (
-                  <div
-                    key={`${index}-${sample}`}
-                    style={{
-                      position: 'absolute',
-                      left: `calc(${x}% - 5px)`,
-                      top: `calc(${y}% - 5px)`,
-                      width: '10px',
-                      height: '10px',
-                      borderRadius: '50%',
-                      background: isFast ? '#38bdf8' : sample > 0 ? '#fb923c' : '#e5e7eb',
-                      boxShadow: `0 0 10px ${isFast ? 'rgba(56,189,248,0.65)' : sample > 0 ? 'rgba(251,146,60,0.65)' : 'rgba(229,231,235,0.55)'}`,
-                    }}
-                  />
-                );
-              })}
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                color: CHART_EDITOR_THEME.textSecondary,
-                fontSize: '11px',
-                marginTop: '8px',
-              }}
-            >
-              <span>FAST</span>
-              <span>정중앙</span>
-              <span>SLOW</span>
-            </div>
-          </div>
-
-          <div
-            style={{
-              padding: '14px',
-              borderRadius: CHART_EDITOR_THEME.radiusMd,
-              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-              background: CHART_EDITOR_THEME.surface,
-            }}
-          >
-            <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontWeight: 700, marginBottom: '8px' }}>실전 보정 엔진 추천값</div>
-            <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '13px', margin: 0, lineHeight: 1.6 }}>
-              {timingOffsetRecommendation.recommendedOffsetMs === null
-                ? `표본 ${timingOffsetRecommendation.sampleCount}개. 일반 플레이와 보정 곡 표본을 합쳐 최소 12개 이상이면 추천값을 계산합니다.`
-                : `추천값 ${timingOffsetRecommendation.recommendedOffsetMs > 0 ? '+' : ''}${timingOffsetRecommendation.recommendedOffsetMs}ms · ${timingOffsetRecommendation.source === 'speed' ? '현재 노트속도 기준' : '전체 플레이 기준'} · 평균 편차 ${timingOffsetRecommendation.averageDeviationMs}ms`}
-            </p>
-            <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-              <button
-                onClick={onApplyTimingOffsetRecommendation}
-                disabled={timingOffsetRecommendation.recommendedOffsetMs === null}
-                style={{
-                  flex: 1,
-                  padding: '10px 12px',
-                  borderRadius: CHART_EDITOR_THEME.radiusSm,
-                  border: 'none',
-                  background:
-                    timingOffsetRecommendation.recommendedOffsetMs === null
-                      ? CHART_EDITOR_THEME.borderSubtle
-                      : CHART_EDITOR_THEME.ctaButtonGradient,
-                  color: CHART_EDITOR_THEME.textPrimary,
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  cursor:
-                    timingOffsetRecommendation.recommendedOffsetMs === null
-                      ? 'not-allowed'
-                      : 'pointer',
-                  opacity: timingOffsetRecommendation.recommendedOffsetMs === null ? 0.5 : 1,
-                }}
-              >
-                추천값 적용
-              </button>
-            </div>
-          </div>
-
-          <div
-            style={{
-              padding: '14px',
-              borderRadius: CHART_EDITOR_THEME.radiusMd,
-              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-              background: CHART_EDITOR_THEME.surface,
-            }}
-          >
-            <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontWeight: 700, marginBottom: '8px' }}>판정</div>
-            <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '13px', margin: 0, lineHeight: 1.6 }}>
-              {samples.length < 8
-                ? '표본이 적습니다. 최소 8타 이상 입력해야 추천값을 적용하는 편이 안전합니다.'
-                : averageDeviationMs <= 20
-                ? '측정 안정도가 높습니다. 바로 적용해도 됩니다.'
-                : averageDeviationMs <= 40
-                ? '측정은 가능하지만 편차가 있습니다. 한 번 더 돌려보는 편이 낫습니다.'
-                : '편차가 큽니다. 박자를 더 안정적으로 맞춘 뒤 다시 측정하는 편이 낫습니다.'}
-            </p>
-          </div>
-
-          {samplesSubmitted && (
-            <div
-              style={{
+                flex: 1,
                 padding: '12px 14px',
-                borderRadius: CHART_EDITOR_THEME.radiusMd,
-                border: `1px solid ${CHART_EDITOR_THEME.success}`,
+                borderRadius: CHART_EDITOR_THEME.radiusSm,
+                border: 'none',
+                background: CHART_EDITOR_THEME.ctaButtonGradient,
                 color: CHART_EDITOR_THEME.textPrimary,
-                background: 'rgba(45, 212, 191, 0.08)',
-                fontSize: '13px',
+                fontSize: '14px',
+                fontWeight: 700,
+                cursor: 'pointer',
               }}
             >
-              보정 곡 표본이 실전 보정 엔진에 반영되었습니다.
-            </div>
-          )}
+              {phase === 'ready' || phase === 'complete' ? '보정 곡 시작' : '다시 시작'}
+            </button>
+            <button
+              onClick={() => onApplyTimingOffset(localMedianOffsetMs)}
+              disabled={!canApply}
+              style={{
+                flex: 1,
+                padding: '12px 14px',
+                borderRadius: CHART_EDITOR_THEME.radiusSm,
+                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                background: canApply ? CHART_EDITOR_THEME.success : CHART_EDITOR_THEME.surface,
+                color: CHART_EDITOR_THEME.textPrimary,
+                fontSize: '14px',
+                fontWeight: 700,
+                cursor: canApply ? 'pointer' : 'not-allowed',
+                opacity: canApply ? 1 : 0.5,
+              }}
+            >
+              측정값 적용
+            </button>
+          </div>
+
+          <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', lineHeight: 1.7 }}>
+            <div>기준 속도: {currentNoteSpeed.toFixed(1)}x</div>
+            <div>측정 표본: 최소 8개부터 적용 가능</div>
+            <div>판정 기준: 노트 타격 오차 중앙값</div>
+          </div>
         </div>
       </div>
     </div>
   );
 };
-
-const MetricCard: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div
-    style={{
-      padding: '14px',
-      borderRadius: CHART_EDITOR_THEME.radiusMd,
-      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-      background: CHART_EDITOR_THEME.surface,
-    }}
-  >
-    <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginBottom: '6px' }}>{label}</div>
-    <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '24px', fontWeight: 800 }}>{value}</div>
-  </div>
-);
