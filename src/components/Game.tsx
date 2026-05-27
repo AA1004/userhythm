@@ -481,7 +481,7 @@ export const Game: React.FC = () => {
   }, [destroyYoutubePlayer, setSubtitles, setBgaVisibilityIntervals, chartListRefreshToken, openChartSelect]);
 
   useEffect(() => {
-    if (!isTestMode || !gameState.gameStarted || gameState.gameEnded) return;
+    if (!gameState.gameStarted || gameState.gameEnded) return;
 
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -495,7 +495,7 @@ export const Game: React.FC = () => {
 
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  }, [isTestMode, isFromEditor, gameState.gameStarted, gameState.gameEnded, handleReturnToEditor, handleReturnToPlayList]);
+  }, [isFromEditor, gameState.gameStarted, gameState.gameEnded, handleReturnToEditor, handleReturnToPlayList]);
 
 
   const total = gameState.score.perfect + gameState.score.great + 
@@ -755,7 +755,7 @@ export const Game: React.FC = () => {
       {/* Show FPS HUD only during gameplay */}
       {gameState.gameStarted && !gameState.gameEnded && <FpsHud enabled={true} />}
       {/* Test/play controls (shown outside VideoRhythmLayout, including interlude sections) */}
-      {gameState.gameStarted && !gameState.gameEnded && isTestMode && (
+      {gameState.gameStarted && !gameState.gameEnded && (
         <div
           className="gameplay-control-hud"
           style={{
@@ -918,7 +918,6 @@ export const Game: React.FC = () => {
                 isFromEditor={isFromEditor}
                 gameplayClockSnapshotMs={gameplayClockSnapshotMs}
                 dynamicGameDuration={dynamicGameDuration}
-                stageScale={stageScale}
                 isGameplayActive={isGameplayActive}
               />
 

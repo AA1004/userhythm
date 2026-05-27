@@ -28,7 +28,6 @@ interface GameplayRuntimeLayerProps {
   isFromEditor: boolean;
   gameplayClockSnapshotMs: number;
   dynamicGameDuration: number;
-  stageScale: number;
   isGameplayActive: boolean;
 }
 
@@ -50,7 +49,6 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
   isFromEditor,
   gameplayClockSnapshotMs,
   dynamicGameDuration,
-  stageScale,
   isGameplayActive,
 }) => {
   const {
@@ -108,9 +106,9 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
     dynamicGameDuration > 0
       ? Math.min(100, Math.max(0, (gameplayClockSnapshotMs / dynamicGameDuration) * 100))
       : 0;
-  const slotHudTopPx = (playfieldGeometry.keyLaneY + KEY_LANE_HEIGHT + 8) * stageScale;
-  const slotHudLeftPx = playfieldGeometry.laneGroupLeft * stageScale;
-  const slotHudWidthPx = playfieldGeometry.laneGroupWidth * stageScale;
+  const slotHudTopPx = playfieldGeometry.keyLaneY + KEY_LANE_HEIGHT + 8;
+  const slotHudLeftPx = playfieldGeometry.laneGroupLeft;
+  const slotHudWidthPx = playfieldGeometry.laneGroupWidth;
   const slotHudOpacity = playfieldGeometry.slotHudOpacity;
 
   return (
