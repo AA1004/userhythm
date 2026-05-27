@@ -553,7 +553,7 @@ export const Game: React.FC = () => {
       : 0;
 
   useEffect(() => {
-    if (!gameState.gameStarted || gameState.gameEnded || isTestMode) return;
+    if (!gameState.gameStarted || gameState.gameEnded || isFromEditor) return;
     if (gameplayClockSnapshotMs < 0) return;
     if (!activePlayableChartId || hasRecordedPlayRef.current) return;
 
@@ -562,10 +562,10 @@ export const Game: React.FC = () => {
       hasRecordedPlayRef.current = false;
       console.error('Failed to increment play count:', error);
     });
-  }, [gameState.gameStarted, gameState.gameEnded, isTestMode, activePlayableChartId, gameplayClockSnapshotMs]);
+  }, [gameState.gameStarted, gameState.gameEnded, isFromEditor, activePlayableChartId, gameplayClockSnapshotMs]);
 
   useEffect(() => {
-    if (!gameState.gameEnded || isTestMode) return;
+    if (!gameState.gameEnded || isFromEditor) return;
     if (!activePlayableChartId || hasSubmittedScoreRef.current) return;
 
     hasSubmittedScoreRef.current = true;
@@ -573,7 +573,7 @@ export const Game: React.FC = () => {
       hasSubmittedScoreRef.current = false;
       console.error('Failed to submit leaderboard score:', error);
     });
-  }, [gameState.gameEnded, isTestMode, activePlayableChartId, accuracy]);
+  }, [gameState.gameEnded, isFromEditor, activePlayableChartId, accuracy]);
 
   // 채보 저장 핸들러 (현재 미사용)
   // const handleChartSave = useCallback((notes: Note[]) => {
