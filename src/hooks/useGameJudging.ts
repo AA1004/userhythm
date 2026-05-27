@@ -153,6 +153,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   const scoreSnapshotTimerRef = useRef<NodeJS.Timeout | null>(null);
   const judgeLaneCursorRef = useRef<number[]>([0, 0, 0, 0]);
   const holdStartJudgeRef = useRef<Map<number, JudgeType>>(new Map());
+  const freshSessionResetRef = useRef(false);
 
   const clearEffectCleanupTimer = useCallback(() => {
     if (effectCleanupTimerRef.current) {
@@ -577,7 +578,8 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       gameState.score.combo === 0 &&
       gameState.score.maxCombo === 0;
 
-    if (isFreshSession) {
+    if (isFreshSession && !freshSessionResetRef.current) {
+      freshSessionResetRef.current = true;
       clearEffectCleanupTimer();
       clearScoreSnapshotTimer();
       scoreRuntimeRef.current = gameState.score;
@@ -596,6 +598,10 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       processedMissNotes.current.clear();
       hitNoteIdsRef.current.clear();
     }
+
+    if (!isFreshSession) {
+      freshSessionResetRef.current = false;
+    }
   }, [
     gameState.gameStarted,
     gameState.currentTime,
@@ -608,6 +614,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
 
   useEffect(() => {
     if (!gameState.gameStarted) {
+      freshSessionResetRef.current = false;
       clearEffectCleanupTimer();
       clearScoreSnapshotTimer();
       scoreRuntimeRef.current = gameState.score;
