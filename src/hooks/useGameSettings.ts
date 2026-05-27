@@ -5,6 +5,7 @@ import {
   KEY_BINDINGS_STORAGE_KEY,
   NOTE_SPEED_STORAGE_KEY,
   TIMING_OFFSET_MS_STORAGE_KEY,
+  TIMING_ANALYTICS_STORAGE_KEY,
   BGA_ENABLED_STORAGE_KEY,
   JUDGE_LINE_Y_STORAGE_KEY,
   GAME_VOLUME_STORAGE_KEY,
@@ -70,6 +71,15 @@ export interface UseGameSettingsReturn {
   setNoteSpeed: (speed: number) => void;
   timingOffsetMs: number;
   setTimingOffsetMs: (offsetMs: number) => void;
+  timingOffsetRecommendation: {
+    recommendedOffsetMs: number | null;
+    sampleCount: number;
+    source: 'speed' | 'global' | null;
+    averageDeviationMs: number | null;
+  };
+  appendTimingSamples: (samples: number[], speed: number) => void;
+  applyTimingOffsetRecommendation: () => void;
+  clearTimingSamples: () => void;
   isBgaEnabled: boolean;
   setIsBgaEnabled: (enabled: boolean) => void;
   judgeLineY: number;
@@ -92,6 +102,51 @@ export interface UseGameSettingsReturn {
   canChangeDisplayName: boolean;
   laneKeyLabels: string[][];
 }
+
+interface StoredTimingSample {
+  diffMs: number;
+  speed: number;
+  recordedAt: number;
+}
+
+const MAX_TIMING_SAMPLES = 240;
+
+const median = (values: number[]) => {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[middle - 1] + sorted[middle]) / 2
+    : sorted[middle];
+};
+
+const averageAbsDeviation = (values: number[], center: number) =>
+  values.length === 0
+    ? null
+    : values.reduce((sum, value) => sum + Math.abs(value - center), 0) / values.length;
+
+const readStoredTimingSamples = (): StoredTimingSample[] => {
+  const stored = safeReadLocalStorage(TIMING_ANALYTICS_STORAGE_KEY);
+  if (!stored) return [];
+
+  try {
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item): item is StoredTimingSample =>
+        typeof item?.diffMs === 'number' &&
+        Number.isFinite(item.diffMs) &&
+        typeof item?.speed === 'number' &&
+        Number.isFinite(item.speed) &&
+        typeof item?.recordedAt === 'number' &&
+        Number.isFinite(item.recordedAt)
+      )
+      .filter((item) => Math.abs(item.diffMs) <= 200)
+      .slice(-MAX_TIMING_SAMPLES);
+  } catch {
+    return [];
+  }
+};
 
 export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSettingsReturn {
   const { authUserId, remoteProfile } = options;
@@ -138,6 +193,7 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
     }
     return 0;
   });
+  const [timingSamples, setTimingSamples] = useState<StoredTimingSample[]>(() => readStoredTimingSamples());
   const [isBgaEnabled, setIsBgaEnabled] = useState<boolean>(() => {
     const stored = safeReadLocalStorage(BGA_ENABLED_STORAGE_KEY);
     return stored === 'true';
@@ -187,6 +243,10 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
   useEffect(() => {
     safeWriteLocalStorage(TIMING_OFFSET_MS_STORAGE_KEY, String(timingOffsetMs));
   }, [timingOffsetMs]);
+
+  useEffect(() => {
+    safeWriteLocalStorage(TIMING_ANALYTICS_STORAGE_KEY, JSON.stringify(timingSamples));
+  }, [timingSamples]);
 
   useEffect(() => {
     safeWriteLocalStorage(BGA_ENABLED_STORAGE_KEY, String(isBgaEnabled));
@@ -333,12 +393,71 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
     setKeyBindings([...DEFAULT_KEY_BINDINGS]);
   }, []);
 
+  const appendTimingSamples = useCallback((samples: number[], speed: number) => {
+    if (!samples.length || !Number.isFinite(speed)) return;
+
+    const now = Date.now();
+    const normalizedSpeed = Math.round(speed * 10) / 10;
+    const normalizedSamples = samples
+      .filter((sample) => Number.isFinite(sample) && Math.abs(sample) <= 200)
+      .map((sample) => ({
+        diffMs: Math.round(sample),
+        speed: normalizedSpeed,
+        recordedAt: now,
+      }));
+
+    if (!normalizedSamples.length) return;
+
+    setTimingSamples((prev) => [...prev, ...normalizedSamples].slice(-MAX_TIMING_SAMPLES));
+  }, []);
+
+  const clearTimingSamples = useCallback(() => {
+    setTimingSamples([]);
+  }, []);
+
   // 닉네임 변경 가능 여부
   const canChangeDisplayName = useMemo(() => {
     if (!authUserId) return true;
     if (!nextDisplayNameChangeAt) return true;
     return new Date() >= nextDisplayNameChangeAt;
   }, [authUserId, nextDisplayNameChangeAt]);
+
+  const timingOffsetRecommendation = useMemo(() => {
+    const normalizedSpeed = Math.round(noteSpeed * 10) / 10;
+    const speedMatched = timingSamples.filter((sample) => Math.abs(sample.speed - normalizedSpeed) <= 0.15);
+    const sourceSamples = speedMatched.length >= 12 ? speedMatched : timingSamples;
+    if (sourceSamples.length < 12) {
+      return {
+        recommendedOffsetMs: null,
+        sampleCount: sourceSamples.length,
+        source: null,
+        averageDeviationMs: null,
+      };
+    }
+
+    const values = sourceSamples.map((sample) => sample.diffMs);
+    const center = median(values);
+    if (center === null) {
+      return {
+        recommendedOffsetMs: null,
+        sampleCount: sourceSamples.length,
+        source: null,
+        averageDeviationMs: null,
+      };
+    }
+
+    return {
+      recommendedOffsetMs: Math.round(center),
+      sampleCount: sourceSamples.length,
+      source: speedMatched.length >= 12 ? 'speed' as const : 'global' as const,
+      averageDeviationMs: Math.round(averageAbsDeviation(values, center) ?? 0),
+    };
+  }, [timingSamples, noteSpeed]);
+
+  const applyTimingOffsetRecommendation = useCallback(() => {
+    if (timingOffsetRecommendation.recommendedOffsetMs === null) return;
+    setTimingOffsetMs(timingOffsetRecommendation.recommendedOffsetMs);
+  }, [timingOffsetRecommendation]);
 
   // 레인 키 라벨 (설정된 키 바인딩 사용)
   const laneKeyLabels = useMemo(() => keyBindings.map((k) => [k]), [keyBindings]);
@@ -352,6 +471,10 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
     setNoteSpeed,
     timingOffsetMs,
     setTimingOffsetMs,
+    timingOffsetRecommendation,
+    appendTimingSamples,
+    applyTimingOffsetRecommendation,
+    clearTimingSamples,
     isBgaEnabled,
     setIsBgaEnabled,
     judgeLineY,

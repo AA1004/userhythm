@@ -98,6 +98,7 @@ export interface UseGameJudgingOptions {
   hitNoteIdsRef: HitNoteIdsRef;
   judgeLineY: number;
   timingOffsetMs: number;
+  onTimingSample?: (sample: { diffMs: number; judge: JudgeType; source: 'tap' | 'holdRelease' }) => void;
 }
 
 export interface UseGameJudgingReturn {
@@ -122,6 +123,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     hitNoteIdsRef,
     judgeLineY,
     timingOffsetMs,
+    onTimingSample,
   } = options;
 
   const [pressedKeys, setPressedKeys] = useState<Set<Lane>>(new Set());
@@ -392,6 +394,14 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         recordGameplayMetric('hitProcessing', performance.now() - hitProcessingStart, 1);
       }
 
+      if (judge !== 'perfect') {
+        onTimingSample?.({
+          diffMs: signedTimingDiff,
+          judge,
+          source: 'tap',
+        });
+      }
+
       enqueueScoreJudge(judge);
 
       if (isHoldNote && judge !== 'miss') {
@@ -409,6 +419,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       currentTimeRef,
       timingOffsetMs,
       hitNoteIdsRef,
+      onTimingSample,
       enqueueScoreJudge,
       addJudgeFeedback,
       commitPressedKeysNextFrame,
@@ -459,6 +470,14 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
           markNoteResolved(holdNote, hitNoteIdsRef);
           holdStartJudgeRef.current.delete(holdNote.id);
 
+          if (finalJudge !== 'perfect') {
+            onTimingSample?.({
+              diffMs: signedTimingDiff,
+              judge: finalJudge,
+              source: 'holdRelease',
+            });
+          }
+
           enqueueScoreJudge(finalJudge);
 
           addJudgeFeedback(finalJudge, lane, timingDirection);
@@ -485,6 +504,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       currentTimeRef,
       timingOffsetMs,
       hitNoteIdsRef,
+      onTimingSample,
       processedMissNotes,
       enqueueScoreJudge,
       addJudgeFeedback,

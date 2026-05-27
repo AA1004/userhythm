@@ -26,6 +26,14 @@ interface SettingsModalProps {
   onNoteSpeedChange: (speed: number) => void;
   timingOffsetMs: number;
   onTimingOffsetChange: (offsetMs: number) => void;
+  timingOffsetRecommendation: {
+    recommendedOffsetMs: number | null;
+    sampleCount: number;
+    source: 'speed' | 'global' | null;
+    averageDeviationMs: number | null;
+  };
+  onApplyTimingOffsetRecommendation: () => void;
+  onClearTimingSamples: () => void;
   isBgaEnabled: boolean;
   onBgaChange: (enabled: boolean) => void;
   judgeLineY: number;
@@ -129,6 +137,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onNoteSpeedChange,
   timingOffsetMs,
   onTimingOffsetChange,
+  timingOffsetRecommendation,
+  onApplyTimingOffsetRecommendation,
+  onClearTimingSamples,
   isBgaEnabled,
   onBgaChange,
   judgeLineY,
@@ -537,6 +548,63 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginTop: '6px', marginBottom: 0 }}>
                 플러스는 판정을 늦추고, 마이너스는 판정을 앞당깁니다.
               </p>
+              <div
+                style={{
+                  marginTop: '12px',
+                  padding: '12px',
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                  background: CHART_EDITOR_THEME.surface,
+                }}
+              >
+                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '12px', fontWeight: 700, marginBottom: '6px' }}>
+                  실전 플레이 기반 추천
+                </div>
+                <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', lineHeight: 1.6, margin: 0 }}>
+                  {timingOffsetRecommendation.recommendedOffsetMs === null
+                    ? `표본 ${timingOffsetRecommendation.sampleCount}개. 최소 12개 이상 쌓이면 추천값을 계산합니다.`
+                    : `추천값 ${timingOffsetRecommendation.recommendedOffsetMs > 0 ? '+' : ''}${timingOffsetRecommendation.recommendedOffsetMs}ms · 표본 ${timingOffsetRecommendation.sampleCount}개 · ${timingOffsetRecommendation.source === 'speed' ? '현재 노트속도 기준' : '전체 플레이 기준'} · 평균 편차 ${timingOffsetRecommendation.averageDeviationMs}ms`}
+                </p>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                  <button
+                    onClick={onApplyTimingOffsetRecommendation}
+                    disabled={timingOffsetRecommendation.recommendedOffsetMs === null}
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      border: 'none',
+                      background:
+                        timingOffsetRecommendation.recommendedOffsetMs === null
+                          ? CHART_EDITOR_THEME.borderSubtle
+                          : CHART_EDITOR_THEME.ctaButtonGradient,
+                      color: CHART_EDITOR_THEME.textPrimary,
+                      fontSize: '12px',
+                      cursor:
+                        timingOffsetRecommendation.recommendedOffsetMs === null
+                          ? 'not-allowed'
+                          : 'pointer',
+                      opacity: timingOffsetRecommendation.recommendedOffsetMs === null ? 0.5 : 1,
+                    }}
+                  >
+                    추천값 적용
+                  </button>
+                  <button
+                    onClick={onClearTimingSamples}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                      background: 'transparent',
+                      color: CHART_EDITOR_THEME.textPrimary,
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    표본 초기화
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div style={sectionCardStyle}>
