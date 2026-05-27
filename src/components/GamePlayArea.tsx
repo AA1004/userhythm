@@ -20,8 +20,9 @@ interface GamePlayAreaProps {
   speed: number;
   pressedKeys: Set<Lane>;
   holdingNotes: Map<number, Note>;
-  judgeFeedbacks: JudgeFeedback[];
-  keyEffects: KeyEffect[];
+  judgeFeedbacksRef: React.MutableRefObject<JudgeFeedback[]>;
+  keyEffectsRef: React.MutableRefObject<KeyEffect[]>;
+  effectsRevision: number;
   laneKeyLabels: string[][];
   isFromEditor: boolean;
   currentTimeRef: React.MutableRefObject<number>;
@@ -40,8 +41,9 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
   speed: _speed,
   pressedKeys,
   holdingNotes,
-  judgeFeedbacks,
-  keyEffects,
+  judgeFeedbacksRef,
+  keyEffectsRef,
+  effectsRevision,
   laneKeyLabels,
   isFromEditor: _isFromEditor,
   currentTimeRef,
@@ -246,8 +248,9 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
 
       {gameStarted && (
         <GameplayEffectsCanvas
-          judgeFeedbacks={judgeFeedbacks}
-          keyEffects={keyEffects}
+          judgeFeedbacksRef={judgeFeedbacksRef}
+          keyEffectsRef={keyEffectsRef}
+          effectsRevision={effectsRevision}
           judgeFeedbackTop={judgeFeedbackTop}
           visible={isLaneUiVisible}
         />

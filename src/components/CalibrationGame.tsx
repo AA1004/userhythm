@@ -66,8 +66,9 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
   const [samples, setSamples] = useState<number[]>([]);
   const [combo, setCombo] = useState(0);
   const [pressedKeys, setPressedKeys] = useState<Set<Lane>>(new Set());
-  const [judgeFeedbacks, setJudgeFeedbacks] = useState<JudgeFeedback[]>([]);
-  const [keyEffects, setKeyEffects] = useState<KeyEffect[]>([]);
+  const judgeFeedbacksRef = useRef<JudgeFeedback[]>([]);
+  const keyEffectsRef = useRef<KeyEffect[]>([]);
+  const [effectsRevision, setEffectsRevision] = useState(0);
 
   const notes = useMemo(() => buildCalibrationNotes(), []);
   const playfieldGeometry = useMemo(
@@ -135,11 +136,12 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
     const expiresAt = Date.now() + JUDGE_FEEDBACK_DURATION_MS;
     const x = playfieldGeometry.laneCenters[lane];
     const y = JUDGE_LINE_Y;
-    setJudgeFeedbacks([{ id: feedbackIdRef.current++, judge, expiresAt, x, y, lane, timingDirection }]);
-    setKeyEffects((prev) => [
-      ...prev.filter((effect) => effect.lane !== lane),
+    judgeFeedbacksRef.current = [{ id: feedbackIdRef.current++, judge, expiresAt, x, y, lane, timingDirection }];
+    keyEffectsRef.current = [
+      ...keyEffectsRef.current.filter((effect) => effect.lane !== lane),
       { id: effectIdRef.current++, lane, x, y, judge, expiresAt },
-    ].slice(-4));
+    ].slice(-4);
+    setEffectsRevision((prev) => prev + 1);
   }, [playfieldGeometry.laneCenters]);
 
   const finishMeasurement = useCallback(() => {
@@ -158,8 +160,9 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
     missedBeatSetRef.current.clear();
     setSamples([]);
     setCombo(0);
-    setJudgeFeedbacks([]);
-    setKeyEffects([]);
+    judgeFeedbacksRef.current = [];
+    keyEffectsRef.current = [];
+    setEffectsRevision((prev) => prev + 1);
     setPressedKeys(new Set());
     setDisplayBeat(COUNT_IN_BEATS);
 
@@ -196,8 +199,16 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
   useEffect(() => {
     const cleanupExpiredEffects = () => {
       const now = Date.now();
-      setJudgeFeedbacks((prev) => prev.filter((item) => item.expiresAt > now));
-      setKeyEffects((prev) => prev.filter((item) => item.expiresAt > now));
+      const nextJudgeFeedbacks = judgeFeedbacksRef.current.filter((item) => item.expiresAt > now);
+      const nextKeyEffects = keyEffectsRef.current.filter((item) => item.expiresAt > now);
+      if (
+        nextJudgeFeedbacks.length !== judgeFeedbacksRef.current.length ||
+        nextKeyEffects.length !== keyEffectsRef.current.length
+      ) {
+        judgeFeedbacksRef.current = nextJudgeFeedbacks;
+        keyEffectsRef.current = nextKeyEffects;
+        setEffectsRevision((prev) => prev + 1);
+      }
     };
 
     const timerId = window.setInterval(cleanupExpiredEffects, 40);
@@ -403,8 +414,9 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
             speed={currentNoteSpeed}
             pressedKeys={pressedKeys}
             holdingNotes={holdingNotesRef.current}
-            judgeFeedbacks={judgeFeedbacks}
-            keyEffects={keyEffects}
+            judgeFeedbacksRef={judgeFeedbacksRef}
+            keyEffectsRef={keyEffectsRef}
+            effectsRevision={effectsRevision}
             laneKeyLabels={laneKeyLabels}
             isFromEditor={false}
             currentTimeRef={currentTimeRef}

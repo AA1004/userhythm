@@ -262,8 +262,9 @@ export const Game: React.FC = () => {
     combo,
     pressedKeys,
     holdingNotes,
-    judgeFeedbacks,
-    keyEffects,
+    judgeFeedbacksRef,
+    keyEffectsRef,
+    effectsRevision,
     handleKeyPress,
     handleKeyRelease,
     handleNoteMiss,
@@ -968,8 +969,9 @@ export const Game: React.FC = () => {
                 speed={speed}
                 pressedKeys={pressedKeys}
                 holdingNotes={holdingNotes}
-                judgeFeedbacks={judgeFeedbacks}
-                keyEffects={keyEffects}
+                judgeFeedbacksRef={judgeFeedbacksRef}
+                keyEffectsRef={keyEffectsRef}
+                effectsRevision={effectsRevision}
                 laneKeyLabels={laneKeyLabels}
                 isFromEditor={isFromEditor}
                 currentTimeRef={currentTimeRef}

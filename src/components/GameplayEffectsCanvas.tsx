@@ -5,8 +5,9 @@ import { JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
 import { JudgeType } from '../types/game';
 
 interface GameplayEffectsCanvasProps {
-  judgeFeedbacks: JudgeFeedback[];
-  keyEffects: KeyEffect[];
+  judgeFeedbacksRef: React.MutableRefObject<JudgeFeedback[]>;
+  keyEffectsRef: React.MutableRefObject<KeyEffect[]>;
+  effectsRevision: number;
   judgeFeedbackTop: number;
   visible: boolean;
 }
@@ -154,25 +155,16 @@ const drawLaneTimingFeedback = (
 };
 
 export const GameplayEffectsCanvas: React.FC<GameplayEffectsCanvasProps> = ({
-  judgeFeedbacks,
-  keyEffects,
+  judgeFeedbacksRef,
+  keyEffectsRef,
+  effectsRevision,
   judgeFeedbackTop,
   visible,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const judgeFeedbacksRef = useRef(judgeFeedbacks);
-  const keyEffectsRef = useRef(keyEffects);
   const judgeFeedbackTopRef = useRef(judgeFeedbackTop);
   const visibleRef = useRef(visible);
   const frameIdRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    judgeFeedbacksRef.current = judgeFeedbacks;
-  }, [judgeFeedbacks]);
-
-  useEffect(() => {
-    keyEffectsRef.current = keyEffects;
-  }, [keyEffects]);
 
   useEffect(() => {
     judgeFeedbackTopRef.current = judgeFeedbackTop;
@@ -212,7 +204,10 @@ export const GameplayEffectsCanvas: React.FC<GameplayEffectsCanvasProps> = ({
       frameIdRef.current = null;
     }
 
-    if (!visible || (judgeFeedbacks.length === 0 && keyEffects.length === 0)) {
+    if (
+      !visible ||
+      (judgeFeedbacksRef.current.length === 0 && keyEffectsRef.current.length === 0)
+    ) {
       ctx.clearRect(0, 0, GAME_VIEW_WIDTH, GAME_VIEW_HEIGHT);
       return;
     }
@@ -254,7 +249,7 @@ export const GameplayEffectsCanvas: React.FC<GameplayEffectsCanvasProps> = ({
         frameIdRef.current = null;
       }
     };
-  }, [judgeFeedbacks, keyEffects, visible, judgeFeedbackTop]);
+  }, [effectsRevision, visible, judgeFeedbackTop, judgeFeedbacksRef, keyEffectsRef]);
 
   return (
     <canvas

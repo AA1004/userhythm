@@ -1,4 +1,4 @@
-import { startTransition, useState, useRef, useCallback, useEffect } from 'react';
+import { startTransition, useState, useRef, useCallback, useEffect, type MutableRefObject } from 'react';
 import { Lane, Note, JudgeType, GameState } from '../types/game';
 import { judgeTiming, judgeHoldReleaseTiming } from '../utils/judge';
 import { judgeConfig } from '../config/judgeConfig';
@@ -129,8 +129,9 @@ export interface UseGameJudgingReturn {
   combo: number;
   pressedKeys: Set<Lane>;
   holdingNotes: Map<number, Note>;
-  judgeFeedbacks: JudgeFeedback[];
-  keyEffects: KeyEffect[];
+  judgeFeedbacksRef: MutableRefObject<JudgeFeedback[]>;
+  keyEffectsRef: MutableRefObject<KeyEffect[]>;
+  effectsRevision: number;
   handleKeyPress: (lane: Lane) => void;
   handleKeyRelease: (lane: Lane) => void;
   handleNoteMiss: (note: Note) => 'miss' | 'good';
@@ -159,12 +160,13 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   const [holdingNotes, setHoldingNotes] = useState<Map<number, Note>>(new Map());
   const holdingNotesRef = useRef<Map<number, Note>>(new Map());
   const holdingNotesFrameRef = useRef<number | null>(null);
-  const [judgeFeedbacks, setJudgeFeedbacks] = useState<JudgeFeedback[]>([]);
   const judgeFeedbacksRef = useRef<JudgeFeedback[]>([]);
   const feedbackIdRef = useRef(0);
-  const [keyEffects, setKeyEffects] = useState<KeyEffect[]>([]);
   const keyEffectsRef = useRef<KeyEffect[]>([]);
   const keyEffectIdRef = useRef(0);
+  const [effectsRevision, setEffectsRevision] = useState(0);
+  const committedJudgeFeedbacksRef = useRef<JudgeFeedback[]>([]);
+  const committedKeyEffectsRef = useRef<KeyEffect[]>([]);
   const effectCleanupTimerRef = useRef<NodeJS.Timeout | null>(null);
   const effectsFrameRef = useRef<number | null>(null);
   const scoreRuntimeRef = useRef<GameState['score']>(gameState.score);
@@ -186,13 +188,16 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       effectsFrameRef.current = null;
       const feedbackSnapshot = [...judgeFeedbacksRef.current];
       const effectsSnapshot = [...keyEffectsRef.current];
+      if (
+        judgeFeedbackArraysEqual(committedJudgeFeedbacksRef.current, feedbackSnapshot) &&
+        keyEffectArraysEqual(committedKeyEffectsRef.current, effectsSnapshot)
+      ) {
+        return;
+      }
+      committedJudgeFeedbacksRef.current = feedbackSnapshot;
+      committedKeyEffectsRef.current = effectsSnapshot;
       startTransition(() => {
-        setJudgeFeedbacks((prev) =>
-          judgeFeedbackArraysEqual(prev, feedbackSnapshot) ? prev : feedbackSnapshot
-        );
-        setKeyEffects((prev) =>
-          keyEffectArraysEqual(prev, effectsSnapshot) ? prev : effectsSnapshot
-        );
+        setEffectsRevision((prev) => prev + 1);
       });
     });
   }, []);
@@ -610,8 +615,9 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       setCombo(0);
       judgeFeedbacksRef.current = [];
       keyEffectsRef.current = [];
-      setJudgeFeedbacks([]);
-      setKeyEffects([]);
+      committedJudgeFeedbacksRef.current = [];
+      committedKeyEffectsRef.current = [];
+      setEffectsRevision((prev) => prev + 1);
       pressedKeysRef.current = new Set();
       holdingNotesRef.current = new Map();
       setPressedKeys(new Set());
@@ -645,8 +651,9 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       setCombo(0);
       judgeFeedbacksRef.current = [];
       keyEffectsRef.current = [];
-      setJudgeFeedbacks([]);
-      setKeyEffects([]);
+      committedJudgeFeedbacksRef.current = [];
+      committedKeyEffectsRef.current = [];
+      setEffectsRevision((prev) => prev + 1);
       pressedKeysRef.current = new Set();
       holdingNotesRef.current = new Map();
       setPressedKeys(new Set());
@@ -690,8 +697,9 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     combo,
     pressedKeys,
     holdingNotes,
-    judgeFeedbacks,
-    keyEffects,
+    judgeFeedbacksRef,
+    keyEffectsRef,
+    effectsRevision,
     handleKeyPress,
     handleKeyRelease,
     handleNoteMiss,
