@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { getKeyBindingFromInput } from '../utils/keyBinding';
+import { GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH } from '../constants/gameLayout';
+import { buildPlayfieldGeometry, DEFAULT_GAME_VISUAL_SETTINGS } from '../constants/gameVisualSettings';
+import { JUDGE_LINE_Y } from '../constants/gameConstants';
 
 interface CalibrationGameProps {
   keyBindings: string[];
@@ -16,6 +19,7 @@ const BEAT_INTERVAL_MS = 60000 / BPM;
 const COUNT_IN_BEATS = 4;
 const MEASURE_BEATS = 24;
 const HIT_WINDOW_MS = 220;
+const CALIBRATION_FALL_DURATION_MS = 1600;
 
 const median = (values: number[]) => {
   if (values.length === 0) return 0;
@@ -45,6 +49,7 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
   const [displayBeat, setDisplayBeat] = useState(0);
   const [samples, setSamples] = useState<number[]>([]);
   const [appliedOffsetMs, setAppliedOffsetMs] = useState<number | null>(null);
+  const [animationNow, setAnimationNow] = useState(0);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const startTimeRef = useRef(0);
@@ -52,6 +57,12 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
   const hitBeatSetRef = useRef<Set<number>>(new Set());
   const timerIdsRef = useRef<number[]>([]);
   const activeRef = useRef(false);
+  const animationFrameRef = useRef<number | null>(null);
+
+  const playfieldGeometry = useMemo(
+    () => buildPlayfieldGeometry(DEFAULT_GAME_VISUAL_SETTINGS, JUDGE_LINE_Y),
+    []
+  );
 
   const allowedKeys = useMemo(() => new Set(keyBindings.map((key) => key.toUpperCase())), [keyBindings]);
 
@@ -196,12 +207,80 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
   }, [allowedKeys, onClose, phase]);
 
   useEffect(() => {
+    if (phase !== 'countdown' && phase !== 'measuring') {
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      return;
+    }
+
+    const tick = () => {
+      setAnimationNow(performance.now());
+      animationFrameRef.current = requestAnimationFrame(tick);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    };
+  }, [phase]);
+
+  useEffect(() => {
     return () => {
       activeRef.current = false;
       clearTimers();
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
       void audioContextRef.current?.close();
     };
   }, [clearTimers]);
+
+  const activeBeatIndex = useMemo(() => {
+    if (phase !== 'countdown' && phase !== 'measuring') return -1;
+    const elapsed = animationNow - startTimeRef.current;
+    if (elapsed < 0) return -1;
+    return Math.floor(elapsed / BEAT_INTERVAL_MS);
+  }, [animationNow, phase]);
+
+  const fallingNotes = useMemo(() => {
+    if (phase !== 'countdown' && phase !== 'measuring') return [];
+
+    const beatIndices = Array.from({ length: COUNT_IN_BEATS + MEASURE_BEATS }, (_, index) => index);
+    return beatIndices
+      .map((beatIndex) => {
+        const beatTime = startTimeRef.current + beatIndex * BEAT_INTERVAL_MS;
+        const timeUntilHit = beatTime - animationNow;
+        if (timeUntilHit < -180 || timeUntilHit > CALIBRATION_FALL_DURATION_MS) {
+          return null;
+        }
+
+        const progress = 1 - timeUntilHit / CALIBRATION_FALL_DURATION_MS;
+        const clampedProgress = clamp(progress, 0, 1);
+        const lane = beatIndex % 4;
+        const xCenter = playfieldGeometry.laneCenters[lane];
+        const startY = -64;
+        const endY = JUDGE_LINE_Y;
+        const y = startY + (endY - startY) * clampedProgress;
+        const isMeasureBeat = beatIndex >= COUNT_IN_BEATS;
+        const isAccent = beatIndex % 4 === 0;
+        return {
+          beatIndex,
+          lane,
+          xCenter,
+          y,
+          isMeasureBeat,
+          isAccent,
+          progress: clampedProgress,
+        };
+      })
+      .filter((note): note is NonNullable<typeof note> => note !== null);
+  }, [animationNow, phase, playfieldGeometry.laneCenters]);
 
   return (
     <div
@@ -270,21 +349,134 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
           <div>
             <div
               style={{
-                width: '220px',
-                height: '220px',
+                width: '100%',
+                height: '430px',
                 margin: '8px auto 24px',
-                borderRadius: '50%',
-                border: `2px solid ${phase === 'measuring' ? CHART_EDITOR_THEME.accent : CHART_EDITOR_THEME.borderSubtle}`,
-                boxShadow: phase === 'measuring' ? `0 0 32px ${CHART_EDITOR_THEME.accentSoft}` : 'none',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: CHART_EDITOR_THEME.textPrimary,
-                fontSize: phase === 'countdown' ? '72px' : '56px',
-                fontWeight: 800,
+                borderRadius: '28px',
+                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                background: 'linear-gradient(180deg, rgba(4,10,18,0.92), rgba(8,12,24,0.84))',
+                overflow: 'hidden',
+                position: 'relative',
               }}
             >
-              {phase === 'ready' ? '준비' : phase === 'complete' ? '완료' : displayBeat}
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: '18px 18px auto',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  color: CHART_EDITOR_THEME.textSecondary,
+                  fontSize: '11px',
+                  letterSpacing: '0.18em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                <span>Calibration Lane</span>
+                <span>
+                  {phase === 'ready' ? 'READY' : phase === 'complete' ? 'DONE' : `Beat ${displayBeat}`}
+                </span>
+              </div>
+
+              <div
+                style={{
+                  position: 'absolute',
+                  left: '50%',
+                  top: '54%',
+                  width: `${GAME_VIEW_WIDTH}px`,
+                  height: `${GAME_VIEW_HEIGHT}px`,
+                  transform: 'translate(-50%, -50%) scale(0.8)',
+                  transformOrigin: 'center center',
+                }}
+              >
+                {playfieldGeometry.laneEdges.map((laneLeft, index) => (
+                  <div
+                    key={`lane-${index}`}
+                    style={{
+                      position: 'absolute',
+                      left: `${laneLeft}px`,
+                      top: 0,
+                      width: `${playfieldGeometry.laneWidth}px`,
+                      height: `${GAME_VIEW_HEIGHT}px`,
+                      borderLeft: '1px solid rgba(255,255,255,0.14)',
+                      borderRight: '1px solid rgba(255,255,255,0.14)',
+                      background:
+                        activeBeatIndex >= COUNT_IN_BEATS && index === activeBeatIndex % 4
+                          ? 'linear-gradient(180deg, rgba(59,130,246,0.18), rgba(59,130,246,0.06) 45%, rgba(8,12,24,0.02))'
+                          : 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015))',
+                      transition: 'background 80ms linear',
+                    }}
+                  />
+                ))}
+
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: `${playfieldGeometry.judgeLineLeft}px`,
+                    top: `${JUDGE_LINE_Y}px`,
+                    width: `${playfieldGeometry.judgeLineWidth}px`,
+                    height: '6px',
+                    borderRadius: '999px',
+                    background: 'linear-gradient(90deg, rgba(255,109,61,0.9), rgba(255,68,0,1), rgba(255,109,61,0.9))',
+                    boxShadow: '0 0 18px rgba(255,93,41,0.85)',
+                  }}
+                />
+
+                {fallingNotes.map((note) => (
+                  <div
+                    key={`falling-${note.beatIndex}`}
+                    style={{
+                      position: 'absolute',
+                      left: `${note.xCenter - DEFAULT_GAME_VISUAL_SETTINGS.noteWidth / 2}px`,
+                      top: `${note.y}px`,
+                      width: `${DEFAULT_GAME_VISUAL_SETTINGS.noteWidth}px`,
+                      height: `${DEFAULT_GAME_VISUAL_SETTINGS.noteHeight}px`,
+                      borderRadius: '14px',
+                      background: note.isMeasureBeat
+                        ? note.isAccent
+                          ? 'linear-gradient(180deg, #7dd3fc, #38bdf8)'
+                          : 'linear-gradient(180deg, #93c5fd, #60a5fa)'
+                        : 'linear-gradient(180deg, #c084fc, #8b5cf6)',
+                      boxShadow: note.isMeasureBeat
+                        ? '0 0 16px rgba(96,165,250,0.55)'
+                        : '0 0 16px rgba(168,85,247,0.45)',
+                      opacity: note.progress < 0.08 ? 0.5 : 1,
+                    }}
+                  />
+                ))}
+
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: `${playfieldGeometry.judgeLineLeft}px`,
+                    top: `${JUDGE_LINE_Y + 18}px`,
+                    width: `${playfieldGeometry.judgeLineWidth}px`,
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(4, 1fr)',
+                    gap: `${playfieldGeometry.laneGap}px`,
+                  }}
+                >
+                  {keyBindings.map((key, index) => (
+                    <div
+                      key={`label-${key}-${index}`}
+                      style={{
+                        height: '72px',
+                        borderRadius: '18px',
+                        border: '1px solid rgba(94,234,212,0.34)',
+                        background: 'linear-gradient(180deg, rgba(15,23,42,0.95), rgba(15,23,42,0.7))',
+                        color: '#f8fafc',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '28px',
+                        fontWeight: 800,
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      {key}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <p style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '18px', textAlign: 'center', margin: 0 }}>
