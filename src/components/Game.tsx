@@ -745,7 +745,10 @@ export const Game: React.FC = () => {
       <CalibrationGame
         keyBindings={keyBindings}
         currentOffsetMs={timingOffsetMs}
-        onApplyOffset={setTimingOffsetMs}
+        currentNoteSpeed={noteSpeed}
+        timingOffsetRecommendation={timingOffsetRecommendation}
+        appendTimingSamples={appendTimingSamples}
+        onApplyTimingOffsetRecommendation={applyTimingOffsetRecommendation}
         onClose={() => setViewMode({ type: 'menu' })}
       />
     );

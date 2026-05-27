@@ -8,7 +8,15 @@ import { JUDGE_LINE_Y } from '../constants/gameConstants';
 interface CalibrationGameProps {
   keyBindings: string[];
   currentOffsetMs: number;
-  onApplyOffset: (offsetMs: number) => void;
+  currentNoteSpeed: number;
+  timingOffsetRecommendation: {
+    recommendedOffsetMs: number | null;
+    sampleCount: number;
+    source: 'speed' | 'global' | null;
+    averageDeviationMs: number | null;
+  };
+  appendTimingSamples: (samples: number[], speed: number) => void;
+  onApplyTimingOffsetRecommendation: () => void;
   onClose: () => void;
 }
 
@@ -42,13 +50,16 @@ const clamp = (value: number, min: number, max: number) =>
 export const CalibrationGame: React.FC<CalibrationGameProps> = ({
   keyBindings,
   currentOffsetMs,
-  onApplyOffset,
+  currentNoteSpeed,
+  timingOffsetRecommendation,
+  appendTimingSamples,
+  onApplyTimingOffsetRecommendation,
   onClose,
 }) => {
   const [phase, setPhase] = useState<Phase>('ready');
   const [displayBeat, setDisplayBeat] = useState(0);
   const [samples, setSamples] = useState<number[]>([]);
-  const [appliedOffsetMs, setAppliedOffsetMs] = useState<number | null>(null);
+  const [samplesSubmitted, setSamplesSubmitted] = useState(false);
   const [animationNow, setAnimationNow] = useState(0);
 
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -58,6 +69,7 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
   const timerIdsRef = useRef<number[]>([]);
   const activeRef = useRef(false);
   const animationFrameRef = useRef<number | null>(null);
+  const submittedRunRef = useRef(false);
 
   const playfieldGeometry = useMemo(
     () => buildPlayfieldGeometry(DEFAULT_GAME_VISUAL_SETTINGS, JUDGE_LINE_Y),
@@ -116,8 +128,9 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
     sampleSetRef.current = [];
     hitBeatSetRef.current = new Set();
     setSamples([]);
-    setAppliedOffsetMs(null);
+    setSamplesSubmitted(false);
     setDisplayBeat(0);
+    submittedRunRef.current = false;
 
     const audioContext = await ensureAudioContext();
     if (!audioContext) {
@@ -149,13 +162,13 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
     timerIdsRef.current.push(window.setTimeout(finishMeasurement, finishDelay));
   }, [clearTimers, ensureAudioContext, finishMeasurement, playClick]);
 
-  const recommendedOffsetMs = useMemo(
+  const localMedianOffsetMs = useMemo(
     () => Math.round(median(samples)),
     [samples]
   );
   const averageDeviationMs = useMemo(
-    () => Math.round(meanAbs(samples, recommendedOffsetMs)),
-    [samples, recommendedOffsetMs]
+    () => Math.round(meanAbs(samples, localMedianOffsetMs)),
+    [samples, localMedianOffsetMs]
   );
   const fastCount = useMemo(() => samples.filter((sample) => sample < 0).length, [samples]);
   const slowCount = useMemo(() => samples.filter((sample) => sample > 0).length, [samples]);
@@ -163,11 +176,6 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
     () => Math.max(HIT_WINDOW_MS, ...samples.map((sample) => Math.abs(sample))),
     [samples]
   );
-
-  const handleApply = useCallback(() => {
-    onApplyOffset(recommendedOffsetMs);
-    setAppliedOffsetMs(recommendedOffsetMs);
-  }, [onApplyOffset, recommendedOffsetMs]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -205,6 +213,16 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
       window.removeEventListener('keydown', handleEscape);
     };
   }, [allowedKeys, onClose, phase]);
+
+  useEffect(() => {
+    if (phase !== 'complete') return;
+    if (submittedRunRef.current) return;
+    if (sampleSetRef.current.length < 8) return;
+
+    appendTimingSamples(sampleSetRef.current, currentNoteSpeed);
+    submittedRunRef.current = true;
+    setSamplesSubmitted(true);
+  }, [appendTimingSamples, currentNoteSpeed, phase]);
 
   useEffect(() => {
     if (phase !== 'countdown' && phase !== 'measuring') {
@@ -306,7 +324,7 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
         <div>
           <h1 style={{ margin: 0, fontSize: '24px', color: CHART_EDITOR_THEME.textPrimary }}>판정 보정</h1>
           <p style={{ margin: '6px 0 0', color: CHART_EDITOR_THEME.textSecondary, fontSize: '13px' }}>
-            클릭 소리에 맞춰 {MEASURE_BEATS}번 입력합니다. 현재 보정값: {currentOffsetMs}ms
+            보정 곡으로 {MEASURE_BEATS}번 입력합니다. 현재 보정값: {currentOffsetMs}ms · 현재 속도: {currentNoteSpeed.toFixed(1)}x
           </p>
         </div>
         <button
@@ -483,10 +501,10 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
             </div>
 
             <p style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '18px', textAlign: 'center', margin: 0 }}>
-              {phase === 'ready' && '시작을 누른 뒤 박자에 맞춰 입력'}
+              {phase === 'ready' && '시작을 누른 뒤 보정 곡 노트를 판정선에 맞춰 입력'}
               {phase === 'countdown' && '카운트인을 듣고 준비'}
               {phase === 'measuring' && '아무 레인 키로나 박자를 맞춰 입력'}
-              {phase === 'complete' && '측정이 끝났습니다'}
+              {phase === 'complete' && '보정 곡 측정이 끝났습니다'}
             </p>
             <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '13px', textAlign: 'center', margin: '8px 0 0' }}>
               사용 키: {keyBindings.join(' / ')}
@@ -507,24 +525,7 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
                 cursor: 'pointer',
               }}
             >
-              {phase === 'complete' ? '다시 측정' : '측정 시작'}
-            </button>
-            <button
-              onClick={handleApply}
-              disabled={samples.length < 8}
-              style={{
-                flex: 1,
-                padding: '14px 16px',
-                borderRadius: CHART_EDITOR_THEME.radiusMd,
-                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                background: samples.length >= 8 ? CHART_EDITOR_THEME.accentSoft : CHART_EDITOR_THEME.surface,
-                color: CHART_EDITOR_THEME.textPrimary,
-                fontWeight: 700,
-                cursor: samples.length >= 8 ? 'pointer' : 'not-allowed',
-                opacity: samples.length >= 8 ? 1 : 0.5,
-              }}
-            >
-              추천값 적용
+              {phase === 'complete' ? '다시 측정' : '보정 곡 시작'}
             </button>
           </div>
         </div>
@@ -541,12 +542,12 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
           }}
         >
           <div>
-            <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>추천 보정값</div>
+            <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>이번 보정 곡 중앙값</div>
             <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '42px', fontWeight: 800 }}>
-              {samples.length > 0 ? `${recommendedOffsetMs > 0 ? '+' : ''}${recommendedOffsetMs}ms` : '--'}
+              {samples.length > 0 ? `${localMedianOffsetMs > 0 ? '+' : ''}${localMedianOffsetMs}ms` : '--'}
             </div>
             <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', margin: '6px 0 0' }}>
-              플러스는 판정을 늦추고, 마이너스는 판정을 앞당깁니다.
+              이 값은 참고용이고, 실제 적용은 아래 실전 보정 엔진 추천값을 사용합니다.
             </p>
           </div>
 
@@ -681,6 +682,48 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
               background: CHART_EDITOR_THEME.surface,
             }}
           >
+            <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontWeight: 700, marginBottom: '8px' }}>실전 보정 엔진 추천값</div>
+            <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '13px', margin: 0, lineHeight: 1.6 }}>
+              {timingOffsetRecommendation.recommendedOffsetMs === null
+                ? `표본 ${timingOffsetRecommendation.sampleCount}개. 일반 플레이와 보정 곡 표본을 합쳐 최소 12개 이상이면 추천값을 계산합니다.`
+                : `추천값 ${timingOffsetRecommendation.recommendedOffsetMs > 0 ? '+' : ''}${timingOffsetRecommendation.recommendedOffsetMs}ms · ${timingOffsetRecommendation.source === 'speed' ? '현재 노트속도 기준' : '전체 플레이 기준'} · 평균 편차 ${timingOffsetRecommendation.averageDeviationMs}ms`}
+            </p>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+              <button
+                onClick={onApplyTimingOffsetRecommendation}
+                disabled={timingOffsetRecommendation.recommendedOffsetMs === null}
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  border: 'none',
+                  background:
+                    timingOffsetRecommendation.recommendedOffsetMs === null
+                      ? CHART_EDITOR_THEME.borderSubtle
+                      : CHART_EDITOR_THEME.ctaButtonGradient,
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor:
+                    timingOffsetRecommendation.recommendedOffsetMs === null
+                      ? 'not-allowed'
+                      : 'pointer',
+                  opacity: timingOffsetRecommendation.recommendedOffsetMs === null ? 0.5 : 1,
+                }}
+              >
+                추천값 적용
+              </button>
+            </div>
+          </div>
+
+          <div
+            style={{
+              padding: '14px',
+              borderRadius: CHART_EDITOR_THEME.radiusMd,
+              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+              background: CHART_EDITOR_THEME.surface,
+            }}
+          >
             <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontWeight: 700, marginBottom: '8px' }}>판정</div>
             <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '13px', margin: 0, lineHeight: 1.6 }}>
               {samples.length < 8
@@ -693,7 +736,7 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
             </p>
           </div>
 
-          {appliedOffsetMs !== null && (
+          {samplesSubmitted && (
             <div
               style={{
                 padding: '12px 14px',
@@ -704,7 +747,7 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
                 fontSize: '13px',
               }}
             >
-              {appliedOffsetMs > 0 ? '+' : ''}{appliedOffsetMs}ms 적용 완료
+              보정 곡 표본이 실전 보정 엔진에 반영되었습니다.
             </div>
           )}
         </div>

@@ -663,7 +663,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 자동 보정
               </h3>
               <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginTop: 0, marginBottom: '12px', lineHeight: 1.6 }}>
-                클릭 소리에 맞춰 입력해 추천 판정 보정값을 계산합니다.
+                전용 보정 곡으로 표본을 쌓아 실전 보정 엔진 추천값을 보강합니다.
               </p>
               <button
                 onClick={onOpenCalibration}
@@ -679,7 +679,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   cursor: 'pointer',
                 }}
               >
-                클릭 트랙 보정 열기
+                보정 곡 열기
               </button>
             </div>
           </>
