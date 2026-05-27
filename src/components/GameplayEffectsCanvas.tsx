@@ -124,6 +124,12 @@ const drawJudgeFeedback = (
   ctx.shadowColor = 'rgba(255,255,255,0.9)';
   ctx.shadowBlur = 20;
   ctx.fillText(feedback.judge.toUpperCase(), 0, 0);
+  if (feedback.timingDirection) {
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.font = 'bold 20px Arial, sans-serif';
+    ctx.fillText(feedback.timingDirection.toUpperCase(), 0, 34);
+  }
   ctx.restore();
 };
 

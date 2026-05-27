@@ -4,6 +4,7 @@ import {
   DISPLAY_NAME_STORAGE_KEY,
   KEY_BINDINGS_STORAGE_KEY,
   NOTE_SPEED_STORAGE_KEY,
+  TIMING_OFFSET_MS_STORAGE_KEY,
   BGA_ENABLED_STORAGE_KEY,
   JUDGE_LINE_Y_STORAGE_KEY,
   GAME_VOLUME_STORAGE_KEY,
@@ -67,6 +68,8 @@ export interface UseGameSettingsReturn {
   setKeyBindings: React.Dispatch<React.SetStateAction<string[]>>;
   noteSpeed: number;
   setNoteSpeed: (speed: number) => void;
+  timingOffsetMs: number;
+  setTimingOffsetMs: (offsetMs: number) => void;
   isBgaEnabled: boolean;
   setIsBgaEnabled: (enabled: boolean) => void;
   judgeLineY: number;
@@ -123,7 +126,17 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
         return parsed;
       }
     }
-    return 1.0;
+    return 3.5;
+  });
+  const [timingOffsetMs, setTimingOffsetMs] = useState<number>(() => {
+    const stored = safeReadLocalStorage(TIMING_OFFSET_MS_STORAGE_KEY);
+    if (stored) {
+      const parsed = parseInt(stored, 10);
+      if (!isNaN(parsed) && parsed >= -200 && parsed <= 200) {
+        return parsed;
+      }
+    }
+    return 0;
   });
   const [isBgaEnabled, setIsBgaEnabled] = useState<boolean>(() => {
     const stored = safeReadLocalStorage(BGA_ENABLED_STORAGE_KEY);
@@ -170,6 +183,10 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
   useEffect(() => {
     safeWriteLocalStorage(NOTE_SPEED_STORAGE_KEY, String(noteSpeed));
   }, [noteSpeed]);
+
+  useEffect(() => {
+    safeWriteLocalStorage(TIMING_OFFSET_MS_STORAGE_KEY, String(timingOffsetMs));
+  }, [timingOffsetMs]);
 
   useEffect(() => {
     safeWriteLocalStorage(BGA_ENABLED_STORAGE_KEY, String(isBgaEnabled));
@@ -283,7 +300,11 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
 
   // 닉네임 저장 핸들러
   const handleDisplayNameSave = useCallback(async () => {
-    if (!authUserId || !displayName.trim()) return;
+    if (!displayName.trim()) return;
+    if (!authUserId) {
+      safeWriteLocalStorage(DISPLAY_NAME_STORAGE_KEY, displayName.trim());
+      return;
+    }
     try {
       const result = await profileAPI.updateDisplayName(authUserId, displayName.trim());
       if (result.success) {
@@ -314,9 +335,10 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
 
   // 닉네임 변경 가능 여부
   const canChangeDisplayName = useMemo(() => {
+    if (!authUserId) return true;
     if (!nextDisplayNameChangeAt) return true;
     return new Date() >= nextDisplayNameChangeAt;
-  }, [nextDisplayNameChangeAt]);
+  }, [authUserId, nextDisplayNameChangeAt]);
 
   // 레인 키 라벨 (설정된 키 바인딩 사용)
   const laneKeyLabels = useMemo(() => keyBindings.map((k) => [k]), [keyBindings]);
@@ -328,6 +350,8 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
     setKeyBindings,
     noteSpeed,
     setNoteSpeed,
+    timingOffsetMs,
+    setTimingOffsetMs,
     isBgaEnabled,
     setIsBgaEnabled,
     judgeLineY,

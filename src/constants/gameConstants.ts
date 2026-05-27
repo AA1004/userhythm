@@ -31,6 +31,7 @@ export const PREVIEW_BGA_OPACITY = 0.4; // 미리듣기 BGA 배경 투명도
 export const DISPLAY_NAME_STORAGE_KEY = 'rhythmGameDisplayName';
 export const KEY_BINDINGS_STORAGE_KEY = 'rhythmGameKeyBindings';
 export const NOTE_SPEED_STORAGE_KEY = 'rhythmGameNoteSpeed';
+export const TIMING_OFFSET_MS_STORAGE_KEY = 'rhythmGameTimingOffsetMs';
 export const BGA_ENABLED_STORAGE_KEY = 'rhythmGameBgaEnabled';
 export const JUDGE_LINE_Y_STORAGE_KEY = 'rhythmGameJudgeLineY';
 export const GAME_VOLUME_STORAGE_KEY = 'rhythmGameVolume';

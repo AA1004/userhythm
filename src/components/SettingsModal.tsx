@@ -24,6 +24,8 @@ interface SettingsModalProps {
   onResetKeyBindings: () => void;
   noteSpeed: number;
   onNoteSpeedChange: (speed: number) => void;
+  timingOffsetMs: number;
+  onTimingOffsetChange: (offsetMs: number) => void;
   isBgaEnabled: boolean;
   onBgaChange: (enabled: boolean) => void;
   judgeLineY: number;
@@ -36,6 +38,7 @@ interface SettingsModalProps {
   onApplyVisualPreset: (presetId: Exclude<VisualPresetId, 'custom'>, applyToGameplay?: boolean) => void;
   onResetVisualSettings: (applyToGameplay?: boolean) => void;
   currentRoleLabel: string;
+  isLoggedIn: boolean;
 }
 
 interface VisualSliderRowProps {
@@ -123,6 +126,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onResetKeyBindings,
   noteSpeed,
   onNoteSpeedChange,
+  timingOffsetMs,
+  onTimingOffsetChange,
   isBgaEnabled,
   onBgaChange,
   judgeLineY,
@@ -135,6 +140,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onApplyVisualPreset,
   onResetVisualSettings,
   currentRoleLabel,
+  isLoggedIn,
 }) => {
   const [activeTab, setActiveTab] = useState<SettingsTab>('gameplay');
   const [isSavingNickname, setIsSavingNickname] = useState(false);
@@ -429,6 +435,106 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <span>10.0x</span>
                 </div>
               </div>
+            </div>
+
+            <div style={sectionCardStyle}>
+              <h3 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px', marginTop: 0, marginBottom: '8px' }}>
+                판정 보정: {timingOffsetMs}ms
+              </h3>
+              <div style={{ position: 'relative', padding: '0 8px' }}>
+                <input
+                  type="range"
+                  min="-200"
+                  max="200"
+                  step="1"
+                  value={timingOffsetMs}
+                  onChange={(e) => onTimingOffsetChange(parseInt(e.target.value, 10))}
+                  style={{ width: '100%', accentColor: CHART_EDITOR_THEME.accent }}
+                />
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    color: CHART_EDITOR_THEME.textSecondary,
+                    fontSize: '11px',
+                    marginTop: '4px',
+                  }}
+                >
+                  <span>-200ms</span>
+                  <span>0ms</span>
+                  <span>+200ms</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '10px', alignItems: 'center' }}>
+                <button
+                  onClick={() => onTimingOffsetChange(Math.max(-200, timingOffsetMs - 5))}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                    background: 'transparent',
+                    color: CHART_EDITOR_THEME.textPrimary,
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  -5ms
+                </button>
+                <button
+                  onClick={() => onTimingOffsetChange(0)}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                    background: 'transparent',
+                    color: CHART_EDITOR_THEME.textPrimary,
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  0ms
+                </button>
+                <button
+                  onClick={() => onTimingOffsetChange(Math.min(200, timingOffsetMs + 5))}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                    background: 'transparent',
+                    color: CHART_EDITOR_THEME.textPrimary,
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  +5ms
+                </button>
+                <input
+                  type="number"
+                  min="-200"
+                  max="200"
+                  step="1"
+                  value={timingOffsetMs}
+                  onChange={(e) => {
+                    const next = parseInt(e.target.value, 10);
+                    if (!Number.isNaN(next)) {
+                      onTimingOffsetChange(Math.max(-200, Math.min(200, next)));
+                    }
+                  }}
+                  style={{
+                    marginLeft: 'auto',
+                    width: '96px',
+                    padding: '8px 10px',
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                    background: CHART_EDITOR_THEME.surface,
+                    color: CHART_EDITOR_THEME.textPrimary,
+                    fontSize: '13px',
+                  }}
+                />
+              </div>
+              <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginTop: '6px', marginBottom: 0 }}>
+                플러스는 판정을 늦추고, 마이너스는 판정을 앞당깁니다.
+              </p>
             </div>
 
             <div style={sectionCardStyle}>
@@ -960,7 +1066,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </p>
               )}
               <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginTop: '4px', marginBottom: 0 }}>
-                닉네임은 일주일에 한 번만 변경할 수 있습니다.
+                {isLoggedIn ? '닉네임은 일주일에 한 번만 변경할 수 있습니다.' : '로그인 없이도 로컬에 저장됩니다.'}
               </p>
             </div>
 

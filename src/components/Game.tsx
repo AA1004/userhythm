@@ -114,6 +114,8 @@ export const Game: React.FC = () => {
     keyBindings,
     noteSpeed,
     setNoteSpeed,
+    timingOffsetMs,
+    setTimingOffsetMs,
     isBgaEnabled,
     setIsBgaEnabled,
     judgeLineY,
@@ -271,6 +273,7 @@ export const Game: React.FC = () => {
     processedMissNotes,
     hitNoteIdsRef,
     judgeLineY,
+    timingOffsetMs,
   });
 
   // speed는 noteSpeed를 사용
@@ -315,7 +318,8 @@ export const Game: React.FC = () => {
     speed,
     START_DELAY_MS,
     currentTimeRef,
-    hitNoteIdsRef
+    hitNoteIdsRef,
+    timingOffsetMs
   );
 
   // 자막 훅
@@ -1053,6 +1057,8 @@ export const Game: React.FC = () => {
         onResetKeyBindings={handleResetKeyBindings}
         noteSpeed={noteSpeed}
         onNoteSpeedChange={setNoteSpeed}
+        timingOffsetMs={timingOffsetMs}
+        onTimingOffsetChange={setTimingOffsetMs}
         isBgaEnabled={isBgaEnabled}
         onBgaChange={setIsBgaEnabled}
         judgeLineY={judgeLineY}
@@ -1065,6 +1071,7 @@ export const Game: React.FC = () => {
         onApplyVisualPreset={applyVisualPreset}
         onResetVisualSettings={resetVisualSettings}
         currentRoleLabel={currentRoleLabel}
+        isLoggedIn={!!authUser}
       />
     </VideoRhythmLayout>
       </div>
