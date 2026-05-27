@@ -124,12 +124,32 @@ const drawJudgeFeedback = (
   ctx.shadowColor = 'rgba(255,255,255,0.9)';
   ctx.shadowBlur = 20;
   ctx.fillText(feedback.judge.toUpperCase(), 0, 0);
-  if (feedback.timingDirection) {
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = 'rgba(255,255,255,0.92)';
-    ctx.font = 'bold 20px Arial, sans-serif';
-    ctx.fillText(feedback.timingDirection.toUpperCase(), 0, 34);
-  }
+  ctx.restore();
+};
+
+const drawLaneTimingFeedback = (
+  ctx: CanvasRenderingContext2D,
+  feedback: JudgeFeedback,
+  now: number
+) => {
+  if (!feedback.timingDirection) return;
+
+  const progress = getJudgeProgress(feedback, now);
+  if (progress >= 1) return;
+
+  const alpha = progress < 0.2 ? progress / 0.2 : progress < 0.5 ? 1 : 1 - (progress - 0.5) / 0.5;
+  const rise = progress * 14;
+
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+  ctx.translate(feedback.x, feedback.y - 56 - rise);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = 'bold 18px Arial, sans-serif';
+  ctx.fillStyle = '#FFD84A';
+  ctx.shadowColor = 'rgba(255, 216, 74, 0.75)';
+  ctx.shadowBlur = 12;
+  ctx.fillText(feedback.timingDirection.toUpperCase(), 0, 0);
   ctx.restore();
 };
 
@@ -214,6 +234,7 @@ export const GameplayEffectsCanvas: React.FC<GameplayEffectsCanvasProps> = ({
           if (getJudgeProgress(feedback, now) < 1) {
             hasActiveEffect = true;
             drawJudgeFeedback(ctx, feedback, now, judgeFeedbackTopRef.current);
+            drawLaneTimingFeedback(ctx, feedback, now);
           }
         }
       }

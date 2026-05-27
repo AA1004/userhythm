@@ -44,6 +44,9 @@ const judgeFeedbackArraysEqual = (a: JudgeFeedback[], b: JudgeFeedback[]) => {
       left.id !== right.id ||
       left.judge !== right.judge ||
       left.expiresAt !== right.expiresAt ||
+      left.x !== right.x ||
+      left.y !== right.y ||
+      left.lane !== right.lane ||
       left.timingDirection !== right.timingDirection
     ) {
       return false;
@@ -76,6 +79,9 @@ export interface JudgeFeedback {
   id: number;
   judge: JudgeType;
   expiresAt: number;
+  x: number;
+  y: number;
+  lane: Lane;
   timingDirection: 'fast' | 'slow' | null;
 }
 
@@ -312,7 +318,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       const effectX = laneCenters[lane] ?? LANE_POSITIONS[lane];
       const effectY = judgeLineY;
 
-      judgeFeedbacksRef.current = [{ id: feedbackId, judge, expiresAt, timingDirection }];
+      judgeFeedbacksRef.current = [{ id: feedbackId, judge, expiresAt, x: effectX, y: effectY, lane, timingDirection }];
       keyEffectsRef.current = [
         ...keyEffectsRef.current.filter((effect) => effect.lane !== lane),
         { id: effectId, lane, x: effectX, y: effectY, judge, expiresAt },
@@ -491,6 +497,16 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
           enqueueScoreJudge(releaseFallbackJudge);
 
           addJudgeFeedback(releaseFallbackJudge, lane, 'fast');
+          nextHoldingNotes.delete(holdNote.id);
+        } else {
+          processedMissNotes.current.add(holdNote.id);
+          markNoteResolved(holdNote, hitNoteIdsRef);
+          holdStartJudgeRef.current.delete(holdNote.id);
+
+          const lateReleaseJudge: JudgeType = startJudge ? 'good' : 'miss';
+          enqueueScoreJudge(lateReleaseJudge);
+
+          addJudgeFeedback(lateReleaseJudge, lane, 'slow');
           nextHoldingNotes.delete(holdNote.id);
         }
       }
