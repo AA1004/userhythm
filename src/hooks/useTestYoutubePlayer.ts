@@ -3,7 +3,7 @@ import { waitForYouTubeAPI } from '../utils/youtube';
 import { getAudioBaseSeconds, getAudioPositionSeconds, AudioSettings } from '../utils/gameHelpers';
 
 export interface UseTestYoutubePlayerOptions {
-  isTestMode: boolean;
+  audioSessionActive: boolean;
   gameStarted: boolean;
   currentTimeRef: MutableRefObject<number>;
   videoId: string | null;
@@ -20,7 +20,7 @@ export interface UseTestYoutubePlayerReturn {
 }
 
 export function useTestYoutubePlayer({
-  isTestMode,
+  audioSessionActive,
   gameStarted,
   currentTimeRef,
   videoId,
@@ -33,6 +33,7 @@ export function useTestYoutubePlayer({
   const playerReadyRef = useRef(false);
   const audioHasStartedRef = useRef(false);
   const lastResyncTimeRef = useRef(0);
+  const lastCueSeekTimeRef = useRef(0);
   const isExternalPlayerRef = useRef(false);
   const latestVolumeRef = useRef(volume);
 
@@ -42,7 +43,7 @@ export function useTestYoutubePlayer({
 
   // External player가 있으면 재사용
   useEffect(() => {
-    if (externalPlayer && isTestMode && videoId) {
+    if (externalPlayer && audioSessionActive && videoId) {
       setPlayer(externalPlayer);
       playerReadyRef.current = true;
       isExternalPlayerRef.current = true;
@@ -67,11 +68,11 @@ export function useTestYoutubePlayer({
     } else {
       isExternalPlayerRef.current = false;
     }
-  }, [externalPlayer, isTestMode, videoId, audioSettings]);
+  }, [externalPlayer, audioSessionActive, videoId, audioSettings, volume]);
 
   // YouTube 플레이어 초기화
   useEffect(() => {
-    if (!isTestMode || !videoId) return;
+    if (!audioSessionActive || !videoId) return;
     if (externalPlayer && isExternalPlayerRef.current) return; // External player 사용 중이면 skip
     if (!playerRef.current) return;
 
@@ -102,6 +103,8 @@ export function useTestYoutubePlayer({
     playerReadyRef.current = false;
     // 새 게임 시작이므로 오디오 상태 리셋
     audioHasStartedRef.current = false;
+    lastCueSeekTimeRef.current = 0;
+    lastResyncTimeRef.current = 0;
 
     waitForYouTubeAPI().then(() => {
       if (isCancelled) return;
@@ -180,12 +183,12 @@ export function useTestYoutubePlayer({
         playerRef.current.innerHTML = '';
       }
     };
-  }, [isTestMode, videoId, audioSettings]);
+  }, [audioSessionActive, videoId, audioSettings, externalPlayer]);
 
-  // Test mode YouTube audio sync.
+  // Gameplay YouTube audio sync.
   // Keep this off React's visual clock path; currentTimeRef is the gameplay source time.
   useEffect(() => {
-    if (!isTestMode || !gameStarted) return;
+    if (!audioSessionActive || !gameStarted) return;
     if (!player || !playerReadyRef.current) return;
     if (!audioSettings) return;
 
@@ -208,7 +211,11 @@ export function useTestYoutubePlayer({
         audioHasStartedRef.current = false;
         try {
           player.pauseVideo?.();
-          player.seekTo(cueSeconds, true);
+          const now = Date.now();
+          if (now - lastCueSeekTimeRef.current > 200) {
+            player.seekTo(cueSeconds, true);
+            lastCueSeekTimeRef.current = now;
+          }
         } catch (e) {
           console.warn("YouTube cueing failed:", e);
         }
@@ -224,6 +231,7 @@ export function useTestYoutubePlayer({
           player.seekTo(desiredSeconds, true);
           player.playVideo?.();
           audioHasStartedRef.current = true;
+          lastCueSeekTimeRef.current = Date.now();
           console.log(
             `YouTube test playback start (${desiredSeconds.toFixed(2)}s, volume: ${latestVolumeRef.current})`
           );
@@ -283,7 +291,7 @@ export function useTestYoutubePlayer({
         window.clearTimeout(timerId);
       }
     };
-  }, [isTestMode, gameStarted, currentTimeRef, player, audioSettings]);
+  }, [audioSessionActive, gameStarted, currentTimeRef, player, audioSettings]);
 
   // 볼륨 변경 시 실시간 반영
   useEffect(() => {

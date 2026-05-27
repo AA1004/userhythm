@@ -167,6 +167,7 @@ export const Game: React.FC = () => {
 
   const currentChartTimeOffsetMs = testAudioSettings?.startTimeMs ?? 0;
   const activePlayableChartId = testAudioSettings?.chartId ?? null;
+  const hasYoutubeAudioSession = !!testYoutubeVideoId && !!testAudioSettings;
 
   useEffect(() => {
     if (!gameState.gameStarted || gameState.gameEnded) {
@@ -367,7 +368,7 @@ export const Game: React.FC = () => {
     pause: pauseYoutubePlayer,
     destroy: destroyYoutubePlayer,
   } = useTestYoutubePlayer({
-    isTestMode,
+    audioSessionActive: hasYoutubeAudioSession,
     gameStarted: gameState.gameStarted,
     currentTimeRef,
     videoId: testYoutubeVideoId,
@@ -407,7 +408,7 @@ export const Game: React.FC = () => {
           prev.gameEnded ? prev : { ...prev, currentTime: currentTimeRef.current, gameEnded: true }
         ));
 
-        if (isTestMode && testYoutubePlayerReady) {
+        if (hasYoutubeAudioSession && testYoutubePlayerReady) {
           pauseYoutubePlayer();
         }
         return;
@@ -426,7 +427,7 @@ export const Game: React.FC = () => {
     gameState.gameStarted,
     gameState.gameEnded,
     dynamicGameDuration,
-    isTestMode,
+    hasYoutubeAudioSession,
     testYoutubePlayerReady,
     pauseYoutubePlayer,
   ]);
@@ -704,7 +705,7 @@ export const Game: React.FC = () => {
 
   // 테스트 모드 시작 시 viewMode 업데이트
   useEffect(() => {
-    if (isTestMode && gameState.gameStarted && !gameState.gameEnded) {
+    if (gameState.gameStarted && !gameState.gameEnded) {
       setViewMode((prev) => {
         if (prev.type === 'playing') return prev;
         return { type: 'playing', isTestMode, isFromEditor };
@@ -1014,8 +1015,8 @@ export const Game: React.FC = () => {
                 />
               )}
 
-              {/* 테스트 모드 YouTube 플레이어 (숨김 - 오디오만 재생) */}
-              {isTestMode && testYoutubeVideoId && (
+      {/* 테스트 모드 YouTube 플레이어 (숨김 - 오디오만 재생) */}
+              {hasYoutubeAudioSession && testYoutubeVideoId && (
                 <div
                   ref={testYoutubePlayerRef}
                   style={{

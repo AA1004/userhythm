@@ -59,6 +59,9 @@ export function useChartLoader({
       // 기존 테스트 모드 플레이어 정리
       onYoutubeDestroy();
       
+      // 일반 플레이는 YouTube 오디오를 쓰더라도 테스트 모드가 아니다.
+      onTestModeSet(false);
+
       // YouTube 플레이어 설정 (필요시) - 먼저 설정해야 useEffect가 올바르게 작동함
       if (chartData.youtubeVideoId) {
         const audioSettings: AudioSettings = {
@@ -70,9 +73,7 @@ export function useChartLoader({
           chartId: chartData.chartId,
         };
         onYoutubeSetup(chartData.youtubeVideoId, audioSettings);
-        onTestModeSet(true);
       } else {
-        onTestModeSet(false);
         onYoutubeSetup(null, chartData.chartId
           ? {
               youtubeVideoId: null,

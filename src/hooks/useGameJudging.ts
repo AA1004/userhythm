@@ -75,6 +75,24 @@ const keyEffectArraysEqual = (a: KeyEffect[], b: KeyEffect[]) => {
   return true;
 };
 
+const laneSetsEqual = (a: Set<Lane>, b: Set<Lane>) => {
+  if (a === b) return true;
+  if (a.size !== b.size) return false;
+  for (const lane of a) {
+    if (!b.has(lane)) return false;
+  }
+  return true;
+};
+
+const holdingNoteMapsEqual = (a: Map<number, Note>, b: Map<number, Note>) => {
+  if (a === b) return true;
+  if (a.size !== b.size) return false;
+  for (const noteId of a.keys()) {
+    if (!b.has(noteId)) return false;
+  }
+  return true;
+};
+
 export interface JudgeFeedback {
   id: number;
   judge: JudgeType;
@@ -267,7 +285,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       pressedKeysFrameRef.current = null;
       const next = new Set(pressedKeysRef.current);
       startTransition(() => {
-        setPressedKeys(next);
+        setPressedKeys((prev) => (laneSetsEqual(prev, next) ? prev : next));
       });
     });
   }, []);
@@ -289,7 +307,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       holdingNotesFrameRef.current = null;
       const next = new Map(holdingNotesRef.current);
       startTransition(() => {
-        setHoldingNotes(next);
+        setHoldingNotes((prev) => (holdingNoteMapsEqual(prev, next) ? prev : next));
       });
     });
   }, []);
@@ -540,20 +558,25 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         note.type === 'hold' && note.duration > 0 && !!startedHoldJudge;
       holdStartJudgeRef.current.delete(note.id);
 
-      setHoldingNotes((prev) => {
-        if (!prev.has(note.id)) return prev;
-        const next = new Map(prev);
-        next.delete(note.id);
-        holdingNotesRef.current = next;
-        return next;
-      });
+      if (holdingNotesRef.current.has(note.id)) {
+        const nextHoldingNotes = new Map(holdingNotesRef.current);
+        nextHoldingNotes.delete(note.id);
+        holdingNotesRef.current = nextHoldingNotes;
+        commitHoldingNotesNextFrame();
+      }
 
       const judge: JudgeType = shouldDowngradeMissToGood ? 'good' : 'miss';
       enqueueScoreJudge(judge);
       addJudgeFeedback(judge, note.lane, 'slow');
       return judge;
     },
-    [processedMissNotes, hitNoteIdsRef, enqueueScoreJudge, addJudgeFeedback]
+    [
+      processedMissNotes,
+      hitNoteIdsRef,
+      enqueueScoreJudge,
+      addJudgeFeedback,
+      commitHoldingNotesNextFrame,
+    ]
   );
 
   useEffect(() => {
