@@ -1,11 +1,11 @@
 import React from 'react';
 import { GameState } from '../types/game';
-import { AudioSettings } from '../utils/gameHelpers';
 import { useGameJudging } from '../hooks/useGameJudging';
 import { useKeyboard } from '../hooks/useKeyboard';
 import { useGameLoop } from '../hooks/useGameLoop';
 import { GamePlayArea } from './GamePlayArea';
 import { GameplaySlotHud } from './GameplaySlotHud';
+import { Score } from './Score';
 import { KEY_LANE_HEIGHT, PlayfieldGeometry } from '../constants/gameVisualSettings';
 import { HitNoteIdsRef } from '../utils/noteRuntimeState';
 import { START_DELAY_MS } from '../constants/gameConstants';
@@ -28,9 +28,7 @@ interface GameplayRuntimeLayerProps {
   isFromEditor: boolean;
   gameplayClockSnapshotMs: number;
   dynamicGameDuration: number;
-  accuracy: number;
   stageScale: number;
-  testAudioSettings: AudioSettings | null;
   isGameplayActive: boolean;
 }
 
@@ -52,12 +50,11 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
   isFromEditor,
   gameplayClockSnapshotMs,
   dynamicGameDuration,
-  accuracy,
   stageScale,
-  testAudioSettings: _testAudioSettings,
   isGameplayActive,
 }) => {
   const {
+    displayScore,
     combo,
     pressedKeys,
     holdingNotes,
@@ -99,6 +96,14 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
 
   const useNewSlotHud =
     playfieldGeometry.gameplayHudMode === 'new' && playfieldGeometry.slotHudEnabled;
+  const totalJudged =
+    displayScore.perfect + displayScore.great + displayScore.good + displayScore.miss;
+  const accuracy =
+    totalJudged > 0
+      ? ((displayScore.perfect * 100 + displayScore.great * 80 + displayScore.good * 50) /
+          (totalJudged * 100)) *
+        100
+      : 0;
   const slotHudProgress =
     dynamicGameDuration > 0
       ? Math.min(100, Math.max(0, (gameplayClockSnapshotMs / dynamicGameDuration) * 100))
@@ -110,6 +115,10 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
 
   return (
     <>
+      {isGameplayActive && bgaMaskOpacity < 1 && !useNewSlotHud && (
+        <Score score={displayScore} />
+      )}
+
       <GamePlayArea
         notes={gameState.notes}
         combo={combo}

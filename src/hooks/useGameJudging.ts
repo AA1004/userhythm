@@ -24,7 +24,7 @@ function binarySearchFirstNoteAtOrAfter(notes: Note[], targetTime: number): numb
   return low;
 }
 
-const SCORE_SNAPSHOT_INTERVAL_MS = 120;
+const SCORE_SNAPSHOT_INTERVAL_MS = 300;
 
 const scoresEqual = (a: GameState['score'], b: GameState['score']) =>
   a.perfect === b.perfect &&
@@ -126,6 +126,7 @@ export interface UseGameJudgingOptions {
 }
 
 export interface UseGameJudgingReturn {
+  displayScore: GameState['score'];
   combo: number;
   pressedKeys: Set<Lane>;
   holdingNotes: Map<number, Note>;
@@ -154,6 +155,8 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   const [pressedKeys, setPressedKeys] = useState<Set<Lane>>(new Set());
   const pressedKeysRef = useRef<Set<Lane>>(new Set());
   const pressedKeysFrameRef = useRef<number | null>(null);
+  const [displayScore, setDisplayScore] = useState<GameState['score']>(gameState.score);
+  const displayScoreFrameRef = useRef<number | null>(null);
   const [combo, setCombo] = useState<number>(gameState.score.combo);
   const comboRef = useRef<number>(gameState.score.combo);
   const comboFrameRef = useRef<number | null>(null);
@@ -306,6 +309,17 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     });
   }, []);
 
+  const commitDisplayScoreNextFrame = useCallback(() => {
+    if (displayScoreFrameRef.current !== null) return;
+    displayScoreFrameRef.current = requestAnimationFrame(() => {
+      displayScoreFrameRef.current = null;
+      const nextScore = scoreRuntimeRef.current;
+      startTransition(() => {
+        setDisplayScore((prev) => (scoresEqual(prev, nextScore) ? prev : nextScore));
+      });
+    });
+  }, []);
+
   const commitHoldingNotesNextFrame = useCallback(() => {
     if (holdingNotesFrameRef.current !== null) return;
     holdingNotesFrameRef.current = requestAnimationFrame(() => {
@@ -322,13 +336,20 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       scoreRuntimeRef.current = updateScoreFromJudge(judge, scoreRuntimeRef.current);
       comboRef.current = scoreRuntimeRef.current.combo;
       commitComboNextFrame();
+      commitDisplayScoreNextFrame();
       gameStateRef.current = {
         ...gameStateRef.current,
         score: scoreRuntimeRef.current,
       };
       scheduleScoreSnapshot();
     },
-    [commitComboNextFrame, gameStateRef, scheduleScoreSnapshot, updateScoreFromJudge]
+    [
+      commitComboNextFrame,
+      commitDisplayScoreNextFrame,
+      gameStateRef,
+      scheduleScoreSnapshot,
+      updateScoreFromJudge,
+    ]
   );
 
   const addJudgeFeedback = useCallback(
@@ -611,6 +632,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       clearEffectCleanupTimer();
       clearScoreSnapshotTimer();
       scoreRuntimeRef.current = gameState.score;
+      setDisplayScore(gameState.score);
       comboRef.current = 0;
       setCombo(0);
       judgeFeedbacksRef.current = [];
@@ -647,6 +669,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       clearEffectCleanupTimer();
       clearScoreSnapshotTimer();
       scoreRuntimeRef.current = gameState.score;
+      setDisplayScore(gameState.score);
       comboRef.current = 0;
       setCombo(0);
       judgeFeedbacksRef.current = [];
@@ -689,11 +712,16 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         cancelAnimationFrame(comboFrameRef.current);
         comboFrameRef.current = null;
       }
+      if (displayScoreFrameRef.current !== null) {
+        cancelAnimationFrame(displayScoreFrameRef.current);
+        displayScoreFrameRef.current = null;
+      }
       holdStartJudgeRef.current.clear();
     };
   }, [clearEffectCleanupTimer, clearScoreSnapshotTimer]);
 
   return {
+    displayScore,
     combo,
     pressedKeys,
     holdingNotes,

@@ -27,7 +27,6 @@ import { useChartLoader } from '../hooks/useChartLoader';
 import { GameMenu } from './GameMenu';
 import { GameEndScreen } from './GameEndScreen';
 import { FpsHud } from './FpsHud';
-import { Score } from './Score';
 import { TutorialScreen } from './TutorialScreen';
 import { CalibrationGame } from './CalibrationGame';
 import { GameplayRuntimeLayer } from './GameplayRuntimeLayer';
@@ -735,8 +734,6 @@ export const Game: React.FC = () => {
     gameplayClockSnapshotMs >= 0;
   const activeBgaMaskOpacity = isGameplayActive ? bgaMaskOpacity : 0;
   const activeLaneUiVisible = isGameplayActive ? isLaneUiVisible : true;
-  const useNewSlotHud =
-    playfieldGeometry.gameplayHudMode === 'new' && playfieldGeometry.slotHudEnabled;
   const gameplayStageBackdropAlpha = 0.16;
   const gameplayStageBorderAlpha = 0.14;
   const gameplayStageShadowAlpha = 0.26;
@@ -757,11 +754,6 @@ export const Game: React.FC = () => {
       
       {/* Show FPS HUD only during gameplay */}
       {gameState.gameStarted && !gameState.gameEnded && <FpsHud enabled={true} />}
-      {/* Keep score HUD outside scaled stage to preserve fixed viewport position */}
-      {isGameplayActive && activeBgaMaskOpacity < 1 && !useNewSlotHud && (
-        <Score score={gameState.score} />
-      )}
-      
       {/* Test/play controls (shown outside VideoRhythmLayout, including interlude sections) */}
       {gameState.gameStarted && !gameState.gameEnded && isTestMode && (
         <div
@@ -926,9 +918,7 @@ export const Game: React.FC = () => {
                 isFromEditor={isFromEditor}
                 gameplayClockSnapshotMs={gameplayClockSnapshotMs}
                 dynamicGameDuration={dynamicGameDuration}
-                accuracy={accuracy}
                 stageScale={stageScale}
-                testAudioSettings={testAudioSettings}
                 isGameplayActive={isGameplayActive}
               />
 
