@@ -37,6 +37,7 @@ interface SettingsModalProps {
   onVisualSettingsCommit: (applyToGameplay?: boolean, settingsOverride?: Partial<GameVisualSettings>) => void;
   onApplyVisualPreset: (presetId: Exclude<VisualPresetId, 'custom'>, applyToGameplay?: boolean) => void;
   onResetVisualSettings: (applyToGameplay?: boolean) => void;
+  onOpenCalibration: () => void;
   currentRoleLabel: string;
   isLoggedIn: boolean;
 }
@@ -139,6 +140,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onVisualSettingsCommit,
   onApplyVisualPreset,
   onResetVisualSettings,
+  onOpenCalibration,
   currentRoleLabel,
   isLoggedIn,
 }) => {
@@ -577,6 +579,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <span>90% 거의 숨김</span>
                 </div>
               </div>
+            </div>
+
+            <div style={sectionCardStyle}>
+              <h3 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px', marginTop: 0, marginBottom: '8px' }}>
+                자동 보정
+              </h3>
+              <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginTop: 0, marginBottom: '12px', lineHeight: 1.6 }}>
+                클릭 소리에 맞춰 입력해 추천 판정 보정값을 계산합니다.
+              </p>
+              <button
+                onClick={onOpenCalibration}
+                style={{
+                  width: '100%',
+                  padding: '12px 14px',
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  border: 'none',
+                  background: CHART_EDITOR_THEME.ctaButtonGradient,
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  fontSize: '14px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                보정 게임 열기
+              </button>
             </div>
           </>
         )}

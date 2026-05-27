@@ -34,6 +34,7 @@ import { GameEndScreen } from './GameEndScreen';
 import { FpsHud } from './FpsHud';
 import { Score } from './Score';
 import { TutorialScreen } from './TutorialScreen';
+import { CalibrationGame } from './CalibrationGame';
 import { GAME_VIEW_WIDTH, GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 import { buildPlayfieldGeometry, KEY_LANE_HEIGHT } from '../constants/gameVisualSettings';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
@@ -54,6 +55,7 @@ interface SubtitleEditorChartData {
 type ViewMode =
   | { type: 'menu' }
   | { type: 'tutorial' }
+  | { type: 'calibration' }
   | { type: 'chartSelect'; refreshToken?: number }
   | { type: 'editor' }
   | { type: 'admin' }
@@ -718,6 +720,17 @@ export const Game: React.FC = () => {
     return <TutorialScreen onClose={() => setViewMode({ type: 'menu' })} />;
   }
 
+  if (viewMode.type === 'calibration') {
+    return (
+      <CalibrationGame
+        keyBindings={keyBindings}
+        currentOffsetMs={timingOffsetMs}
+        onApplyOffset={setTimingOffsetMs}
+        onClose={() => setViewMode({ type: 'menu' })}
+      />
+    );
+  }
+
   if (viewMode.type === 'subtitleEditor') {
     return (
       <SubtitleEditor
@@ -1070,6 +1083,10 @@ export const Game: React.FC = () => {
         onVisualSettingsCommit={commitVisualSettings}
         onApplyVisualPreset={applyVisualPreset}
         onResetVisualSettings={resetVisualSettings}
+        onOpenCalibration={() => {
+          setIsSettingsOpen(false);
+          setViewMode({ type: 'calibration' });
+        }}
         currentRoleLabel={currentRoleLabel}
         isLoggedIn={!!authUser}
       />
