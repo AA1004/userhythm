@@ -27,11 +27,13 @@ import { useChartLoader } from '../hooks/useChartLoader';
 import { GameMenu } from './GameMenu';
 import { GameEndScreen } from './GameEndScreen';
 import { FpsHud } from './FpsHud';
+import { GameplaySlotHud } from './GameplaySlotHud';
 import { TutorialScreen } from './TutorialScreen';
 import { CalibrationGame } from './CalibrationGame';
 import { GameplayRuntimeLayer } from './GameplayRuntimeLayer';
 import { GAME_VIEW_WIDTH, GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 import { buildPlayfieldGeometry } from '../constants/gameVisualSettings';
+import { KEY_LANE_HEIGHT } from '../constants/gameVisualSettings';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 import { api } from '../lib/api';
 import { chartAPI } from '../lib/supabaseClient';
@@ -734,6 +736,15 @@ export const Game: React.FC = () => {
     gameplayClockSnapshotMs >= 0;
   const activeBgaMaskOpacity = isGameplayActive ? bgaMaskOpacity : 0;
   const activeLaneUiVisible = isGameplayActive ? isLaneUiVisible : true;
+  const useSlotHud = playfieldGeometry.slotHudEnabled;
+  const slotHudProgress =
+    dynamicGameDuration > 0
+      ? Math.min(100, Math.max(0, (gameplayClockSnapshotMs / dynamicGameDuration) * 100))
+      : 0;
+  const slotHudTopPx = (playfieldGeometry.keyLaneY + KEY_LANE_HEIGHT + 8) * stageScale;
+  const slotHudLeftPx = playfieldGeometry.laneGroupLeft * stageScale;
+  const slotHudWidthPx = playfieldGeometry.laneGroupWidth * stageScale;
+  const slotHudOpacity = playfieldGeometry.slotHudOpacity;
   const gameplayStageBackdropAlpha = 0.16;
   const gameplayStageBorderAlpha = 0.14;
   const gameplayStageShadowAlpha = 0.26;
@@ -916,8 +927,6 @@ export const Game: React.FC = () => {
                 bgaMaskOpacity={activeBgaMaskOpacity}
                 isLaneUiVisible={activeLaneUiVisible}
                 isFromEditor={isFromEditor}
-                gameplayClockSnapshotMs={gameplayClockSnapshotMs}
-                dynamicGameDuration={dynamicGameDuration}
                 isGameplayActive={isGameplayActive}
               />
 
@@ -977,13 +986,26 @@ export const Game: React.FC = () => {
             </div>
           </div>
       {/* 자막 레이어 (게임 컨테이너 바깥, 16:9 영역으로 확장) - 간주 구간에서는 숨김 */}
-      {activeBgaMaskOpacity < 1 && (
+          {activeBgaMaskOpacity < 1 && (
         <LyricOverlay
           activeSubtitles={activeSubtitles}
           subtitleArea={subtitleArea}
           performanceMode={visualSettings.performanceMode}
         />
       )}
+
+          {isGameplayActive && useSlotHud && (
+            <GameplaySlotHud
+              laneGroupLeft={slotHudLeftPx}
+              laneGroupWidth={slotHudWidthPx}
+              top={slotHudTopPx}
+              combo={gameState.score.combo}
+              accuracy={accuracy}
+              progress={slotHudProgress}
+              visible={activeLaneUiVisible}
+              opacity={slotHudOpacity}
+            />
+          )}
         </div>
       </div>
 

@@ -4,9 +4,8 @@ import { useGameJudging } from '../hooks/useGameJudging';
 import { useKeyboard } from '../hooks/useKeyboard';
 import { useGameLoop } from '../hooks/useGameLoop';
 import { GamePlayArea } from './GamePlayArea';
-import { GameplaySlotHud } from './GameplaySlotHud';
 import { Score } from './Score';
-import { KEY_LANE_HEIGHT, PlayfieldGeometry } from '../constants/gameVisualSettings';
+import { PlayfieldGeometry } from '../constants/gameVisualSettings';
 import { HitNoteIdsRef } from '../utils/noteRuntimeState';
 import { START_DELAY_MS } from '../constants/gameConstants';
 
@@ -26,8 +25,6 @@ interface GameplayRuntimeLayerProps {
   bgaMaskOpacity: number;
   isLaneUiVisible: boolean;
   isFromEditor: boolean;
-  gameplayClockSnapshotMs: number;
-  dynamicGameDuration: number;
   isGameplayActive: boolean;
 }
 
@@ -47,8 +44,6 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
   bgaMaskOpacity,
   isLaneUiVisible,
   isFromEditor,
-  gameplayClockSnapshotMs,
-  dynamicGameDuration,
   isGameplayActive,
 }) => {
   const {
@@ -93,23 +88,6 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
   );
 
   const useSlotHud = playfieldGeometry.slotHudEnabled;
-  const totalJudged =
-    displayScore.perfect + displayScore.great + displayScore.good + displayScore.miss;
-  const accuracy =
-    totalJudged > 0
-      ? ((displayScore.perfect * 100 + displayScore.great * 80 + displayScore.good * 50) /
-          (totalJudged * 100)) *
-        100
-      : 0;
-  const slotHudProgress =
-    dynamicGameDuration > 0
-      ? Math.min(100, Math.max(0, (gameplayClockSnapshotMs / dynamicGameDuration) * 100))
-      : 0;
-  const slotHudTopPx = playfieldGeometry.keyLaneY + KEY_LANE_HEIGHT + 8;
-  const slotHudLeftPx = playfieldGeometry.laneGroupLeft;
-  const slotHudWidthPx = playfieldGeometry.laneGroupWidth;
-  const slotHudOpacity = playfieldGeometry.slotHudOpacity;
-
   return (
     <>
       {isGameplayActive && bgaMaskOpacity < 1 && !useSlotHud && (
@@ -136,19 +114,6 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
         playfieldGeometry={playfieldGeometry}
         hitNoteIdsRef={hitNoteIdsRef}
       />
-
-      {isGameplayActive && useSlotHud && (
-        <GameplaySlotHud
-          laneGroupLeft={slotHudLeftPx}
-          laneGroupWidth={slotHudWidthPx}
-          top={slotHudTopPx}
-          combo={combo}
-          accuracy={accuracy}
-          progress={slotHudProgress}
-          visible={isLaneUiVisible}
-          opacity={slotHudOpacity}
-        />
-      )}
     </>
   );
 };
