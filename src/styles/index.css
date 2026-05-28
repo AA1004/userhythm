@@ -1520,10 +1520,6 @@ body {
   animation: chartSelectFilterSweep 5200ms ease-in-out infinite;
 }
 
-.chart-select-filter--insane::before {
-  background: linear-gradient(90deg, transparent, rgba(255, 95, 133, 0.22), transparent);
-}
-
 .chart-select-filter > * {
   position: relative;
   z-index: 1;

@@ -5,6 +5,7 @@ import { measureToTime } from '../utils/bpmUtils';
 import { validateNotes } from '../utils/noteValidation';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { PREVIEW_FADE_DURATION_MS, PREVIEW_TRANSITION_DURATION_MS, PREVIEW_VOLUME, PREVIEW_BGA_OPACITY } from '../constants/gameConstants';
+import { getChartDifficultyColor } from '../constants/chartDifficulty';
 
 interface ChartSelectProps {
   onSelect: (chartData: any) => void;
@@ -48,8 +49,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
   const [hasMore, setHasMore] = useState<boolean>(true);
   const chartsPerPage = 12;
-  const [isInsaneMode, setIsInsaneMode] = useState<boolean>(false);
-  const [insaneOnly, setInsaneOnly] = useState<boolean>(false);
   const [thumbnailAspectRatios, setThumbnailAspectRatios] = useState<Record<string, number>>({});
 
   // leaderboards
@@ -276,9 +275,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
   const filteredCharts = useMemo(() => {
     const keyword = searchQuery.toLowerCase();
     let list = allCharts;
-    if (insaneOnly || isInsaneMode) {
-      list = list.filter((c) => (c.difficulty || '').toUpperCase() === 'INSANE');
-    }
     if (keyword) {
       list = list.filter(
         (c) =>
@@ -548,11 +544,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
     };
   }, [selectedChart]);
 
-  const toggleInsaneMode = () => {
-    setIsInsaneMode((prev) => !prev);
-    setInsaneOnly((prev) => !prev);
-  };
-
   const handleLoadMore = useCallback(() => {
     if (isLoadingMore || !hasMore) return;
     const next = currentPage + 1;
@@ -806,21 +797,19 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         </div>
 
         {/* 검색 및 필터 */}
-        <div
-          className={`chart-select-filter${isInsaneMode ? ' chart-select-filter--insane' : ''}`}
-          style={{
-            display: 'flex',
-            gap: '10px',
-            alignItems: 'center',
-            background: isInsaneMode
-              ? 'linear-gradient(135deg, rgba(239,68,68,0.35), rgba(248,113,113,0.2))'
-              : 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(56,189,248,0.05))',
-            padding: '8px',
-            borderRadius: CHART_EDITOR_THEME.radiusSm,
-            border: isInsaneMode ? '1px solid rgba(248,113,113,0.4)' : '1px solid rgba(59,130,246,0.12)',
-            transition: 'background 0.6s ease, border 0.6s ease',
-          }}
-        >
+          <div
+            className="chart-select-filter"
+            style={{
+              display: 'flex',
+              gap: '10px',
+              alignItems: 'center',
+              background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(56,189,248,0.05))',
+              padding: '8px',
+              borderRadius: CHART_EDITOR_THEME.radiusSm,
+              border: '1px solid rgba(59,130,246,0.12)',
+              transition: 'background 0.6s ease, border 0.6s ease',
+            }}
+          >
           <input
             className="chart-select-search"
             type="text"
@@ -868,55 +857,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
             <option value="title">제목순</option>
             <option value="author">작성자순</option>
           </select>
-          <button
-            className={`chart-select-insane-toggle${isInsaneMode ? ' chart-select-insane-toggle--active' : ''}`}
-            onClick={toggleInsaneMode}
-            style={{
-              padding: '10px 16px',
-              borderRadius: 999,
-              border: isInsaneMode
-                ? '1px solid rgba(248,113,113,0.9)'
-                : '1px solid rgba(59,130,246,0.35)',
-              background: isInsaneMode
-                ? 'linear-gradient(135deg, #991b1b 0%, #b91c1c 45%, #ef4444 100%)'
-                : 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(56,189,248,0.12))',
-              color: isInsaneMode ? '#ffe4e6' : '#e5edff',
-              fontSize: '14px',
-              fontWeight: 800,
-              letterSpacing: '0.6px',
-              textTransform: 'uppercase',
-              textShadow: isInsaneMode ? '0 0 10px rgba(248,113,113,0.7)' : '0 0 6px rgba(59,130,246,0.5)',
-              cursor: 'pointer',
-              boxShadow: isInsaneMode
-                ? '0 0 18px rgba(248,113,113,0.55), 0 0 32px rgba(239,68,68,0.35)'
-                : '0 0 12px rgba(59,130,246,0.25)',
-              transform: isInsaneMode ? 'translateZ(0) scale(1.02)' : 'translateZ(0)',
-              transition: 'all 0.25s ease',
-            }}
-            onMouseEnter={(e) => {
-              if (!isInsaneMode) {
-                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59,130,246,0.25), rgba(56,189,248,0.2))';
-                e.currentTarget.style.boxShadow = '0 0 16px rgba(59,130,246,0.35)';
-              } else {
-                e.currentTarget.style.boxShadow = '0 0 22px rgba(248,113,113,0.7), 0 0 44px rgba(239,68,68,0.5)';
-                e.currentTarget.style.transform = 'translateZ(0) scale(1.04)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isInsaneMode) {
-                e.currentTarget.style.background =
-                  'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(56,189,248,0.12))';
-                e.currentTarget.style.boxShadow = '0 0 12px rgba(59,130,246,0.25)';
-                e.currentTarget.style.transform = 'translateZ(0)';
-              } else {
-                e.currentTarget.style.boxShadow = '0 0 16px rgba(248,113,113,0.45), 0 0 32px rgba(239,68,68,0.35)';
-                e.currentTarget.style.transform = 'translateZ(0) scale(1.02)';
-              }
-            }}
-          >
-            {isInsaneMode ? '🔥 INSANE ON' : '🔥 INSANE 모드'}
-          </button>
-          <button
+            <button
             className="chart-select-sort-order"
             onClick={() => {
               setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -953,15 +894,13 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         {/* 채보 목록 */}
         <div
           className="chart-select-list-panel"
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '20px',
-            background: isInsaneMode
-              ? 'linear-gradient(180deg, rgba(127,29,29,0.45), rgba(69,10,10,0.85))'
-              : 'linear-gradient(180deg, rgba(15,23,42,0.45), rgba(15,23,42,0.8))',
-            transition: 'background 0.6s ease',
-          }}
+            style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '20px',
+              background: 'linear-gradient(180deg, rgba(15,23,42,0.45), rgba(15,23,42,0.8))',
+              transition: 'background 0.6s ease',
+            }}
         >
           {status === 'loading' ? (
             <div className="chart-list-loading" role="status" aria-live="polite">
@@ -1156,7 +1095,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                       <span
                         style={{
                           padding: '4px 8px',
-                          backgroundColor: getDifficultyColor(chart.difficulty),
+                            backgroundColor: getChartDifficultyColor(chart.difficulty),
                           borderRadius: CHART_EDITOR_THEME.radiusSm,
                           color: '#fff',
                           fontSize: '11px',
@@ -1574,20 +1513,3 @@ const UserLeaderboardList: React.FC<{ entries: ApiUserAggregate[]; emptyText?: s
     </div>
   );
 };
-
-function getDifficultyColor(difficulty: string): string {
-  switch (difficulty.toLowerCase()) {
-    case 'easy':
-      return '#4CAF50';
-    case 'normal':
-      return '#2196F3';
-    case 'hard':
-      return '#FF9800';
-    case 'expert':
-      return '#f44336';
-    case 'insane':
-      return '#b91c1c';
-    default:
-      return '#616161';
-  }
-}

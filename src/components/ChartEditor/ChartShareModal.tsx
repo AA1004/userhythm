@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { CHART_DIFFICULTIES } from '../../constants/chartDifficulty';
 
 interface ChartShareModalProps {
   isOpen: boolean;
@@ -179,13 +180,13 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
               border: '1px solid #444',
               borderRadius: '6px',
             }}
-          >
-            <option value="Easy">Easy</option>
-            <option value="Normal">Normal</option>
-            <option value="Hard">Hard</option>
-            <option value="Expert">Expert</option>
-            <option value="INSANE">INSANE</option>
-          </select>
+            >
+              {CHART_DIFFICULTIES.map((entry) => (
+                <option key={entry.id} value={entry.label}>
+                  {entry.label}
+                </option>
+              ))}
+            </select>
         </div>
 
         <div style={{ marginBottom: '16px' }}>
