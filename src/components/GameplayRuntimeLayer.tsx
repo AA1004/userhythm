@@ -92,8 +92,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
     timingOffsetMs
   );
 
-  const useNewSlotHud =
-    playfieldGeometry.gameplayHudMode === 'new' && playfieldGeometry.slotHudEnabled;
+  const useSlotHud = playfieldGeometry.slotHudEnabled;
   const totalJudged =
     displayScore.perfect + displayScore.great + displayScore.good + displayScore.miss;
   const accuracy =
@@ -113,7 +112,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
 
   return (
     <>
-      {isGameplayActive && bgaMaskOpacity < 1 && !useNewSlotHud && (
+      {isGameplayActive && bgaMaskOpacity < 1 && !useSlotHud && (
         <Score score={displayScore} />
       )}
 
@@ -138,7 +137,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
         hitNoteIdsRef={hitNoteIdsRef}
       />
 
-      {isGameplayActive && useNewSlotHud && (
+      {isGameplayActive && useSlotHud && (
         <GameplaySlotHud
           laneGroupLeft={slotHudLeftPx}
           laneGroupWidth={slotHudWidthPx}
