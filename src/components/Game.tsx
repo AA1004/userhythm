@@ -390,6 +390,13 @@ export const Game: React.FC = () => {
     pauseYoutubePlayer,
   ]);
 
+  useEffect(() => {
+    if (!gameState.gameEnded || !hasYoutubeAudioSession) return;
+
+    pauseYoutubePlayer();
+    destroyYoutubePlayer();
+  }, [gameState.gameEnded, hasYoutubeAudioSession, pauseYoutubePlayer, destroyYoutubePlayer]);
+
   const resetGame = useCallback(() => {
     resetTestSession();
     processedMissNotes.current.clear();
@@ -911,24 +918,26 @@ export const Game: React.FC = () => {
                 transformOrigin: 'top left',
               }}
             >
-              <GameplayRuntimeLayer
-                gameState={gameState}
-                gameStateRef={gameStateRef}
-                currentTimeRef={currentTimeRef}
-                setGameState={setGameState}
-                processedMissNotes={processedMissNotes}
-                hitNoteIdsRef={hitNoteIdsRef}
-                keyBindings={keyBindings}
-                laneKeyLabels={laneKeyLabels}
-                noteSpeed={speed}
-                timingOffsetMs={timingOffsetMs}
-                judgeLineY={judgeLineY}
-                playfieldGeometry={playfieldGeometry}
-                bgaMaskOpacity={activeBgaMaskOpacity}
-                isLaneUiVisible={activeLaneUiVisible}
-                isFromEditor={isFromEditor}
-                isGameplayActive={isGameplayActive}
-              />
+                {isGameplayActive && (
+                  <GameplayRuntimeLayer
+                    gameState={gameState}
+                    gameStateRef={gameStateRef}
+                    currentTimeRef={currentTimeRef}
+                    setGameState={setGameState}
+                    processedMissNotes={processedMissNotes}
+                    hitNoteIdsRef={hitNoteIdsRef}
+                    keyBindings={keyBindings}
+                    laneKeyLabels={laneKeyLabels}
+                    noteSpeed={speed}
+                    timingOffsetMs={timingOffsetMs}
+                    judgeLineY={judgeLineY}
+                    playfieldGeometry={playfieldGeometry}
+                    bgaMaskOpacity={activeBgaMaskOpacity}
+                    isLaneUiVisible={activeLaneUiVisible}
+                    isFromEditor={isFromEditor}
+                    isGameplayActive={isGameplayActive}
+                  />
+                )}
 
               {/* 게임 시작 UI */}
               {!gameState.gameStarted && (
