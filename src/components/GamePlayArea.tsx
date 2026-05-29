@@ -64,14 +64,23 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
           style={{
             position: 'absolute',
             left: `${playfieldGeometry.laneGroupLeft}px`,
-            top: '0',
+            top: playfieldGeometry.topLaneExtensionEnabled ? '0' : `${topExtensionHeight}px`,
             width: `${playfieldGeometry.laneGroupWidth}px`,
-            height: '100%',
+            height: playfieldGeometry.topLaneExtensionEnabled
+              ? '100%'
+              : `${Math.max(0, GAME_VIEW_HEIGHT - topExtensionHeight)}px`,
             backgroundColor: `rgba(15, 23, 42, ${0.6 * playfieldGeometry.laneOpacity})`,
           }}
         />
       ) : null,
-    [isLaneUiVisible, playfieldGeometry.laneGroupLeft, playfieldGeometry.laneGroupWidth, playfieldGeometry.laneOpacity]
+    [
+      isLaneUiVisible,
+      playfieldGeometry.laneGroupLeft,
+      playfieldGeometry.laneGroupWidth,
+      playfieldGeometry.laneOpacity,
+      playfieldGeometry.topLaneExtensionEnabled,
+      topExtensionHeight,
+    ]
   );
 
   const lanePressTintLayer = useMemo(
@@ -120,16 +129,24 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
               style={{
                 position: 'absolute',
                 left: `${x}px`,
-                top: '0',
+                top: playfieldGeometry.topLaneExtensionEnabled ? '0' : `${topExtensionHeight}px`,
                 width: '2px',
-                height: '100%',
+                height: playfieldGeometry.topLaneExtensionEnabled
+                  ? '100%'
+                  : `${Math.max(0, GAME_VIEW_HEIGHT - topExtensionHeight)}px`,
                 backgroundColor: `rgba(255,255,255,${0.1 * playfieldGeometry.laneOpacity})`,
                 transform: 'translateX(-50%)',
               }}
             />
           ))
         : null,
-    [isLaneUiVisible, playfieldGeometry.laneEdges, playfieldGeometry.laneOpacity]
+    [
+      isLaneUiVisible,
+      playfieldGeometry.laneEdges,
+      playfieldGeometry.laneOpacity,
+      playfieldGeometry.topLaneExtensionEnabled,
+      topExtensionHeight,
+    ]
   );
 
   const topLaneExtensionLayer = useMemo(
