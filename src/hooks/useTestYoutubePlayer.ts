@@ -35,6 +35,7 @@ export function useTestYoutubePlayer({
   const playerRef = useRef<HTMLDivElement>(null);
   const playerReadyRef = useRef(false);
   const audioHasStartedRef = useRef(false);
+  const audioPlaybackEndedRef = useRef(false);
   const lastResyncTimeRef = useRef(0);
   const lastCueSeekTimeRef = useRef(0);
   const lastAudioSyncCheckAtRef = useRef(0);
@@ -53,6 +54,7 @@ export function useTestYoutubePlayer({
       isExternalPlayerRef.current = true;
       // 새 게임 시작이므로 오디오 상태 리셋
       audioHasStartedRef.current = false;
+      audioPlaybackEndedRef.current = false;
 
       // External player 설정
       if (audioSettings) {
@@ -107,6 +109,7 @@ export function useTestYoutubePlayer({
     playerReadyRef.current = false;
     // 새 게임 시작이므로 오디오 상태 리셋
     audioHasStartedRef.current = false;
+    audioPlaybackEndedRef.current = false;
     lastCueSeekTimeRef.current = 0;
     lastResyncTimeRef.current = 0;
     lastAudioSyncCheckAtRef.current = 0;
@@ -198,6 +201,7 @@ export function useTestYoutubePlayer({
     if (!audioSessionActive || !gameStarted || gameEnded || !audioSettings) {
       try {
         audioHasStartedRef.current = false;
+        audioPlaybackEndedRef.current = false;
         player.pauseVideo?.();
       } catch (e) {
         console.warn("YouTube stop on inactive session failed:", e);
@@ -224,6 +228,7 @@ export function useTestYoutubePlayer({
 
       if (currentTime < 0) {
         audioHasStartedRef.current = false;
+        audioPlaybackEndedRef.current = false;
         try {
           player.pauseVideo?.();
           const now = Date.now();
@@ -240,8 +245,32 @@ export function useTestYoutubePlayer({
         return;
       }
 
+      if (audioPlaybackEndedRef.current) {
+        if (shouldProfile) {
+          recordGameplayMetric('audioSync', performance.now() - syncStart, 0);
+        }
+        return;
+      }
+
+      const durationSeconds = player.getDuration?.() ?? 0;
+      const desiredSeconds = getAudioPositionSeconds(currentTime, audioSettings);
+      const hasKnownDuration = Number.isFinite(durationSeconds) && durationSeconds > 0.5;
+      if (hasKnownDuration && desiredSeconds >= durationSeconds - 0.12) {
+        try {
+          player.mute?.();
+          player.pauseVideo?.();
+        } catch (e) {
+          console.warn("YouTube stop at media end failed:", e);
+        }
+        audioHasStartedRef.current = false;
+        audioPlaybackEndedRef.current = true;
+        if (shouldProfile) {
+          recordGameplayMetric('audioSync', performance.now() - syncStart, durationSeconds);
+        }
+        return;
+      }
+
       if (!audioHasStartedRef.current) {
-        const desiredSeconds = getAudioPositionSeconds(currentTime, audioSettings);
         try {
           // 미리듣기에서 볼륨이 낮아져 있을 수 있으므로 설정 볼륨으로 복원하고 음소거 해제
           player.unMute?.();
@@ -271,7 +300,6 @@ export function useTestYoutubePlayer({
       }
       lastAudioSyncCheckAtRef.current = now;
 
-      const desiredSeconds = getAudioPositionSeconds(currentTime, audioSettings);
       const currentSeconds = player.getCurrentTime?.() ?? 0;
       const playerState = player.getPlayerState?.();
 
