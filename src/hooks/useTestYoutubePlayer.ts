@@ -175,6 +175,18 @@ export function useTestYoutubePlayer({
                 }
               }
             },
+            onStateChange: (event: any) => {
+              if (isCancelled) return;
+              if (event.data !== window.YT?.PlayerState?.ENDED) return;
+              audioHasStartedRef.current = false;
+              audioPlaybackEndedRef.current = true;
+              try {
+                event.target.mute?.();
+                event.target.pauseVideo?.();
+              } catch {
+                // ignore
+              }
+            },
           },
         });
       } catch (e) {

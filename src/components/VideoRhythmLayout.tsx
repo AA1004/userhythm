@@ -40,6 +40,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   const [backgroundPlayer, setBackgroundPlayer] = useState<any>(null);
   const backgroundPlayerRef = useRef<any>(null);
   const backgroundPlayerReadyRef = useRef(false);
+  const backgroundPlaybackEndedRef = useRef(false);
   const lastBgaSeekRef = useRef<number | null>(null);
   const lastBgaSyncCheckAtRef = useRef(0);
   const lastElectronBgaStateAtRef = useRef(0);
@@ -50,6 +51,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     if (!playerToDispose) {
       backgroundPlayerReadyRef.current = false;
       backgroundPlayerRef.current = null;
+      backgroundPlaybackEndedRef.current = false;
       lastBgaSeekRef.current = null;
       lastBgaSyncCheckAtRef.current = 0;
       setBackgroundPlayer(null);
@@ -76,6 +78,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
 
     backgroundPlayerReadyRef.current = false;
     backgroundPlayerRef.current = null;
+    backgroundPlaybackEndedRef.current = false;
     lastBgaSeekRef.current = null;
     lastBgaSyncCheckAtRef.current = 0;
     setBackgroundPlayer(null);
@@ -158,8 +161,6 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
             enablejsapi: 1,
             rel: 0,
             modestbranding: 1,
-            loop: 1,
-            playlist: videoId,
           } as any,
           events: {
             onReady: (event: any) => {
@@ -167,6 +168,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
               const player = event.target;
               backgroundPlayerReadyRef.current = true;
               backgroundPlayerRef.current = player;
+              backgroundPlaybackEndedRef.current = false;
               lastBgaSeekRef.current = null;
               lastBgaSyncCheckAtRef.current = 0;
               setBackgroundPlayer(player);
@@ -178,6 +180,12 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
               } catch {
                 // ignore
               }
+            },
+            onStateChange: (event: any) => {
+              if (isCancelled) return;
+              if (event.data !== window.YT?.PlayerState?.ENDED) return;
+              backgroundPlaybackEndedRef.current = true;
+              disposeBackgroundPlayer(event.target);
             },
           },
         });
@@ -198,6 +206,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
 
     try {
       if (shouldPlayBga && bgaEnabled && videoId) {
+        if (backgroundPlaybackEndedRef.current) return;
         backgroundPlayer.playVideo?.();
       } else {
         backgroundPlayer.mute?.();
@@ -239,6 +248,12 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     try {
       const shouldProfile = isGameplayProfilerEnabled();
       const syncStart = shouldProfile ? performance.now() : 0;
+      if (backgroundPlaybackEndedRef.current) {
+        if (shouldProfile) {
+          recordGameplayMetric('bgaSync', performance.now() - syncStart, 0);
+        }
+        return;
+      }
       const now = performance.now();
       const shouldForceSync = lastBgaSeekRef.current === null;
       if (!shouldForceSync && now - lastBgaSyncCheckAtRef.current < 750) {
@@ -248,6 +263,16 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
         return;
       }
       lastBgaSyncCheckAtRef.current = now;
+      const durationSeconds = backgroundPlayer.getDuration?.() ?? 0;
+      const hasKnownDuration = Number.isFinite(durationSeconds) && durationSeconds > 0.5;
+      if (hasKnownDuration && bgaCurrentSeconds >= durationSeconds - 0.12) {
+        backgroundPlaybackEndedRef.current = true;
+        disposeBackgroundPlayer(backgroundPlayer);
+        if (shouldProfile) {
+          recordGameplayMetric('bgaSync', performance.now() - syncStart, durationSeconds);
+        }
+        return;
+      }
       const currentSeconds = backgroundPlayer.getCurrentTime?.() ?? 0;
       const diff = Math.abs(currentSeconds - bgaCurrentSeconds);
 
