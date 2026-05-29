@@ -144,10 +144,24 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
             height: `${topExtensionHeight}px`,
             pointerEvents: 'none',
             zIndex: 36,
-            background: 'transparent',
-            boxShadow: 'none',
+            background: `linear-gradient(180deg,
+              rgba(20, 34, 66, ${Math.min(0.48, 0.18 + playfieldGeometry.laneOpacity * 0.42)}) 0%,
+              rgba(15, 23, 42, ${Math.min(0.34, 0.1 + playfieldGeometry.laneOpacity * 0.28)}) 52%,
+              rgba(15, 23, 42, 0) 100%)`,
+            boxShadow: `inset 0 1px 0 rgba(255,255,255,${0.18 * playfieldGeometry.laneOpacity}),
+              0 18px 30px rgba(8, 15, 32, 0.16)`,
+            borderTop: `1px solid rgba(255,255,255,${0.18 * playfieldGeometry.laneOpacity})`,
+            overflow: 'hidden',
           }}
         >
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background:
+                'linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 18%, rgba(255,255,255,0.01) 82%, rgba(255,255,255,0.04) 100%)',
+            }}
+          />
           {playfieldGeometry.laneEdges.map((x) => (
             <div
               key={`top-edge-${x}`}
@@ -158,10 +172,24 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
                 width: '2px',
                 height: '100%',
                 transform: 'translateX(-50%)',
-                backgroundColor: `rgba(255,255,255,${0.09 * playfieldGeometry.laneOpacity})`,
+                background: `linear-gradient(180deg,
+                  rgba(255,255,255,${0.22 * playfieldGeometry.laneOpacity}) 0%,
+                  rgba(255,255,255,${0.12 * playfieldGeometry.laneOpacity}) 55%,
+                  rgba(255,255,255,0) 100%)`,
+                boxShadow: `0 0 10px rgba(110, 192, 255, ${0.08 * playfieldGeometry.laneOpacity})`,
               }}
             />
           ))}
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: `${Math.min(36, topExtensionHeight * 0.22)}px`,
+              background: 'linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,0.06))',
+            }}
+          />
         </div>
       ) : null,
     [
