@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, RefObject, MutableRefObject } from 'react';
 import { waitForYouTubeAPI } from '../utils/youtube';
 import { getAudioBaseSeconds, getAudioPositionSeconds, AudioSettings } from '../utils/gameHelpers';
+import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 
 export interface UseTestYoutubePlayerOptions {
   audioSessionActive: boolean;
@@ -36,6 +37,7 @@ export function useTestYoutubePlayer({
   const audioHasStartedRef = useRef(false);
   const lastResyncTimeRef = useRef(0);
   const lastCueSeekTimeRef = useRef(0);
+  const lastAudioSyncCheckAtRef = useRef(0);
   const isExternalPlayerRef = useRef(false);
   const latestVolumeRef = useRef(volume);
 
@@ -107,6 +109,7 @@ export function useTestYoutubePlayer({
     audioHasStartedRef.current = false;
     lastCueSeekTimeRef.current = 0;
     lastResyncTimeRef.current = 0;
+    lastAudioSyncCheckAtRef.current = 0;
 
     waitForYouTubeAPI().then(() => {
       if (isCancelled) return;
@@ -215,6 +218,8 @@ export function useTestYoutubePlayer({
     let cancelled = false;
 
     const syncOnce = () => {
+      const shouldProfile = isGameplayProfilerEnabled();
+      const syncStart = shouldProfile ? performance.now() : 0;
       const currentTime = currentTimeRef.current;
 
       if (currentTime < 0) {
@@ -228,6 +233,9 @@ export function useTestYoutubePlayer({
           }
         } catch (e) {
           console.warn("YouTube cueing failed:", e);
+        }
+        if (shouldProfile) {
+          recordGameplayMetric('audioSync', performance.now() - syncStart, 0);
         }
         return;
       }
@@ -248,18 +256,32 @@ export function useTestYoutubePlayer({
         } catch (e) {
           console.warn("YouTube initial playback failed:", e);
         }
+        if (shouldProfile) {
+          recordGameplayMetric('audioSync', performance.now() - syncStart, 1);
+        }
         return;
       }
 
-      try {
-        player.playVideo?.();
-      } catch (e) {
-        console.warn("YouTube resume failed:", e);
+      const now = Date.now();
+      if (now - lastAudioSyncCheckAtRef.current < 850) {
+        if (shouldProfile) {
+          recordGameplayMetric('audioSync', performance.now() - syncStart, 0);
+        }
+        return;
       }
+      lastAudioSyncCheckAtRef.current = now;
 
       const desiredSeconds = getAudioPositionSeconds(currentTime, audioSettings);
       const currentSeconds = player.getCurrentTime?.() ?? 0;
-      const now = Date.now();
+      const playerState = player.getPlayerState?.();
+
+      if (playerState !== window.YT?.PlayerState?.PLAYING) {
+        try {
+          player.playVideo?.();
+        } catch (e) {
+          console.warn("YouTube resume failed:", e);
+        }
+      }
 
       // 임계값: 0.5초 이상 차이날 때만 리싱크
       // 쿨다운: 마지막 리싱크 후 2초 이내에는 리싱크하지 않음
@@ -277,6 +299,9 @@ export function useTestYoutubePlayer({
         } catch (e) {
           console.warn("YouTube resync failed:", e);
         }
+      }
+      if (shouldProfile) {
+        recordGameplayMetric('audioSync', performance.now() - syncStart, Math.abs(currentSeconds - desiredSeconds));
       }
     };
 

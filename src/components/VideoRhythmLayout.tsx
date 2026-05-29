@@ -41,6 +41,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   const backgroundPlayerRef = useRef<any>(null);
   const backgroundPlayerReadyRef = useRef(false);
   const lastBgaSeekRef = useRef<number | null>(null);
+  const lastBgaSyncCheckAtRef = useRef(0);
   const lastElectronBgaStateAtRef = useRef(0);
   const userInteractedRef = useRef(false);
 
@@ -50,6 +51,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       backgroundPlayerReadyRef.current = false;
       backgroundPlayerRef.current = null;
       lastBgaSeekRef.current = null;
+      lastBgaSyncCheckAtRef.current = 0;
       setBackgroundPlayer(null);
       return;
     }
@@ -75,6 +77,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     backgroundPlayerReadyRef.current = false;
     backgroundPlayerRef.current = null;
     lastBgaSeekRef.current = null;
+    lastBgaSyncCheckAtRef.current = 0;
     setBackgroundPlayer(null);
   };
 
@@ -165,6 +168,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
               backgroundPlayerReadyRef.current = true;
               backgroundPlayerRef.current = player;
               lastBgaSeekRef.current = null;
+              lastBgaSyncCheckAtRef.current = 0;
               setBackgroundPlayer(player);
               try {
                 player.mute?.();
@@ -229,20 +233,27 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   // 게임 타임라인에 맞춰 BGA 위치도 함께 시크
   useEffect(() => {
     if (!backgroundPlayer || !backgroundPlayerReadyRef.current) return;
+    if (!shouldPlayBga || !videoId || !bgaEnabled) return;
     if (typeof bgaCurrentSeconds !== 'number') return;
 
     try {
       const shouldProfile = isGameplayProfilerEnabled();
       const syncStart = shouldProfile ? performance.now() : 0;
+      const now = performance.now();
+      const shouldForceSync = lastBgaSeekRef.current === null;
+      if (!shouldForceSync && now - lastBgaSyncCheckAtRef.current < 750) {
+        if (shouldProfile) {
+          recordGameplayMetric('bgaSync', performance.now() - syncStart, 0);
+        }
+        return;
+      }
+      lastBgaSyncCheckAtRef.current = now;
       const currentSeconds = backgroundPlayer.getCurrentTime?.() ?? 0;
       const diff = Math.abs(currentSeconds - bgaCurrentSeconds);
 
       if (diff > 0.3 || lastBgaSeekRef.current === null) {
         backgroundPlayer.seekTo(bgaCurrentSeconds, true);
         lastBgaSeekRef.current = bgaCurrentSeconds;
-        if (!shouldPlayBga) {
-          backgroundPlayer.pauseVideo?.();
-        }
       }
       if (shouldProfile) {
         recordGameplayMetric('bgaSync', performance.now() - syncStart, diff);
@@ -250,7 +261,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     } catch {
       // ignore
     }
-  }, [bgaCurrentSeconds, backgroundPlayer, shouldPlayBga]);
+  }, [bgaCurrentSeconds, backgroundPlayer, shouldPlayBga, videoId, bgaEnabled]);
 
   return (
     <div

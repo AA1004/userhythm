@@ -8,6 +8,7 @@ type GameplayMetricName =
   | 'reactRender'
   | 'activeSubtitle'
   | 'bgaSync'
+  | 'audioSync'
   | 'webglRender'
   | 'spritePoolUpdate'
   | 'effectRender';
