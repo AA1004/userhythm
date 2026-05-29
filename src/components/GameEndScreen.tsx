@@ -60,6 +60,7 @@ export const GameEndScreen: React.FC<GameEndScreenProps> = ({
     ? '채보 테스트 결과를 확인하고 바로 수정 흐름으로 돌아갈 수 있습니다.'
     : '플레이 결과가 정산되었습니다.';
   const accentLabel = isFullCombo ? 'FULL COMBO' : grade === 'SS' ? 'MAXIMUM' : 'RESULT';
+  const clearState = isFullCombo ? 'FULL COMBO' : score.miss === 0 ? 'NO MISS' : `${score.miss} MISS`;
 
   const stats = [
     { label: 'Perfect', value: score.perfect, tone: 'gold' },
@@ -104,6 +105,10 @@ export const GameEndScreen: React.FC<GameEndScreenProps> = ({
             <p className="game-end-eyebrow">{isTestMode ? 'TEST RESULT' : 'PLAY RESULT'}</p>
             <h1>{title}</h1>
             <p>{subtitle}</p>
+            <div className="game-end-status-row">
+              <span className="game-end-status-pill game-end-status-pill--grade">{grade}</span>
+              <span className="game-end-status-pill game-end-status-pill--clear">{clearState}</span>
+            </div>
           </div>
 
           <div className="game-end-rank-block">
@@ -116,7 +121,7 @@ export const GameEndScreen: React.FC<GameEndScreenProps> = ({
         </div>
 
         <div className="game-end-summary">
-          <div className="game-end-primary-metrics">
+          <div className="game-end-focus-panel">
             <div
               className="game-end-accuracy-ring"
               style={{ '--accuracy-angle': `${accuracyAngle}deg` } as React.CSSProperties}
@@ -127,30 +132,39 @@ export const GameEndScreen: React.FC<GameEndScreenProps> = ({
               <small>ACCURACY</small>
             </div>
 
-            <div className="game-end-primary-stack">
-              <div className="game-end-primary-card">
-                <span>MAX COMBO</span>
-                <strong>{score.maxCombo}</strong>
-              </div>
-              <div className="game-end-primary-card">
-                <span>TOTAL NOTES</span>
-                <strong>{totalNotes}</strong>
-              </div>
-              <div className={`game-end-primary-card game-end-primary-card--${isFullCombo ? 'highlight' : 'subtle'}`}>
-                <span>CLEAR STATE</span>
-                <strong>{isFullCombo ? 'FULL COMBO' : score.miss === 0 ? 'NO MISS' : `${score.miss} MISS`}</strong>
-              </div>
+            <div className="game-end-focus-copy">
+              <span className="game-end-focus-copy__eyebrow">SUMMARY</span>
+              <strong className="game-end-focus-copy__title">{grade} CLEAR</strong>
+              <p className="game-end-focus-copy__body">
+                {isTestMode
+                  ? '테스트 결과를 확인하고 바로 수정 흐름으로 복귀할 수 있습니다.'
+                  : '핵심 지표와 판정 분포를 기준으로 이번 플레이 결과를 정리했습니다.'}
+              </p>
             </div>
           </div>
-
-          <div className="game-end-stats">
-            {stats.map((item) => (
-              <div className={`game-end-stat game-end-stat--${item.tone}`} key={item.label}>
-                <span>{item.label}</span>
-                <strong>{item.value}</strong>
-              </div>
-            ))}
+          <div className="game-end-metric-strip">
+            <div className="game-end-primary-card">
+              <span>MAX COMBO</span>
+              <strong>{score.maxCombo}</strong>
+            </div>
+            <div className="game-end-primary-card">
+              <span>TOTAL NOTES</span>
+              <strong>{totalNotes}</strong>
+            </div>
+            <div className={`game-end-primary-card game-end-primary-card--${isFullCombo ? 'highlight' : 'subtle'}`}>
+              <span>CLEAR STATE</span>
+              <strong>{clearState}</strong>
+            </div>
           </div>
+        </div>
+
+        <div className="game-end-stats">
+          {stats.map((item) => (
+            <div className={`game-end-stat game-end-stat--${item.tone}`} key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+          ))}
         </div>
 
         <div className="game-end-actions">

@@ -38,10 +38,45 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const backgroundPlayerContainerRef = useRef<HTMLDivElement | null>(null);
   const [backgroundPlayer, setBackgroundPlayer] = useState<any>(null);
+  const backgroundPlayerRef = useRef<any>(null);
   const backgroundPlayerReadyRef = useRef(false);
   const lastBgaSeekRef = useRef<number | null>(null);
   const lastElectronBgaStateAtRef = useRef(0);
   const userInteractedRef = useRef(false);
+
+  const disposeBackgroundPlayer = (playerInstance?: any | null) => {
+    const playerToDispose = playerInstance ?? backgroundPlayerRef.current;
+    if (!playerToDispose) {
+      backgroundPlayerReadyRef.current = false;
+      backgroundPlayerRef.current = null;
+      lastBgaSeekRef.current = null;
+      setBackgroundPlayer(null);
+      return;
+    }
+
+    try {
+      playerToDispose.mute?.();
+    } catch {
+      // ignore
+    }
+
+    try {
+      playerToDispose.pauseVideo?.();
+    } catch {
+      // ignore
+    }
+
+    try {
+      playerToDispose.destroy?.();
+    } catch {
+      // ignore
+    }
+
+    backgroundPlayerReadyRef.current = false;
+    backgroundPlayerRef.current = null;
+    lastBgaSeekRef.current = null;
+    setBackgroundPlayer(null);
+  };
 
   useEffect(() => {
     const sendBounds = () => {
@@ -88,15 +123,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   // 배경용 YouTube 플레이어 초기화
   useEffect(() => {
     if (!videoId || !bgaEnabled) {
-      if (backgroundPlayer) {
-        try {
-          backgroundPlayer.destroy?.();
-        } catch {
-          // ignore
-        }
-        setBackgroundPlayer(null);
-      }
-      backgroundPlayerReadyRef.current = false;
+      disposeBackgroundPlayer();
       return;
     }
 
@@ -136,9 +163,12 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
               if (isCancelled) return;
               const player = event.target;
               backgroundPlayerReadyRef.current = true;
+              backgroundPlayerRef.current = player;
+              lastBgaSeekRef.current = null;
               setBackgroundPlayer(player);
               try {
                 player.mute?.();
+                player.pauseVideo?.();
                 // 게임 시작 전에 미리 재생해서 UI를 띄워놓기
                 // 사용자 인터랙션이 필요하므로 pointerdown 이벤트에서 처리
               } catch {
@@ -154,15 +184,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
 
     return () => {
       isCancelled = true;
-      backgroundPlayerReadyRef.current = false;
-      if (playerInstance) {
-        try {
-          playerInstance.destroy?.();
-        } catch {
-          // ignore
-        }
-      }
-      setBackgroundPlayer(null);
+      disposeBackgroundPlayer(playerInstance);
     };
   }, [videoId, bgaEnabled]);
 
@@ -174,6 +196,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       if (shouldPlayBga && bgaEnabled && videoId) {
         backgroundPlayer.playVideo?.();
       } else {
+        backgroundPlayer.mute?.();
         backgroundPlayer.pauseVideo?.();
       }
     } catch {
@@ -188,13 +211,10 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     const handlePointerDown = () => {
       userInteractedRef.current = true;
       if (!backgroundPlayerReadyRef.current) return;
-      if (!bgaEnabled || !videoId) return;
+      if (!bgaEnabled || !videoId || !shouldPlayBga) return;
 
       try {
         backgroundPlayer.playVideo?.();
-        if (!shouldPlayBga) {
-          backgroundPlayer.pauseVideo?.();
-        }
       } catch {
         // ignore
       }
