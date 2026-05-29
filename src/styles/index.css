@@ -1857,7 +1857,7 @@ body {
   z-index: 2500;
   display: grid;
   place-items: center;
-  padding: 28px;
+  padding: 14px;
   color: #f6fbff;
   pointer-events: auto;
   background:
@@ -1870,11 +1870,11 @@ body {
 
 .game-end-panel {
   position: relative;
-  overflow: hidden;
-  width: min(960px, calc(100% - 44px));
-  padding: 32px;
+  width: min(440px, calc(100% - 12px));
+  max-height: calc(100% - 12px);
+  padding: 22px 18px 18px;
   border: 1px solid rgba(238, 247, 242, 0.14);
-  border-radius: 34px;
+  border-radius: 28px;
   background:
     linear-gradient(145deg, rgba(9, 14, 26, 0.94), rgba(7, 10, 18, 0.9)),
     rgba(5, 8, 14, 0.92);
@@ -1882,6 +1882,8 @@ body {
     0 34px 88px rgba(0, 0, 0, 0.52),
     inset 0 0 44px rgba(119, 255, 214, 0.05);
   animation: gameEndPanelIn 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .game-end-grid {
@@ -1918,9 +1920,9 @@ body {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 20px;
-  align-items: end;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: stretch;
 }
 
 .game-end-copy {
@@ -1940,8 +1942,8 @@ body {
 .game-end-copy h1 {
   margin: 0;
   color: #ffffff;
-  font-size: clamp(34px, 6vw, 54px);
-  line-height: 1;
+  font-size: clamp(34px, 8vw, 58px);
+  line-height: 0.95;
   letter-spacing: -0.055em;
   text-shadow: 0 0 28px rgba(119, 255, 214, 0.28);
 }
@@ -1986,13 +1988,13 @@ body {
 }
 
 .game-end-rank-block {
-  min-width: 212px;
-  padding: 20px 22px;
-  border-radius: 24px;
+  min-width: 0;
+  padding: 16px 18px;
+  border-radius: 20px;
   border: 1px solid rgba(255,255,255,0.08);
   background:
     linear-gradient(145deg, rgba(10, 16, 28, 0.9), rgba(8, 12, 22, 0.78));
-  text-align: right;
+  text-align: left;
   box-shadow: inset 0 0 28px rgba(119, 255, 214, 0.06);
   animation: gameEndStatIn 420ms 120ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -2026,20 +2028,20 @@ body {
 
 .game-end-summary {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.92fr);
-  gap: 16px;
+  grid-template-columns: 1fr;
+  gap: 12px;
   align-items: stretch;
-  margin-top: 26px;
+  margin-top: 18px;
 }
 
 .game-end-focus-panel {
   display: grid;
-  grid-template-columns: 176px minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: 1fr;
+  gap: 14px;
   align-items: center;
-  padding: 18px;
+  padding: 16px;
   border: 1px solid rgba(238, 247, 242, 0.1);
-  border-radius: 28px;
+  border-radius: 22px;
   background:
     linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.025)),
     rgba(7, 10, 18, 0.72);
@@ -2050,8 +2052,8 @@ body {
   --accuracy-angle: 0deg;
   position: relative;
   display: block;
-  width: 164px;
-  height: 164px;
+  width: 150px;
+  height: 150px;
   margin: 0 auto;
   border-radius: 50%;
   background:
@@ -2065,14 +2067,14 @@ body {
 
 .game-end-grade {
   position: absolute;
-  top: 18px;
+  top: 16px;
   left: 50%;
   transform: translateX(-50%);
   line-height: 1;
   text-align: center;
   white-space: nowrap;
   color: #ffcf5f;
-  font-size: 28px;
+  font-size: 25px;
   font-weight: 950;
   letter-spacing: -0.04em;
   text-shadow: 0 0 18px rgba(255, 207, 95, 0.4);
@@ -2080,11 +2082,11 @@ body {
 
 .game-end-accuracy-ring strong {
   position: absolute;
-  top: 86px;
+  top: 79px;
   left: 50%;
   transform: translate(-50%, -50%);
   color: #ffffff;
-  font-size: 24px;
+  font-size: 22px;
   line-height: 1;
   white-space: nowrap;
   letter-spacing: -0.04em;
@@ -2092,7 +2094,7 @@ body {
 
 .game-end-accuracy-ring small {
   position: absolute;
-  top: 128px;
+  top: 118px;
   left: 50%;
   transform: translate(-50%, -50%);
   color: rgba(238, 247, 242, 0.5);
@@ -2130,14 +2132,14 @@ body {
 
 .game-end-metric-strip {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 
 .game-end-primary-card {
-  min-height: 120px;
+  min-height: 88px;
   padding: 16px 14px;
-  border-radius: 22px;
+  border-radius: 18px;
   border: 1px solid rgba(238, 247, 242, 0.1);
   background:
     linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
@@ -2160,7 +2162,7 @@ body {
 
 .game-end-primary-card strong {
   color: #ffffff;
-  font-size: clamp(24px, 3vw, 34px);
+  font-size: clamp(20px, 5vw, 28px);
   line-height: 1;
   letter-spacing: -0.05em;
 }
@@ -2183,16 +2185,16 @@ body {
 
 .game-end-stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  margin-top: 14px;
+  margin-top: 12px;
 }
 
 .game-end-stat {
-  min-height: 84px;
-  padding: 12px 14px;
+  min-height: 76px;
+  padding: 11px 12px;
   border: 1px solid rgba(238, 247, 242, 0.1);
-  border-radius: 20px;
+  border-radius: 18px;
   background:
     linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03));
   animation: gameEndStatIn 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -2218,7 +2220,7 @@ body {
   display: block;
   margin-top: 7px;
   color: #f8fbff;
-  font-size: 21px;
+  font-size: 18px;
   letter-spacing: -0.04em;
 }
 
@@ -2229,9 +2231,9 @@ body {
 
 .game-end-actions {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: 1fr;
   gap: 12px;
-  margin-top: 24px;
+  margin-top: 18px;
   padding-top: 18px;
   border-top: 1px solid rgba(238, 247, 242, 0.08);
 }
@@ -2271,8 +2273,8 @@ body {
   place-items: center;
   gap: 5px;
   margin-bottom: 18px;
-  padding: 18px 24px;
-  border-radius: 24px;
+  padding: 16px 18px;
+  border-radius: 20px;
   border: 1px solid rgba(255, 207, 95, 0.42);
   background:
     linear-gradient(90deg, rgba(255, 207, 95, 0.18), rgba(119, 255, 214, 0.18), rgba(255, 95, 133, 0.18)),
@@ -2293,7 +2295,7 @@ body {
 
 .game-end-full-combo strong {
   color: #fff5cf;
-  font-size: clamp(32px, 5vw, 52px);
+  font-size: clamp(28px, 7vw, 42px);
   line-height: 0.92;
   letter-spacing: -0.06em;
   text-shadow:
@@ -2330,16 +2332,12 @@ body {
 
 @media (max-width: 680px) {
   .game-end-panel {
-    padding: 22px 18px;
+    padding: 18px 14px 14px;
   }
 
   .game-end-hero,
   .game-end-summary {
     grid-template-columns: 1fr;
-  }
-
-  .game-end-rank-block {
-    text-align: left;
   }
 
   .game-end-focus-panel {
