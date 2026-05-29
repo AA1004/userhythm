@@ -37,10 +37,18 @@ export function useChartYoutubePlayer({
   const wasPlayingRef = useRef(false);
   const latestTimeRef = useRef(0);
   const lastAppliedAudioOffsetRef = useRef(audioOffsetMs);
+  const playbackCommandTokenRef = useRef(0);
+  const playbackRetryTimerRef = useRef<number | null>(null);
   const getPlayerTimeSeconds = useCallback(
     (timeMs: number) => Math.max(0, timeMs - audioOffsetMs) / 1000,
     [audioOffsetMs]
   );
+  const clearPlaybackRetryTimer = useCallback(() => {
+    if (playbackRetryTimerRef.current !== null) {
+      window.clearTimeout(playbackRetryTimerRef.current);
+      playbackRetryTimerRef.current = null;
+    }
+  }, []);
   const syncPlayerToTimeline = useCallback(
     (timeMs: number, shouldAutoplay: boolean, forceReload = false) => {
       if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
@@ -253,6 +261,7 @@ export function useChartYoutubePlayer({
 
     return () => {
       isCancelled = true;
+      clearPlaybackRetryTimer();
       if (playerInstance) {
         cleanup(playerInstance);
       }
@@ -261,7 +270,7 @@ export function useChartYoutubePlayer({
         youtubePlayerRef.current.innerHTML = '';
       }
     };
-  }, [youtubeVideoId, setIsPlaying, setCurrentTime, volume]);
+  }, [youtubeVideoId, setIsPlaying, setCurrentTime, volume, clearPlaybackRetryTimer]);
 
   // latest currentTime snapshot (재생 시작 시점에서 사용)
   useEffect(() => {
@@ -271,43 +280,67 @@ export function useChartYoutubePlayer({
   // 재생/일시정지 제어 (YouTube 쪽만 제어, 타임라인은 별도 동기화)
   useEffect(() => {
     if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
+    const commandToken = ++playbackCommandTokenRef.current;
+    clearPlaybackRetryTimer();
 
-    const ensurePlaying = () => {
+    const applyPlaybackState = (attempt: number) => {
+      if (playbackCommandTokenRef.current !== commandToken) return;
+
       try {
         const playerState = youtubePlayer.getPlayerState?.();
+
+        if (isPlaying) {
+          if (!wasPlayingRef.current) {
+            syncPlayerToTimeline(latestTimeRef.current, true);
+          } else if (
+            typeof window !== 'undefined' &&
+            window.YT &&
+            playerState !== window.YT.PlayerState.PLAYING
+          ) {
+            youtubePlayer.playVideo?.();
+          }
+
+          wasPlayingRef.current = true;
+
+          if (
+            typeof window !== 'undefined' &&
+            window.YT &&
+            youtubePlayer.getPlayerState?.() !== window.YT.PlayerState.PLAYING &&
+            attempt < 4
+          ) {
+            playbackRetryTimerRef.current = window.setTimeout(() => applyPlaybackState(attempt + 1), 70);
+          }
+          return;
+        }
+
+        youtubePlayer.pauseVideo?.();
+        wasPlayingRef.current = false;
+
         if (
           typeof window !== 'undefined' &&
           window.YT &&
-          playerState !== window.YT.PlayerState.PLAYING
+          youtubePlayer.getPlayerState?.() === window.YT.PlayerState.PLAYING &&
+          attempt < 4
         ) {
-          youtubePlayer.playVideo?.();
+          playbackRetryTimerRef.current = window.setTimeout(() => applyPlaybackState(attempt + 1), 70);
         }
       } catch (e) {
-        console.warn('재생 상태 확인 실패:', e);
+        console.warn('재생 제어 실패:', e);
       }
     };
 
-    try {
-        if (isPlaying) {
-          if (!wasPlayingRef.current) {
-          syncPlayerToTimeline(latestTimeRef.current, true);
-        } else {
-          ensurePlaying();
-        }
-      } else {
-        youtubePlayer.pauseVideo?.();
-      }
-    } catch (e) {
-      console.warn('재생 제어 실패:', e);
-    }
+    applyPlaybackState(0);
 
-    wasPlayingRef.current = isPlaying;
-  }, [isPlaying, youtubePlayer, syncPlayerToTimeline]);
+    return () => {
+      clearPlaybackRetryTimer();
+    };
+  }, [clearPlaybackRetryTimer, isPlaying, youtubePlayer, syncPlayerToTimeline]);
 
   // 플레이어가 새로 생성되면 재생 상태 초기화
   useEffect(() => {
     wasPlayingRef.current = false;
-  }, [youtubePlayer]);
+    clearPlaybackRetryTimer();
+  }, [youtubePlayer, clearPlaybackRetryTimer]);
 
   // 재생 속도 제어
   useEffect(() => {
