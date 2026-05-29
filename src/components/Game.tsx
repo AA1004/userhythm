@@ -336,19 +336,22 @@ export const Game: React.FC = () => {
   });
 
   const handleEditorTestWithRuntimeReset = useCallback(
-    (payload: Parameters<typeof handleEditorTest>[0]) => {
-      setIsTestMode(false);
-      setIsFromEditor(false);
-      setTestAudioSettings(null);
-      setTestYoutubeVideoId(null);
-      destroyYoutubePlayer();
+      (payload: Parameters<typeof handleEditorTest>[0]) => {
+        if (hasPendingVisualSettings) {
+          applyPendingVisualSettings();
+        }
+        setIsTestMode(false);
+        setIsFromEditor(false);
+        setTestAudioSettings(null);
+        setTestYoutubeVideoId(null);
+        destroyYoutubePlayer();
       currentTimeRef.current = -START_DELAY_MS;
       window.setTimeout(() => {
         handleEditorTest(payload);
       }, 0);
     },
-    [handleEditorTest, destroyYoutubePlayer]
-  );
+      [handleEditorTest, destroyYoutubePlayer, hasPendingVisualSettings, applyPendingVisualSettings]
+    );
 
   const handleRetestWithRuntimeReset = useCallback(() => {
     currentTimeRef.current = -START_DELAY_MS;
