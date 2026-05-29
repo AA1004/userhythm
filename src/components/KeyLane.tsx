@@ -27,28 +27,26 @@ const KeyLaneComponent: React.FC<KeyLaneProps> = ({
 }) => {
   const isNewVariant = styleVariant === 'new';
   const laneBackgroundColor = isNewVariant
-    ? isPressed
-      ? 'linear-gradient(160deg, rgba(104, 244, 213, 0.85), rgba(255, 173, 102, 0.82), rgba(255, 109, 147, 0.85))'
-      : 'linear-gradient(170deg, rgba(10, 18, 35, 0.84), rgba(15, 27, 52, 0.74))'
-    : isPressed
-    ? '#FFC107'
+    ? 'linear-gradient(170deg, rgba(10, 18, 35, 0.84), rgba(15, 27, 52, 0.74))'
     : '#2196F3';
   const laneBorderColor = isNewVariant
-    ? isPressed
-      ? 'rgba(245, 252, 255, 0.88)'
-      : 'rgba(104, 244, 213, 0.44)'
+    ? 'rgba(104, 244, 213, 0.44)'
     : '#1976D2';
   const laneShadow = isNewVariant
-    ? isPressed
-      ? glowEnabled
-        ? '0 0 0 2px rgba(104, 244, 213, 0.5), 0 6px 12px rgba(0, 0, 0, 0.3)'
-        : '0 6px 14px rgba(0, 0, 0, 0.3)'
-      : glowEnabled
+    ? glowEnabled
       ? '0 6px 12px rgba(0, 0, 0, 0.26)'
       : '0 6px 14px rgba(0, 0, 0, 0.28)'
-    : isPressed && glowEnabled
-    ? '0 0 0 2px rgba(255, 193, 7, 0.7), 0 6px 12px rgba(0,0,0,0.3)'
     : '0 4px 8px rgba(0,0,0,0.3)';
+  const pressedOverlayBackground = isNewVariant
+    ? 'linear-gradient(160deg, rgba(104, 244, 213, 0.8), rgba(255, 173, 102, 0.76), rgba(255, 109, 147, 0.8))'
+    : 'rgba(255, 193, 7, 0.9)';
+  const pressedOverlayShadow = isNewVariant
+    ? glowEnabled
+      ? 'inset 0 0 0 2px rgba(245,252,255,0.34), 0 0 16px rgba(104, 244, 213, 0.22)'
+      : 'inset 0 0 0 2px rgba(245,252,255,0.24)'
+    : glowEnabled
+    ? 'inset 0 0 0 2px rgba(255, 193, 7, 0.72), 0 0 14px rgba(255, 193, 7, 0.18)'
+    : 'inset 0 0 0 2px rgba(255, 193, 7, 0.6)';
 
   return (
     <div
@@ -65,17 +63,28 @@ const KeyLaneComponent: React.FC<KeyLaneProps> = ({
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        transform:
-          pulseEnabled && isPressed
-            ? 'translateX(-50%) translateY(2px) scale(0.97)'
-            : 'translateX(-50%) scale(1)',
-        transition: 'transform 40ms ease, opacity 80ms linear',
-        willChange: 'transform',
+        transform: 'translateX(-50%)',
+        transition: 'opacity 80ms linear',
+        willChange: 'opacity',
         boxShadow: laneShadow,
         opacity,
         overflow: 'hidden',
       }}
     >
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          opacity: isPressed ? 1 : 0,
+          transition:
+            pulseEnabled && isPressed
+              ? 'opacity 18ms linear'
+              : 'opacity 70ms ease-out',
+          background: pressedOverlayBackground,
+          boxShadow: pressedOverlayShadow,
+        }}
+      />
       {isNewVariant && (
         <div
           style={{
@@ -83,7 +92,7 @@ const KeyLaneComponent: React.FC<KeyLaneProps> = ({
             inset: 0,
             pointerEvents: 'none',
             background: isPressed
-              ? 'linear-gradient(180deg, rgba(255,255,255,0.25), rgba(255,255,255,0.02) 36%, rgba(0,0,0,0.08) 100%)'
+              ? 'linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0.03) 34%, rgba(0,0,0,0.06) 100%)'
               : 'linear-gradient(180deg, rgba(255,255,255,0.1), rgba(255,255,255,0.02) 30%, rgba(0,0,0,0.08) 100%)',
           }}
         />
@@ -124,7 +133,7 @@ const KeyLaneComponent: React.FC<KeyLaneProps> = ({
             background: isPressed
               ? 'linear-gradient(90deg, #68f4d5, #d3ff78, #ffad66, #ff6d93)'
               : 'rgba(255, 255, 255, 0.18)',
-            boxShadow: isPressed && glowEnabled ? '0 0 10px rgba(104, 244, 213, 0.45)' : 'none',
+            boxShadow: isPressed && glowEnabled ? '0 0 6px rgba(104, 244, 213, 0.3)' : 'none',
           }}
         />
       )}

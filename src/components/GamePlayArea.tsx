@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { Lane, Note } from '../types/game';
 import { KeyLane } from './KeyLane';
 import { JudgeLine } from './JudgeLine';
@@ -57,9 +57,9 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
   const judgeFeedbackTop = Math.max(120, judgeLineY - 140);
   const topExtensionHeight = Math.max(100, Math.min(GAME_VIEW_HEIGHT * 0.58, judgeLineY - 36));
 
-  return (
-    <>
-      {isLaneUiVisible && (
+  const laneBackgroundLayer = useMemo(
+    () =>
+      isLaneUiVisible ? (
         <div
           style={{
             position: 'absolute',
@@ -70,54 +70,71 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
             backgroundColor: `rgba(15, 23, 42, ${0.6 * playfieldGeometry.laneOpacity})`,
           }}
         />
-      )}
+      ) : null,
+    [isLaneUiVisible, playfieldGeometry.laneGroupLeft, playfieldGeometry.laneGroupWidth, playfieldGeometry.laneOpacity]
+  );
 
-      {isLaneUiVisible &&
-        playfieldGeometry.lanePressTintEnabled &&
-        playfieldGeometry.laneCenters.map((x, index) => {
-          const isPressed = pressedKeys.has(index as Lane);
-          return (
+  const lanePressTintLayer = useMemo(
+    () =>
+      isLaneUiVisible && playfieldGeometry.lanePressTintEnabled
+        ? playfieldGeometry.laneCenters.map((x, index) => {
+            const isPressed = pressedKeys.has(index as Lane);
+            return (
+              <div
+                key={`lane-press-${index}`}
+                style={{
+                  position: 'absolute',
+                  left: `${x}px`,
+                  top: 0,
+                  width: `${playfieldGeometry.laneWidth}px`,
+                  height: `${playfieldGeometry.keyLaneY + 100}px`,
+                  transform: 'translateX(-50%)',
+                  pointerEvents: 'none',
+                  zIndex: 24,
+                  opacity: isPressed ? 1 : 0,
+                  transition: isPressed ? 'opacity 18ms linear' : 'opacity 70ms ease-out',
+                  background: isPressed
+                    ? 'linear-gradient(180deg, rgba(34,139,255,0.12) 0%, rgba(56,189,248,0.08) 42%, rgba(44,130,255,0.14) 100%)'
+                    : 'transparent',
+                }}
+              />
+            );
+          })
+        : null,
+    [
+      isLaneUiVisible,
+      playfieldGeometry.lanePressTintEnabled,
+      playfieldGeometry.laneCenters,
+      playfieldGeometry.laneWidth,
+      playfieldGeometry.keyLaneY,
+      pressedKeys,
+    ]
+  );
+
+  const laneEdgeLayer = useMemo(
+    () =>
+      isLaneUiVisible
+        ? playfieldGeometry.laneEdges.map((x) => (
             <div
-              key={`lane-press-${index}`}
+              key={x}
               style={{
                 position: 'absolute',
                 left: `${x}px`,
-                top: 0,
-                width: `${playfieldGeometry.laneWidth}px`,
-                height: `${playfieldGeometry.keyLaneY + 100}px`,
+                top: '0',
+                width: '2px',
+                height: '100%',
+                backgroundColor: `rgba(255,255,255,${0.1 * playfieldGeometry.laneOpacity})`,
                 transform: 'translateX(-50%)',
-                pointerEvents: 'none',
-                zIndex: 24,
-                opacity: isPressed ? 1 : 0,
-                transition: isPressed ? 'opacity 22ms linear' : 'opacity 90ms ease-out',
-                background: isPressed
-                  ? 'linear-gradient(180deg, rgba(34,139,255,0.14) 0%, rgba(56,189,248,0.08) 34%, rgba(76,160,255,0.06) 68%, rgba(44,130,255,0.18) 100%)'
-                  : 'transparent',
-                boxShadow: isPressed
-                  ? 'inset 0 0 32px rgba(70,170,255,0.2), 0 0 28px rgba(35,130,255,0.12)'
-                  : 'none',
               }}
             />
-          );
-        })}
+          ))
+        : null,
+    [isLaneUiVisible, playfieldGeometry.laneEdges, playfieldGeometry.laneOpacity]
+  );
 
-      {isLaneUiVisible &&
-        playfieldGeometry.laneEdges.map((x) => (
-          <div
-            key={x}
-            style={{
-              position: 'absolute',
-              left: `${x}px`,
-              top: '0',
-              width: '2px',
-              height: '100%',
-              backgroundColor: `rgba(255,255,255,${0.1 * playfieldGeometry.laneOpacity})`,
-              transform: 'translateX(-50%)',
-            }}
-          />
-        ))}
-
-      {isLaneUiVisible && playfieldGeometry.topLaneExtensionEnabled && (
+  const topLaneExtensionLayer = useMemo(
+    () =>
+      isLaneUiVisible && playfieldGeometry.topLaneExtensionEnabled ? (
         <div
           style={{
             position: 'absolute',
@@ -146,9 +163,21 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
             />
           ))}
         </div>
-      )}
+      ) : null,
+    [
+      isLaneUiVisible,
+      playfieldGeometry.topLaneExtensionEnabled,
+      playfieldGeometry.laneGroupLeft,
+      playfieldGeometry.laneGroupWidth,
+      playfieldGeometry.laneEdges,
+      playfieldGeometry.laneOpacity,
+      topExtensionHeight,
+    ]
+  );
 
-      {isLaneUiVisible && (
+  const noteFieldLayer = useMemo(
+    () =>
+      isLaneUiVisible ? (
         <>
           {playfieldGeometry.renderBackend === 'webgl' ? (
             <WebglBetaNoteRenderer
@@ -194,42 +223,104 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
             </>
           )}
         </>
-      )}
+      ) : null,
+    [
+      isLaneUiVisible,
+      playfieldGeometry.renderBackend,
+      playfieldGeometry.noteWidth,
+      playfieldGeometry.noteHeight,
+      playfieldGeometry.laneCenters,
+      notes,
+      currentTimeRef,
+      fallDuration,
+      judgeLineY,
+      holdingNotes,
+      hitNoteIdsRef,
+    ]
+  );
 
-      {gameStarted && isLaneUiVisible && (
+  const judgeLineLayer = useMemo(
+    () =>
+      gameStarted && isLaneUiVisible ? (
         <JudgeLine
           left={playfieldGeometry.judgeLineLeft}
           width={playfieldGeometry.judgeLineWidth}
           top={judgeLineY}
           opacity={1}
         />
-      )}
+      ) : null,
+    [
+      gameStarted,
+      isLaneUiVisible,
+      playfieldGeometry.judgeLineLeft,
+      playfieldGeometry.judgeLineWidth,
+      judgeLineY,
+    ]
+  );
 
-      {gameStarted && (
+  const comboLayer = useMemo(
+    () =>
+      gameStarted ? (
         <ComboDisplay
           combo={combo}
           laneGroupCenterX={playfieldGeometry.laneGroupLeft + playfieldGeometry.laneGroupWidth / 2}
           numberOpacity={playfieldGeometry.comboOpacity}
           visible={isLaneUiVisible}
         />
-      )}
+      ) : null,
+    [
+      gameStarted,
+      combo,
+      playfieldGeometry.laneGroupLeft,
+      playfieldGeometry.laneGroupWidth,
+      playfieldGeometry.comboOpacity,
+      isLaneUiVisible,
+    ]
+  );
 
-      {gameStarted &&
-        isLaneUiVisible &&
-        playfieldGeometry.laneCenters.map((x, index) => (
-          <KeyLane
-            key={index}
-            x={x}
-            top={playfieldGeometry.keyLaneY}
-            width={playfieldGeometry.laneWidth}
-            keys={laneKeyLabels[index]}
-            isPressed={pressedKeys.has(index as Lane)}
-            opacity={playfieldGeometry.keyLaneOpacity}
-            styleVariant={playfieldGeometry.gameplayHudMode}
-            glowEnabled={playfieldGeometry.keyPressGlowEnabled}
-            pulseEnabled={playfieldGeometry.keyPressPulseEnabled}
-          />
-        ))}
+  const keyLaneLayer = useMemo(
+    () =>
+      gameStarted && isLaneUiVisible
+        ? playfieldGeometry.laneCenters.map((x, index) => (
+            <KeyLane
+              key={index}
+              x={x}
+              top={playfieldGeometry.keyLaneY}
+              width={playfieldGeometry.laneWidth}
+              keys={laneKeyLabels[index]}
+              isPressed={pressedKeys.has(index as Lane)}
+              opacity={playfieldGeometry.keyLaneOpacity}
+              styleVariant={playfieldGeometry.gameplayHudMode}
+              glowEnabled={playfieldGeometry.keyPressGlowEnabled}
+              pulseEnabled={playfieldGeometry.keyPressPulseEnabled}
+            />
+          ))
+        : null,
+    [
+      gameStarted,
+      isLaneUiVisible,
+      playfieldGeometry.laneCenters,
+      playfieldGeometry.keyLaneY,
+      playfieldGeometry.laneWidth,
+      playfieldGeometry.keyLaneOpacity,
+      playfieldGeometry.gameplayHudMode,
+      playfieldGeometry.keyPressGlowEnabled,
+      playfieldGeometry.keyPressPulseEnabled,
+      laneKeyLabels,
+      pressedKeys,
+    ]
+  );
+
+  return (
+    <>
+      {laneBackgroundLayer}
+      {lanePressTintLayer}
+      {laneEdgeLayer}
+      {topLaneExtensionLayer}
+      {noteFieldLayer}
+      {judgeLineLayer}
+      {comboLayer}
+      {keyLaneLayer}
 
       <div
         style={{
