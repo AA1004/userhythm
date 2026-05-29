@@ -325,7 +325,7 @@ export const Game: React.FC = () => {
     pause: pauseYoutubePlayer,
     destroy: destroyYoutubePlayer,
   } = useTestYoutubePlayer({
-    audioSessionActive: hasYoutubeAudioSession,
+    audioSessionActive: hasYoutubeAudioSession && gameState.gameStarted && !gameState.gameEnded,
     gameStarted: gameState.gameStarted,
     gameEnded: gameState.gameEnded,
     currentTimeRef,
@@ -979,7 +979,7 @@ export const Game: React.FC = () => {
               )}
 
       {/* 테스트 모드 YouTube 플레이어 (숨김 - 오디오만 재생) */}
-              {hasYoutubeAudioSession && testYoutubeVideoId && (
+              {isGameplayActive && hasYoutubeAudioSession && testYoutubeVideoId && (
                 <div
                   ref={testYoutubePlayerRef}
                   style={{
