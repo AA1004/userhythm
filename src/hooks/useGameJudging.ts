@@ -154,15 +154,11 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
 
   const [pressedKeys, setPressedKeys] = useState<Set<Lane>>(new Set());
   const pressedKeysRef = useRef<Set<Lane>>(new Set());
-  const pressedKeysFrameRef = useRef<number | null>(null);
   const [displayScore, setDisplayScore] = useState<GameState['score']>(gameState.score);
-  const displayScoreFrameRef = useRef<number | null>(null);
   const [combo, setCombo] = useState<number>(gameState.score.combo);
   const comboRef = useRef<number>(gameState.score.combo);
-  const comboFrameRef = useRef<number | null>(null);
   const [holdingNotes, setHoldingNotes] = useState<Map<number, Note>>(new Map());
   const holdingNotesRef = useRef<Map<number, Note>>(new Map());
-  const holdingNotesFrameRef = useRef<number | null>(null);
   const judgeFeedbacksRef = useRef<JudgeFeedback[]>([]);
   const feedbackIdRef = useRef(0);
   const keyEffectsRef = useRef<KeyEffect[]>([]);
@@ -171,12 +167,19 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   const committedJudgeFeedbacksRef = useRef<JudgeFeedback[]>([]);
   const committedKeyEffectsRef = useRef<KeyEffect[]>([]);
   const effectCleanupTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const effectsFrameRef = useRef<number | null>(null);
   const scoreRuntimeRef = useRef<GameState['score']>(gameState.score);
   const scoreSnapshotTimerRef = useRef<NodeJS.Timeout | null>(null);
   const judgeLaneCursorRef = useRef<number[]>([0, 0, 0, 0]);
   const holdStartJudgeRef = useRef<Map<number, JudgeType>>(new Map());
   const freshSessionResetRef = useRef(false);
+  const uiCommitFrameRef = useRef<number | null>(null);
+  const uiDirtyRef = useRef({
+    pressedKeys: false,
+    displayScore: false,
+    combo: false,
+    holdingNotes: false,
+    effects: false,
+  });
 
   const clearEffectCleanupTimer = useCallback(() => {
     if (effectCleanupTimerRef.current) {
@@ -185,22 +188,59 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     }
   }, []);
 
-  const commitEffectsNextFrame = useCallback(() => {
-    if (effectsFrameRef.current !== null) return;
-    effectsFrameRef.current = requestAnimationFrame(() => {
-      effectsFrameRef.current = null;
-      const feedbackSnapshot = [...judgeFeedbacksRef.current];
-      const effectsSnapshot = [...keyEffectsRef.current];
-      if (
-        judgeFeedbackArraysEqual(committedJudgeFeedbacksRef.current, feedbackSnapshot) &&
-        keyEffectArraysEqual(committedKeyEffectsRef.current, effectsSnapshot)
-      ) {
+  const scheduleUiCommit = useCallback(() => {
+    if (uiCommitFrameRef.current !== null) return;
+    uiCommitFrameRef.current = requestAnimationFrame(() => {
+      uiCommitFrameRef.current = null;
+
+      const dirty = uiDirtyRef.current;
+      uiDirtyRef.current = {
+        pressedKeys: false,
+        displayScore: false,
+        combo: false,
+        holdingNotes: false,
+        effects: false,
+      };
+
+      if (!dirty.pressedKeys && !dirty.displayScore && !dirty.combo && !dirty.holdingNotes && !dirty.effects) {
         return;
       }
-      committedJudgeFeedbacksRef.current = feedbackSnapshot;
-      committedKeyEffectsRef.current = effectsSnapshot;
+
+      const nextPressedKeys = dirty.pressedKeys ? new Set(pressedKeysRef.current) : null;
+      const nextDisplayScore = dirty.displayScore ? scoreRuntimeRef.current : null;
+      const nextCombo = dirty.combo ? comboRef.current : null;
+      const nextHoldingNotes = dirty.holdingNotes ? new Map(holdingNotesRef.current) : null;
+
+      let shouldBumpEffectsRevision = false;
+      if (dirty.effects) {
+        const feedbackSnapshot = [...judgeFeedbacksRef.current];
+        const effectsSnapshot = [...keyEffectsRef.current];
+        shouldBumpEffectsRevision = !(
+          judgeFeedbackArraysEqual(committedJudgeFeedbacksRef.current, feedbackSnapshot) &&
+          keyEffectArraysEqual(committedKeyEffectsRef.current, effectsSnapshot)
+        );
+        if (shouldBumpEffectsRevision) {
+          committedJudgeFeedbacksRef.current = feedbackSnapshot;
+          committedKeyEffectsRef.current = effectsSnapshot;
+        }
+      }
+
       startTransition(() => {
-        setEffectsRevision((prev) => prev + 1);
+        if (nextPressedKeys) {
+          setPressedKeys((prev) => (laneSetsEqual(prev, nextPressedKeys) ? prev : nextPressedKeys));
+        }
+        if (nextDisplayScore) {
+          setDisplayScore((prev) => (scoresEqual(prev, nextDisplayScore) ? prev : nextDisplayScore));
+        }
+        if (nextCombo !== null) {
+          setCombo((prev) => (prev === nextCombo ? prev : nextCombo));
+        }
+        if (nextHoldingNotes) {
+          setHoldingNotes((prev) => (holdingNoteMapsEqual(prev, nextHoldingNotes) ? prev : nextHoldingNotes));
+        }
+        if (shouldBumpEffectsRevision) {
+          setEffectsRevision((prev) => prev + 1);
+        }
       });
     });
   }, []);
@@ -221,13 +261,14 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       const now = Date.now();
       judgeFeedbacksRef.current = judgeFeedbacksRef.current.filter((feedback) => feedback.expiresAt > now);
       keyEffectsRef.current = keyEffectsRef.current.filter((effect) => effect.expiresAt > now);
-      commitEffectsNextFrame();
+      uiDirtyRef.current.effects = true;
+      scheduleUiCommit();
       effectCleanupTimerRef.current = null;
       if (judgeFeedbacksRef.current.length > 0 || keyEffectsRef.current.length > 0) {
         scheduleEffectCleanup();
       }
     }, delayMs);
-  }, [clearEffectCleanupTimer, commitEffectsNextFrame]);
+  }, [clearEffectCleanupTimer, scheduleUiCommit]);
 
   const updateScoreFromJudge = useCallback((judge: JudgeType, prevScore: GameState['score']): GameState['score'] => {
     const newScore = { ...prevScore };
@@ -287,56 +328,13 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     }, SCORE_SNAPSHOT_INTERVAL_MS);
   }, [commitScoreSnapshot]);
 
-  const commitPressedKeysNextFrame = useCallback(() => {
-    if (pressedKeysFrameRef.current !== null) return;
-    pressedKeysFrameRef.current = requestAnimationFrame(() => {
-      pressedKeysFrameRef.current = null;
-      const next = new Set(pressedKeysRef.current);
-      startTransition(() => {
-        setPressedKeys((prev) => (laneSetsEqual(prev, next) ? prev : next));
-      });
-    });
-  }, []);
-
-  const commitComboNextFrame = useCallback(() => {
-    if (comboFrameRef.current !== null) return;
-    comboFrameRef.current = requestAnimationFrame(() => {
-      comboFrameRef.current = null;
-      const nextCombo = comboRef.current;
-      startTransition(() => {
-        setCombo((prev) => (prev === nextCombo ? prev : nextCombo));
-      });
-    });
-  }, []);
-
-  const commitDisplayScoreNextFrame = useCallback(() => {
-    if (displayScoreFrameRef.current !== null) return;
-    displayScoreFrameRef.current = requestAnimationFrame(() => {
-      displayScoreFrameRef.current = null;
-      const nextScore = scoreRuntimeRef.current;
-      startTransition(() => {
-        setDisplayScore((prev) => (scoresEqual(prev, nextScore) ? prev : nextScore));
-      });
-    });
-  }, []);
-
-  const commitHoldingNotesNextFrame = useCallback(() => {
-    if (holdingNotesFrameRef.current !== null) return;
-    holdingNotesFrameRef.current = requestAnimationFrame(() => {
-      holdingNotesFrameRef.current = null;
-      const next = new Map(holdingNotesRef.current);
-      startTransition(() => {
-        setHoldingNotes((prev) => (holdingNoteMapsEqual(prev, next) ? prev : next));
-      });
-    });
-  }, []);
-
   const enqueueScoreJudge = useCallback(
     (judge: JudgeType) => {
       scoreRuntimeRef.current = updateScoreFromJudge(judge, scoreRuntimeRef.current);
       comboRef.current = scoreRuntimeRef.current.combo;
-      commitComboNextFrame();
-      commitDisplayScoreNextFrame();
+      uiDirtyRef.current.combo = true;
+      uiDirtyRef.current.displayScore = true;
+      scheduleUiCommit();
       gameStateRef.current = {
         ...gameStateRef.current,
         score: scoreRuntimeRef.current,
@@ -344,9 +342,8 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       scheduleScoreSnapshot();
     },
     [
-      commitComboNextFrame,
-      commitDisplayScoreNextFrame,
       gameStateRef,
+      scheduleUiCommit,
       scheduleScoreSnapshot,
       updateScoreFromJudge,
     ]
@@ -368,10 +365,11 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         ...keyEffectsRef.current.filter((effect) => effect.lane !== lane),
         { id: effectId, lane, x: effectX, y: effectY, judge, expiresAt },
       ].slice(-4);
-      commitEffectsNextFrame();
+      uiDirtyRef.current.effects = true;
+      scheduleUiCommit();
       scheduleEffectCleanup();
     },
-    [gameStateRef, laneCenters, judgeLineY, commitEffectsNextFrame, scheduleEffectCleanup]
+    [gameStateRef, laneCenters, judgeLineY, scheduleUiCommit, scheduleEffectCleanup]
   );
 
   const handleKeyPress = useCallback(
@@ -383,7 +381,8 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         const nextPressedKeys = new Set(pressedKeysRef.current);
         nextPressedKeys.add(lane);
         pressedKeysRef.current = nextPressedKeys;
-        commitPressedKeysNextFrame();
+        uiDirtyRef.current.pressedKeys = true;
+        scheduleUiCommit();
       }
 
       const currentTime = currentTimeRef.current - timingOffsetMs;
@@ -460,7 +459,8 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         const nextHoldingNotes = new Map(holdingNotesRef.current);
         nextHoldingNotes.set(targetNote.id, targetNote);
         holdingNotesRef.current = nextHoldingNotes;
-        commitHoldingNotesNextFrame();
+        uiDirtyRef.current.holdingNotes = true;
+        scheduleUiCommit();
       }
 
       addJudgeFeedback(judge, lane, timingDirection);
@@ -473,8 +473,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       onTimingSample,
       enqueueScoreJudge,
       addJudgeFeedback,
-      commitPressedKeysNextFrame,
-      commitHoldingNotesNextFrame,
+      scheduleUiCommit,
     ]
   );
 
@@ -484,7 +483,8 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         const nextPressedKeys = new Set(pressedKeysRef.current);
         nextPressedKeys.delete(lane);
         pressedKeysRef.current = nextPressedKeys;
-        commitPressedKeysNextFrame();
+        uiDirtyRef.current.pressedKeys = true;
+        scheduleUiCommit();
       }
 
       const nextHoldingNotes = new Map(holdingNotesRef.current);
@@ -558,7 +558,8 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
 
       if (laneHoldNotes.length > 0) {
         holdingNotesRef.current = nextHoldingNotes;
-        commitHoldingNotesNextFrame();
+        uiDirtyRef.current.holdingNotes = true;
+        scheduleUiCommit();
       }
     },
     [
@@ -569,8 +570,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       processedMissNotes,
       enqueueScoreJudge,
       addJudgeFeedback,
-      commitPressedKeysNextFrame,
-      commitHoldingNotesNextFrame,
+      scheduleUiCommit,
     ]
   );
 
@@ -588,7 +588,8 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         const nextHoldingNotes = new Map(holdingNotesRef.current);
         nextHoldingNotes.delete(note.id);
         holdingNotesRef.current = nextHoldingNotes;
-        commitHoldingNotesNextFrame();
+        uiDirtyRef.current.holdingNotes = true;
+        scheduleUiCommit();
       }
 
       const judge: JudgeType = shouldDowngradeMissToGood ? 'good' : 'miss';
@@ -601,7 +602,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       hitNoteIdsRef,
       enqueueScoreJudge,
       addJudgeFeedback,
-      commitHoldingNotesNextFrame,
+      scheduleUiCommit,
     ]
   );
 
@@ -696,25 +697,9 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     return () => {
       clearEffectCleanupTimer();
       clearScoreSnapshotTimer();
-      if (pressedKeysFrameRef.current !== null) {
-        cancelAnimationFrame(pressedKeysFrameRef.current);
-        pressedKeysFrameRef.current = null;
-      }
-      if (holdingNotesFrameRef.current !== null) {
-        cancelAnimationFrame(holdingNotesFrameRef.current);
-        holdingNotesFrameRef.current = null;
-      }
-      if (effectsFrameRef.current !== null) {
-        cancelAnimationFrame(effectsFrameRef.current);
-        effectsFrameRef.current = null;
-      }
-      if (comboFrameRef.current !== null) {
-        cancelAnimationFrame(comboFrameRef.current);
-        comboFrameRef.current = null;
-      }
-      if (displayScoreFrameRef.current !== null) {
-        cancelAnimationFrame(displayScoreFrameRef.current);
-        displayScoreFrameRef.current = null;
+      if (uiCommitFrameRef.current !== null) {
+        cancelAnimationFrame(uiCommitFrameRef.current);
+        uiCommitFrameRef.current = null;
       }
       holdStartJudgeRef.current.clear();
     };
