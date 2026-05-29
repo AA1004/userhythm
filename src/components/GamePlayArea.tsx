@@ -144,13 +144,9 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
             height: `${topExtensionHeight}px`,
             pointerEvents: 'none',
             zIndex: 36,
-            background: `linear-gradient(180deg,
-              rgba(20, 34, 66, ${Math.min(0.48, 0.18 + playfieldGeometry.laneOpacity * 0.42)}) 0%,
-              rgba(15, 23, 42, ${Math.min(0.34, 0.1 + playfieldGeometry.laneOpacity * 0.28)}) 52%,
-              rgba(15, 23, 42, 0) 100%)`,
-            boxShadow: `inset 0 1px 0 rgba(255,255,255,${0.18 * playfieldGeometry.laneOpacity}),
-              0 18px 30px rgba(8, 15, 32, 0.16)`,
-            borderTop: `1px solid rgba(255,255,255,${0.18 * playfieldGeometry.laneOpacity})`,
+            backgroundColor: `rgba(15, 23, 42, ${0.6 * playfieldGeometry.laneOpacity})`,
+            boxShadow: `inset 0 1px 0 rgba(255,255,255,${0.08 * playfieldGeometry.laneOpacity})`,
+            borderTop: `1px solid rgba(255,255,255,${0.1 * playfieldGeometry.laneOpacity})`,
             overflow: 'hidden',
           }}
         >
@@ -158,8 +154,10 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
             style={{
               position: 'absolute',
               inset: 0,
-              background:
-                'linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 18%, rgba(255,255,255,0.01) 82%, rgba(255,255,255,0.04) 100%)',
+              background: `linear-gradient(180deg,
+                rgba(255,255,255,${0.025 * playfieldGeometry.laneOpacity}) 0%,
+                rgba(255,255,255,0) 42%,
+                rgba(255,255,255,0) 100%)`,
             }}
           />
           {playfieldGeometry.laneEdges.map((x) => (
@@ -173,10 +171,10 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
                 height: '100%',
                 transform: 'translateX(-50%)',
                 background: `linear-gradient(180deg,
-                  rgba(255,255,255,${0.22 * playfieldGeometry.laneOpacity}) 0%,
-                  rgba(255,255,255,${0.12 * playfieldGeometry.laneOpacity}) 55%,
+                  rgba(255,255,255,${0.14 * playfieldGeometry.laneOpacity}) 0%,
+                  rgba(255,255,255,${0.08 * playfieldGeometry.laneOpacity}) 55%,
                   rgba(255,255,255,0) 100%)`,
-                boxShadow: `0 0 10px rgba(110, 192, 255, ${0.08 * playfieldGeometry.laneOpacity})`,
+                boxShadow: 'none',
               }}
             />
           ))}
@@ -187,7 +185,9 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
               right: 0,
               bottom: 0,
               height: `${Math.min(36, topExtensionHeight * 0.22)}px`,
-              background: 'linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,0.06))',
+              background: `linear-gradient(180deg,
+                rgba(255,255,255,0) 0%,
+                rgba(255,255,255,${0.025 * playfieldGeometry.laneOpacity}) 100%)`,
             }}
           />
         </div>
