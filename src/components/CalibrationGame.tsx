@@ -459,6 +459,7 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
           <GameplayHudCanvas
             active={phase === 'countdown' || phase === 'measuring'}
             visible={true}
+            hudRevision={effectsRevision + combo + pressedKeys.size}
             effectsRevision={effectsRevision}
             judgeFeedbackTop={Math.max(120, JUDGE_LINE_Y - 140)}
             judgeFeedbacksRef={judgeFeedbacksRef}

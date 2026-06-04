@@ -12,6 +12,7 @@ import { JudgeType, Lane, GameState } from '../types/game';
 interface GameplayHudCanvasProps {
   active: boolean;
   visible: boolean;
+  hudRevision: number;
   effectsRevision: number;
   judgeFeedbackTop: number;
   judgeFeedbacksRef: React.MutableRefObject<JudgeFeedback[]>;
@@ -204,9 +205,9 @@ const drawKeyLane = (
     ctx.fillStyle = 'rgba(12, 20, 36, 0.88)';
   }
   ctx.strokeStyle = isPressed ? 'rgba(104, 244, 213, 0.78)' : 'rgba(104, 244, 213, 0.36)';
-  ctx.lineWidth = 3;
+  ctx.lineWidth = isFull ? 3 : 2;
   ctx.shadowColor = glowEnabled && isPressed ? 'rgba(104, 244, 213, 0.2)' : 'rgba(0, 0, 0, 0.18)';
-  ctx.shadowBlur = glowEnabled && isPressed ? (isFull ? 14 : 6) : 4;
+  ctx.shadowBlur = isFull ? (glowEnabled && isPressed ? 14 : 4) : 0;
   drawRoundedRect(ctx, left, top, width, height, 12);
   ctx.fill();
   ctx.stroke();
@@ -222,7 +223,7 @@ const drawKeyLane = (
       pressGradient.addColorStop(1, 'rgba(255, 109, 147, 0.82)');
       ctx.fillStyle = pressGradient;
     } else {
-      ctx.fillStyle = 'rgba(104, 244, 213, 0.72)';
+      ctx.fillStyle = 'rgba(104, 244, 213, 0.64)';
     }
     drawRoundedRect(ctx, left + 3, top + 3, width - 6, height - 6, 10);
     ctx.fill();
@@ -243,7 +244,7 @@ const drawKeyLane = (
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 24px Arial, sans-serif';
-  if (glowEnabled) {
+  if (glowEnabled && isFull) {
     ctx.shadowColor = isFull ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.18)';
     ctx.shadowBlur = isFull ? 8 : 3;
   }
@@ -289,7 +290,8 @@ const drawCombo = (
   ctx: CanvasRenderingContext2D,
   combo: number,
   laneGroupCenterX: number,
-  numberOpacity: number
+  numberOpacity: number,
+  mode: 'new-lite' | 'new-full'
 ) => {
   if (combo <= 0) return;
 
@@ -300,7 +302,7 @@ const drawCombo = (
   ctx.fillStyle = 'rgba(245, 252, 255, 0.96)';
   ctx.font = '300 144px Bahnschrift, Arial Narrow, sans-serif';
   ctx.shadowColor = 'rgba(0,0,0,0.36)';
-  ctx.shadowBlur = 18;
+  ctx.shadowBlur = mode === 'new-full' ? 18 : 0;
   ctx.fillText(String(combo), laneGroupCenterX, 118);
   ctx.globalAlpha = 1;
   ctx.shadowBlur = 0;
@@ -313,6 +315,7 @@ const drawCombo = (
 export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   active,
   visible,
+  hudRevision,
   effectsRevision,
   judgeFeedbackTop,
   judgeFeedbacksRef,
@@ -334,6 +337,7 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   const gameplayHudModeRef = useRef(gameplayHudMode);
   const laneKeyLabelsRef = useRef(laneKeyLabels);
   const shouldRenderHud = gameplayHudMode !== 'legacy';
+  const isLiteMode = gameplayHudMode === 'new-lite';
   const canvasHeight = GAME_VIEW_HEIGHT;
 
   useEffect(() => {
@@ -380,6 +384,7 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
     const renderFrame = () => {
       const geometry = playfieldGeometryRef.current;
       const now = Date.now();
+      const hudMode = gameplayHudModeRef.current === 'new-full' ? 'new-full' : 'new-lite';
       ctx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasHeight);
 
       let hasActiveEffect = false;
@@ -400,7 +405,6 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
         }
 
         if (visibleRef.current && activeRef.current && shouldRenderHud) {
-          const hudMode = gameplayHudModeRef.current === 'new-full' ? 'new-full' : 'new-lite';
           geometry.laneCenters.forEach((x, index) => {
             drawKeyLane(
               ctx,
@@ -419,12 +423,17 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
             ctx,
             scoreRuntimeRef.current.combo,
             geometry.laneGroupLeft + geometry.laneGroupWidth / 2,
-            geometry.comboOpacity
+            geometry.comboOpacity,
+            hudMode
           );
         }
       }
 
-      if ((visibleRef.current && shouldRenderHud && activeRef.current) || hasActiveEffect) {
+      const shouldKeepLooping =
+        hasActiveEffect ||
+        (visibleRef.current && shouldRenderHud && activeRef.current && hudMode === 'new-full');
+
+      if (shouldKeepLooping) {
         frameIdRef.current = requestAnimationFrame(renderFrame);
       } else {
         frameIdRef.current = null;
@@ -458,6 +467,8 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
     scoreRuntimeRef,
     shouldRenderHud,
     visible,
+    hudRevision,
+    isLiteMode,
   ]);
 
   return (

@@ -121,6 +121,7 @@ export interface UseGameJudgingOptions {
 export interface UseGameJudgingReturn {
   displayScore: GameState['score'];
   combo: number;
+  hudRevision: number;
   pressedKeys: Set<Lane>;
   pressedKeysRef: MutableRefObject<Set<Lane>>;
   holdingNotesRef: MutableRefObject<Map<number, Note>>;
@@ -160,6 +161,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   const keyEffectsRef = useRef<KeyEffect[]>([]);
   const keyEffectIdRef = useRef(0);
   const [effectsRevision, setEffectsRevision] = useState(0);
+  const [hudRevision, setHudRevision] = useState(0);
   const committedJudgeFeedbacksRef = useRef<JudgeFeedback[]>([]);
   const committedKeyEffectsRef = useRef<KeyEffect[]>([]);
   const effectCleanupTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -218,6 +220,12 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         }
       }
 
+      const shouldBumpHudRevision =
+        dirty.effects ||
+        (!pressedKeySnapshotsEnabled && dirty.pressedKeys) ||
+        (!comboSnapshotsEnabled && dirty.combo) ||
+        dirty.displayScore;
+
       startTransition(() => {
         if (nextPressedKeys) {
           setPressedKeys((prev) => (laneSetsEqual(prev, nextPressedKeys) ? prev : nextPressedKeys));
@@ -231,9 +239,12 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         if (shouldBumpEffectsRevision) {
           setEffectsRevision((prev) => prev + 1);
         }
+        if (shouldBumpHudRevision) {
+          setHudRevision((prev) => prev + 1);
+        }
       });
     });
-  }, []);
+  }, [comboSnapshotsEnabled, pressedKeySnapshotsEnabled]);
 
   const scheduleEffectCleanup = useCallback(() => {
     clearEffectCleanupTimer();
@@ -624,6 +635,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       setDisplayScore(gameState.score);
       comboRef.current = 0;
       setCombo(0);
+      setHudRevision((prev) => prev + 1);
       judgeFeedbacksRef.current = [];
       keyEffectsRef.current = [];
       committedJudgeFeedbacksRef.current = [];
@@ -660,6 +672,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       setDisplayScore(gameState.score);
       comboRef.current = 0;
       setCombo(0);
+      setHudRevision((prev) => prev + 1);
       judgeFeedbacksRef.current = [];
       keyEffectsRef.current = [];
       committedJudgeFeedbacksRef.current = [];
@@ -694,6 +707,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   return {
     displayScore,
     combo,
+    hudRevision,
     pressedKeys,
     pressedKeysRef,
     holdingNotesRef,

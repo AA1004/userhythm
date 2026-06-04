@@ -53,6 +53,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
   const {
     displayScore,
     combo,
+    hudRevision,
     pressedKeys,
     pressedKeysRef,
     holdingNotesRef,
@@ -123,6 +124,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
       <GameplayHudCanvas
         active={isGameplayActive}
         visible={isLaneUiVisible}
+        hudRevision={hudRevision}
         effectsRevision={effectsRevision}
         judgeFeedbackTop={Math.max(120, judgeLineY - 140)}
         judgeFeedbacksRef={judgeFeedbacksRef}
