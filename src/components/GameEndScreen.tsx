@@ -82,7 +82,9 @@ export const GameEndScreen: React.FC<GameEndScreenProps> = ({
           : []),
         { label: '메인 메뉴', variant: 'secondary', onClick: onReset },
       ]
-    : [{ label: '다시 시작', variant: 'primary', onClick: onReset }];
+    : onReturnToPlayList
+      ? [{ label: '곡 선택으로 나가기', variant: 'primary', onClick: onReturnToPlayList }]
+      : [{ label: '메인 메뉴', variant: 'primary', onClick: onReset }];
 
   return (
     <div className="game-end-screen" role="dialog" aria-modal="true" aria-label={title}>

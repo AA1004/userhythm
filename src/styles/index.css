@@ -1852,29 +1852,29 @@ body {
    ========================= */
 
 .game-end-screen {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  z-index: 2500;
+  z-index: 4200;
   display: grid;
   place-items: center;
-  padding: 14px;
+  padding: clamp(18px, 3vw, 36px);
   color: #f6fbff;
   pointer-events: auto;
   background:
-    radial-gradient(circle at 50% 48%, rgba(119, 255, 214, 0.12), transparent 32%),
-    radial-gradient(circle at 78% 26%, rgba(255, 78, 122, 0.13), transparent 30%),
-    rgba(3, 6, 13, 0.5);
-  backdrop-filter: blur(7px);
+    radial-gradient(circle at top, rgba(119, 255, 214, 0.1), transparent 34%),
+    radial-gradient(circle at 78% 22%, rgba(255, 78, 122, 0.13), transparent 28%),
+    rgba(3, 6, 13, 0.74);
+  backdrop-filter: blur(10px);
   animation: gameEndBackdropIn 260ms ease-out both;
 }
 
 .game-end-panel {
   position: relative;
-  width: min(440px, calc(100% - 12px));
-  max-height: calc(100% - 12px);
-  padding: 22px 18px 18px;
+  width: min(960px, 100%);
+  max-height: min(820px, calc(100dvh - 48px));
+  padding: 28px 26px 24px;
   border: 1px solid rgba(238, 247, 242, 0.14);
-  border-radius: 28px;
+  border-radius: 32px;
   background:
     linear-gradient(145deg, rgba(9, 14, 26, 0.94), rgba(7, 10, 18, 0.9)),
     rgba(5, 8, 14, 0.92);
@@ -2332,7 +2332,10 @@ body {
 
 @media (max-width: 680px) {
   .game-end-panel {
-    padding: 18px 14px 14px;
+    width: 100%;
+    max-height: calc(100dvh - 24px);
+    padding: 20px 16px 16px;
+    border-radius: 24px;
   }
 
   .game-end-hero,
