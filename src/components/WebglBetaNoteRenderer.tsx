@@ -23,7 +23,7 @@ interface WebglBetaNoteRendererProps {
   laneCenters?: readonly number[];
   noteWidth?: number;
   noteHeight?: number;
-  holdingNotes: Map<number, Note>;
+  holdingNotesRef: React.MutableRefObject<Map<number, Note>>;
   hitNoteIdsRef: HitNoteIdsRef;
   visible: boolean;
 }
@@ -162,7 +162,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
   laneCenters = LANE_POSITIONS,
   noteWidth = 90,
   noteHeight = 42,
-  holdingNotes,
+  holdingNotesRef,
   hitNoteIdsRef,
   visible,
 }) => {
@@ -175,7 +175,6 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
   const holdIndicesByEndRef = useRef<number[]>([]);
   const notesRef = useRef(notes);
   const laneCentersRef = useRef(laneCenters);
-  const holdingNotesRef = useRef(holdingNotes);
   const fallDurationRef = useRef(fallDuration);
   const judgeLineYRef = useRef(judgeLineY);
   const noteWidthRef = useRef(noteWidth);
@@ -195,10 +194,6 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
   useEffect(() => {
     laneCentersRef.current = laneCenters;
   }, [laneCenters]);
-
-  useEffect(() => {
-    holdingNotesRef.current = holdingNotes;
-  }, [holdingNotes]);
 
   useEffect(() => {
     fallDurationRef.current = fallDuration;
@@ -481,7 +476,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
           laneCenters={laneCenters}
           noteWidth={noteWidth}
           noteHeight={noteHeight}
-          holdingNotes={holdingNotes}
+          holdingNotesRef={holdingNotesRef}
           hitNoteIdsRef={hitNoteIdsRef}
           visible={visible}
         />

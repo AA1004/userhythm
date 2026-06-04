@@ -271,7 +271,7 @@ interface NoteRendererProps {
   laneCenters?: readonly number[];
   noteWidth?: number;
   noteHeight?: number;
-  holdingNotes: Map<number, Note>;
+  holdingNotesRef: React.MutableRefObject<Map<number, Note>>;
   hitNoteIdsRef: HitNoteIdsRef;
   visible: boolean;
 }
@@ -289,13 +289,12 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
   laneCenters = LANE_POSITIONS,
   noteWidth = 90,
   noteHeight = 42,
-  holdingNotes,
+  holdingNotesRef,
   hitNoteIdsRef,
   visible,
 }) => {
   const rafIdRef = useRef<number>();
   const notesRef = useRef(notes);
-  const holdingNotesRef = useRef(holdingNotes);
   const fallDurationRef = useRef(fallDuration);
   const judgeLineYRef = useRef(judgeLineY);
   const laneCentersRef = useRef(laneCenters);
@@ -312,10 +311,6 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
   useEffect(() => {
     notesRef.current = notes;
   }, [notes]);
-
-  useEffect(() => {
-    holdingNotesRef.current = holdingNotes;
-  }, [holdingNotes]);
 
   useEffect(() => {
     fallDurationRef.current = fallDuration;

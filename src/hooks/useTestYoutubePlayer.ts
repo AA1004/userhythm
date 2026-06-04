@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, RefObject, MutableRefObject } from 'react'
 import { waitForYouTubeAPI } from '../utils/youtube';
 import { getAudioBaseSeconds, getAudioPositionSeconds, AudioSettings } from '../utils/gameHelpers';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
+import { PerformanceMode } from '../constants/gameVisualSettings';
 
 export interface UseTestYoutubePlayerOptions {
   audioSessionActive: boolean;
@@ -12,6 +13,7 @@ export interface UseTestYoutubePlayerOptions {
   audioSettings: AudioSettings | null;
   externalPlayer?: any | null;
   volume?: number; // 0-100
+  performanceMode?: PerformanceMode;
 }
 
 export interface UseTestYoutubePlayerReturn {
@@ -30,6 +32,7 @@ export function useTestYoutubePlayer({
   audioSettings,
   externalPlayer,
   volume = 100,
+  performanceMode = 'balanced',
 }: UseTestYoutubePlayerOptions): UseTestYoutubePlayerReturn {
   const [player, setPlayer] = useState<any>(null);
   const playerRef = useRef<HTMLDivElement>(null);
@@ -304,7 +307,9 @@ export function useTestYoutubePlayer({
       }
 
       const now = Date.now();
-      if (now - lastAudioSyncCheckAtRef.current < 850) {
+      const syncCheckIntervalMs =
+        performanceMode === 'performance' ? 1500 : performanceMode === 'quality' ? 850 : 1200;
+      if (now - lastAudioSyncCheckAtRef.current < syncCheckIntervalMs) {
         if (shouldProfile) {
           recordGameplayMetric('audioSync', performance.now() - syncStart, 0);
         }
@@ -325,8 +330,10 @@ export function useTestYoutubePlayer({
 
       // 임계값: 0.5초 이상 차이날 때만 리싱크
       // 쿨다운: 마지막 리싱크 후 2초 이내에는 리싱크하지 않음
-      const RESYNC_THRESHOLD = 0.5;
-      const RESYNC_COOLDOWN = 2000;
+      const RESYNC_THRESHOLD =
+        performanceMode === 'performance' ? 0.8 : performanceMode === 'quality' ? 0.5 : 0.65;
+      const RESYNC_COOLDOWN =
+        performanceMode === 'performance' ? 2800 : performanceMode === 'quality' ? 2000 : 2400;
 
       if (
         Math.abs(currentSeconds - desiredSeconds) > RESYNC_THRESHOLD &&
@@ -351,7 +358,11 @@ export function useTestYoutubePlayer({
       const delayMs =
         currentTime < 250 || !audioHasStartedRef.current
           ? 33
-          : 1000;
+          : performanceMode === 'performance'
+          ? 1600
+          : performanceMode === 'quality'
+          ? 1000
+          : 1300;
       timerId = window.setTimeout(() => {
         syncOnce();
         scheduleNext();
@@ -366,7 +377,7 @@ export function useTestYoutubePlayer({
         window.clearTimeout(timerId);
       }
     };
-  }, [audioSessionActive, gameStarted, gameEnded, currentTimeRef, player, audioSettings]);
+  }, [audioSessionActive, gameStarted, gameEnded, currentTimeRef, player, audioSettings, performanceMode]);
 
   // 볼륨 변경 시 실시간 반영
   useEffect(() => {

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { waitForYouTubeAPI } from '../utils/youtube';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
+import { PerformanceMode } from '../constants/gameVisualSettings';
 
 type VideoRhythmLayoutProps = {
   videoId?: string | null;
@@ -14,6 +15,7 @@ type VideoRhythmLayoutProps = {
   bgaMaskOpacity?: number;
   /** 배경 동영상 투명도 (0~1, 값이 클수록 더 투명) */
   bgaOpacity?: number;
+  performanceMode?: PerformanceMode;
   children: React.ReactNode;
 };
 
@@ -33,6 +35,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   bgaCurrentSeconds = null,
   bgaMaskOpacity = 0,
   bgaOpacity = 1,
+  performanceMode = 'balanced',
   children,
 }) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -256,7 +259,9 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       }
       const now = performance.now();
       const shouldForceSync = lastBgaSeekRef.current === null;
-      if (!shouldForceSync && now - lastBgaSyncCheckAtRef.current < 750) {
+      const syncIntervalMs =
+        performanceMode === 'performance' ? 1500 : performanceMode === 'quality' ? 750 : 1100;
+      if (!shouldForceSync && now - lastBgaSyncCheckAtRef.current < syncIntervalMs) {
         if (shouldProfile) {
           recordGameplayMetric('bgaSync', performance.now() - syncStart, 0);
         }
@@ -276,7 +281,8 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       const currentSeconds = backgroundPlayer.getCurrentTime?.() ?? 0;
       const diff = Math.abs(currentSeconds - bgaCurrentSeconds);
 
-      if (diff > 0.3 || lastBgaSeekRef.current === null) {
+      const seekThreshold = performanceMode === 'performance' ? 0.6 : performanceMode === 'quality' ? 0.3 : 0.45;
+      if (diff > seekThreshold || lastBgaSeekRef.current === null) {
         backgroundPlayer.seekTo(bgaCurrentSeconds, true);
         lastBgaSeekRef.current = bgaCurrentSeconds;
       }
@@ -286,7 +292,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     } catch {
       // ignore
     }
-  }, [bgaCurrentSeconds, backgroundPlayer, shouldPlayBga, videoId, bgaEnabled]);
+  }, [bgaCurrentSeconds, backgroundPlayer, shouldPlayBga, videoId, bgaEnabled, performanceMode]);
 
   return (
     <div

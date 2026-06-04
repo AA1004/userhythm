@@ -1,13 +1,13 @@
 import { JUDGE_LINE_Y } from './gameConstants';
 import { GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH } from './gameLayout';
 
-export const VISUAL_SETTINGS_VERSION = 3;
+export const VISUAL_SETTINGS_VERSION = 4;
 export const VISUAL_SETTINGS_STORAGE_KEY = 'RHYTHM_GAME_VISUAL_SETTINGS';
 export const LANE_COUNT = 4;
 export const KEY_LANE_HEIGHT = 100;
 
 export type VisualPresetId = 'classic' | 'compact' | 'wide' | 'custom';
-export type GameplayHudMode = 'legacy' | 'new';
+export type GameplayHudMode = 'legacy' | 'new-lite' | 'new-full';
 export type RenderBackend = 'canvas2d' | 'webgl';
 export type PerformanceMode = 'quality' | 'balanced' | 'performance';
 
@@ -90,7 +90,7 @@ export const DEFAULT_GAME_VISUAL_SETTINGS: GameVisualSettings = {
   noteHeight: 42,
   comboOpacity: 0.7,
   bgaOpacity: 0,
-  gameplayHudMode: 'legacy',
+  gameplayHudMode: 'new-lite',
   topLaneExtensionEnabled: false,
   slotHudEnabled: false,
   lanePressTintEnabled: true,
@@ -116,7 +116,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     noteHeight: 38,
     comboOpacity: 0.7,
     bgaOpacity: 0,
-    gameplayHudMode: 'legacy',
+    gameplayHudMode: 'new-lite',
     topLaneExtensionEnabled: false,
     slotHudEnabled: false,
     lanePressTintEnabled: true,
@@ -139,7 +139,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     noteHeight: 46,
     comboOpacity: 0.7,
     bgaOpacity: 0,
-    gameplayHudMode: 'legacy',
+    gameplayHudMode: 'new-lite',
     topLaneExtensionEnabled: false,
     slotHudEnabled: false,
     lanePressTintEnabled: true,
@@ -229,7 +229,13 @@ export const normalizeGameVisualSettings = (
     VISUAL_SETTING_LIMITS.bgaOpacity.min,
     VISUAL_SETTING_LIMITS.bgaOpacity.max
   );
-  const gameplayHudMode: GameplayHudMode = raw.gameplayHudMode === 'new' ? 'new' : 'legacy';
+  const rawGameplayHudMode = (raw as { gameplayHudMode?: unknown }).gameplayHudMode;
+  const gameplayHudMode: GameplayHudMode =
+    rawGameplayHudMode === 'new-full' || rawGameplayHudMode === 'new'
+      ? 'new-full'
+      : rawGameplayHudMode === 'new-lite'
+      ? 'new-lite'
+      : 'legacy';
   const topLaneExtensionEnabled = booleanOr(
     raw.topLaneExtensionEnabled,
     fallback.topLaneExtensionEnabled

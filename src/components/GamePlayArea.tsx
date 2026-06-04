@@ -5,10 +5,8 @@ import { JudgeLine } from './JudgeLine';
 import { NoteRenderer } from './NoteRenderer';
 import { WebglBetaNoteRenderer } from './WebglBetaNoteRenderer';
 import { ComboDisplay } from './ComboDisplay';
-import { GameplayEffectsCanvas } from './GameplayEffectsCanvas';
 import { PlayfieldGeometry } from '../constants/gameVisualSettings';
 import { GAME_VIEW_HEIGHT } from '../constants/gameLayout';
-import { JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
 import { HitNoteIdsRef } from '../utils/noteRuntimeState';
 
 interface GamePlayAreaProps {
@@ -19,10 +17,7 @@ interface GamePlayAreaProps {
   isLaneUiVisible: boolean;
   speed: number;
   pressedKeys: Set<Lane>;
-  holdingNotes: Map<number, Note>;
-  judgeFeedbacksRef: React.MutableRefObject<JudgeFeedback[]>;
-  keyEffectsRef: React.MutableRefObject<KeyEffect[]>;
-  effectsRevision: number;
+  holdingNotesRef: React.MutableRefObject<Map<number, Note>>;
   laneKeyLabels: string[][];
   isFromEditor: boolean;
   currentTimeRef: React.MutableRefObject<number>;
@@ -40,10 +35,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
   isLaneUiVisible,
   speed: _speed,
   pressedKeys,
-  holdingNotes,
-  judgeFeedbacksRef,
-  keyEffectsRef,
-  effectsRevision,
+  holdingNotesRef,
   laneKeyLabels,
   isFromEditor: _isFromEditor,
   currentTimeRef,
@@ -53,8 +45,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
   hitNoteIdsRef,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  const judgeFeedbackTop = Math.max(120, judgeLineY - 140);
+  const isLegacyHud = playfieldGeometry.gameplayHudMode === 'legacy';
   const topExtensionHeight = Math.max(100, Math.min(GAME_VIEW_HEIGHT * 0.58, judgeLineY - 36));
 
   const laneBackgroundLayer = useMemo(
@@ -85,7 +76,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
 
   const lanePressTintLayer = useMemo(
     () =>
-      isLaneUiVisible && playfieldGeometry.lanePressTintEnabled
+      isLegacyHud && isLaneUiVisible && playfieldGeometry.lanePressTintEnabled
         ? playfieldGeometry.laneCenters.map((x, index) => {
             const isPressed = pressedKeys.has(index as Lane);
             return (
@@ -112,6 +103,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
         : null,
     [
       isLaneUiVisible,
+      isLegacyHud,
       playfieldGeometry.lanePressTintEnabled,
       playfieldGeometry.laneCenters,
       playfieldGeometry.laneWidth,
@@ -234,7 +226,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
               laneCenters={playfieldGeometry.laneCenters}
               noteWidth={playfieldGeometry.noteWidth}
               noteHeight={playfieldGeometry.noteHeight}
-              holdingNotes={holdingNotes}
+              holdingNotesRef={holdingNotesRef}
               hitNoteIdsRef={hitNoteIdsRef}
               visible={isLaneUiVisible}
             />
@@ -261,7 +253,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
                 laneCenters={playfieldGeometry.laneCenters}
                 noteWidth={playfieldGeometry.noteWidth}
                 noteHeight={playfieldGeometry.noteHeight}
-                holdingNotes={holdingNotes}
+                holdingNotesRef={holdingNotesRef}
                 hitNoteIdsRef={hitNoteIdsRef}
                 visible={isLaneUiVisible}
               />
@@ -279,7 +271,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       currentTimeRef,
       fallDuration,
       judgeLineY,
-      holdingNotes,
+      holdingNotesRef,
       hitNoteIdsRef,
     ]
   );
@@ -305,7 +297,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
 
   const comboLayer = useMemo(
     () =>
-      gameStarted ? (
+      gameStarted && isLegacyHud ? (
         <ComboDisplay
           combo={combo}
           laneGroupCenterX={playfieldGeometry.laneGroupLeft + playfieldGeometry.laneGroupWidth / 2}
@@ -315,6 +307,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       ) : null,
     [
       gameStarted,
+      isLegacyHud,
       combo,
       playfieldGeometry.laneGroupLeft,
       playfieldGeometry.laneGroupWidth,
@@ -325,7 +318,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
 
   const keyLaneLayer = useMemo(
     () =>
-      gameStarted && isLaneUiVisible
+      gameStarted && isLaneUiVisible && isLegacyHud
         ? playfieldGeometry.laneCenters.map((x, index) => (
             <KeyLane
               key={index}
@@ -344,6 +337,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
     [
       gameStarted,
       isLaneUiVisible,
+      isLegacyHud,
       playfieldGeometry.laneCenters,
       playfieldGeometry.keyLaneY,
       playfieldGeometry.laneWidth,
@@ -381,16 +375,6 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
           zIndex: 1000,
         }}
       />
-
-      {gameStarted && (
-        <GameplayEffectsCanvas
-          judgeFeedbacksRef={judgeFeedbacksRef}
-          keyEffectsRef={keyEffectsRef}
-          effectsRevision={effectsRevision}
-          judgeFeedbackTop={judgeFeedbackTop}
-          visible={isLaneUiVisible}
-        />
-      )}
 
     </>
   );

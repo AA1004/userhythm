@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { GamePlayArea } from './GamePlayArea';
+import { GameplayHudCanvas } from './GameplayHudCanvas';
 import { BASE_FALL_DURATION, JUDGE_FEEDBACK_DURATION_MS, JUDGE_LINE_Y, START_DELAY_MS } from '../constants/gameConstants';
 import { buildPlayfieldGeometry, DEFAULT_GAME_VISUAL_SETTINGS } from '../constants/gameVisualSettings';
 import { GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH } from '../constants/gameLayout';
 import { getKeyBindingFromInput } from '../utils/keyBinding';
 import { JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
-import { Lane, Note } from '../types/game';
+import { GameState, Lane, Note } from '../types/game';
 
 interface CalibrationGameProps {
   keyBindings: string[];
@@ -66,9 +67,19 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
   const [samples, setSamples] = useState<number[]>([]);
   const [combo, setCombo] = useState(0);
   const [pressedKeys, setPressedKeys] = useState<Set<Lane>>(new Set());
+  const pressedKeysRef = useRef<Set<Lane>>(new Set());
   const judgeFeedbacksRef = useRef<JudgeFeedback[]>([]);
   const keyEffectsRef = useRef<KeyEffect[]>([]);
   const [effectsRevision, setEffectsRevision] = useState(0);
+  const scoreRuntimeRef = useRef<GameState['score']>({
+    perfect: 0,
+    great: 0,
+    good: 0,
+    miss: 0,
+    combo: 0,
+    maxCombo: 0,
+  });
+  const stageWrapperRef = useRef<HTMLDivElement | null>(null);
 
   const notes = useMemo(() => buildCalibrationNotes(), []);
   const playfieldGeometry = useMemo(
@@ -160,6 +171,14 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
     missedBeatSetRef.current.clear();
     setSamples([]);
     setCombo(0);
+    scoreRuntimeRef.current = {
+      perfect: 0,
+      great: 0,
+      good: 0,
+      miss: 0,
+      combo: 0,
+      maxCombo: 0,
+    };
     judgeFeedbacksRef.current = [];
     keyEffectsRef.current = [];
     setEffectsRevision((prev) => prev + 1);
@@ -235,6 +254,11 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
             missedBeatSetRef.current.add(index);
             hitNoteIdsRef.current.add(note.id);
             setCombo(0);
+            scoreRuntimeRef.current = {
+              ...scoreRuntimeRef.current,
+              miss: scoreRuntimeRef.current.miss + 1,
+              combo: 0,
+            };
             pushFeedback('miss', note.lane, 'slow');
           }
         });
@@ -251,6 +275,10 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
       }
     };
   }, [notes, phase, pushFeedback]);
+
+  useEffect(() => {
+    pressedKeysRef.current = pressedKeys;
+  }, [pressedKeys]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -287,6 +315,11 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
 
       const judge = Math.abs(signedDiff) <= 45 ? 'perfect' : Math.abs(signedDiff) <= 100 ? 'great' : 'good';
       const timingDirection = judge === 'perfect' ? null : signedDiff > 0 ? 'fast' : 'slow';
+      const nextScore = { ...scoreRuntimeRef.current };
+      nextScore[judge] += 1;
+      nextScore.combo += 1;
+      nextScore.maxCombo = Math.max(nextScore.maxCombo, nextScore.combo);
+      scoreRuntimeRef.current = nextScore;
       pushFeedback(judge, lane, timingDirection);
     };
 
@@ -394,6 +427,7 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
         }}
       >
         <div
+          ref={stageWrapperRef}
           style={{
             position: 'relative',
             width: '100%',
@@ -413,10 +447,7 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
             isLaneUiVisible={true}
             speed={currentNoteSpeed}
             pressedKeys={pressedKeys}
-            holdingNotes={holdingNotesRef.current}
-            judgeFeedbacksRef={judgeFeedbacksRef}
-            keyEffectsRef={keyEffectsRef}
-            effectsRevision={effectsRevision}
+            holdingNotesRef={holdingNotesRef}
             laneKeyLabels={laneKeyLabels}
             isFromEditor={false}
             currentTimeRef={currentTimeRef}
@@ -424,6 +455,23 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
             judgeLineY={JUDGE_LINE_Y}
             playfieldGeometry={playfieldGeometry}
             hitNoteIdsRef={hitNoteIdsRef}
+          />
+          <GameplayHudCanvas
+            portalContainer={stageWrapperRef.current}
+            stageScale={1}
+            active={phase === 'countdown' || phase === 'measuring'}
+            visible={true}
+            effectsRevision={effectsRevision}
+            judgeFeedbackTop={Math.max(120, JUDGE_LINE_Y - 140)}
+            judgeFeedbacksRef={judgeFeedbacksRef}
+            keyEffectsRef={keyEffectsRef}
+            pressedKeysRef={pressedKeysRef}
+            currentTimeRef={currentTimeRef}
+            scoreRuntimeRef={scoreRuntimeRef}
+            laneKeyLabels={laneKeyLabels}
+            playfieldGeometry={playfieldGeometry}
+            gameplayHudMode={playfieldGeometry.gameplayHudMode}
+            durationMs={MEASURE_BEATS * BEAT_INTERVAL_MS}
           />
 
           <div

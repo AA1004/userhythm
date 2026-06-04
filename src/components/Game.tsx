@@ -74,6 +74,7 @@ export const Game: React.FC = () => {
   const [chartListRefreshToken, setChartListRefreshToken] = useState<number>(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const gameContainerRef = useRef<HTMLDivElement | null>(null);
+  const [stageOverlayContainer, setStageOverlayContainer] = useState<HTMLElement | null>(null);
   const processedMissNotes = useRef<Set<number>>(new Set());
   const hitNoteIdsRef = useRef<Set<number>>(new Set());
   const chartSelectTransitionTimersRef = useRef<number[]>([]);
@@ -333,6 +334,7 @@ export const Game: React.FC = () => {
     audioSettings: testAudioSettings,
     externalPlayer: null, // 외부 플레이어 재사용 비활성화 - 미리보기 루프 타이머 충돌 방지
     volume: gameVolume,
+    performanceMode: visualSettings.performanceMode,
   });
 
   const handleEditorTestWithRuntimeReset = useCallback(
@@ -747,6 +749,7 @@ export const Game: React.FC = () => {
   const activeBgaMaskOpacity = isGameplayActive ? bgaMaskOpacity : 0;
   const activeLaneUiVisible = isGameplayActive ? isLaneUiVisible : true;
   const useSlotHud = playfieldGeometry.slotHudEnabled;
+  const useLegacyHud = playfieldGeometry.gameplayHudMode === 'legacy';
   const slotHudProgress =
     dynamicGameDuration > 0
       ? Math.min(100, Math.max(0, (gameplayClockSnapshotMs / dynamicGameDuration) * 100))
@@ -859,6 +862,7 @@ export const Game: React.FC = () => {
         bgaCurrentSeconds={bgaCurrentSeconds ?? undefined}
         bgaMaskOpacity={activeBgaMaskOpacity}
         bgaOpacity={visualSettings.bgaOpacity}
+        performanceMode={visualSettings.performanceMode}
       >
       {/* 게임 + 자막 wrapper (자막이 게임 바깥으로 나갈 수 있도록) */}
       <div
@@ -873,6 +877,9 @@ export const Game: React.FC = () => {
         }}
       >
         <div
+          ref={(node) => {
+            setStageOverlayContainer(node);
+          }}
           style={{
             position: 'relative',
             width: `${stageDisplayWidth}px`,
@@ -939,6 +946,9 @@ export const Game: React.FC = () => {
                     isLaneUiVisible={activeLaneUiVisible}
                     isFromEditor={isFromEditor}
                     isGameplayActive={isGameplayActive}
+                    durationMs={dynamicGameDuration}
+                    overlayPortalContainer={stageOverlayContainer}
+                    stageScale={stageScale}
                   />
                 )}
 
@@ -1006,7 +1016,7 @@ export const Game: React.FC = () => {
         />
       )}
 
-          {isGameplayActive && useSlotHud && (
+          {isGameplayActive && useSlotHud && useLegacyHud && (
             <GameplaySlotHud
               laneGroupLeft={slotHudLeftPx}
               laneGroupWidth={slotHudWidthPx}

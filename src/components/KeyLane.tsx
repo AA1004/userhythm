@@ -1,6 +1,6 @@
 import React from 'react';
 
-type KeyLaneStyleVariant = 'legacy' | 'new';
+type KeyLaneStyleVariant = 'legacy' | 'new-lite' | 'new-full';
 
 interface KeyLaneProps {
   x: number;
@@ -25,7 +25,7 @@ const KeyLaneComponent: React.FC<KeyLaneProps> = ({
   glowEnabled = true,
   pulseEnabled = true,
 }) => {
-  const isNewVariant = styleVariant === 'new';
+  const isNewVariant = styleVariant !== 'legacy';
   const laneBackgroundColor = isNewVariant
     ? 'linear-gradient(170deg, rgba(10, 18, 35, 0.84), rgba(15, 27, 52, 0.74))'
     : '#2196F3';

@@ -5,6 +5,7 @@ import { useKeyboard } from '../hooks/useKeyboard';
 import { useGameLoop } from '../hooks/useGameLoop';
 import { GamePlayArea } from './GamePlayArea';
 import { Score } from './Score';
+import { GameplayHudCanvas } from './GameplayHudCanvas';
 import { PlayfieldGeometry } from '../constants/gameVisualSettings';
 import { HitNoteIdsRef } from '../utils/noteRuntimeState';
 import { START_DELAY_MS } from '../constants/gameConstants';
@@ -26,6 +27,9 @@ interface GameplayRuntimeLayerProps {
   isLaneUiVisible: boolean;
   isFromEditor: boolean;
   isGameplayActive: boolean;
+  durationMs: number;
+  overlayPortalContainer: HTMLElement | null;
+  stageScale: number;
 }
 
 export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
@@ -45,12 +49,18 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
   isLaneUiVisible,
   isFromEditor,
   isGameplayActive,
+  durationMs,
+  overlayPortalContainer,
+  stageScale,
 }) => {
+  const isLegacyHud = playfieldGeometry.gameplayHudMode === 'legacy';
   const {
     displayScore,
     combo,
     pressedKeys,
-    holdingNotes,
+    pressedKeysRef,
+    holdingNotesRef,
+    scoreRuntimeRef,
     judgeFeedbacksRef,
     keyEffectsRef,
     effectsRevision,
@@ -67,6 +77,8 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
     hitNoteIdsRef,
     judgeLineY,
     timingOffsetMs,
+    pressedKeySnapshotsEnabled: isLegacyHud,
+    comboSnapshotsEnabled: isLegacyHud,
   });
 
   useKeyboard(
@@ -102,10 +114,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
         isLaneUiVisible={isLaneUiVisible}
         speed={noteSpeed}
         pressedKeys={pressedKeys}
-        holdingNotes={holdingNotes}
-        judgeFeedbacksRef={judgeFeedbacksRef}
-        keyEffectsRef={keyEffectsRef}
-        effectsRevision={effectsRevision}
+        holdingNotesRef={holdingNotesRef}
         laneKeyLabels={laneKeyLabels}
         isFromEditor={isFromEditor}
         currentTimeRef={currentTimeRef}
@@ -113,6 +122,24 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
         judgeLineY={judgeLineY}
         playfieldGeometry={playfieldGeometry}
         hitNoteIdsRef={hitNoteIdsRef}
+      />
+
+      <GameplayHudCanvas
+        portalContainer={overlayPortalContainer}
+        stageScale={stageScale}
+        active={isGameplayActive}
+        visible={isLaneUiVisible}
+        effectsRevision={effectsRevision}
+        judgeFeedbackTop={Math.max(120, judgeLineY - 140)}
+        judgeFeedbacksRef={judgeFeedbacksRef}
+        keyEffectsRef={keyEffectsRef}
+        pressedKeysRef={pressedKeysRef}
+        currentTimeRef={currentTimeRef}
+        scoreRuntimeRef={scoreRuntimeRef}
+        laneKeyLabels={laneKeyLabels}
+        playfieldGeometry={playfieldGeometry}
+        gameplayHudMode={playfieldGeometry.gameplayHudMode}
+        durationMs={durationMs}
       />
     </>
   );

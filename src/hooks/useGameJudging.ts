@@ -84,15 +84,6 @@ const laneSetsEqual = (a: Set<Lane>, b: Set<Lane>) => {
   return true;
 };
 
-const holdingNoteMapsEqual = (a: Map<number, Note>, b: Map<number, Note>) => {
-  if (a === b) return true;
-  if (a.size !== b.size) return false;
-  for (const noteId of a.keys()) {
-    if (!b.has(noteId)) return false;
-  }
-  return true;
-};
-
 export interface JudgeFeedback {
   id: number;
   judge: JudgeType;
@@ -123,13 +114,17 @@ export interface UseGameJudgingOptions {
   judgeLineY: number;
   timingOffsetMs: number;
   onTimingSample?: (sample: { diffMs: number; judge: JudgeType; source: 'tap' | 'holdRelease' }) => void;
+  pressedKeySnapshotsEnabled?: boolean;
+  comboSnapshotsEnabled?: boolean;
 }
 
 export interface UseGameJudgingReturn {
   displayScore: GameState['score'];
   combo: number;
   pressedKeys: Set<Lane>;
-  holdingNotes: Map<number, Note>;
+  pressedKeysRef: MutableRefObject<Set<Lane>>;
+  holdingNotesRef: MutableRefObject<Map<number, Note>>;
+  scoreRuntimeRef: MutableRefObject<GameState['score']>;
   judgeFeedbacksRef: MutableRefObject<JudgeFeedback[]>;
   keyEffectsRef: MutableRefObject<KeyEffect[]>;
   effectsRevision: number;
@@ -150,6 +145,8 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     judgeLineY,
     timingOffsetMs,
     onTimingSample,
+    pressedKeySnapshotsEnabled = true,
+    comboSnapshotsEnabled = true,
   } = options;
 
   const [pressedKeys, setPressedKeys] = useState<Set<Lane>>(new Set());
@@ -157,7 +154,6 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   const [displayScore, setDisplayScore] = useState<GameState['score']>(gameState.score);
   const [combo, setCombo] = useState<number>(gameState.score.combo);
   const comboRef = useRef<number>(gameState.score.combo);
-  const [holdingNotes, setHoldingNotes] = useState<Map<number, Note>>(new Map());
   const holdingNotesRef = useRef<Map<number, Note>>(new Map());
   const judgeFeedbacksRef = useRef<JudgeFeedback[]>([]);
   const feedbackIdRef = useRef(0);
@@ -177,7 +173,6 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     pressedKeys: false,
     displayScore: false,
     combo: false,
-    holdingNotes: false,
     effects: false,
   });
 
@@ -198,18 +193,16 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         pressedKeys: false,
         displayScore: false,
         combo: false,
-        holdingNotes: false,
         effects: false,
       };
 
-      if (!dirty.pressedKeys && !dirty.displayScore && !dirty.combo && !dirty.holdingNotes && !dirty.effects) {
+      if (!dirty.pressedKeys && !dirty.displayScore && !dirty.combo && !dirty.effects) {
         return;
       }
 
       const nextPressedKeys = dirty.pressedKeys ? new Set(pressedKeysRef.current) : null;
       const nextDisplayScore = dirty.displayScore ? scoreRuntimeRef.current : null;
       const nextCombo = dirty.combo ? comboRef.current : null;
-      const nextHoldingNotes = dirty.holdingNotes ? new Map(holdingNotesRef.current) : null;
 
       let shouldBumpEffectsRevision = false;
       if (dirty.effects) {
@@ -234,9 +227,6 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         }
         if (nextCombo !== null) {
           setCombo((prev) => (prev === nextCombo ? prev : nextCombo));
-        }
-        if (nextHoldingNotes) {
-          setHoldingNotes((prev) => (holdingNoteMapsEqual(prev, nextHoldingNotes) ? prev : nextHoldingNotes));
         }
         if (shouldBumpEffectsRevision) {
           setEffectsRevision((prev) => prev + 1);
@@ -332,7 +322,9 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     (judge: JudgeType) => {
       scoreRuntimeRef.current = updateScoreFromJudge(judge, scoreRuntimeRef.current);
       comboRef.current = scoreRuntimeRef.current.combo;
-      uiDirtyRef.current.combo = true;
+      if (comboSnapshotsEnabled) {
+        uiDirtyRef.current.combo = true;
+      }
       uiDirtyRef.current.displayScore = true;
       scheduleUiCommit();
       gameStateRef.current = {
@@ -342,6 +334,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       scheduleScoreSnapshot();
     },
     [
+      comboSnapshotsEnabled,
       gameStateRef,
       scheduleUiCommit,
       scheduleScoreSnapshot,
@@ -381,8 +374,10 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         const nextPressedKeys = new Set(pressedKeysRef.current);
         nextPressedKeys.add(lane);
         pressedKeysRef.current = nextPressedKeys;
-        uiDirtyRef.current.pressedKeys = true;
-        scheduleUiCommit();
+        if (pressedKeySnapshotsEnabled) {
+          uiDirtyRef.current.pressedKeys = true;
+          scheduleUiCommit();
+        }
       }
 
       const currentTime = currentTimeRef.current - timingOffsetMs;
@@ -459,8 +454,6 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         const nextHoldingNotes = new Map(holdingNotesRef.current);
         nextHoldingNotes.set(targetNote.id, targetNote);
         holdingNotesRef.current = nextHoldingNotes;
-        uiDirtyRef.current.holdingNotes = true;
-        scheduleUiCommit();
       }
 
       addJudgeFeedback(judge, lane, timingDirection);
@@ -473,6 +466,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       onTimingSample,
       enqueueScoreJudge,
       addJudgeFeedback,
+      pressedKeySnapshotsEnabled,
       scheduleUiCommit,
     ]
   );
@@ -483,8 +477,10 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         const nextPressedKeys = new Set(pressedKeysRef.current);
         nextPressedKeys.delete(lane);
         pressedKeysRef.current = nextPressedKeys;
-        uiDirtyRef.current.pressedKeys = true;
-        scheduleUiCommit();
+        if (pressedKeySnapshotsEnabled) {
+          uiDirtyRef.current.pressedKeys = true;
+          scheduleUiCommit();
+        }
       }
 
       const nextHoldingNotes = new Map(holdingNotesRef.current);
@@ -558,8 +554,6 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
 
       if (laneHoldNotes.length > 0) {
         holdingNotesRef.current = nextHoldingNotes;
-        uiDirtyRef.current.holdingNotes = true;
-        scheduleUiCommit();
       }
     },
     [
@@ -570,6 +564,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       processedMissNotes,
       enqueueScoreJudge,
       addJudgeFeedback,
+      pressedKeySnapshotsEnabled,
       scheduleUiCommit,
     ]
   );
@@ -588,8 +583,6 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         const nextHoldingNotes = new Map(holdingNotesRef.current);
         nextHoldingNotes.delete(note.id);
         holdingNotesRef.current = nextHoldingNotes;
-        uiDirtyRef.current.holdingNotes = true;
-        scheduleUiCommit();
       }
 
       const judge: JudgeType = shouldDowngradeMissToGood ? 'good' : 'miss';
@@ -602,13 +595,8 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       hitNoteIdsRef,
       enqueueScoreJudge,
       addJudgeFeedback,
-      scheduleUiCommit,
     ]
   );
-
-  useEffect(() => {
-    holdingNotesRef.current = holdingNotes;
-  }, [holdingNotes]);
 
   useEffect(() => {
     if (!gameState.gameStarted) {
@@ -644,7 +632,6 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       pressedKeysRef.current = new Set();
       holdingNotesRef.current = new Map();
       setPressedKeys(new Set());
-      setHoldingNotes(new Map());
       holdStartJudgeRef.current.clear();
       judgeLaneCursorRef.current = [0, 0, 0, 0];
       processedMissNotes.current.clear();
@@ -681,7 +668,6 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       pressedKeysRef.current = new Set();
       holdingNotesRef.current = new Map();
       setPressedKeys(new Set());
-      setHoldingNotes(new Map());
       holdStartJudgeRef.current.clear();
       judgeLaneCursorRef.current = [0, 0, 0, 0];
     }
@@ -709,7 +695,9 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     displayScore,
     combo,
     pressedKeys,
-    holdingNotes,
+    pressedKeysRef,
+    holdingNotesRef,
+    scoreRuntimeRef,
     judgeFeedbacksRef,
     keyEffectsRef,
     effectsRevision,
