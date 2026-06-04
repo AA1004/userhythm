@@ -5,6 +5,7 @@ import {
   GameVisualSettings,
   KEY_LANE_HEIGHT,
   LANE_COUNT,
+  NoteColorRgb,
   VISUAL_SETTING_LIMITS,
   VisualPresetId,
 } from '../constants/gameVisualSettings';
@@ -50,6 +51,13 @@ interface VisualSliderRowProps {
   step: number;
   suffix?: string;
   onChange: (value: number) => void;
+  onCommit: () => void;
+}
+
+interface NoteColorEditorProps {
+  label: string;
+  value: NoteColorRgb;
+  onChange: (value: NoteColorRgb) => void;
   onCommit: () => void;
 }
 
@@ -110,6 +118,93 @@ const VisualSliderRow = memo<VisualSliderRowProps>(({
         onBlur={onCommit}
         style={{ width: '100%', accentColor: CHART_EDITOR_THEME.accent }}
       />
+    </div>
+  );
+});
+
+const NoteColorEditor = memo<NoteColorEditorProps>(({ label, value, onChange, onCommit }) => {
+  const updateChannel = (channel: keyof NoteColorRgb, nextValue: number) => {
+    onChange({
+      ...value,
+      [channel]: Math.max(0, Math.min(255, Math.round(nextValue))),
+    });
+  };
+
+  return (
+    <div style={{ marginBottom: '12px' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          color: CHART_EDITOR_THEME.textSecondary,
+          fontSize: '12px',
+          marginBottom: '6px',
+        }}
+      >
+        <span>{label}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ color: CHART_EDITOR_THEME.textPrimary }}>
+            RGB({value.r}, {value.g}, {value.b})
+          </span>
+          <span
+            style={{
+              width: '20px',
+              height: '20px',
+              borderRadius: '6px',
+              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+              background: `rgb(${value.r}, ${value.g}, ${value.b})`,
+            }}
+          />
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+        {(['r', 'g', 'b'] as const).map((channel) => (
+          <div key={channel}>
+            <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginBottom: '4px' }}>
+              {channel.toUpperCase()}
+            </div>
+            <input
+              className="settings-slider-row__input"
+              type="range"
+              min="0"
+              max="255"
+              step="1"
+              value={value[channel]}
+              onInput={(e) => updateChannel(channel, (e.currentTarget as HTMLInputElement).valueAsNumber)}
+              onChange={(e) => updateChannel(channel, (e.currentTarget as HTMLInputElement).valueAsNumber)}
+              onPointerUp={onCommit}
+              onKeyUp={onCommit}
+              onBlur={onCommit}
+              style={{ width: '100%', accentColor: CHART_EDITOR_THEME.accent }}
+            />
+            <input
+              type="number"
+              min="0"
+              max="255"
+              step="1"
+              value={value[channel]}
+              onChange={(e) => {
+                const next = parseInt(e.target.value, 10);
+                if (!Number.isNaN(next)) {
+                  updateChannel(channel, next);
+                }
+              }}
+              onBlur={onCommit}
+              style={{
+                width: '100%',
+                marginTop: '4px',
+                padding: '6px 8px',
+                borderRadius: CHART_EDITOR_THEME.radiusSm,
+                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                background: CHART_EDITOR_THEME.surface,
+                color: CHART_EDITOR_THEME.textPrimary,
+                fontSize: '12px',
+              }}
+            />
+          </div>
+        ))}
+      </div>
     </div>
   );
 });
@@ -1005,6 +1100,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 max={VISUAL_SETTING_LIMITS.noteHeight.max}
                 step={1}
                 onChange={(value) => scheduleVisualSettingsChange({ noteHeight: value })}
+                onCommit={commitVisualSettings}
+              />
+              <NoteColorEditor
+                label="바깥 레인 노트 색상 (1, 4레인)"
+                value={visualSettings.outerLaneNoteColor}
+                onChange={(value) => scheduleVisualSettingsChange({ outerLaneNoteColor: value })}
+                onCommit={commitVisualSettings}
+              />
+              <NoteColorEditor
+                label="안쪽 레인 노트 색상 (2, 3레인)"
+                value={visualSettings.innerLaneNoteColor}
+                onChange={(value) => scheduleVisualSettingsChange({ innerLaneNoteColor: value })}
                 onCommit={commitVisualSettings}
               />
               <VisualSliderRow

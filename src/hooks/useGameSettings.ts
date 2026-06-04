@@ -50,6 +50,7 @@ const readStoredVisualSettings = (): GameVisualSettings => {
       parsed.version !== 1 &&
       parsed.version !== 2 &&
       parsed.version !== 3
+      && parsed.version !== 4
     ) {
       console.warn('[settings] Unknown visual settings version. Restoring defaults.', parsed);
       return DEFAULT_GAME_VISUAL_SETTINGS;

@@ -1,7 +1,7 @@
 import { JUDGE_LINE_Y } from './gameConstants';
 import { GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH } from './gameLayout';
 
-export const VISUAL_SETTINGS_VERSION = 4;
+export const VISUAL_SETTINGS_VERSION = 5;
 export const VISUAL_SETTINGS_STORAGE_KEY = 'RHYTHM_GAME_VISUAL_SETTINGS';
 export const LANE_COUNT = 4;
 export const KEY_LANE_HEIGHT = 100;
@@ -10,6 +10,12 @@ export type VisualPresetId = 'classic' | 'compact' | 'wide' | 'custom';
 export type GameplayHudMode = 'legacy' | 'new-lite' | 'new-full';
 export type RenderBackend = 'canvas2d' | 'webgl';
 export type PerformanceMode = 'quality' | 'balanced' | 'performance';
+
+export interface NoteColorRgb {
+  r: number;
+  g: number;
+  b: number;
+}
 
 export interface GameVisualSettings {
   version: typeof VISUAL_SETTINGS_VERSION;
@@ -23,6 +29,8 @@ export interface GameVisualSettings {
   keyLaneY: number;
   noteWidth: number;
   noteHeight: number;
+  outerLaneNoteColor: NoteColorRgb;
+  innerLaneNoteColor: NoteColorRgb;
   comboOpacity: number;
   bgaOpacity: number;
   gameplayHudMode: GameplayHudMode;
@@ -51,6 +59,8 @@ export interface PlayfieldGeometry {
   keyLaneY: number;
   noteWidth: number;
   noteHeight: number;
+  outerLaneNoteColor: NoteColorRgb;
+  innerLaneNoteColor: NoteColorRgb;
   comboOpacity: number;
   bgaOpacity: number;
   gameplayHudMode: GameplayHudMode;
@@ -88,6 +98,8 @@ export const DEFAULT_GAME_VISUAL_SETTINGS: GameVisualSettings = {
   keyLaneY: 700,
   noteWidth: 90,
   noteHeight: 42,
+  outerLaneNoteColor: { r: 255, g: 107, b: 107 },
+  innerLaneNoteColor: { r: 255, g: 205, b: 96 },
   comboOpacity: 0.7,
   bgaOpacity: 0,
   gameplayHudMode: 'new-lite',
@@ -114,6 +126,8 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     keyLaneY: 700,
     noteWidth: 76,
     noteHeight: 38,
+    outerLaneNoteColor: { r: 255, g: 107, b: 107 },
+    innerLaneNoteColor: { r: 255, g: 205, b: 96 },
     comboOpacity: 0.7,
     bgaOpacity: 0,
     gameplayHudMode: 'new-lite',
@@ -137,6 +151,8 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     keyLaneY: 700,
     noteWidth: 96,
     noteHeight: 46,
+    outerLaneNoteColor: { r: 255, g: 107, b: 107 },
+    innerLaneNoteColor: { r: 255, g: 205, b: 96 },
     comboOpacity: 0.7,
     bgaOpacity: 0,
     gameplayHudMode: 'new-lite',
@@ -158,6 +174,16 @@ const finiteOr = (value: unknown, fallback: number) =>
 
 const booleanOr = (value: unknown, fallback: boolean) =>
   typeof value === 'boolean' ? value : fallback;
+const clampChannel = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
+const normalizeNoteColor = (value: unknown, fallback: NoteColorRgb): NoteColorRgb => {
+  if (!value || typeof value !== 'object') return fallback;
+  const candidate = value as Partial<NoteColorRgb>;
+  return {
+    r: clampChannel(typeof candidate.r === 'number' ? candidate.r : fallback.r),
+    g: clampChannel(typeof candidate.g === 'number' ? candidate.g : fallback.g),
+    b: clampChannel(typeof candidate.b === 'number' ? candidate.b : fallback.b),
+  };
+};
 
 const getLaneGroupWidth = (laneWidth: number, laneGap: number) =>
   LANE_COUNT * laneWidth + (LANE_COUNT - 1) * laneGap;
@@ -217,6 +243,14 @@ export const normalizeGameVisualSettings = (
     finiteOr(raw.noteHeight, fallback.noteHeight),
     VISUAL_SETTING_LIMITS.noteHeight.min,
     VISUAL_SETTING_LIMITS.noteHeight.max
+  );
+  const outerLaneNoteColor = normalizeNoteColor(
+    (raw as { outerLaneNoteColor?: unknown }).outerLaneNoteColor,
+    fallback.outerLaneNoteColor
+  );
+  const innerLaneNoteColor = normalizeNoteColor(
+    (raw as { innerLaneNoteColor?: unknown }).innerLaneNoteColor,
+    fallback.innerLaneNoteColor
   );
   const comboOpacity = clamp(
     finiteOr(raw.comboOpacity, fallback.comboOpacity),
@@ -280,6 +314,8 @@ export const normalizeGameVisualSettings = (
     keyLaneY,
     noteWidth,
     noteHeight,
+    outerLaneNoteColor,
+    innerLaneNoteColor,
     comboOpacity,
     bgaOpacity,
     gameplayHudMode,
@@ -331,6 +367,8 @@ export const buildPlayfieldGeometry = (
     keyLaneY: normalized.keyLaneY,
     noteWidth: normalized.noteWidth,
     noteHeight: normalized.noteHeight,
+    outerLaneNoteColor: normalized.outerLaneNoteColor,
+    innerLaneNoteColor: normalized.innerLaneNoteColor,
     comboOpacity: normalized.comboOpacity,
     bgaOpacity: normalized.bgaOpacity,
     gameplayHudMode: normalized.gameplayHudMode,

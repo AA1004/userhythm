@@ -3,6 +3,13 @@ import { Note } from '../types/game';
 import { LANE_POSITIONS, NOTE_VISIBILITY_BUFFER_MS } from '../constants/gameConstants';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 import { HitNoteIdsRef, isNoteResolved } from '../utils/noteRuntimeState';
+import {
+  darkenNoteColor,
+  lightenNoteColor,
+  noteColorKey,
+  NoteColorRgb,
+  noteColorToRgba,
+} from '../utils/noteColors';
 
 const HOLD_MIN_HEIGHT = 60;
 const HOLD_HEAD_HEIGHT = 32;
@@ -107,12 +114,13 @@ const getNoteSprite = (
   noteWidth: number,
   noteHeight: number,
   isHolding: boolean,
+  noteColor: NoteColorRgb,
   themeVariant: 'default' = 'default'
 ) => {
   const dpr = window.devicePixelRatio || 1;
   const width = Math.round(noteWidth);
   const height = Math.round(noteHeight);
-  const cacheKey = `${type}:${width}:${height}:${isHolding ? 'holding' : 'idle'}:${themeVariant}:${dpr}`;
+  const cacheKey = `${type}:${width}:${height}:${isHolding ? 'holding' : 'idle'}:${themeVariant}:${noteColorKey(noteColor)}:${dpr}`;
   const cached = noteSpriteCache.get(cacheKey);
   if (cached) return cached;
 
@@ -124,46 +132,40 @@ const getNoteSprite = (
 
   spriteCtx.scale(dpr, dpr);
 
+  const light = lightenNoteColor(noteColor, isHolding ? 0.34 : 0.18);
+  const lighter = lightenNoteColor(noteColor, isHolding ? 0.52 : 0.32);
+  const dark = darkenNoteColor(noteColor, isHolding ? 0.08 : 0.18);
+
   if (type === 'tap') {
     const gradient = spriteCtx.createLinearGradient(0, 0, 0, height);
-    gradient.addColorStop(0, '#FF6B6B');
-    gradient.addColorStop(1, '#FF9A8B');
+    gradient.addColorStop(0, noteColorToRgba(lighter));
+    gradient.addColorStop(1, noteColorToRgba(dark));
     spriteCtx.fillStyle = gradient;
-    spriteCtx.strokeStyle = '#EE5A52';
+    spriteCtx.strokeStyle = noteColorToRgba(darkenNoteColor(noteColor, 0.28));
     spriteCtx.lineWidth = 3;
     drawRoundedRect(spriteCtx, 1.5, 1.5, width - 3, height - 3, 14);
     spriteCtx.fill();
     spriteCtx.stroke();
   } else if (type === 'holdHead') {
     const gradient = spriteCtx.createLinearGradient(0, 0, 0, height);
-    gradient.addColorStop(0, isHolding ? 'rgba(255,255,255,0.98)' : 'rgba(255,255,255,0.9)');
-    gradient.addColorStop(1, isHolding ? 'rgba(255,244,196,0.82)' : 'rgba(255,255,255,0.68)');
+    gradient.addColorStop(0, noteColorToRgba(lightenNoteColor(noteColor, isHolding ? 0.7 : 0.55), 0.98));
+    gradient.addColorStop(1, noteColorToRgba(lighter, isHolding ? 0.9 : 0.76));
     spriteCtx.fillStyle = gradient;
     drawRoundedRect(spriteCtx, 0, 0, width, height, 10);
     spriteCtx.fill();
   } else if (type === 'holdBody') {
     const gradient = spriteCtx.createLinearGradient(0, 0, 0, height);
-    if (isHolding) {
-      gradient.addColorStop(0, 'rgba(255,231,157,0.95)');
-      gradient.addColorStop(1, 'rgba(255,193,7,0.65)');
-    } else {
-      gradient.addColorStop(0, 'rgba(78,205,196,0.9)');
-      gradient.addColorStop(1, 'rgba(32,164,154,0.7)');
-    }
+    gradient.addColorStop(0, noteColorToRgba(isHolding ? light : noteColor, isHolding ? 0.95 : 0.9));
+    gradient.addColorStop(1, noteColorToRgba(isHolding ? noteColor : dark, isHolding ? 0.74 : 0.7));
     spriteCtx.fillStyle = gradient;
     spriteCtx.fillRect(0, 0, width, height);
-    spriteCtx.strokeStyle = 'rgba(255,255,255,0.25)';
+    spriteCtx.strokeStyle = noteColorToRgba(lightenNoteColor(noteColor, 0.42), 0.25);
     spriteCtx.lineWidth = 2;
     spriteCtx.strokeRect(1, 0, Math.max(1, width - 2), height);
   } else {
     const gradient = spriteCtx.createLinearGradient(0, 0, 0, height);
-    if (isHolding) {
-      gradient.addColorStop(0, 'rgba(255,255,255,0.85)');
-      gradient.addColorStop(1, 'rgba(255,255,255,0.4)');
-    } else {
-      gradient.addColorStop(0, 'rgba(255,255,255,0.35)');
-      gradient.addColorStop(1, 'rgba(255,255,255,0.15)');
-    }
+    gradient.addColorStop(0, noteColorToRgba(light, isHolding ? 0.88 : 0.42));
+    gradient.addColorStop(1, noteColorToRgba(lighter, isHolding ? 0.5 : 0.18));
     spriteCtx.fillStyle = gradient;
     spriteCtx.fillRect(0, 0, width, height);
   }
@@ -271,6 +273,7 @@ interface NoteRendererProps {
   laneCenters?: readonly number[];
   noteWidth?: number;
   noteHeight?: number;
+  laneNoteColors: readonly NoteColorRgb[];
   holdingNotesRef: React.MutableRefObject<Map<number, Note>>;
   hitNoteIdsRef: HitNoteIdsRef;
   visible: boolean;
@@ -290,6 +293,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
   laneCenters = LANE_POSITIONS,
   noteWidth = 90,
   noteHeight = 42,
+  laneNoteColors,
   holdingNotesRef,
   hitNoteIdsRef,
   visible,
@@ -302,6 +306,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
   const laneCentersRef = useRef(laneCenters);
   const noteWidthRef = useRef(noteWidth);
   const noteHeightRef = useRef(noteHeight);
+  const laneNoteColorsRef = useRef(laneNoteColors);
   const visibleRef = useRef(visible);
   const renderIndexRef = useRef<NoteRenderIndex>({
     signature: '',
@@ -332,12 +337,16 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
   }, [noteWidth, noteHeight]);
 
   useEffect(() => {
+    laneNoteColorsRef.current = laneNoteColors;
+  }, [laneNoteColors]);
+
+  useEffect(() => {
     visibleRef.current = visible;
   }, [visible]);
 
   useEffect(() => {
     noteSpriteCache.clear();
-  }, [noteWidth, noteHeight]);
+  }, [noteWidth, noteHeight, laneNoteColors]);
 
   useEffect(() => {
     if (!visible || !canvasRef.current) {
@@ -381,6 +390,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
       const activeFallDuration = fallDurationRef.current;
       const activeJudgeLineY = judgeLineYRef.current;
       const activeLaneCenters = laneCentersRef.current;
+      const activeLaneNoteColors = laneNoteColorsRef.current;
       const activeNoteWidth = noteWidthRef.current;
       const activeNoteHeight = noteHeightRef.current;
       const holdHeadHeight = Math.min(HOLD_HEAD_HEIGHT, Math.max(24, activeNoteHeight));
@@ -388,19 +398,6 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
       const holdProgressWidth = Math.max(1, Math.round(activeNoteWidth * 0.64));
       const highlightWidthBase = Math.max(1, Math.round(activeNoteWidth * 0.8));
       const highlightHeightBase = 12;
-      const holdBodySpriteIdle = getNoteSprite('holdBody', activeNoteWidth, 64, false);
-      const holdBodySpriteHolding = getNoteSprite('holdBody', activeNoteWidth, 64, true);
-      const holdProgressSpriteIdle = getNoteSprite('holdProgress', holdProgressWidth, 64, false);
-      const holdProgressSpriteHolding = getNoteSprite('holdProgress', holdProgressWidth, 64, true);
-      const holdHighlightSprite = getNoteSprite(
-        'holdProgress',
-        highlightWidthBase,
-        highlightHeightBase,
-        false
-      );
-      const tapSprite = getNoteSprite('tap', activeNoteWidth, activeNoteHeight, false);
-      const holdHeadSpriteIdle = getNoteSprite('holdHead', holdHeadWidth, holdHeadHeight, false);
-      const holdHeadSpriteHolding = getNoteSprite('holdHead', holdHeadWidth, holdHeadHeight, true);
       ctx.clearRect(0, 0, logicalWidth, logicalHeight);
 
       const filterProfileStart = shouldProfile ? performance.now() : 0;
@@ -440,6 +437,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
 
         const isHoldNote = note.duration > 0 && note.type === 'hold';
         const laneX = activeLaneCenters[note.lane] ?? LANE_POSITIONS[note.lane];
+        const laneColor = activeLaneNoteColors[note.lane];
 
         if (!isHoldNote) {
           const position = computeTapRenderPosition(
@@ -454,9 +452,23 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           if (!position) return;
           const { left, top } = position;
 
+          const tapSprite = getNoteSprite('tap', activeNoteWidth, activeNoteHeight, false, laneColor);
           ctx.drawImage(tapSprite, left, top, activeNoteWidth, activeNoteHeight);
           drawnNotes += 1;
         } else {
+          const holdBodySpriteIdle = getNoteSprite('holdBody', activeNoteWidth, 64, false, laneColor);
+          const holdBodySpriteHolding = getNoteSprite('holdBody', activeNoteWidth, 64, true, laneColor);
+          const holdProgressSpriteIdle = getNoteSprite('holdProgress', holdProgressWidth, 64, false, laneColor);
+          const holdProgressSpriteHolding = getNoteSprite('holdProgress', holdProgressWidth, 64, true, laneColor);
+          const holdHighlightSprite = getNoteSprite(
+            'holdProgress',
+            highlightWidthBase,
+            highlightHeightBase,
+            false,
+            laneColor
+          );
+          const holdHeadSpriteIdle = getNoteSprite('holdHead', holdHeadWidth, holdHeadHeight, false, laneColor);
+          const holdHeadSpriteHolding = getNoteSprite('holdHead', holdHeadWidth, holdHeadHeight, true, laneColor);
           const left = laneX - activeNoteWidth / 2;
           const isHolding = activeHoldingNotes.has(note.id);
           const segment = computeHoldRenderSegment(
@@ -576,7 +588,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
         rafIdRef.current = undefined;
       }
     };
-  }, [canvasRef, currentTimeRef, hitNoteIdsRef, visible]);
+  }, [canvasRef, currentTimeRef, hitNoteIdsRef, visible, laneNoteColors]);
 
   return null;
 };

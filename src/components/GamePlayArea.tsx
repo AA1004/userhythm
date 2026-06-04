@@ -8,6 +8,7 @@ import { ComboDisplay } from './ComboDisplay';
 import { PlayfieldGeometry } from '../constants/gameVisualSettings';
 import { GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 import { HitNoteIdsRef } from '../utils/noteRuntimeState';
+import { getLaneNoteColor } from '../utils/noteColors';
 
 interface GamePlayAreaProps {
   notes: Note[];
@@ -49,6 +50,15 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
   const simpleHoldVisuals =
     playfieldGeometry.performanceMode !== 'quality' ||
     playfieldGeometry.gameplayHudMode === 'new-lite';
+  const laneNoteColors = useMemo(
+    () => [
+      getLaneNoteColor(0, playfieldGeometry.outerLaneNoteColor, playfieldGeometry.innerLaneNoteColor),
+      getLaneNoteColor(1, playfieldGeometry.outerLaneNoteColor, playfieldGeometry.innerLaneNoteColor),
+      getLaneNoteColor(2, playfieldGeometry.outerLaneNoteColor, playfieldGeometry.innerLaneNoteColor),
+      getLaneNoteColor(3, playfieldGeometry.outerLaneNoteColor, playfieldGeometry.innerLaneNoteColor),
+    ] as const,
+    [playfieldGeometry.outerLaneNoteColor, playfieldGeometry.innerLaneNoteColor]
+  );
   const topExtensionHeight = Math.max(100, Math.min(GAME_VIEW_HEIGHT * 0.58, judgeLineY - 36));
 
   const laneBackgroundLayer = useMemo(
@@ -229,6 +239,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
               laneCenters={playfieldGeometry.laneCenters}
               noteWidth={playfieldGeometry.noteWidth}
               noteHeight={playfieldGeometry.noteHeight}
+              laneNoteColors={laneNoteColors}
               holdingNotesRef={holdingNotesRef}
               hitNoteIdsRef={hitNoteIdsRef}
               visible={isLaneUiVisible}
@@ -257,6 +268,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
                 laneCenters={playfieldGeometry.laneCenters}
                 noteWidth={playfieldGeometry.noteWidth}
                 noteHeight={playfieldGeometry.noteHeight}
+                laneNoteColors={laneNoteColors}
                 holdingNotesRef={holdingNotesRef}
                 hitNoteIdsRef={hitNoteIdsRef}
                 visible={isLaneUiVisible}
@@ -272,6 +284,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       playfieldGeometry.noteWidth,
       playfieldGeometry.noteHeight,
       playfieldGeometry.laneCenters,
+      laneNoteColors,
       notes,
       currentTimeRef,
       fallDuration,
