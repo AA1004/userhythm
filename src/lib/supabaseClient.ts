@@ -200,6 +200,19 @@ export const chartAPI = {
     return res.chart;
   },
 
+  async updateChart(chartId: string, payload: {
+    title: string;
+    bpm: number;
+    dataJson: string;
+    youtubeUrl?: string | null;
+    description?: string | null;
+    difficulty?: string | null;
+    previewImage?: string | null;
+  }) {
+    const res = await api.updateChart(chartId, payload);
+    return res.chart;
+  },
+
   // Upload preview image
   async uploadPreviewImage(_chartId: string, _file: File) {
     throw new Error('미구현');

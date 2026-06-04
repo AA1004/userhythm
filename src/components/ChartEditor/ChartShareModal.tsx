@@ -17,6 +17,7 @@ interface ChartShareModalProps {
   onUpload: () => void;
   user: any;
   onLogin: () => void;
+  isEditingExisting?: boolean;
   previewStartMeasure: number;
   previewEndMeasure: number;
   onPreviewStartMeasureChange: (value: number) => void;
@@ -40,6 +41,7 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
   onUpload,
   user,
   onLogin,
+  isEditingExisting = false,
   previewStartMeasure,
   previewEndMeasure,
   onPreviewStartMeasureChange,
@@ -87,7 +89,7 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 style={{ marginTop: 0, marginBottom: '20px' }}>채보 공유</h2>
+        <h2 style={{ marginTop: 0, marginBottom: '20px' }}>{isEditingExisting ? '기존 채보 수정 저장' : '채보 공유'}</h2>
 
         {!user && (
           <div style={{ marginBottom: '20px', padding: '12px', backgroundColor: '#2a2a2a', borderRadius: '8px' }}>
@@ -338,7 +340,7 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
               opacity: isUploading || !user ? 0.5 : 1,
             }}
           >
-            {isUploading ? '업로드 중...' : '업로드'}
+            {isUploading ? (isEditingExisting ? '저장 중...' : '업로드 중...') : (isEditingExisting ? '수정 저장' : '업로드')}
           </button>
         </div>
       </div>

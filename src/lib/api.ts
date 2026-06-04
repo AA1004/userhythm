@@ -137,6 +137,26 @@ export const api = {
     });
     return toJson(res) as Promise<{ chart: ApiChart }>;
   },
+  async updateChart(id: string, payload: {
+    title: string;
+    bpm: number;
+    dataJson: string;
+    youtubeUrl?: string | null;
+    description?: string | null;
+    difficulty?: string | null;
+    previewImage?: string | null;
+  }) {
+    const res = await fetch(`${API_BASE}/api/charts/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-admin-token': getAdminToken(),
+      },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+    return toJson(res) as Promise<{ chart: ApiChart }>;
+  },
   async getPendingCharts(status: 'pending' | 'approved' | 'rejected' | 'all' = 'pending') {
     const qs = new URLSearchParams();
     qs.set('status', status);

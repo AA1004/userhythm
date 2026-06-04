@@ -421,6 +421,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadStatus, setUploadStatus] = useState<string>('');
   const [user, setUser] = useState<any>(null);
+  const [editingChartId, setEditingChartId] = useState<string | null>(null);
   const [isLoadExistingModalOpen, setIsLoadExistingModalOpen] = useState<boolean>(false);
   const [isLoadingExistingCharts, setIsLoadingExistingCharts] = useState<boolean>(false);
   const [existingCharts, setExistingCharts] = useState<ApiChart[]>([]);
@@ -706,6 +707,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       bpmChanges,
       speedChanges,
       bgaVisibilityIntervals,
+      editingChartId,
       chartTitle: shareTitle,
       chartAuthor: shareAuthor,
       gridDivision,
@@ -727,9 +729,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     timeSignatureOffset,
     audioOffsetMs,
     bpmChanges,
-      speedChanges,
-      bgaVisibilityIntervals,
-      shareTitle,
+        speedChanges,
+        bgaVisibilityIntervals,
+        editingChartId,
+        shareTitle,
       shareAuthor,
       gridDivision,
       isLongNoteMode,
@@ -799,6 +802,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
     if (typeof data.chartTitle === 'string') setShareTitle(data.chartTitle);
     if (typeof data.chartAuthor === 'string') setShareAuthor(data.chartAuthor);
+    if (typeof data.chartDifficulty === 'string') setShareDifficulty(data.chartDifficulty);
+    if (typeof data.chartDescription === 'string') setShareDescription(data.chartDescription);
+    if (typeof data.editingChartId === 'string' && data.editingChartId.length > 0) {
+      setEditingChartId(data.editingChartId);
+    } else if (data.editingChartId === null) {
+      setEditingChartId(null);
+    }
     if (typeof data.gridDivision === 'number') setGridDivision(data.gridDivision);
     if (typeof data.isLongNoteMode === 'boolean') setIsLongNoteMode(data.isLongNoteMode);
     if (data.testStartInput !== undefined) setTestStartInput(String(data.testStartInput));
@@ -865,6 +875,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setShareAuthor('');
     setShareDifficulty('Normal');
     setShareDescription('');
+    setEditingChartId(null);
     setYoutubeUrl('');
     noteIdRef.current = 0;
     speedChangeIdRef.current = 0;
@@ -1603,11 +1614,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       const playableNotes = validateNotes(notes);
       // 공유 시에는 채보 데이터만 포함 (에디터 상태 제외)
       const subtitles = localSubtitleStorage.get(subtitleSessionId);
-      const chartData = {
-        notes: playableNotes,
-        bpm,
-        youtubeUrl,
-        youtubeVideoId,
+        const chartData = {
+          notes: playableNotes,
+          bpm,
+          youtubeUrl,
+          youtubeVideoId,
         beatsPerMeasure,
         timeSignatureOffset,
         timelineExtraMs,
@@ -1615,37 +1626,53 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         bpmChanges,
         speedChanges,
         bgaVisibilityIntervals,
-        subtitles: subtitles.length > 0 ? subtitles : undefined,
-        chartTitle: shareTitle,
-        chartAuthor: shareAuthor,
-        gridDivision,
-        isLongNoteMode,
-        previewStartMeasure: sharePreviewStartMeasure,
-        previewEndMeasure: sharePreviewEndMeasure,
-      };
+          subtitles: subtitles.length > 0 ? subtitles : undefined,
+          chartTitle: shareTitle,
+          chartAuthor: shareAuthor,
+          chartDifficulty: shareDifficulty,
+          chartDescription: shareDescription,
+          editingChartId,
+          gridDivision,
+          isLongNoteMode,
+          previewStartMeasure: sharePreviewStartMeasure,
+          previewEndMeasure: sharePreviewEndMeasure,
+        };
 
-      await chartAPI.uploadChart({
-        title: shareTitle,
-        bpm,
-        difficulty: shareDifficulty || undefined,
-        description: shareDescription || undefined,
-        dataJson: JSON.stringify(chartData),
-        youtubeUrl: youtubeUrl || undefined,
-        previewImage: youtubeThumbnailUrl || undefined,
-      });
-      
-      setUploadStatus('업로드 완료! 관리자 승인 후 공개됩니다.');
-      setTimeout(() => {
-        setIsShareModalOpen(false);
-        setUploadStatus('');
-      }, 2000);
+        if (editingChartId && isAdmin) {
+          await chartAPI.updateChart(editingChartId, {
+            title: shareTitle,
+            bpm,
+            difficulty: shareDifficulty || undefined,
+            description: shareDescription || undefined,
+            dataJson: JSON.stringify(chartData),
+            youtubeUrl: youtubeUrl || undefined,
+            previewImage: youtubeThumbnailUrl || undefined,
+          });
+          setUploadStatus('기존 채보 수정 저장 완료!');
+        } else {
+          await chartAPI.uploadChart({
+            title: shareTitle,
+            bpm,
+            difficulty: shareDifficulty || undefined,
+            description: shareDescription || undefined,
+            dataJson: JSON.stringify(chartData),
+            youtubeUrl: youtubeUrl || undefined,
+            previewImage: youtubeThumbnailUrl || undefined,
+          });
+          setUploadStatus('업로드 완료! 관리자 승인 후 공개됩니다.');
+        }
+
+        setTimeout(() => {
+          setIsShareModalOpen(false);
+          setUploadStatus('');
+        }, 2000);
     } catch (e: any) {
       console.error(e);
       setUploadStatus(`실패: ${e.message}`);
     } finally {
       setIsUploading(false);
     }
-  }, [shareTitle, shareAuthor, shareDifficulty, shareDescription, bpm, youtubeUrl, youtubeVideoId, youtubeThumbnailUrl, notes, beatsPerMeasure, timeSignatureOffset, timelineExtraMs, audioOffsetMs, bpmChanges, speedChanges, bgaVisibilityIntervals, gridDivision, isLongNoteMode, user, subtitleSessionId, sharePreviewStartMeasure, sharePreviewEndMeasure]);
+  }, [shareTitle, shareAuthor, shareDifficulty, shareDescription, bpm, youtubeUrl, youtubeVideoId, youtubeThumbnailUrl, notes, beatsPerMeasure, timeSignatureOffset, timelineExtraMs, audioOffsetMs, bpmChanges, speedChanges, bgaVisibilityIntervals, gridDivision, isLongNoteMode, user, subtitleSessionId, sharePreviewStartMeasure, sharePreviewEndMeasure, editingChartId, isAdmin]);
 
   const handleExportJson = useCallback(() => {
     try {
@@ -1872,10 +1899,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       const parsed = JSON.parse(chart.data_json || '{}');
       handleRestore({
         ...parsed,
+        editingChartId: chart.id,
         chartTitle: parsed.chartTitle ?? chart.title,
         chartAuthor: parsed.chartAuthor ?? chart.author,
+        chartDifficulty: parsed.chartDifficulty ?? chart.difficulty ?? 'Normal',
+        chartDescription: parsed.chartDescription ?? chart.description ?? '',
         youtubeUrl: parsed.youtubeUrl ?? chart.youtube_url ?? '',
       });
+      setEditingChartId(chart.id);
       setShareTitle(chart.title);
       setShareAuthor(chart.author);
       setShareDifficulty(chart.difficulty || parsed.difficulty || 'Normal');
@@ -2234,6 +2265,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         onUpload={handleShare}
         user={user}
         onLogin={handleLoginWithGoogle}
+        isEditingExisting={!!editingChartId && isAdmin}
         previewStartMeasure={sharePreviewStartMeasure}
         previewEndMeasure={sharePreviewEndMeasure}
         onPreviewStartMeasureChange={setSharePreviewStartMeasure}
