@@ -46,6 +46,9 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isLegacyHud = playfieldGeometry.gameplayHudMode === 'legacy';
+  const simpleHoldVisuals =
+    playfieldGeometry.performanceMode !== 'quality' ||
+    playfieldGeometry.gameplayHudMode === 'new-lite';
   const topExtensionHeight = Math.max(100, Math.min(GAME_VIEW_HEIGHT * 0.58, judgeLineY - 36));
 
   const laneBackgroundLayer = useMemo(
@@ -229,6 +232,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
               holdingNotesRef={holdingNotesRef}
               hitNoteIdsRef={hitNoteIdsRef}
               visible={isLaneUiVisible}
+              simpleHoldVisuals={simpleHoldVisuals}
             />
           ) : (
             <>
@@ -256,6 +260,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
                 holdingNotesRef={holdingNotesRef}
                 hitNoteIdsRef={hitNoteIdsRef}
                 visible={isLaneUiVisible}
+                simpleHoldVisuals={simpleHoldVisuals}
               />
             </>
           )}
@@ -273,6 +278,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       judgeLineY,
       holdingNotesRef,
       hitNoteIdsRef,
+      simpleHoldVisuals,
     ]
   );
 

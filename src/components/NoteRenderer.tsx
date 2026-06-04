@@ -274,6 +274,7 @@ interface NoteRendererProps {
   holdingNotesRef: React.MutableRefObject<Map<number, Note>>;
   hitNoteIdsRef: HitNoteIdsRef;
   visible: boolean;
+  simpleHoldVisuals?: boolean;
 }
 
 /**
@@ -292,6 +293,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
   holdingNotesRef,
   hitNoteIdsRef,
   visible,
+  simpleHoldVisuals = false,
 }) => {
   const rafIdRef = useRef<number>();
   const notesRef = useRef(notes);
@@ -493,22 +495,24 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
             bodyHeight
           );
 
-          const highlightLeft = left + activeNoteWidth * 0.1;
-          const highlightTop = containerTop + 4;
-          const highlightWidth = activeNoteWidth * 0.8;
-          const highlightHeight = 12;
-          const highlightBottom = highlightTop + highlightHeight;
-          if (highlightBottom >= visibleTop && highlightTop <= visibleBottom) {
-            ctx.drawImage(
-              holdHighlightSprite,
-              highlightLeft,
-              highlightTop,
-              highlightWidth,
-              highlightHeight
-            );
+          if (!simpleHoldVisuals) {
+            const highlightLeft = left + activeNoteWidth * 0.1;
+            const highlightTop = containerTop + 4;
+            const highlightWidth = activeNoteWidth * 0.8;
+            const highlightHeight = 12;
+            const highlightBottom = highlightTop + highlightHeight;
+            if (highlightBottom >= visibleTop && highlightTop <= visibleBottom) {
+              ctx.drawImage(
+                holdHighlightSprite,
+                highlightLeft,
+                highlightTop,
+                highlightWidth,
+                highlightHeight
+              );
+            }
           }
 
-          if (holdProgress > 0) {
+          if (holdProgress > 0 && (!simpleHoldVisuals || isHolding)) {
             const progressHeight = (containerHeight - segmentHoldHeadHeight) * holdProgress;
             const progressTop = containerTop + containerHeight - segmentHoldHeadHeight - progressHeight;
             const progressBottom = containerTop + containerHeight - segmentHoldHeadHeight;

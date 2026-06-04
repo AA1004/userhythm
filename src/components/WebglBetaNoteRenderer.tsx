@@ -26,6 +26,7 @@ interface WebglBetaNoteRendererProps {
   holdingNotesRef: React.MutableRefObject<Map<number, Note>>;
   hitNoteIdsRef: HitNoteIdsRef;
   visible: boolean;
+  simpleHoldVisuals?: boolean;
 }
 
 interface SpriteEntry {
@@ -165,6 +166,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
   holdingNotesRef,
   hitNoteIdsRef,
   visible,
+  simpleHoldVisuals = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fallbackCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -340,7 +342,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
             bodySprite.height = bodyHeight;
 
             const progress = note.duration ? Math.max(0, Math.min(1, (currentTime - note.time) / note.duration)) : 0;
-            if (progress > 0) {
+            if (progress > 0 && (!simpleHoldVisuals || isHolding)) {
               const progressHeight = (fullHeight - HOLD_HEAD_HEIGHT) * progress;
               const progressTop = containerTop + fullHeight - HOLD_HEAD_HEIGHT - progressHeight;
               const progressBottom = containerTop + fullHeight - HOLD_HEAD_HEIGHT;
@@ -359,13 +361,15 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
               }
             }
 
-            const highlightTop = containerTop + 4;
-            if (highlightTop + 12 >= -NOTE_RENDER_BUFFER && highlightTop <= GAME_VIEW_HEIGHT + NOTE_RENDER_BUFFER) {
-              const highlightSprite = nextSprite(cursor, 'holdHighlight', textures.holdHighlight);
-              if (!highlightSprite) return null;
-              highlightSprite.position.set(left + activeNoteWidth * 0.1, highlightTop);
-              highlightSprite.width = activeNoteWidth * 0.8;
-              highlightSprite.height = 12;
+            if (!simpleHoldVisuals) {
+              const highlightTop = containerTop + 4;
+              if (highlightTop + 12 >= -NOTE_RENDER_BUFFER && highlightTop <= GAME_VIEW_HEIGHT + NOTE_RENDER_BUFFER) {
+                const highlightSprite = nextSprite(cursor, 'holdHighlight', textures.holdHighlight);
+                if (!highlightSprite) return null;
+                highlightSprite.position.set(left + activeNoteWidth * 0.1, highlightTop);
+                highlightSprite.width = activeNoteWidth * 0.8;
+                highlightSprite.height = 12;
+              }
             }
 
             const headHeight = Math.min(HOLD_HEAD_HEIGHT, Math.max(24, activeNoteHeight));
