@@ -25,7 +25,6 @@ interface GameplayHudCanvasProps {
   durationMs: number;
 }
 
-const SLOT_HUD_HEIGHT = 82;
 const KEY_EFFECT_DURATION_MS = 520;
 
 const judgeColors: Record<JudgeType, { main: string; soft: string }> = {
@@ -36,8 +35,6 @@ const judgeColors: Record<JudgeType, { main: string; soft: string }> = {
 };
 
 const easeOutExpo = (t: number) => (t >= 1 ? 1 : 1 - 2 ** (-10 * t));
-
-const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
 
 const drawRoundedRect = (
   ctx: CanvasRenderingContext2D,
@@ -69,12 +66,6 @@ const getJudgeProgress = (feedback: JudgeFeedback, now: number) => {
 const getKeyEffectProgress = (effect: KeyEffect, now: number) => {
   const startedAt = effect.expiresAt - JUDGE_FEEDBACK_DURATION_MS;
   return Math.max(0, Math.min(1, (now - startedAt) / KEY_EFFECT_DURATION_MS));
-};
-
-const getAccuracy = (score: GameState['score']) => {
-  const total = score.perfect + score.great + score.good + score.miss;
-  if (total <= 0) return 0;
-  return ((score.perfect * 100 + score.great * 80 + score.good * 50) / (total * 100)) * 100;
 };
 
 const drawKeyEffect = (ctx: CanvasRenderingContext2D, effect: KeyEffect, now: number) => {
@@ -319,89 +310,6 @@ const drawCombo = (
   ctx.restore();
 };
 
-const drawSlotHud = (
-  ctx: CanvasRenderingContext2D,
-  geometry: PlayfieldGeometry,
-  score: GameState['score'],
-  currentTimeMs: number,
-  durationMs: number
-) => {
-  if (!geometry.slotHudEnabled) return;
-
-  const left = geometry.laneGroupLeft;
-  const width = geometry.laneGroupWidth;
-  const top = geometry.keyLaneY + KEY_LANE_HEIGHT + 8;
-  const progress = durationMs > 0 ? clampPercent((currentTimeMs / durationMs) * 100) : 0;
-  const accuracy = clampPercent(getAccuracy(score));
-  const opacity = Math.max(0.45, Math.min(1, geometry.slotHudOpacity));
-  const columns = 3;
-  const innerGap = 8;
-  const paddingX = 12;
-  const paddingTop = 8;
-  const cellWidth = (width - paddingX * 2 - innerGap * (columns - 1)) / columns;
-  const cellHeight = 42;
-
-  ctx.save();
-  ctx.globalAlpha = opacity;
-  ctx.fillStyle = 'rgba(6, 10, 20, 0.88)';
-  ctx.strokeStyle = 'rgba(238, 247, 242, 0.18)';
-  ctx.lineWidth = 1;
-  drawRoundedRect(ctx, left, top, width, SLOT_HUD_HEIGHT, 14);
-  ctx.fill();
-  ctx.stroke();
-
-  const topBar = ctx.createLinearGradient(left, top, left + width, top);
-  topBar.addColorStop(0, '#68f4d5');
-  topBar.addColorStop(0.5, '#ffcf5f');
-  topBar.addColorStop(1, '#ff6d93');
-  ctx.fillStyle = topBar;
-  ctx.fillRect(left, top, width, 2);
-
-  const values = [
-    ['COMBO', String(score.combo)],
-    ['PROGRESS', `${progress.toFixed(1)}%`],
-    ['ACCURACY', `${accuracy.toFixed(2)}%`],
-  ];
-
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  values.forEach(([label, value], index) => {
-    const cellLeft = left + paddingX + index * (cellWidth + innerGap);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.24)';
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-    drawRoundedRect(ctx, cellLeft, top + paddingTop, cellWidth, cellHeight, 10);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = 'rgba(236, 246, 255, 0.58)';
-    ctx.font = '700 10px Bahnschrift, Arial Narrow, sans-serif';
-    ctx.fillText(label, cellLeft + cellWidth / 2, top + paddingTop + 12);
-    ctx.fillStyle = 'rgba(246, 251, 255, 0.96)';
-    ctx.font = '700 18px Bahnschrift, Consolas, monospace';
-    ctx.fillText(value, cellLeft + cellWidth / 2, top + paddingTop + 28);
-  });
-
-  const trackLeft = left + 12;
-  const trackTop = top + SLOT_HUD_HEIGHT - 13;
-  const trackWidth = width - 24;
-  ctx.fillStyle = 'rgba(255,255,255,0.1)';
-  drawRoundedRect(ctx, trackLeft, trackTop, trackWidth, 5, 999);
-  ctx.fill();
-  const fillWidth = trackWidth * (progress / 100);
-  if (fillWidth > 0) {
-    const progressGradient = ctx.createLinearGradient(trackLeft, trackTop, trackLeft + trackWidth, trackTop);
-    progressGradient.addColorStop(0, '#68f4d5');
-    progressGradient.addColorStop(0.5, '#d3ff78');
-    progressGradient.addColorStop(1, '#ff6d93');
-    ctx.fillStyle = progressGradient;
-    drawRoundedRect(ctx, trackLeft, trackTop, fillWidth, 5, 999);
-    ctx.fill();
-  }
-
-  ctx.restore();
-};
-
 export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   active,
   visible,
@@ -415,22 +323,18 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   laneKeyLabels,
   playfieldGeometry,
   gameplayHudMode,
-  durationMs,
+  durationMs: _durationMs,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameIdRef = useRef<number | null>(null);
   const visibleRef = useRef(visible);
   const activeRef = useRef(active);
   const judgeFeedbackTopRef = useRef(judgeFeedbackTop);
-  const durationRef = useRef(durationMs);
   const playfieldGeometryRef = useRef(playfieldGeometry);
   const gameplayHudModeRef = useRef(gameplayHudMode);
   const laneKeyLabelsRef = useRef(laneKeyLabels);
   const shouldRenderHud = gameplayHudMode !== 'legacy';
-  const canvasHeight = Math.max(
-    GAME_VIEW_HEIGHT,
-    playfieldGeometry.keyLaneY + KEY_LANE_HEIGHT + (playfieldGeometry.slotHudEnabled ? SLOT_HUD_HEIGHT + 12 : 0)
-  );
+  const canvasHeight = GAME_VIEW_HEIGHT;
 
   useEffect(() => {
     visibleRef.current = visible;
@@ -443,10 +347,6 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   useEffect(() => {
     judgeFeedbackTopRef.current = judgeFeedbackTop;
   }, [judgeFeedbackTop]);
-
-  useEffect(() => {
-    durationRef.current = durationMs;
-  }, [durationMs]);
 
   useEffect(() => {
     playfieldGeometryRef.current = playfieldGeometry;
@@ -521,7 +421,6 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
             geometry.laneGroupLeft + geometry.laneGroupWidth / 2,
             geometry.comboOpacity
           );
-          drawSlotHud(ctx, geometry, scoreRuntimeRef.current, currentTimeRef.current, durationRef.current);
         }
       }
 

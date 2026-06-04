@@ -748,7 +748,6 @@ export const Game: React.FC = () => {
   const activeBgaMaskOpacity = isGameplayActive ? bgaMaskOpacity : 0;
   const activeLaneUiVisible = isGameplayActive ? isLaneUiVisible : true;
   const useSlotHud = playfieldGeometry.slotHudEnabled;
-  const useLegacyHud = playfieldGeometry.gameplayHudMode === 'legacy';
   const slotHudProgress =
     dynamicGameDuration > 0
       ? Math.min(100, Math.max(0, (gameplayClockSnapshotMs / dynamicGameDuration) * 100))
@@ -1010,7 +1009,7 @@ export const Game: React.FC = () => {
         />
       )}
 
-          {isGameplayActive && useSlotHud && useLegacyHud && (
+          {isGameplayActive && useSlotHud && (
             <GameplaySlotHud
               laneGroupLeft={slotHudLeftPx}
               laneGroupWidth={slotHudWidthPx}
