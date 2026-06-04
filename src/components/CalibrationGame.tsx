@@ -457,8 +457,6 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
             hitNoteIdsRef={hitNoteIdsRef}
           />
           <GameplayHudCanvas
-            portalContainer={stageWrapperRef.current}
-            stageScale={1}
             active={phase === 'countdown' || phase === 'measuring'}
             visible={true}
             effectsRevision={effectsRevision}

@@ -28,8 +28,6 @@ interface GameplayRuntimeLayerProps {
   isFromEditor: boolean;
   isGameplayActive: boolean;
   durationMs: number;
-  overlayPortalContainer: HTMLElement | null;
-  stageScale: number;
 }
 
 export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
@@ -50,8 +48,6 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
   isFromEditor,
   isGameplayActive,
   durationMs,
-  overlayPortalContainer,
-  stageScale,
 }) => {
   const isLegacyHud = playfieldGeometry.gameplayHudMode === 'legacy';
   const {
@@ -125,8 +121,6 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
       />
 
       <GameplayHudCanvas
-        portalContainer={overlayPortalContainer}
-        stageScale={stageScale}
         active={isGameplayActive}
         visible={isLaneUiVisible}
         effectsRevision={effectsRevision}

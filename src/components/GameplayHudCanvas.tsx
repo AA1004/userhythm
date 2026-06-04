@@ -1,5 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useEffect, useRef } from 'react';
 import { GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH } from '../constants/gameLayout';
 import {
   GameVisualSettings,
@@ -11,8 +10,6 @@ import { JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
 import { JudgeType, Lane, GameState } from '../types/game';
 
 interface GameplayHudCanvasProps {
-  portalContainer: HTMLElement | null;
-  stageScale: number;
   active: boolean;
   visible: boolean;
   effectsRevision: number;
@@ -406,8 +403,6 @@ const drawSlotHud = (
 };
 
 export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
-  portalContainer,
-  stageScale,
   active,
   visible,
   effectsRevision,
@@ -427,7 +422,6 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   const visibleRef = useRef(visible);
   const activeRef = useRef(active);
   const judgeFeedbackTopRef = useRef(judgeFeedbackTop);
-  const stageScaleRef = useRef(stageScale);
   const durationRef = useRef(durationMs);
   const playfieldGeometryRef = useRef(playfieldGeometry);
   const gameplayHudModeRef = useRef(gameplayHudMode);
@@ -449,10 +443,6 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   useEffect(() => {
     judgeFeedbackTopRef.current = judgeFeedbackTop;
   }, [judgeFeedbackTop]);
-
-  useEffect(() => {
-    stageScaleRef.current = stageScale;
-  }, [stageScale]);
 
   useEffect(() => {
     durationRef.current = durationMs;
@@ -571,27 +561,19 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
     visible,
   ]);
 
-  const portalNode = useMemo(
-    () => (
-      <canvas
-        ref={canvasRef}
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          width: `${GAME_VIEW_WIDTH}px`,
-          height: `${canvasHeight}px`,
-          pointerEvents: 'none',
-          zIndex: 1400,
-          transform: `scale(${stageScale})`,
-          transformOrigin: 'top left',
-        }}
-      />
-    ),
-    [canvasHeight, stageScale]
+  return (
+    <canvas
+      ref={canvasRef}
+      aria-hidden="true"
+      style={{
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        width: `${GAME_VIEW_WIDTH}px`,
+        height: `${canvasHeight}px`,
+        pointerEvents: 'none',
+        zIndex: 500,
+      }}
+    />
   );
-
-  if (!portalContainer) return null;
-  return createPortal(portalNode, portalContainer);
 };
