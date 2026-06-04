@@ -713,7 +713,14 @@ export const Game: React.FC = () => {
   }
 
   if (viewMode.type === 'editor') {
-      return <ChartEditor onCancel={handleEditorCancel} onTest={handleEditorTestWithRuntimeReset} onOpenSubtitleEditor={handleOpenSubtitleEditor} />;
+      return (
+        <ChartEditor
+          onCancel={handleEditorCancel}
+          onTest={handleEditorTestWithRuntimeReset}
+          onOpenSubtitleEditor={handleOpenSubtitleEditor}
+          isAdmin={isAdmin}
+        />
+      );
   }
 
   if (viewMode.type === 'chartSelect') {

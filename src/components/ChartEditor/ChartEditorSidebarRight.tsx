@@ -18,6 +18,8 @@ export interface ChartEditorSidebarRightProps {
   onSetTestStartToCurrent: () => void;
   onTest: () => void;
   onShareClick: () => void;
+  isAdmin: boolean;
+  onLoadExistingClick: () => void;
   bpm: number;
   bpmChanges: BPMChange[];
   beatsPerMeasure: number;
@@ -136,6 +138,8 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
   onSetTestStartToCurrent,
   onTest,
   onShareClick,
+  isAdmin,
+  onLoadExistingClick,
   bpm,
   bpmChanges,
   beatsPerMeasure,
@@ -458,6 +462,30 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
       >
         공유
       </button>
+      {isAdmin && (
+        <button
+          data-editor-transient-action="true"
+          onMouseDown={keepTransientButtonFromTakingFocus}
+          onClick={(e) => {
+            onLoadExistingClick();
+            blurTransientButton(e);
+          }}
+          style={{
+            width: '100%',
+            marginTop: '8px',
+            padding: '6px',
+            background: 'linear-gradient(135deg, rgba(248,113,113,0.92), rgba(251,191,36,0.92))',
+            color: '#1f1200',
+            border: 'none',
+            borderRadius: CHART_EDITOR_THEME.radiusLg,
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            fontSize: '12px',
+          }}
+        >
+          기존 채보 편집
+        </button>
+      )}
     </div>
   );
 };

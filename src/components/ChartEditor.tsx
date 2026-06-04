@@ -5,6 +5,7 @@ import { ChartEditorSidebarLeft } from './ChartEditor/ChartEditorSidebarLeft';
 import { ChartEditorSidebarRight } from './ChartEditor/ChartEditorSidebarRight';
 import { ChartEditorTimeline } from './ChartEditor/ChartEditorTimeline';
 import { ChartShareModal } from './ChartEditor/ChartShareModal';
+import { ChartEditorLoadExistingModal } from './ChartEditor/ChartEditorLoadExistingModal';
 import { useChartYoutubePlayer } from '../hooks/useChartYoutubePlayer';
 import { useChartTimeline } from '../hooks/useChartTimeline';
 import { useChartAutosave } from '../hooks/useChartAutosave';
@@ -13,6 +14,7 @@ import { useHitSound } from '../hooks/useHitSound';
 import { TapBPMCalculator, isValidBPM } from '../utils/bpmAnalyzer';
 import { calculateTotalBeatsWithChanges, formatSongLength, timeToMeasure } from '../utils/bpmUtils';
 import { chartAPI, supabase, isSupabaseConfigured } from '../lib/supabaseClient';
+import { api, ApiChart } from '../lib/api';
 import {
   AUTO_SAVE_KEY,
   PIXELS_PER_SECOND,
@@ -42,6 +44,8 @@ const TEXT_EDITING_TARGET_SELECTOR =
 
 const TRANSIENT_EDITOR_ACTION_SELECTOR =
   '[data-editor-transient-action="true"], button:not([data-allow-editor-focus="true"])';
+const NON_TEXT_EDITOR_FOCUS_CLEANUP_SELECTOR =
+  'button:not([data-allow-editor-focus="true"]), input[type="range"], [role="button"]:not([data-allow-editor-focus="true"])';
 
 const isInteractiveEditorTarget = (target: EventTarget | null): boolean => {
   return target instanceof HTMLElement && target.closest(INTERACTIVE_EDITOR_TARGET_SELECTOR) !== null;
@@ -68,6 +72,12 @@ const getTransientEditorActionElement = (target: EventTarget | null): HTMLElemen
   return candidate instanceof HTMLElement ? candidate : null;
 };
 
+const getNonTextEditorFocusCleanupElement = (target: EventTarget | null): HTMLElement | null => {
+  if (!(target instanceof HTMLElement)) return null;
+  const candidate = target.closest(NON_TEXT_EDITOR_FOCUS_CLEANUP_SELECTOR);
+  return candidate instanceof HTMLElement ? candidate : null;
+};
+
 const preventTransientEditorActionFocus = (
   event: React.MouseEvent<HTMLElement> | React.PointerEvent<HTMLElement>
 ) => {
@@ -89,6 +99,28 @@ const blurTransientEditorActionOnFocus = (event: React.FocusEvent<HTMLElement>) 
   const actionElement = getTransientEditorActionElement(event.target);
   if (actionElement && document.activeElement === actionElement) {
     actionElement.blur();
+  }
+};
+
+const blurNonTextEditorControlAfterPointer = (
+  event: React.MouseEvent<HTMLElement> | React.PointerEvent<HTMLElement>
+) => {
+  if (isTextEditingTarget(event.target)) return;
+  const focusElement = getNonTextEditorFocusCleanupElement(event.target);
+  if (focusElement && document.activeElement === focusElement) {
+    focusElement.blur();
+  }
+};
+
+const blurNonTextEditorControlOnFocus = (event: React.FocusEvent<HTMLElement>) => {
+  if (isTextEditingTarget(event.target)) return;
+  const focusElement = getNonTextEditorFocusCleanupElement(event.target);
+  if (focusElement && document.activeElement === focusElement) {
+    requestAnimationFrame(() => {
+      if (document.activeElement === focusElement) {
+        focusElement.blur();
+      }
+    });
   }
 };
 
@@ -243,12 +275,14 @@ interface ChartEditorProps {
   onCancel: () => void;
   onTest?: (payload: ChartTestPayload) => void;
   onOpenSubtitleEditor?: (chartData: SubtitleEditorChartData) => void;
+  isAdmin?: boolean;
 }
 
 export const ChartEditor: React.FC<ChartEditorProps> = ({
   onCancel,
   onTest,
   onOpenSubtitleEditor,
+  isAdmin = false,
 }) => {
   // --- 기본 상태 ---
   const [notes, setNotes] = useState<Note[]>([]);
@@ -387,6 +421,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadStatus, setUploadStatus] = useState<string>('');
   const [user, setUser] = useState<any>(null);
+  const [isLoadExistingModalOpen, setIsLoadExistingModalOpen] = useState<boolean>(false);
+  const [isLoadingExistingCharts, setIsLoadingExistingCharts] = useState<boolean>(false);
+  const [existingCharts, setExistingCharts] = useState<ApiChart[]>([]);
+  const [existingChartsError, setExistingChartsError] = useState<string>('');
+  const [existingChartSearch, setExistingChartSearch] = useState<string>('');
   const importInputRef = useRef<HTMLInputElement>(null);
 
   const resolvedAuthor = useMemo(() => {
@@ -1793,6 +1832,64 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setIsShareModalOpen(true);
   }, [subtitleSessionId, bpm, bpmChanges, beatsPerMeasure]);
 
+  const loadExistingCharts = useCallback(async () => {
+    setIsLoadingExistingCharts(true);
+    setExistingChartsError('');
+    try {
+      const res = await api.getPendingCharts('all');
+      setExistingCharts(res.charts || []);
+    } catch (error) {
+      console.error('Failed to load existing charts for editor:', error);
+      setExistingChartsError('기존 채보 목록을 불러오지 못했습니다.');
+    } finally {
+      setIsLoadingExistingCharts(false);
+    }
+  }, []);
+
+  const handleOpenLoadExistingModal = useCallback(() => {
+    setIsLoadExistingModalOpen(true);
+    if (!isLoadingExistingCharts && existingCharts.length === 0) {
+      void loadExistingCharts();
+    }
+  }, [existingCharts.length, isLoadingExistingCharts, loadExistingCharts]);
+
+  const filteredExistingCharts = useMemo(() => {
+    const query = existingChartSearch.trim().toLowerCase();
+    if (!query) return existingCharts;
+    return existingCharts.filter((chart) =>
+      [chart.title, chart.author, chart.difficulty, chart.status]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query))
+    );
+  }, [existingChartSearch, existingCharts]);
+
+  const handleLoadExistingChart = useCallback((chart: ApiChart) => {
+    if (!confirm(`"${chart.title}" 채보를 현재 에디터에 불러옵니다. 현재 작업 내용은 덮어써집니다.`)) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(chart.data_json || '{}');
+      handleRestore({
+        ...parsed,
+        chartTitle: parsed.chartTitle ?? chart.title,
+        chartAuthor: parsed.chartAuthor ?? chart.author,
+        youtubeUrl: parsed.youtubeUrl ?? chart.youtube_url ?? '',
+      });
+      setShareTitle(chart.title);
+      setShareAuthor(chart.author);
+      setShareDifficulty(chart.difficulty || parsed.difficulty || 'Normal');
+      setShareDescription(chart.description || parsed.description || '');
+      setUploadStatus('');
+      setIsShareModalOpen(false);
+      setIsLoadExistingModalOpen(false);
+      seekTo(0, { shouldPause: true });
+    } catch (error) {
+      console.error('Failed to load existing chart into editor:', error);
+      alert('채보 데이터를 불러오지 못했습니다.');
+    }
+  }, [handleRestore, seekTo]);
+
   // 자동 스크롤
   useEffect(() => {
     if (!isPlaying || !isAutoScrollEnabled || isDraggingPlayheadRef.current) return;
@@ -1912,7 +2009,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   return (
     <div
       className="chart-editor-root"
-      onFocusCapture={handleNumericInputFocus}
+      onPointerUpCapture={blurNonTextEditorControlAfterPointer}
+      onFocusCapture={(event) => {
+        handleNumericInputFocus(event);
+        blurNonTextEditorControlOnFocus(event);
+      }}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -1979,9 +2080,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       <div
         className="chart-editor-workbench"
         onPointerDownCapture={preventTransientEditorActionFocus}
+        onPointerUpCapture={blurNonTextEditorControlAfterPointer}
         onMouseDownCapture={preventTransientEditorActionFocus}
         onClickCapture={blurTransientEditorActionAfterClick}
-        onFocusCapture={blurTransientEditorActionOnFocus}
+        onFocusCapture={(event) => {
+          blurTransientEditorActionOnFocus(event);
+          blurNonTextEditorControlOnFocus(event);
+        }}
         style={{
           flex: 1,
           minHeight: 0,
@@ -2105,6 +2210,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           onSetTestStartToCurrent={handleSetTestStartToCurrent}
           onTest={handleRunEditorTest}
           onShareClick={handleOpenShareModal}
+          isAdmin={isAdmin}
+          onLoadExistingClick={handleOpenLoadExistingModal}
           bpm={bpm}
           bpmChanges={sortedBpmChanges}
           beatsPerMeasure={beatsPerMeasure}
@@ -2132,6 +2239,17 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         onPreviewStartMeasureChange={setSharePreviewStartMeasure}
         onPreviewEndMeasureChange={setSharePreviewEndMeasure}
         beatsPerMeasure={beatsPerMeasure}
+      />
+      <ChartEditorLoadExistingModal
+        isOpen={isLoadExistingModalOpen}
+        isLoading={isLoadingExistingCharts}
+        error={existingChartsError}
+        charts={filteredExistingCharts}
+        search={existingChartSearch}
+        onSearchChange={setExistingChartSearch}
+        onReload={loadExistingCharts}
+        onLoadChart={handleLoadExistingChart}
+        onClose={() => setIsLoadExistingModalOpen(false)}
       />
       <input
         type="file"
