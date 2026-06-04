@@ -583,7 +583,7 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
           width: `${GAME_VIEW_WIDTH}px`,
           height: `${canvasHeight}px`,
           pointerEvents: 'none',
-          zIndex: 4,
+          zIndex: 1400,
           transform: `scale(${stageScale})`,
           transformOrigin: 'top left',
         }}
