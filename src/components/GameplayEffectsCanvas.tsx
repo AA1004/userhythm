@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH } from '../constants/gameLayout';
-import { JUDGE_FEEDBACK_DURATION_MS } from '../constants/gameConstants';
+import { JUDGE_FEEDBACK_DURATION_MS, KEY_EFFECT_DURATION_MS } from '../constants/gameConstants';
 import { JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
 import { JudgeType } from '../types/game';
 
@@ -11,8 +11,6 @@ interface GameplayEffectsCanvasProps {
   judgeFeedbackTop: number;
   visible: boolean;
 }
-
-const KEY_EFFECT_DURATION_MS = 520;
 
 const judgeColors: Record<JudgeType, { main: string; soft: string }> = {
   perfect: { main: '#FFD700', soft: 'rgba(255, 215, 0, 0.4)' },

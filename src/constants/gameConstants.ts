@@ -20,6 +20,8 @@ export const DEFAULT_KEY_BINDINGS: [string, string, string, string] = ['D', 'F',
 export const NOTE_VISIBILITY_BUFFER_MS = 200;
 /** 판정 피드백 표시 시간 (ms) */
 export const JUDGE_FEEDBACK_DURATION_MS = 800;
+/** 키 타격 이펙트 표시 시간 (ms) - 판정보다 짧게, 1.5배 빠르게 */
+export const KEY_EFFECT_DURATION_MS = Math.round(JUDGE_FEEDBACK_DURATION_MS / 1.5);
 
 // 미리듣기 설정
 export const PREVIEW_FADE_DURATION_MS = 200; // 미리듣기 오디오 페이드 인/아웃 시간 (ms)
