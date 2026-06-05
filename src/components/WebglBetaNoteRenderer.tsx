@@ -1,10 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Note } from '../types/game';
-import { LANE_POSITIONS, NOTE_VISIBILITY_BUFFER_MS } from '../constants/gameConstants';
+import { LANE_POSITIONS } from '../constants/gameConstants';
 import { GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH } from '../constants/gameLayout';
 import { HitNoteIdsRef, isNoteResolved } from '../utils/noteRuntimeState';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 import { NoteRenderer } from './NoteRenderer';
+import {
+  computeHoldRenderSegment,
+  computeTapRenderPosition,
+  getNoteRenderEndTime,
+  getNoteViewportEnd,
+  getNoteViewportStart,
+  HOLD_HEAD_HEIGHT,
+} from '../utils/noteRenderGeometry';
 import {
   darkenNoteColor,
   lightenNoteColor,
@@ -13,10 +21,6 @@ import {
   noteColorToRgba,
 } from '../utils/noteColors';
 
-const HOLD_HEAD_HEIGHT = 32;
-const HOLD_MIN_HEIGHT = 60;
-const NOTE_SPAWN_Y = -100;
-const NOTE_RENDER_BUFFER = 180;
 const SPRITE_POOL_SIZE = 384;
 
 type SpriteKind = 'tap' | 'holdBody' | 'holdHead' | 'holdProgress' | 'holdHighlight';
@@ -41,19 +45,6 @@ interface SpriteEntry {
   sprite: any;
   kind: SpriteKind;
 }
-
-const getNoteRenderEndTime = (note: Note) =>
-  note.type === 'hold' && note.duration > 0 ? note.endTime || note.time + note.duration : note.time;
-
-const getEventY = (
-  eventTime: number,
-  currentTime: number,
-  fallDuration: number,
-  judgeLineY: number
-) => {
-  const progress = 1 - (eventTime - currentTime) / fallDuration;
-  return NOTE_SPAWN_Y + progress * (judgeLineY - NOTE_SPAWN_Y);
-};
 
 const drawRoundedRect = (
   ctx: CanvasRenderingContext2D,
@@ -300,8 +291,8 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
           const activeHoldingNotes = holdingNotesRef.current;
           const activeNoteWidth = noteWidthRef.current;
           const activeNoteHeight = noteHeightRef.current;
-          const viewportStart = currentTime - activeFallDuration - NOTE_VISIBILITY_BUFFER_MS;
-          const viewportEnd = currentTime + activeFallDuration + NOTE_VISIBILITY_BUFFER_MS;
+          const viewportStart = getNoteViewportStart(currentTime, activeFallDuration);
+          const viewportEnd = getNoteViewportEnd(currentTime, activeFallDuration);
           const startIndex = binarySearchStartIndex(renderNotes, viewportStart);
           const cursor = { value: 0 };
           let drawn = 0;
@@ -332,24 +323,26 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
             const laneX = activeLaneCenters[note.lane] ?? LANE_POSITIONS[note.lane];
             const laneTextures = texturesByLane[note.lane];
             const left = laneX - activeNoteWidth / 2;
-            const endTime = note.endTime ?? note.time + note.duration;
             const isHolding = activeHoldingNotes.has(note.id);
-            const visualHalfHeight = activeNoteHeight / 2;
-            const visualBottomLimitY = activeJudgeLineY + visualHalfHeight;
-            const visualTopLimitY = NOTE_SPAWN_Y - visualHalfHeight;
-            const rawHeadY = getEventY(note.time, currentTime, activeFallDuration, activeJudgeLineY);
-            const rawTailY = getEventY(endTime, currentTime, activeFallDuration, activeJudgeLineY);
-            const headY =
-              isHolding && currentTime >= note.time
-                ? visualBottomLimitY
-                : Math.max(visualTopLimitY, Math.min(visualBottomLimitY, rawHeadY + visualHalfHeight));
-            const tailY = Math.max(visualTopLimitY, Math.min(visualBottomLimitY, rawTailY - visualHalfHeight));
-            const topY = Math.min(headY, tailY);
-            const bottomY = Math.max(headY, tailY);
-            const fullHeight = Math.max(HOLD_MIN_HEIGHT, bottomY - topY);
-            const containerTop = bottomY - fullHeight;
-            const bodyTop = Math.max(-NOTE_RENDER_BUFFER, containerTop);
-            const bodyBottom = Math.min(GAME_VIEW_HEIGHT + NOTE_RENDER_BUFFER, containerTop + fullHeight);
+            const segment = computeHoldRenderSegment(
+              note,
+              currentTime,
+              activeFallDuration,
+              activeJudgeLineY,
+              activeNoteHeight,
+              isHolding,
+              GAME_VIEW_HEIGHT
+            );
+            if (!segment) return false;
+            const {
+              containerTop,
+              containerHeight,
+              visibleTop,
+              visibleBottom,
+              holdHeadHeight,
+            } = segment;
+            const bodyTop = Math.max(visibleTop, containerTop);
+            const bodyBottom = Math.min(visibleBottom, containerTop + containerHeight);
             const bodyHeight = bodyBottom - bodyTop;
             if (bodyHeight <= 0) return false;
 
@@ -365,11 +358,11 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
 
             const progress = note.duration ? Math.max(0, Math.min(1, (currentTime - note.time) / note.duration)) : 0;
             if (progress > 0 && (!simpleHoldVisuals || isHolding)) {
-              const progressHeight = (fullHeight - HOLD_HEAD_HEIGHT) * progress;
-              const progressTop = containerTop + fullHeight - HOLD_HEAD_HEIGHT - progressHeight;
-              const progressBottom = containerTop + fullHeight - HOLD_HEAD_HEIGHT;
-              const visibleProgressTop = Math.max(progressTop, -NOTE_RENDER_BUFFER);
-              const visibleProgressBottom = Math.min(progressBottom, GAME_VIEW_HEIGHT + NOTE_RENDER_BUFFER);
+              const progressHeight = (containerHeight - holdHeadHeight) * progress;
+              const progressTop = containerTop + containerHeight - holdHeadHeight - progressHeight;
+              const progressBottom = containerTop + containerHeight - holdHeadHeight;
+              const visibleProgressTop = Math.max(progressTop, visibleTop);
+              const visibleProgressBottom = Math.min(progressBottom, visibleBottom);
               if (visibleProgressBottom > visibleProgressTop) {
                 const progressSprite = nextSprite(
                   cursor,
@@ -385,7 +378,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
 
             if (!simpleHoldVisuals) {
               const highlightTop = containerTop + 4;
-              if (highlightTop + 12 >= -NOTE_RENDER_BUFFER && highlightTop <= GAME_VIEW_HEIGHT + NOTE_RENDER_BUFFER) {
+              if (highlightTop + 12 >= visibleTop && highlightTop <= visibleBottom) {
                 const highlightSprite = nextSprite(cursor, 'holdHighlight', laneTextures.holdHighlight);
                 const highlightTexture = laneTextures.holdHighlight;
                 if (!highlightSprite) return null;
@@ -398,9 +391,8 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
               }
             }
 
-            const headHeight = Math.min(HOLD_HEAD_HEIGHT, Math.max(24, activeNoteHeight));
-            const headTop = containerTop + fullHeight - headHeight;
-            if (headTop + headHeight >= -NOTE_RENDER_BUFFER && headTop <= GAME_VIEW_HEIGHT + NOTE_RENDER_BUFFER) {
+            const headTop = containerTop + containerHeight - holdHeadHeight;
+            if (headTop + holdHeadHeight >= visibleTop && headTop <= visibleBottom) {
               const headSprite = nextSprite(
                 cursor,
                 'holdHead',
@@ -409,7 +401,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
               if (!headSprite) return null;
               headSprite.position.set(left + 6, headTop);
               headSprite.width = Math.max(1, activeNoteWidth - 12);
-              headSprite.height = headHeight;
+              headSprite.height = holdHeadHeight;
             }
             drawn += 1;
             return true;
@@ -433,21 +425,24 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
 
             const laneX = activeLaneCenters[note.lane] ?? LANE_POSITIONS[note.lane];
             const laneTextures = texturesByLane[note.lane];
-            const left = laneX - activeNoteWidth / 2;
             const isHoldNote = note.type === 'hold' && note.duration > 0;
 
             if (!isHoldNote) {
-              const y = Math.max(
-                NOTE_SPAWN_Y,
-                Math.min(activeJudgeLineY, getEventY(note.time, currentTime, activeFallDuration, activeJudgeLineY))
+              const position = computeTapRenderPosition(
+                note,
+                currentTime,
+                activeFallDuration,
+                activeJudgeLineY,
+                laneX,
+                activeNoteWidth,
+                activeNoteHeight
               );
-              const top = y - activeNoteHeight / 2;
-              if (top > activeJudgeLineY + NOTE_RENDER_BUFFER || top + activeNoteHeight < -NOTE_RENDER_BUFFER) {
+              if (!position) {
                 continue;
               }
               const sprite = nextSprite(cursor, 'tap', laneTextures.tap);
               if (!sprite) break;
-              sprite.position.set(left, top);
+              sprite.position.set(position.left, position.top);
               sprite.width = activeNoteWidth;
               sprite.height = activeNoteHeight;
               drawn += 1;

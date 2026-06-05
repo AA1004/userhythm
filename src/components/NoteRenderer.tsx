@@ -1,8 +1,16 @@
 import React, { useEffect, useRef } from 'react';
 import { Note } from '../types/game';
-import { LANE_POSITIONS, NOTE_VISIBILITY_BUFFER_MS } from '../constants/gameConstants';
+import { LANE_POSITIONS } from '../constants/gameConstants';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 import { HitNoteIdsRef, isNoteResolved } from '../utils/noteRuntimeState';
+import {
+  computeHoldRenderSegment,
+  computeTapRenderPosition,
+  getNoteRenderEndTime,
+  getNoteViewportEnd,
+  getNoteViewportStart,
+  HOLD_HEAD_HEIGHT,
+} from '../utils/noteRenderGeometry';
 import {
   darkenNoteColor,
   lightenNoteColor,
@@ -11,10 +19,6 @@ import {
   noteColorToRgba,
 } from '../utils/noteColors';
 
-const HOLD_MIN_HEIGHT = 60;
-const HOLD_HEAD_HEIGHT = 32;
-const NOTE_SPAWN_Y = -100;
-const NOTE_RENDER_BUFFER = 180;
 const NOTE_SPRITE_CACHE_LIMIT = 48;
 
 type NoteSpriteType = 'tap' | 'holdHead' | 'holdBody' | 'holdProgress';
@@ -48,9 +52,6 @@ function binarySearchStartIndex(notes: Note[], targetTime: number): number {
   }
   return low;
 }
-
-const getNoteRenderEndTime = (note: Note) =>
-  note.type === 'hold' && note.duration > 0 ? note.endTime || note.time + note.duration : note.time;
 
 function binarySearchHoldEndIndex(notes: Note[], holdIndicesByEnd: number[], targetTime: number): number {
   let low = 0;
@@ -176,92 +177,6 @@ const getNoteSprite = (
   }
   noteSpriteCache.set(cacheKey, sprite);
   return sprite;
-};
-
-interface TapRenderPosition {
-  left: number;
-  top: number;
-}
-
-interface HoldRenderSegment {
-  containerTop: number;
-  containerHeight: number;
-  visibleTop: number;
-  visibleBottom: number;
-  holdHeadHeight: number;
-}
-
-const getEventY = (
-  eventTime: number,
-  currentTime: number,
-  fallDuration: number,
-  judgeLineY: number
-) => {
-  const progress = 1 - (eventTime - currentTime) / fallDuration;
-  return NOTE_SPAWN_Y + progress * (judgeLineY - NOTE_SPAWN_Y);
-};
-
-const computeTapRenderPosition = (
-  note: Note,
-  currentTime: number,
-  fallDuration: number,
-  judgeLineY: number,
-  laneX: number,
-  noteWidth: number,
-  noteHeight: number
-): TapRenderPosition | null => {
-  const y = Math.max(NOTE_SPAWN_Y, Math.min(judgeLineY, getEventY(note.time, currentTime, fallDuration, judgeLineY)));
-  const top = y - noteHeight / 2;
-  if (top > judgeLineY + NOTE_RENDER_BUFFER || top + noteHeight < -NOTE_RENDER_BUFFER) return null;
-
-  return {
-    left: laneX - noteWidth / 2,
-    top,
-  };
-};
-
-const computeHoldRenderSegment = (
-  note: Note,
-  currentTime: number,
-  fallDuration: number,
-  judgeLineY: number,
-  noteHeight: number,
-  isHolding: boolean,
-  viewportHeight: number
-): HoldRenderSegment | null => {
-  const endTime = note.endTime ?? note.time + note.duration;
-  const rawHeadY = getEventY(note.time, currentTime, fallDuration, judgeLineY);
-  const rawTailY = getEventY(endTime, currentTime, fallDuration, judgeLineY);
-  const visualHalfHeight = noteHeight / 2;
-  const visualBottomLimitY = judgeLineY + visualHalfHeight;
-  const visualTopLimitY = NOTE_SPAWN_Y - visualHalfHeight;
-
-  // Rendering-only rule: hold endpoints are centered on the judgment line like tap notes.
-  // Judgment timing still uses note.time/endTime; only the visible capsule extends by half a note.
-  const headY =
-    isHolding && currentTime >= note.time
-      ? visualBottomLimitY
-      : Math.max(visualTopLimitY, Math.min(visualBottomLimitY, rawHeadY + visualHalfHeight));
-  const tailY = Math.max(visualTopLimitY, Math.min(visualBottomLimitY, rawTailY - visualHalfHeight));
-
-  const topY = Math.min(headY, tailY);
-  const bottomY = Math.max(headY, tailY);
-  const holdHeadHeight = Math.min(HOLD_HEAD_HEIGHT, Math.max(24, noteHeight));
-  const fullHeight = Math.max(HOLD_MIN_HEIGHT, bottomY - topY);
-  const containerTop = bottomY - fullHeight;
-  const containerBottom = containerTop + fullHeight;
-  const visibleTop = Math.max(containerTop, -NOTE_RENDER_BUFFER);
-  const visibleBottom = Math.min(containerBottom, viewportHeight + NOTE_RENDER_BUFFER);
-
-  if (visibleBottom <= visibleTop) return null;
-
-  return {
-    containerTop,
-    containerHeight: fullHeight,
-    visibleTop,
-    visibleBottom,
-    holdHeadHeight,
-  };
 };
 
 interface NoteRendererProps {
@@ -416,8 +331,8 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
         };
       }
 
-      const viewportStart = currentTime - activeFallDuration - NOTE_VISIBILITY_BUFFER_MS;
-      const viewportEnd = currentTime + activeFallDuration + NOTE_VISIBILITY_BUFFER_MS;
+      const viewportStart = getNoteViewportStart(currentTime, activeFallDuration);
+      const viewportEnd = getNoteViewportEnd(currentTime, activeFallDuration);
       const binaryStartIdx = binarySearchStartIndex(renderNotes, viewportStart);
       const canAdvanceCursor = viewportStart >= renderIndexRef.current.lastViewportStart;
       const startIdx = canAdvanceCursor
