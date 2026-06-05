@@ -69,7 +69,14 @@ const getKeyEffectProgress = (effect: KeyEffect, now: number) => {
   return Math.max(0, Math.min(1, (now - startedAt) / KEY_EFFECT_DURATION_MS));
 };
 
-const drawKeyEffect = (ctx: CanvasRenderingContext2D, effect: KeyEffect, now: number) => {
+type NewHudMode = 'new-lite' | 'new-full';
+
+const drawKeyEffect = (
+  ctx: CanvasRenderingContext2D,
+  effect: KeyEffect,
+  now: number,
+  mode: NewHudMode
+) => {
   const progress = getKeyEffectProgress(effect, now);
   if (progress >= 1) return;
 
@@ -88,19 +95,24 @@ const drawKeyEffect = (ctx: CanvasRenderingContext2D, effect: KeyEffect, now: nu
   const drawBar = (angle: number) => {
     ctx.save();
     ctx.rotate(angle);
-    const width = 92;
-    const height = 6;
-    const gradient = ctx.createLinearGradient(-width / 2, 0, width / 2, 0);
-    gradient.addColorStop(0, 'rgba(255,255,255,0)');
-    gradient.addColorStop(0.22, colors.main);
-    gradient.addColorStop(0.5, 'rgba(255,255,255,0.95)');
-    gradient.addColorStop(0.78, colors.main);
-    gradient.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = gradient;
-    ctx.shadowColor = colors.soft;
-    ctx.shadowBlur = 10;
-    drawRoundedRect(ctx, -width / 2, -height / 2, width, height, height / 2);
-    ctx.fill();
+    const width = mode === 'new-full' ? 92 : 64;
+    const height = mode === 'new-full' ? 6 : 4;
+    if (mode === 'new-full') {
+      const gradient = ctx.createLinearGradient(-width / 2, 0, width / 2, 0);
+      gradient.addColorStop(0, 'rgba(255,255,255,0)');
+      gradient.addColorStop(0.22, colors.main);
+      gradient.addColorStop(0.5, 'rgba(255,255,255,0.95)');
+      gradient.addColorStop(0.78, colors.main);
+      gradient.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = gradient;
+      ctx.shadowColor = colors.soft;
+      ctx.shadowBlur = 10;
+      drawRoundedRect(ctx, -width / 2, -height / 2, width, height, height / 2);
+      ctx.fill();
+    } else {
+      ctx.fillStyle = colors.main;
+      ctx.fillRect(-width / 2, -height / 2, width, height);
+    }
     ctx.restore();
   };
 
@@ -113,7 +125,8 @@ const drawJudgeFeedback = (
   ctx: CanvasRenderingContext2D,
   feedback: JudgeFeedback,
   now: number,
-  top: number
+  top: number,
+  mode: NewHudMode
 ) => {
   const progress = getJudgeProgress(feedback, now);
   if (progress >= 1) return;
@@ -135,16 +148,23 @@ const drawJudgeFeedback = (
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = colors.main;
-  ctx.shadowColor = colors.main;
-  ctx.shadowBlur = 40;
-  ctx.fillText(feedback.judge.toUpperCase(), 0, 0);
-  ctx.shadowColor = 'rgba(255,255,255,0.9)';
-  ctx.shadowBlur = 20;
+  if (mode === 'new-full') {
+    ctx.shadowColor = colors.main;
+    ctx.shadowBlur = 40;
+    ctx.fillText(feedback.judge.toUpperCase(), 0, 0);
+    ctx.shadowColor = 'rgba(255,255,255,0.9)';
+    ctx.shadowBlur = 20;
+  }
   ctx.fillText(feedback.judge.toUpperCase(), 0, 0);
   ctx.restore();
 };
 
-const drawLaneTimingFeedback = (ctx: CanvasRenderingContext2D, feedback: JudgeFeedback, now: number) => {
+const drawLaneTimingFeedback = (
+  ctx: CanvasRenderingContext2D,
+  feedback: JudgeFeedback,
+  now: number,
+  mode: NewHudMode
+) => {
   if (!feedback.timingDirection) return;
   const progress = getJudgeProgress(feedback, now);
   if (progress >= 1) return;
@@ -159,8 +179,10 @@ const drawLaneTimingFeedback = (ctx: CanvasRenderingContext2D, feedback: JudgeFe
   ctx.textBaseline = 'middle';
   ctx.font = 'bold 18px Arial, sans-serif';
   ctx.fillStyle = '#FFD84A';
-  ctx.shadowColor = 'rgba(255, 216, 74, 0.75)';
-  ctx.shadowBlur = 12;
+  if (mode === 'new-full') {
+    ctx.shadowColor = 'rgba(255, 216, 74, 0.75)';
+    ctx.shadowBlur = 12;
+  }
   ctx.fillText(feedback.timingDirection.toUpperCase(), 0, 0);
   ctx.restore();
 };
@@ -173,7 +195,7 @@ const drawKeyLane = (
   keys: string[],
   isPressed: boolean,
   opacity: number,
-  mode: 'new-lite' | 'new-full',
+  mode: NewHudMode,
   glowEnabled: boolean,
   pulseEnabled: boolean
 ) => {
@@ -291,7 +313,7 @@ const drawCombo = (
   combo: number,
   laneGroupCenterX: number,
   numberOpacity: number,
-  mode: 'new-lite' | 'new-full'
+  mode: NewHudMode
 ) => {
   if (combo <= 0) return;
 
@@ -392,15 +414,15 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
         for (const effect of keyEffectsRef.current) {
           if (getKeyEffectProgress(effect, now) < 1) {
             hasActiveEffect = true;
-            drawKeyEffect(ctx, effect, now);
+            drawKeyEffect(ctx, effect, now, hudMode);
           }
         }
 
         for (const feedback of judgeFeedbacksRef.current) {
           if (getJudgeProgress(feedback, now) < 1) {
             hasActiveEffect = true;
-            drawJudgeFeedback(ctx, feedback, now, judgeFeedbackTopRef.current);
-            drawLaneTimingFeedback(ctx, feedback, now);
+            drawJudgeFeedback(ctx, feedback, now, judgeFeedbackTopRef.current, hudMode);
+            drawLaneTimingFeedback(ctx, feedback, now, hudMode);
           }
         }
 
