@@ -451,9 +451,9 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
         }
       }
 
-      const shouldKeepLooping =
-        hasActiveEffect ||
-        (visibleRef.current && shouldRenderHud && activeRef.current && hudMode === 'new-full');
+      // New Full has expensive gradients/shadows, but the key lanes and combo are static
+      // between input/HUD revisions. Keep rAF alive only while animated effects exist.
+      const shouldKeepLooping = hasActiveEffect;
 
       if (shouldKeepLooping) {
         frameIdRef.current = requestAnimationFrame(renderFrame);
