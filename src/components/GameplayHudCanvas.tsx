@@ -35,6 +35,8 @@ const judgeColors: Record<JudgeType, { main: string; soft: string }> = {
   miss: { main: '#FF4500', soft: 'rgba(255, 69, 0, 0.4)' },
 };
 
+const laneChromeCache = new Map<string, HTMLCanvasElement>();
+
 const easeOutExpo = (t: number) => (t >= 1 ? 1 : 1 - 2 ** (-10 * t));
 
 const drawRoundedRect = (
@@ -57,6 +59,90 @@ const drawRoundedRect = (
   ctx.lineTo(x, y + safeRadius);
   ctx.quadraticCurveTo(x, y, x + safeRadius, y);
   ctx.closePath();
+};
+
+const getFullHudLaneChrome = (
+  width: number,
+  top: number,
+  keys: string[],
+  opacity: number,
+  glowEnabled: boolean,
+  dpr: number
+) => {
+  const cacheKey = [
+    Math.round(width),
+    Math.round(top),
+    Math.round(opacity * 1000),
+    glowEnabled ? 1 : 0,
+    dpr,
+    keys.join('|'),
+  ].join(':');
+  const cached = laneChromeCache.get(cacheKey);
+  if (cached) return cached;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(width * dpr));
+  canvas.height = Math.max(1, Math.round((top + KEY_LANE_HEIGHT) * dpr));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+
+  ctx.scale(dpr, dpr);
+  const left = 0;
+  const height = KEY_LANE_HEIGHT;
+  const alpha = Math.max(0, Math.min(1, opacity));
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+
+  const baseGradient = ctx.createLinearGradient(left, top, left, top + height);
+  baseGradient.addColorStop(0, 'rgba(10, 18, 35, 0.84)');
+  baseGradient.addColorStop(1, 'rgba(15, 27, 52, 0.74)');
+  ctx.fillStyle = baseGradient;
+  ctx.strokeStyle = 'rgba(104, 244, 213, 0.36)';
+  ctx.lineWidth = 2;
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.18)';
+  ctx.shadowBlur = 4;
+  drawRoundedRect(ctx, left, top, width, height, 12);
+  ctx.fill();
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  const sheen = ctx.createLinearGradient(left, top, left, top + height);
+  sheen.addColorStop(0, 'rgba(255,255,255,0.1)');
+  sheen.addColorStop(0.3, 'rgba(255,255,255,0.02)');
+  sheen.addColorStop(1, 'rgba(0,0,0,0.08)');
+  ctx.fillStyle = sheen;
+  drawRoundedRect(ctx, left, top, width, height, 12);
+  ctx.fill();
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 24px Arial, sans-serif';
+  if (glowEnabled) {
+    ctx.shadowColor = 'rgba(255,255,255,0.45)';
+    ctx.shadowBlur = 8;
+  }
+  ctx.fillText(keys[0] ?? '', width / 2, top + 44);
+  ctx.shadowBlur = 0;
+  if (keys[1]) {
+    ctx.font = '16px Arial, sans-serif';
+    ctx.globalAlpha = alpha * 0.9;
+    ctx.fillText(keys[1], width / 2, top + 68);
+    ctx.globalAlpha = alpha;
+  }
+
+  const meterHeight = 4;
+  const meterLeft = 8;
+  const meterTop = top + height - 12;
+  const meterWidth = width - 16;
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  drawRoundedRect(ctx, meterLeft, meterTop, meterWidth, meterHeight, 999);
+  ctx.fill();
+
+  ctx.restore();
+  laneChromeCache.set(cacheKey, canvas);
+  return canvas;
 };
 
 const getJudgeProgress = (feedback: JudgeFeedback, now: number) => {
@@ -219,90 +305,43 @@ const drawKeyLane = (
   }
 
   if (isFull) {
-    const baseGradient = ctx.createLinearGradient(left, top, left, top + height);
-    baseGradient.addColorStop(0, 'rgba(10, 18, 35, 0.84)');
-    baseGradient.addColorStop(1, 'rgba(15, 27, 52, 0.74)');
-    ctx.fillStyle = baseGradient;
+    const dpr = window.devicePixelRatio || 1;
+    const laneChrome = getFullHudLaneChrome(width, top, keys, alpha, glowEnabled, dpr);
+    ctx.drawImage(laneChrome, left, 0, width, top + height);
   } else {
     ctx.fillStyle = 'rgba(12, 20, 36, 0.88)';
-  }
-  ctx.strokeStyle = isPressed ? 'rgba(104, 244, 213, 0.78)' : 'rgba(104, 244, 213, 0.36)';
-  ctx.lineWidth = isFull ? 3 : 2;
-  ctx.shadowColor = glowEnabled && isPressed ? 'rgba(104, 244, 213, 0.2)' : 'rgba(0, 0, 0, 0.18)';
-  ctx.shadowBlur = isFull ? (glowEnabled && isPressed ? 14 : 4) : 0;
-  drawRoundedRect(ctx, left, top, width, height, 12);
-  ctx.fill();
-  ctx.stroke();
-  ctx.shadowBlur = 0;
-
-  if (isPressed) {
-    ctx.save();
-    ctx.globalAlpha = alpha * (isFull ? 0.95 : 0.72);
-    if (isFull) {
-      const pressGradient = ctx.createLinearGradient(left, top, left + width, top + height);
-      pressGradient.addColorStop(0, 'rgba(104, 244, 213, 0.82)');
-      pressGradient.addColorStop(0.5, 'rgba(255, 173, 102, 0.72)');
-      pressGradient.addColorStop(1, 'rgba(255, 109, 147, 0.82)');
-      ctx.fillStyle = pressGradient;
-    } else {
-      ctx.fillStyle = 'rgba(104, 244, 213, 0.64)';
-    }
-    drawRoundedRect(ctx, left + 3, top + 3, width - 6, height - 6, 10);
-    ctx.fill();
-    ctx.restore();
-  }
-
-  if (isFull) {
-    const sheen = ctx.createLinearGradient(left, top, left, top + height);
-    sheen.addColorStop(0, isPressed ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.1)');
-    sheen.addColorStop(0.3, 'rgba(255,255,255,0.02)');
-    sheen.addColorStop(1, 'rgba(0,0,0,0.08)');
-    ctx.fillStyle = sheen;
+    ctx.strokeStyle = isPressed ? 'rgba(104, 244, 213, 0.78)' : 'rgba(104, 244, 213, 0.36)';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.18)';
     drawRoundedRect(ctx, left, top, width, height, 12);
     ctx.fill();
-  }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
 
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 24px Arial, sans-serif';
-  if (glowEnabled && isFull) {
-    ctx.shadowColor = isFull ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.18)';
-    ctx.shadowBlur = isFull ? 8 : 3;
-  }
-  ctx.fillText(keys[0] ?? '', x, top + 44);
-  ctx.shadowBlur = 0;
-  if (keys[1]) {
-    ctx.font = '16px Arial, sans-serif';
-    ctx.globalAlpha = alpha * 0.9;
-    ctx.fillText(keys[1], x, top + 68);
-    ctx.globalAlpha = alpha;
-  }
-
-  const meterHeight = 4;
-  const meterLeft = left + 8;
-  const meterTop = top + height - 12;
-  const meterWidth = width - 16;
-  ctx.fillStyle = isPressed
-    ? mode === 'new-full'
-      ? 'rgba(255,255,255,0.24)'
-      : 'rgba(104, 244, 213, 0.54)'
-    : 'rgba(255,255,255,0.18)';
-  drawRoundedRect(ctx, meterLeft, meterTop, meterWidth, meterHeight, 999);
-  ctx.fill();
-  if (isPressed && pulseEnabled) {
-    ctx.globalAlpha = alpha * (isFull ? 1 : 0.7);
-    if (isFull) {
-      const meterGradient = ctx.createLinearGradient(meterLeft, meterTop, meterLeft + meterWidth, meterTop);
-      meterGradient.addColorStop(0, '#68f4d5');
-      meterGradient.addColorStop(0.5, '#d3ff78');
-      meterGradient.addColorStop(1, '#ff6d93');
-      ctx.fillStyle = meterGradient;
-    } else {
-      ctx.fillStyle = '#68f4d5';
+    if (isPressed) {
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.72;
+      ctx.fillStyle = 'rgba(104, 244, 213, 0.64)';
+      drawRoundedRect(ctx, left + 3, top + 3, width - 6, height - 6, 10);
+      ctx.fill();
+      ctx.restore();
     }
+
+    const meterHeight = 4;
+    const meterLeft = left + 8;
+    const meterTop = top + height - 12;
+    const meterWidth = width - 16;
+    ctx.fillStyle = isPressed
+      ? 'rgba(104, 244, 213, 0.54)'
+      : 'rgba(255,255,255,0.18)';
     drawRoundedRect(ctx, meterLeft, meterTop, meterWidth, meterHeight, 999);
     ctx.fill();
+    if (isPressed && pulseEnabled) {
+      ctx.globalAlpha = alpha * 0.7;
+      ctx.fillStyle = '#68f4d5';
+      drawRoundedRect(ctx, meterLeft, meterTop, meterWidth, meterHeight, 999);
+      ctx.fill();
+    }
   }
 
   ctx.restore();
