@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { GameState, Note, BgaVisibilityInterval } from '../types/game';
+import { GameState, Note, BgaVisibilityInterval, EmbeddedAudioTrack } from '../types/game';
 import { buildInitialScore, calculateGameDuration } from '../utils/gameHelpers';
 import { DEFAULT_GAME_DURATION, START_DELAY_MS } from '../constants/gameConstants';
 
@@ -12,6 +12,7 @@ export interface EditorTestPayload {
   audioOffsetMs?: number;
   chartId?: string;
   bgaVisibilityIntervals?: BgaVisibilityInterval[];
+  overlayAudioTrack?: EmbeddedAudioTrack | null;
 }
 
 export interface UseTestSessionOptions {
@@ -142,6 +143,7 @@ export function useTestSession({
         startTimeMs: startMs,
         playbackSpeed: payload.playbackSpeed || 1,
         audioOffsetMs: payload.audioOffsetMs ?? 0,
+        overlayAudioTrack: payload.overlayAudioTrack ?? null,
       });
 
       preparedNotesRef.current = preparedNotes.map((note) => ({ ...note }));

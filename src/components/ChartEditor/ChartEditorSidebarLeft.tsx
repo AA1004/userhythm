@@ -1,4 +1,5 @@
 import React from 'react';
+import { EmbeddedAudioTrack } from '../../types/game';
 import { CHART_EDITOR_THEME } from './constants';
 
 interface ChartEditorSidebarLeftProps {
@@ -22,6 +23,11 @@ interface ChartEditorSidebarLeftProps {
   onTimelineExtraChange: (updater: (prev: number) => number) => void;
   onAudioOffsetChange: (updater: (prev: number) => number) => void;
   beatDuration: number;
+  voiceTrack: EmbeddedAudioTrack | null;
+  onVoiceTrackPickClick: () => void;
+  onVoiceTrackClear: () => void;
+  onVoiceTrackVolumeChange: (volume: number) => void;
+  onVoiceTrackOffsetChange: (offsetMs: number) => void;
 }
 
 const groupLabelStyle: React.CSSProperties = {
@@ -83,11 +89,20 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
   onTimelineExtraChange,
   onAudioOffsetChange,
   beatDuration,
+  voiceTrack,
+  onVoiceTrackPickClick,
+  onVoiceTrackClear,
+  onVoiceTrackVolumeChange,
+  onVoiceTrackOffsetChange,
 }) => {
   const gridCellMs = beatDuration / Math.max(1, gridDivision);
   const offsetInCells = timeSignatureOffset / gridCellMs;
   const timelineExtraCells = timelineExtraMs / gridCellMs;
   const displayAudioOffsetSeconds = (audioOffsetMs / 1000)
+    .toFixed(3)
+    .replace(/\.0+$/, '')
+    .replace(/(\.\d*?)0+$/, '$1');
+  const displayVoiceOffsetSeconds = (((voiceTrack?.offsetMs ?? 0) / 1000))
     .toFixed(3)
     .replace(/\.0+$/, '')
     .replace(/(\.\d*?)0+$/, '$1');
@@ -433,6 +448,238 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
             +0.1초
           </button>
         </div>
+      </div>
+
+      <div
+        style={{
+          marginBottom: '10px',
+          padding: '6px 8px',
+          borderRadius: CHART_EDITOR_THEME.radiusMd,
+          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 6,
+            gap: 8,
+          }}
+        >
+          <span style={{ fontSize: '12px', fontWeight: 500 }}>보이스 트랙</span>
+          {voiceTrack ? <ValueBadge>{voiceTrack.volume}%</ValueBadge> : <ValueBadge>없음</ValueBadge>}
+        </div>
+        <div style={{ marginBottom: 6, fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>
+          로컬 MP3/WAV/OGG를 미리듣기와 테스트 플레이에 얹습니다. 공유 업로드에는 포함되지 않습니다.
+        </div>
+        {voiceTrack ? (
+          <>
+            <div
+              style={{
+                marginBottom: 6,
+                padding: '6px 8px',
+                borderRadius: CHART_EDITOR_THEME.radiusSm,
+                backgroundColor: 'rgba(2,6,23,0.66)',
+                color: CHART_EDITOR_THEME.textPrimary,
+                fontSize: '11px',
+                wordBreak: 'break-all',
+              }}
+            >
+              {voiceTrack.name}
+            </div>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '8px',
+                marginBottom: '4px',
+                fontSize: '12px',
+                fontWeight: 500,
+              }}
+            >
+              <span>보이스 볼륨</span>
+              <ValueBadge>{voiceTrack.volume}%</ValueBadge>
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value={voiceTrack.volume}
+              onChange={(e) => onVoiceTrackVolumeChange(parseInt(e.target.value, 10))}
+              onMouseUp={(e) => e.currentTarget.blur()}
+              onTouchEnd={(e) => e.currentTarget.blur()}
+              style={{ width: '100%', marginBottom: 8 }}
+            />
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 6,
+              }}
+            >
+              <span style={{ fontSize: '12px', fontWeight: 500 }}>보이스 시작 보정</span>
+              <ValueBadge>{displayVoiceOffsetSeconds}초</ValueBadge>
+            </div>
+            <input
+              type="number"
+              step="0.1"
+              value={Number(displayVoiceOffsetSeconds)}
+              onChange={(e) => {
+                const nextSeconds = parseFloat(e.target.value);
+                onVoiceTrackOffsetChange(Number.isFinite(nextSeconds) ? Math.round(nextSeconds * 1000) : 0);
+              }}
+              onFocus={(e) => e.currentTarget.select()}
+              onWheel={(e) => e.currentTarget.blur()}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                marginBottom: 6,
+                padding: '6px 8px',
+                borderRadius: CHART_EDITOR_THEME.radiusSm,
+                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                backgroundColor: 'rgba(2,6,23,0.72)',
+                color: CHART_EDITOR_THEME.textPrimary,
+                fontSize: '12px',
+              }}
+            />
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                data-editor-transient-action="true"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  e.currentTarget.blur();
+                  onVoiceTrackOffsetChange((voiceTrack.offsetMs || 0) - 100);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '6px',
+                  backgroundColor: 'rgba(148,163,184,0.14)',
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  border: 'none',
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                }}
+              >
+                -0.1초
+              </button>
+              <button
+                data-editor-transient-action="true"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  e.currentTarget.blur();
+                  onVoiceTrackOffsetChange(0);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '6px',
+                  backgroundColor: 'rgba(15,23,42,0.72)',
+                  color: CHART_EDITOR_THEME.textSecondary,
+                  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                }}
+              >
+                0초
+              </button>
+              <button
+                data-editor-transient-action="true"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  e.currentTarget.blur();
+                  onVoiceTrackOffsetChange((voiceTrack.offsetMs || 0) + 100);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '6px',
+                  backgroundColor: 'rgba(34,211,238,0.14)',
+                  color: CHART_EDITOR_THEME.accentStrong,
+                  border: 'none',
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                }}
+              >
+                +0.1초
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+              <button
+                data-editor-transient-action="true"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  e.currentTarget.blur();
+                  onVoiceTrackPickClick();
+                }}
+                style={{
+                  flex: 1,
+                  padding: '6px',
+                  backgroundColor: 'rgba(34,211,238,0.14)',
+                  color: CHART_EDITOR_THEME.accentStrong,
+                  border: 'none',
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                }}
+              >
+                파일 교체
+              </button>
+              <button
+                data-editor-transient-action="true"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  e.currentTarget.blur();
+                  onVoiceTrackClear();
+                }}
+                style={{
+                  flex: 1,
+                  padding: '6px',
+                  backgroundColor: 'rgba(239,68,68,0.12)',
+                  color: '#fca5a5',
+                  border: '1px solid rgba(239,68,68,0.45)',
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  cursor: 'pointer',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                }}
+              >
+                제거
+              </button>
+            </div>
+          </>
+        ) : (
+          <button
+            data-editor-transient-action="true"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={(e) => {
+              e.currentTarget.blur();
+              onVoiceTrackPickClick();
+            }}
+            style={{
+              width: '100%',
+              padding: '7px 8px',
+              backgroundColor: 'rgba(34,211,238,0.14)',
+              color: CHART_EDITOR_THEME.accentStrong,
+              border: 'none',
+              borderRadius: CHART_EDITOR_THEME.radiusSm,
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: 700,
+            }}
+          >
+            보이스 트랙 추가
+          </button>
+        )}
       </div>
 
       {/* 키음 볼륨 */}

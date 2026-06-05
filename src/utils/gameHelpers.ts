@@ -1,4 +1,4 @@
-import { Note } from '../types/game';
+import { EmbeddedAudioTrack, Note } from '../types/game';
 import { MAX_CHART_DURATION } from '../constants/gameConstants';
 
 export interface Score {
@@ -26,6 +26,7 @@ export interface AudioSettings {
   playbackSpeed: number;
   audioOffsetMs?: number;
   chartId?: string;
+  overlayAudioTrack?: EmbeddedAudioTrack | null;
 }
 
 export const getAudioBaseSeconds = (audioSettings: AudioSettings | null): number => {

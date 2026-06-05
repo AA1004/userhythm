@@ -81,6 +81,7 @@ export const Game: React.FC = () => {
     useState<ChartSelectTransitionState | null>(null);
   const [testYoutubeVideoId, setTestYoutubeVideoId] = useState<string | null>(null);
   const [testAudioSettings, setTestAudioSettings] = useState<AudioSettings | null>(null);
+  const overlayAudioRef = useRef<HTMLAudioElement | null>(null);
   const [gameplayClockSnapshotMs, setGameplayClockSnapshotMs] = useState(0);
   const [viewportSize, setViewportSize] = useState(() => ({
     width: typeof window !== 'undefined' ? window.innerWidth : 1920,
@@ -400,6 +401,61 @@ export const Game: React.FC = () => {
     pauseYoutubePlayer();
     destroyYoutubePlayer();
   }, [gameState.gameEnded, hasYoutubeAudioSession, pauseYoutubePlayer, destroyYoutubePlayer]);
+
+  useEffect(() => {
+    const audio = overlayAudioRef.current;
+    const overlayTrack = testAudioSettings?.overlayAudioTrack;
+    if (!audio) return;
+
+    if (!overlayTrack || !gameState.gameStarted || gameState.gameEnded) {
+      audio.pause();
+      if (audio.src) {
+        audio.removeAttribute('src');
+        audio.load();
+      }
+      return;
+    }
+
+    if (audio.src !== overlayTrack.dataUrl) {
+      audio.src = overlayTrack.dataUrl;
+      audio.load();
+    }
+
+    audio.volume = Math.max(0, Math.min(1, overlayTrack.volume / 100));
+    audio.playbackRate = testAudioSettings?.playbackSpeed || 1;
+
+    const syncOverlayTrack = () => {
+      const nowMs = currentTimeRef.current;
+      const shouldPlay = nowMs >= overlayTrack.offsetMs;
+      const desiredSeconds = Math.max(0, (nowMs - overlayTrack.offsetMs) / 1000);
+
+      if (!shouldPlay) {
+        if (!audio.paused) {
+          audio.pause();
+        }
+        if (Math.abs(audio.currentTime) > 0.04) {
+          audio.currentTime = 0;
+        }
+        return;
+      }
+
+      if (Math.abs(audio.currentTime - desiredSeconds) > 0.12) {
+        audio.currentTime = desiredSeconds;
+      }
+
+      if (audio.paused) {
+        void audio.play().catch(() => {});
+      }
+    };
+
+    syncOverlayTrack();
+    const intervalId = window.setInterval(syncOverlayTrack, 120);
+
+    return () => {
+      window.clearInterval(intervalId);
+      audio.pause();
+    };
+  }, [testAudioSettings, gameState.gameStarted, gameState.gameEnded]);
 
   const resetGame = useCallback(() => {
     resetTestSession();
@@ -881,6 +937,7 @@ export const Game: React.FC = () => {
           pointerEvents: activeBgaMaskOpacity >= 1 ? 'none' : 'auto',
         }}
       >
+        <audio ref={overlayAudioRef} preload="auto" style={{ display: 'none' }} />
         <div
           style={{
             position: 'relative',

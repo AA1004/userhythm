@@ -60,6 +60,14 @@ export interface BPMChange {
   bpm: number; // 새로운 BPM
 }
 
+export interface EmbeddedAudioTrack {
+  name: string;
+  mimeType: string;
+  dataUrl: string;
+  offsetMs: number;
+  volume: number;
+}
+
 // 곡 정보 (변속 포함)
 export interface SongInfo {
   baseBpm: number; // 기본 BPM
@@ -85,6 +93,7 @@ export interface ChartTestPayload {
   speedChanges?: SpeedChange[];
   chartId?: string;
   bgaVisibilityIntervals?: BgaVisibilityInterval[];
+  overlayAudioTrack?: EmbeddedAudioTrack | null;
 }
 
 export interface SubtitleEditorChartData {

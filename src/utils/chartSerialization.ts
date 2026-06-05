@@ -1,4 +1,4 @@
-import { Note, BPMChange, SpeedChange, BgaVisibilityInterval } from '../types/game';
+import { Note, BPMChange, SpeedChange, BgaVisibilityInterval, EmbeddedAudioTrack } from '../types/game';
 import { validateNotes, getMaxNoteId } from './noteValidation';
 
 /**
@@ -27,6 +27,7 @@ export interface ChartData {
   currentTime?: number;
   isAutoScrollEnabled?: boolean;
   zoom?: number;
+  voiceTrack?: EmbeddedAudioTrack | null;
 }
 
 /**
@@ -110,6 +111,7 @@ export function restoreChartData(data: ChartData): {
     currentTime: data.currentTime,
     isAutoScrollEnabled: data.isAutoScrollEnabled,
     zoom: data.zoom,
+    voiceTrack: data.voiceTrack ?? null,
   };
 
   return { chartData, maxNoteId };
@@ -142,5 +144,6 @@ export function createExportData(data: ChartData): ChartData {
     currentTime: data.currentTime,
     isAutoScrollEnabled: data.isAutoScrollEnabled,
     zoom: data.zoom,
+    voiceTrack: data.voiceTrack ?? null,
   };
 }
