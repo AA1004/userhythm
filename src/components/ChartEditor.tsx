@@ -28,32 +28,21 @@ import { extractYouTubeVideoId } from '../utils/youtube';
 import { localSubtitleStorage } from '../lib/subtitleAPI';
 import { MIN_LONG_NOTE_DURATION, validateNotes, getMaxNoteId } from '../utils/noteValidation';
 import { expandLegacyBgaVisibilityIntervals } from '../utils/bgaVisibility';
+import {
+  blurEditorNonTextControlAfterPointer,
+  blurEditorNonTextControlOnFocus,
+  blurEditorTransientAction,
+  blurEditorTransientActionOnFocus,
+  isInteractiveElementFocused,
+  isTextEditingTarget,
+  preventTransientEditorActionFocus,
+} from '../utils/editorFocus';
 
 const KEY_TO_LANE: Record<string, Lane> = {
   a: 0,
   s: 1,
   d: 2,
   f: 3,
-};
-
-const INTERACTIVE_EDITOR_TARGET_SELECTOR =
-  'input, textarea, select, button, a[href], [role="button"], [contenteditable], [tabindex]:not([tabindex="-1"])';
-
-const TEXT_EDITING_TARGET_SELECTOR =
-  'input, textarea, select, [contenteditable="true"], [contenteditable=""], [role="textbox"]';
-
-const TRANSIENT_EDITOR_ACTION_SELECTOR =
-  '[data-editor-transient-action="true"], button:not([data-allow-editor-focus="true"])';
-const NON_TEXT_EDITOR_FOCUS_CLEANUP_SELECTOR =
-  'button:not([data-allow-editor-focus="true"]), input[type="range"], [role="button"]:not([data-allow-editor-focus="true"])';
-
-const isInteractiveEditorTarget = (target: EventTarget | null): boolean => {
-  return target instanceof HTMLElement && target.closest(INTERACTIVE_EDITOR_TARGET_SELECTOR) !== null;
-};
-
-const isTextEditingTarget = (target: EventTarget | null): boolean => {
-  if (!(target instanceof HTMLElement)) return false;
-  return target.closest(TEXT_EDITING_TARGET_SELECTOR) !== null;
 };
 
 const keepTimelineActionButtonFromTakingFocus = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -66,65 +55,7 @@ const blurPointerTimelineActionButton = (event: React.MouseEvent<HTMLButtonEleme
   }
 };
 
-const getTransientEditorActionElement = (target: EventTarget | null): HTMLElement | null => {
-  if (!(target instanceof HTMLElement)) return null;
-  const candidate = target.closest(TRANSIENT_EDITOR_ACTION_SELECTOR);
-  return candidate instanceof HTMLElement ? candidate : null;
-};
-
 const MAX_VOICE_TRACK_SIZE_BYTES = 12 * 1024 * 1024;
-
-const getNonTextEditorFocusCleanupElement = (target: EventTarget | null): HTMLElement | null => {
-  if (!(target instanceof HTMLElement)) return null;
-  const candidate = target.closest(NON_TEXT_EDITOR_FOCUS_CLEANUP_SELECTOR);
-  return candidate instanceof HTMLElement ? candidate : null;
-};
-
-const preventTransientEditorActionFocus = (
-  event: React.MouseEvent<HTMLElement> | React.PointerEvent<HTMLElement>
-) => {
-  if (event.detail <= 0) return;
-  if (isTextEditingTarget(event.target)) return;
-  if (getTransientEditorActionElement(event.target)) {
-    event.preventDefault();
-  }
-};
-
-const blurTransientEditorActionAfterClick = (event: React.MouseEvent<HTMLElement>) => {
-  if (event.detail <= 0) return;
-  const actionElement = getTransientEditorActionElement(event.target);
-  actionElement?.blur();
-};
-
-const blurTransientEditorActionOnFocus = (event: React.FocusEvent<HTMLElement>) => {
-  if (isTextEditingTarget(event.target)) return;
-  const actionElement = getTransientEditorActionElement(event.target);
-  if (actionElement && document.activeElement === actionElement) {
-    actionElement.blur();
-  }
-};
-
-const blurNonTextEditorControlAfterPointer = (
-  event: React.MouseEvent<HTMLElement> | React.PointerEvent<HTMLElement>
-) => {
-  if (isTextEditingTarget(event.target)) return;
-  const focusElement = getNonTextEditorFocusCleanupElement(event.target);
-  if (focusElement && document.activeElement === focusElement) {
-    focusElement.blur();
-  }
-};
-
-const blurNonTextEditorControlOnFocus = (event: React.FocusEvent<HTMLElement>) => {
-  if (isTextEditingTarget(event.target)) return;
-  const focusElement = getNonTextEditorFocusCleanupElement(event.target);
-  if (focusElement && document.activeElement === focusElement) {
-    requestAnimationFrame(() => {
-      if (document.activeElement === focusElement) {
-        focusElement.blur();
-      }
-    });
-  }
-};
 
 interface EditorTimelineActionRailsProps {
   isLongNoteMode: boolean;
@@ -2111,7 +2042,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // 인터랙티브 요소가 포커스를 가진 동안에는 에디터 전역 단축키를 먹지 않는다.
-      if (isInteractiveEditorTarget(e.target)) {
+      if (isInteractiveElementFocused(e.target)) {
         return;
       }
 
@@ -2151,10 +2082,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   return (
     <div
       className="chart-editor-root"
-      onPointerUpCapture={blurNonTextEditorControlAfterPointer}
+      onPointerUpCapture={blurEditorNonTextControlAfterPointer}
       onFocusCapture={(event) => {
         handleNumericInputFocus(event);
-        blurNonTextEditorControlOnFocus(event);
+        blurEditorNonTextControlOnFocus(event);
       }}
       style={{
         display: 'flex',
@@ -2222,12 +2153,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       <div
         className="chart-editor-workbench"
         onPointerDownCapture={preventTransientEditorActionFocus}
-        onPointerUpCapture={blurNonTextEditorControlAfterPointer}
+        onPointerUpCapture={blurEditorNonTextControlAfterPointer}
         onMouseDownCapture={preventTransientEditorActionFocus}
-        onClickCapture={blurTransientEditorActionAfterClick}
+        onClickCapture={blurEditorTransientAction}
         onFocusCapture={(event) => {
-          blurTransientEditorActionOnFocus(event);
-          blurNonTextEditorControlOnFocus(event);
+          blurEditorTransientActionOnFocus(event);
+          blurEditorNonTextControlOnFocus(event);
         }}
         style={{
           flex: 1,

@@ -2,6 +2,10 @@ import React, { useMemo } from 'react';
 import { SpeedChange, BgaVisibilityInterval, BPMChange, BgaVisibilityMode } from '../../types/game';
 import { CHART_EDITOR_THEME } from './constants';
 import { timeToMeasure, beatIndexToTime, timeToBeatIndex } from '../../utils/bpmUtils';
+import {
+  blurEditorTransientAction,
+  preventTransientEditorActionFocus,
+} from '../../utils/editorFocus';
 
 export interface ChartEditorSidebarRightProps {
   speedChanges: SpeedChange[];
@@ -25,19 +29,12 @@ export interface ChartEditorSidebarRightProps {
   beatsPerMeasure: number;
 }
 
-const isTransientActionButton = (button: HTMLButtonElement) =>
-  button.dataset.editorTransientAction === 'true';
-
 const keepTransientButtonFromTakingFocus = (event: React.MouseEvent<HTMLButtonElement>) => {
-  if (isTransientActionButton(event.currentTarget)) {
-    event.preventDefault();
-  }
+  preventTransientEditorActionFocus(event);
 };
 
 const blurTransientButton = (event: React.MouseEvent<HTMLButtonElement>) => {
-  if (isTransientActionButton(event.currentTarget) && event.detail > 0) {
-    event.currentTarget.blur();
-  }
+  blurEditorTransientAction(event);
 };
 
 const panelSectionStyle: React.CSSProperties = {
