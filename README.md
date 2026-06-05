@@ -1,230 +1,331 @@
 # UseRhythm
 
-누구나 리듬게임 채보를 만들고 공유할 수 있는 4키 리듬게임입니다.
+UseRhythm은 브라우저에서 바로 플레이하고, 직접 채보를 만들고, 다른 유저와 공유할 수 있는 4키 웹 리듬게임입니다.
 
-## 🎮 주요 기능
+서비스는 [userhythm.kr](https://userhythm.kr)에서 운영 중입니다. 프론트엔드는 GitHub Pages에 배포되고, 백엔드는 Railway에서 구동됩니다.
 
-### 게임 플레이
-- 4개의 레인에서 노트가 떨어지는 리듬게임
-- 실시간 점수 및 콤보 표시
-- 정확도 계산
-- 판정 피드백 애니메이션
-- YouTube 음악과 동기화
-- INSANE 난이도 모드(전용 필터/테마)
-- 글로벌/채보별/유저별 리더보드
-- 작성자 배지/체스 말 표시 (ADMIN/MOD 표시)
-- 채보 마지막 노트 기반으로 자동 종료 시간 계산
+## 프로젝트 개요
 
-### 채보 에디터
-- **비주얼 에디터**: 마우스로 노트를 쉽게 배치
-- **YouTube 연동**: YouTube URL을 입력하면 자동으로 음악 로드
-- **BPM 분석**: 자동 BPM 감지 또는 수동 입력
-- **타임라인 편집**: 확대/축소, 스크롤, 재생선 이동
-- **롱노트 지원**: 탭 노트와 홀드 노트 모두 지원
-- **BGA 가림 구간**: 구간별 숨김/표시, 페이드 인/아웃 또는 하드컷 설정
-- **자막 페이드 미리보기**: 에디터 미리보기에서도 fade in/out 반영
-- **실시간 테스트**: 에디터에서 바로 채보 테스트 (BGA 가림 구간 포함)
-- **자동 저장**: 작업 중인 채보 자동 저장
-- **업로드 개선**: 로그인 닉네임 자동 기입, 새 백엔드 업로드 지원
-- **키음**: 퍼커션 계열 샘플, 볼륨 슬라이더 지원
+UseRhythm은 단순한 리듬게임 프로토타입이 아니라, 실제 유저가 곡을 선택하고 플레이하며 채보를 제작, 테스트, 업로드, 승인, 공유할 수 있는 웹 기반 리듬게임 플랫폼을 목표로 만든 프로젝트입니다.
 
-### 채보 공유
-- **온라인 공유**: 만든 채보를 온라인에 업로드
-- **Preview 이미지**: 채보에 미리보기 이미지 추가
-- **채보 검색**: 제목, 작성자로 채보 검색
-- **정렬 기능**: 최신순, 인기순, 제목순 정렬
-- **관리자 승인**: 업로드된 채보 승인/거절 시스템
+핵심 목표는 세 가지입니다.
 
-## 📦 설치 방법 (요약임 자세한 건 개발자에게 직접 문의)
+- 설치 없이 브라우저에서 리듬게임을 플레이할 수 있을 것
+- 유저가 직접 채보를 만들고 즉시 테스트할 수 있을 것
+- 고밀도 채보, YouTube BGA, 자막 연출, 롱노트, 설정 커스터마이징이 함께 돌아가도 플레이 경험을 유지할 것
 
-### 필수 요구사항
+## 주요 기능
+
+**리듬게임 플레이**
+
+- 4키 기반 낙하형 리듬게임
+- 단노트와 롱노트 판정
+- `PERFECT`, `GREAT`, `GOOD`, `MISS` 판정 체계
+- `FAST` / `SLOW` 타이밍 피드백
+- 콤보, 정확도, 진행률, 결과 화면
+- 레인, 키, 판정선, 슬롯 HUD, 노트 색상 커스터마이징
+- 노트 속도, 타이밍 보정, 키 설정 지원
+- YouTube 오디오 및 BGA 동기화
+- BGA 표시/숨김 구간과 페이드 연출
+- 자막 오버레이와 폰트/위치/스타일 설정
+- 플레이 횟수와 리더보드 기록
+
+**채보 에디터**
+
+- 타임라인 기반 비주얼 채보 편집
+- 마우스 기반 노트 배치, 선택, 이동, 삭제
+- 단노트/롱노트 제작
+- 그리드 분할 기반 박자 편집
+- BPM 변경, 변속, 타임라인 보정
+- YouTube URL 연결 및 미리보기
+- 에디터 내부 테스트 플레이
+- 현재 위치부터 테스트 시작
+- BGA Hide/Show 이벤트 편집
+- 자막 편집 및 인게임 자막 미리보기
+- 기존 업로드 채보 불러오기 및 관리자 수정
+- JSON 내보내기/가져오기
+- 자동 저장
+
+**온라인 공유와 관리**
+
+- Google 로그인
+- 공개 채보 목록
+- 채보 검색, 정렬, 썸네일 표시
+- 채보별 플레이 횟수
+- 채보별/전체 리더보드
+- 관리자 승인/삭제 플로우
+- ADMIN/MOD 역할 표시
+- 기존 채보 수정 기능
+
+**성능과 플레이 안정성**
+
+- Canvas 2D 기반 노트 렌더링
+- Pixi/WebGL 렌더러 실험 경로
+- React state 개입을 줄인 runtime ref 기반 게임 루프
+- 고밀도 노트 처리를 위한 hit/miss Set 관리
+- 과거 노트 반복 탐색을 줄이는 scan cursor
+- HUD/키/판정 표시 최적화
+- New Lite / New Full / Legacy HUD 모드
+- YouTube 첫 재생 비용을 줄이기 위한 프리워밍 처리
+- Electron Player 기반 GPU 가속 검증 환경
+
+## 기술적 특징
+
+**1. 웹에서 리듬게임 타이밍을 다루기 위한 구조**
+
+게임 시간의 기준은 `currentTimeRef`로 통일했습니다. React state는 UI 스냅샷에 가깝게 사용하고, 실제 판정과 렌더링은 ref 기반 runtime 상태를 우선합니다. 이 구조는 고밀도 구간에서 React 렌더가 판정 루프에 끼어드는 일을 줄이기 위한 선택입니다.
+
+**2. 판정과 시각 표현의 분리**
+
+노트 판정 로직과 노트 렌더 좌표 계산을 분리했습니다. 특히 롱노트는 실제 판정 타이밍과 화면에서 보이는 head/body/tail 계산이 섞이면 버그가 쉽게 발생하므로, 렌더 전용 geometry helper를 별도로 관리합니다.
+
+**3. YouTube 기반 오디오/BGA 동기화**
+
+UseRhythm은 유저가 YouTube URL을 기반으로 채보를 만들 수 있게 설계되어 있습니다. YouTube iframe은 브라우저 정책과 성능 이슈가 많기 때문에, 시작 전 seek/cue, 재생 프리워밍, 큰 오차 중심의 resync, 종료 시 destroy 처리를 분리해서 관리합니다.
+
+**4. 에디터 중심 개발**
+
+플레이만 가능한 게임이 아니라, 채보 제작 자체가 핵심 기능입니다. 그래서 에디터는 배치, 선택, 이동, 테스트, 보정, 자막, BGA 이벤트까지 하나의 흐름에서 다룰 수 있게 구성했습니다.
+
+**5. 실제 운영을 고려한 백엔드**
+
+초기 파일명이나 일부 legacy 코드에는 Supabase 흔적이 남아 있지만, 현재 실제 백엔드는 Railway에서 동작하는 Next.js + Prisma API입니다. 채보, 유저, 점수, 승인 상태, 리더보드 등 서비스 데이터는 Railway/PostgreSQL 기반으로 관리됩니다.
+
+## 기술 스택
+
+**Frontend**
+
+- React 18
+- TypeScript
+- Vite
+- Canvas 2D
+- Pixi.js / WebGL 실험 렌더러
+- YouTube IFrame API
+
+**Backend**
+
+- Next.js App Router
+- Prisma
+- PostgreSQL
+- Railway
+- JWT / cookie 기반 인증
+- Google OAuth
+
+**Desktop Player**
+
+- Electron
+- Electron Builder
+- Windows NSIS / zip 배포
+- GPU diagnostics panel
+
+**Deployment**
+
+- GitHub Pages: 프론트엔드 정적 배포
+- Railway: 백엔드 API와 DB 연결
+- GitHub Actions: 프론트 배포 및 Electron Player 릴리즈 워크플로
+
+## 프로젝트 구조
+
+```text
+userhythm/
+├── src/
+│   ├── components/              # React UI와 게임 화면
+│   ├── hooks/                   # 게임 루프, 판정, YouTube, 에디터 훅
+│   ├── constants/               # 게임 좌표계, 판정선, 비주얼 설정
+│   ├── utils/                   # 판정, 노트 상태, YouTube, profiler 유틸
+│   ├── lib/                     # API 클라이언트
+│   └── types/                   # 게임/채보 타입
+├── backend/
+│   ├── src/app/api/             # Next.js API routes
+│   ├── prisma/                  # Prisma schema
+│   └── env.example              # Railway/backend 환경 변수 예시
+├── apps/player/                 # Electron Player
+├── public/                      # 정적 리소스
+├── .github/workflows/           # GitHub Pages / Player release workflow
+└── REGRESSION_TEST_CHECKLIST.md # 플레이 회귀 테스트 체크리스트
+```
+
+## 실행 방법
+
+### 요구 사항
+
 - Node.js 18 이상
-- npm 또는 yarn
+- npm
+- 백엔드까지 실행할 경우 PostgreSQL 데이터베이스
 
-### 설치
+프론트엔드만 실행:
 
 ```bash
-# 저장소 클론
-git clone https://github.com/your-username/userhythm.git
-cd userhythm
-
-# 의존성 설치
 npm install
-
-# (옵션) 백엔드 의존성
-# 백엔드가 `backend/` (Next.js + Prisma)인 경우
-# cd backend && npm install
-```
-
-## 🚀 실행 방법
-
-### 개발 모드
-
-```bash
-# 클라이언트 실행 (Vite)
-npm run dev
-
-# (옵션) 백엔드 실행
-# cd backend && npm run dev
-```
-
-브라우저에서 `http://localhost:5173` (또는 표시된 포트)로 접속하세요.
-
-### 개별 실행
-
-```bash
-# 클라이언트만 실행
 npm run dev:client
-
-# 서버만 실행
-npm run dev:server
 ```
 
-### 프로덕션 빌드
+전체 개발 서버 실행:
 
 ```bash
-# 빌드
-npm run build
+npm install
+npm run dev
+```
 
-# 빌드된 파일 미리보기
+프로덕션 빌드:
+
+```bash
+npm run build
+```
+
+빌드 결과 미리보기:
+
+```bash
 npm run preview
 ```
 
-## 🎯 조작 방법
+## 백엔드 실행
 
-### 게임 플레이
-- **D** 키 : 첫 번째 레인
-- **F** 키 : 두 번째 레인
-- **J** 키 : 세 번째 레인
-- **K** 키 : 네 번째 레인
+백엔드는 `backend/` 디렉터리에 있습니다.
 
-### 채보 에디터
-- **마우스 클릭**: 노트 삭제
-- **스페이스바**: 재생/일시정지
-- **마우스 드래그**: 재생선 이동
-- **A,S,D,F**: 각각 1,2,3,4번 레인에 해당당
-- **Ctrl + Z**: 실행 취소
-- **Ctrl + Y**: 다시 실행
+```bash
+cd backend
+npm install
+npm run prisma:generate
+npm run dev
+```
 
-## 📊 게임 판정 (기본값)
-- 노트가 판정선에 도달할 때 해당 레인 키 입력
-- 기본 등급 예시 (judgeConfig.ts에서 조절 가능)
-  - **PERFECT**: ±40ms
-  - **GREAT**: ±80ms
-  - **GOOD**: ±160ms
-  - **MISS**: 타이밍 실패/미입력
+환경 변수 예시는 [backend/env.example](backend/env.example)에 있습니다.
 
-## ⚙️ 환경 변수 설정
-
-### 기본 설정 (선택사항)
-
-프로젝트 루트에 `.env` 파일을 생성:
+주요 환경 변수:
 
 ```env
-# Supabase Configuration (채보 공유 기능 사용 시)
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-
-# Admin Token (관리자 기능 사용 시)
-VITE_ADMIN_TOKEN=your_secure_admin_token
+DATABASE_URL="postgresql://user:password@host:5432/dbname"
+SESSION_SECRET="change-me"
+GOOGLE_CLIENT_ID="your-google-client-id"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+GOOGLE_REDIRECT_URI="https://api.userhythm.kr/api/auth/google/callback"
+ADMIN_TOKEN="your-admin-token"
+COOKIE_DOMAIN=".userhythm.kr"
 ```
 
+프론트엔드에서 Railway API를 바라보려면 다음 환경 변수를 설정합니다.
 
+```env
+VITE_API_BASE="https://api.userhythm.kr"
+VITE_ADMIN_TOKEN="your-admin-token"
+```
 
-## 🌐 채보 공유 기능 설정
+## Electron Player
 
-채보 공유 기능을 사용하려면 Supabase 설정이 필요합니다.
+UseRhythm Player는 `userhythm.kr`을 Electron 환경에서 실행해 GPU 가속과 BGA 성능을 검증하기 위한 Windows용 플레이어입니다.
 
-자세한 설정 방법은 [CHART_SHARING_SETUP.md](./CHART_SHARING_SETUP.md)를 참고하세요.
+개발 실행:
 
-### 빠른 설정
-
-1. [Supabase](https://supabase.com)에서 프로젝트 생성
-2. `supabase-schema.sql` 파일을 SQL Editor에서 실행
-3. Storage에 `chart-images` 버킷 생성 (Public)
-4. `.env` 파일에 Supabase 정보 추가
-
-## 🎵 YouTube 연동
-
-### 서버 설정
-
-YouTube 다운로드를 위해 `yt-dlp`가 필요합니다:
-
-**Windows:**
 ```bash
-winget install yt-dlp
+npm run player:dev
 ```
 
-**macOS:**
+설정 검증:
+
 ```bash
-brew install yt-dlp
+npm run player:build
 ```
 
-**Linux:**
+Windows 배포 패키지 생성:
+
 ```bash
-pip install yt-dlp
+npm run player:dist
 ```
 
-서버가 실행 중이어야 YouTube 음악을 사용할 수 있습니다.
+기본 대상 URL은 `https://userhythm.kr`입니다. 필요하면 `PLAYER_TARGET_URL`로 변경할 수 있습니다.
 
-## 🚢 배포
+## 게임 조작
 
-### GitHub Pages
+기본 키:
 
-이 프로젝트는 GitHub Pages에 배포할 수 있습니다.
+- 1번 레인: `D`
+- 2번 레인: `F`
+- 3번 레인: `J`
+- 4번 레인: `K`
 
-자세한 배포 방법은 [DEPLOYMENT.md](./DEPLOYMENT.md)를 참고하세요.
+설정에서 키 바인딩을 변경할 수 있습니다. 넘패드 키도 일부 지원합니다.
 
-**주의**: GitHub Pages는 정적 사이트만 호스팅하므로 서버 기능(YouTube 다운로드)은 별도 호스팅이 필요합니다.
+## 에디터 조작
 
-## 🛠️ 기술 스택 (요약)
+대표 조작:
 
-### 프론트엔드
-- **React 18**: UI 프레임워크
-- **TypeScript**: 타입 안정성
-- **Vite**: 빌드 도구
-- **Supabase**: 인증/프로필/저장소(선택)
+- 타임라인 클릭: 노트 배치 또는 선택
+- 드래그: 영역 선택 또는 노트 이동
+- `Shift + 드래그`: 추가 영역 선택
+- `Space`: 재생/일시정지
+- `Ctrl + Z`: 실행 취소
+- `Ctrl + Y`: 다시 실행
+- `C`: 에디터 재생/일시정지 단축키
 
-### 백엔드
-- **Next.js (app router)** in `backend/`
-- **Prisma** + DB (Railway/Postgres 등)
-- **(선택) yt-dlp**: YouTube 다운로드/오디오 처리용
+에디터는 마우스 기반 작업이 많기 때문에, 버튼 클릭 후 포커스가 타임라인 입력을 방해하지 않도록 별도 focus 정책을 적용하고 있습니다.
 
-### 주요 라이브러리
-- **@supabase/supabase-js**: Supabase 클라이언트
-- **web-audio-beat-detector**: BPM 분석
+## 판정 기준
 
-## 📁 프로젝트 구조
+판정값은 [judgeConfig.ts](src/config/judgeConfig.ts)에서 관리합니다.
 
+기본 개념:
+
+- `PERFECT`: 가장 정확한 입력
+- `GREAT`: 약간의 오차 허용
+- `GOOD`: 큰 오차 허용
+- `MISS`: 입력 실패 또는 판정 범위 이탈
+
+롱노트는 head 입력, hold 유지, release 판정을 분리해서 처리합니다.
+
+## 배포
+
+프론트엔드는 GitHub Actions를 통해 GitHub Pages에 배포됩니다.
+
+배포 조건:
+
+- `main` 브랜치 push
+- GitHub Actions secret `VITE_API_BASE` 필요
+- 관리자 기능을 빌드에 포함하려면 `VITE_ADMIN_TOKEN` 필요
+
+백엔드는 Railway에 별도로 배포합니다. Railway 쪽에는 `DATABASE_URL`, `SESSION_SECRET`, Google OAuth 관련 환경 변수, `ADMIN_TOKEN`이 필요합니다.
+
+## 운영 중 주의 사항
+
+- 파일명에 Supabase가 남아 있는 일부 legacy 코드가 있지만, 현재 운영 백엔드는 Railway입니다.
+- YouTube iframe은 브라우저 정책의 영향을 크게 받습니다. playerVars나 iframe 생성 방식을 변경할 때는 광고, 자동재생, 시작 지연, BGA 동기화 회귀를 함께 확인해야 합니다.
+- 리듬게임 특성상 FPS 숫자보다 frame pacing이 중요합니다. 큰 기능 변경 후에는 고밀도 채보와 롱노트가 많은 채보를 반드시 같이 테스트해야 합니다.
+- 결과 화면, YouTube 종료, 에디터 포커스, 롱노트 판정은 과거 회귀가 많았던 영역입니다.
+
+## 회귀 테스트
+
+주요 변경 후 최소한 다음을 확인합니다.
+
+```bash
+npm run build
+git diff --check
 ```
-userhythm/
-├── src/
-│   ├── components/      # React 컴포넌트
-│   │   ├── Game.tsx     # 메인 게임 컴포넌트
-│   │   ├── ChartEditor.tsx  # 채보 에디터
-│   │   ├── ChartSelect.tsx   # 채보 선택 화면
-│   │   └── ChartAdmin.tsx    # 관리자 화면
-│   ├── utils/          # 유틸리티 함수
-│   │   ├── bpmAnalyzer.ts    # BPM 분석
-│   │   └── judge.ts          # 판정 로직
-│   └── lib/            # 라이브러리 설정
-│       └── supabaseClient.ts # Supabase 클라이언트
-├── backend/            # Next.js 백엔드 (API, Prisma)
-├── supabase-schema.sql # 데이터베이스 스키마
-└── vite.config.ts      # Vite 설정
-```
 
-## 📚 추가 문서
+수동 테스트는 [REGRESSION_TEST_CHECKLIST.md](REGRESSION_TEST_CHECKLIST.md)를 기준으로 진행합니다.
 
-- [채보 공유 기능 설정 가이드](./CHART_SHARING_SETUP.md)
-- [GitHub Pages 배포 가이드](./DEPLOYMENT.md)
-- [문제 해결 가이드](./TROUBLESHOOTING.md)
+권장 스모크 테스트:
 
-## 🤝 기여하기
+- `Frums - Credits`
+- `Mili - What the Ripple Sees`
+- 롱노트가 많은 채보
+- 3000개 이상 노트가 있는 고밀도 채보
+- BGA ON/OFF
+- 자막 ON/OFF
+- Legacy / New Lite / New Full HUD
+- FHD / UHD
+- 창 모드 / 전체화면
 
-ISSUE나 PULL REQUEST를 하면 개발자가 아주 기뻐하면서
-폴짝 뛰어오르고, 다음 번 고백을 준비 할 수도 있습니다.
+## 개발 과정에서 해결한 문제들
 
-## 📄 라이선스
+- FHD/UHD와 전체화면 여부에 따라 판정선과 키 박스 위치가 달라지는 문제
+- 롱노트가 일정 길이 이상에서 사라지거나 release 판정이 불안정한 문제
+- 고밀도 노트에서 hit/miss 처리 비용이 곡 후반으로 갈수록 누적되는 문제
+- 자막 fade와 BGA 이벤트가 플레이 중 입력 안정성을 해치는 문제
+- YouTube iframe 로딩과 첫 `playVideo()` 호출이 첫 박자와 겹치는 문제
+- 에디터 버튼 포커스가 단축키와 노트 배치를 막는 문제
+- 채보 승인/삭제/수정 플로우와 리더보드/플레이 카운트 동작 정리
+- Electron Player를 통한 GPU 가속 검증 환경 구축
 
-이 프로젝트는 MIT 라이선스를 따릅니다.
+## 라이선스
+
+이 프로젝트는 MIT License를 따릅니다.
