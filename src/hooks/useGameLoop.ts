@@ -31,7 +31,8 @@ export function useGameLoop(
   startDelayMs: number = 0,
   externalCurrentTimeRef?: MutableRefObject<number>,
   hitNoteIdsRef?: HitNoteIdsRef,
-  timingOffsetMs: number = 0
+  timingOffsetMs: number = 0,
+  clockEnabled: boolean = true
 ) {
   // fallDuration을 useMemo로 계산하여 speed 변경 시에만 재계산
   const fallDuration = useMemo(() => BASE_FALL_DURATION / speed, [speed]);
@@ -63,10 +64,11 @@ export function useGameLoop(
   }, [startDelayMs]);
 
   useEffect(() => {
-    if (!gameState.gameStarted) {
+    const isClockRunning = gameState.gameStarted && clockEnabled;
+    if (!isClockRunning) {
       startTimeRef.current = 0;
       lastTimeRef.current = 0;
-      currentTimeRef.current = 0;
+      currentTimeRef.current = gameState.gameStarted ? -delayRef.current : 0;
       missScanIndexRef.current = 0;
       return;
     }
@@ -77,7 +79,7 @@ export function useGameLoop(
     }
 
     const animate = (currentTime: number) => {
-      if (!gameStateRef.current.gameStarted) return;
+      if (!gameStateRef.current.gameStarted || !clockEnabled) return;
 
       const elapsedTime = currentTime - startTimeRef.current;
       const adjustedJudgeTime = elapsedTime - timingOffsetMs;
@@ -187,7 +189,7 @@ export function useGameLoop(
         cancelAnimationFrame(frameRef.current);
       }
     };
-  }, [gameState.gameStarted, setGameState, onNoteMiss, speed, fallDuration, missThreshold, hitNoteIdsRef, timingOffsetMs]);
+  }, [gameState.gameStarted, setGameState, onNoteMiss, speed, fallDuration, missThreshold, hitNoteIdsRef, timingOffsetMs, clockEnabled]);
 
   // currentTime ref를 반환하여 렌더링 루프에서 사용
   return {

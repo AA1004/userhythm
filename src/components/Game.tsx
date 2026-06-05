@@ -797,6 +797,9 @@ export const Game: React.FC = () => {
 
   const isChartSelectTransitioning = chartSelectTransition !== null;
   const isGameplayActive = gameState.gameStarted && !gameState.gameEnded;
+  const isWaitingForYoutubeAudio =
+    isGameplayActive && hasYoutubeAudioSession && !testYoutubePlayerReady;
+  const isGameplayClockRunning = isGameplayActive && !isWaitingForYoutubeAudio;
   const backgroundVideoId = isGameplayActive ? testYoutubeVideoId : null;
   const bgaCurrentSeconds =
     isGameplayActive && backgroundVideoId && isBgaEnabled
@@ -1005,8 +1008,30 @@ export const Game: React.FC = () => {
                     isLaneUiVisible={activeLaneUiVisible}
                     isFromEditor={isFromEditor}
                     isGameplayActive={isGameplayActive}
+                    clockEnabled={isGameplayClockRunning}
                     durationMs={dynamicGameDuration}
                   />
+                )}
+
+                {isWaitingForYoutubeAudio && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: 'rgba(0, 0, 0, 0.32)',
+                      color: '#f8fafc',
+                      fontSize: 18,
+                      fontWeight: 800,
+                      letterSpacing: 1.5,
+                      zIndex: 25,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    YOUTUBE LOADING
+                  </div>
                 )}
 
               {/* 게임 시작 UI */}

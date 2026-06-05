@@ -27,6 +27,7 @@ interface GameplayRuntimeLayerProps {
   isLaneUiVisible: boolean;
   isFromEditor: boolean;
   isGameplayActive: boolean;
+  clockEnabled?: boolean;
   durationMs: number;
 }
 
@@ -47,6 +48,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
   isLaneUiVisible,
   isFromEditor,
   isGameplayActive,
+  clockEnabled = true,
   durationMs,
 }) => {
   const isLegacyHud = playfieldGeometry.gameplayHudMode === 'legacy';
@@ -93,7 +95,8 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
     START_DELAY_MS,
     currentTimeRef,
     hitNoteIdsRef,
-    timingOffsetMs
+    timingOffsetMs,
+    clockEnabled
   );
 
   const useSlotHud = playfieldGeometry.slotHudEnabled;
