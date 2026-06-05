@@ -38,9 +38,11 @@ export function useTestYoutubePlayer({
   const playerRef = useRef<HTMLDivElement>(null);
   const playerReadyRef = useRef(false);
   const audioHasStartedRef = useRef(false);
+  const audioPrewarmedRef = useRef(false);
   const audioPlaybackEndedRef = useRef(false);
   const lastResyncTimeRef = useRef(0);
   const lastCueSeekTimeRef = useRef(0);
+  const lastPrewarmAttemptAtRef = useRef(0);
   const lastAudioSyncCheckAtRef = useRef(0);
   const isExternalPlayerRef = useRef(false);
   const latestVolumeRef = useRef(volume);
@@ -57,7 +59,9 @@ export function useTestYoutubePlayer({
       isExternalPlayerRef.current = true;
       // 새 게임 시작이므로 오디오 상태 리셋
       audioHasStartedRef.current = false;
+      audioPrewarmedRef.current = false;
       audioPlaybackEndedRef.current = false;
+      lastPrewarmAttemptAtRef.current = 0;
 
       // External player 설정
       if (audioSettings) {
@@ -112,8 +116,10 @@ export function useTestYoutubePlayer({
     playerReadyRef.current = false;
     // 새 게임 시작이므로 오디오 상태 리셋
     audioHasStartedRef.current = false;
+    audioPrewarmedRef.current = false;
     audioPlaybackEndedRef.current = false;
     lastCueSeekTimeRef.current = 0;
+    lastPrewarmAttemptAtRef.current = 0;
     lastResyncTimeRef.current = 0;
     lastAudioSyncCheckAtRef.current = 0;
 
@@ -182,6 +188,7 @@ export function useTestYoutubePlayer({
               if (isCancelled) return;
               if (event.data !== window.YT?.PlayerState?.ENDED) return;
               audioHasStartedRef.current = false;
+              audioPrewarmedRef.current = false;
               audioPlaybackEndedRef.current = true;
               try {
                 event.target.mute?.();
@@ -216,6 +223,7 @@ export function useTestYoutubePlayer({
     if (!audioSessionActive || !gameStarted || gameEnded || !audioSettings) {
       try {
         audioHasStartedRef.current = false;
+        audioPrewarmedRef.current = false;
         audioPlaybackEndedRef.current = false;
         player.pauseVideo?.();
       } catch (e) {
@@ -245,14 +253,20 @@ export function useTestYoutubePlayer({
         audioHasStartedRef.current = false;
         audioPlaybackEndedRef.current = false;
         try {
-          player.pauseVideo?.();
           const now = Date.now();
-          if (now - lastCueSeekTimeRef.current > 200) {
+          if (!audioPrewarmedRef.current && now - lastPrewarmAttemptAtRef.current > 350) {
+            lastPrewarmAttemptAtRef.current = now;
+            player.mute?.();
+            player.setVolume?.(latestVolumeRef.current);
+            player.setPlaybackRate?.(playbackSpeed);
             player.seekTo(cueSeconds, true);
+            player.playVideo?.();
+            audioPrewarmedRef.current = true;
             lastCueSeekTimeRef.current = now;
           }
         } catch (e) {
-          console.warn("YouTube cueing failed:", e);
+          audioPrewarmedRef.current = false;
+          console.warn("YouTube prewarm failed:", e);
         }
         if (shouldProfile) {
           recordGameplayMetric('audioSync', performance.now() - syncStart, 0);
@@ -278,6 +292,7 @@ export function useTestYoutubePlayer({
           console.warn("YouTube stop at media end failed:", e);
         }
         audioHasStartedRef.current = false;
+        audioPrewarmedRef.current = false;
         audioPlaybackEndedRef.current = true;
         if (shouldProfile) {
           recordGameplayMetric('audioSync', performance.now() - syncStart, durationSeconds);
@@ -293,6 +308,7 @@ export function useTestYoutubePlayer({
           player.seekTo(desiredSeconds, true);
           player.playVideo?.();
           audioHasStartedRef.current = true;
+          audioPrewarmedRef.current = false;
           lastCueSeekTimeRef.current = Date.now();
           console.log(
             `YouTube test playback start (${desiredSeconds.toFixed(2)}s, volume: ${latestVolumeRef.current})`
