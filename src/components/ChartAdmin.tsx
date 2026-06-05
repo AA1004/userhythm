@@ -81,12 +81,12 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
   };
 
   const handleReject = async (chartId: string) => {
-    if (!confirm('이 채보를 거절하시겠습니까?')) return;
+    if (!confirm('이 채보를 거절하고 완전히 삭제하시겠습니까?\n삭제 후 복구할 수 없습니다.')) return;
     
     setProcessing(true);
     try {
-      await api.updateChartStatus(chartId, 'rejected', reviewComment);
-      alert('채보가 거절되었습니다.');
+      await api.deleteChart(chartId);
+      alert('채보가 거절 처리되었고, 목록에서 삭제되었습니다.');
       setReviewComment('');
       setSelectedChart(null);
       await loadCharts();

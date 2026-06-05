@@ -1821,7 +1821,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setExistingChartsError('');
     try {
       const res = await api.getPendingCharts('all');
-      setExistingCharts(res.charts || []);
+      setExistingCharts((res.charts || []).filter((chart) => chart.status !== 'rejected'));
     } catch (error) {
       console.error('Failed to load existing charts for editor:', error);
       setExistingChartsError('기존 채보 목록을 불러오지 못했습니다.');
