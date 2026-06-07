@@ -2,7 +2,7 @@ import { startTransition, useState, useRef, useCallback, useEffect, type Mutable
 import { Lane, Note, JudgeType, GameState } from '../types/game';
 import { judgeTiming, judgeHoldReleaseTiming } from '../utils/judge';
 import { judgeConfig } from '../config/judgeConfig';
-import { LANE_POSITIONS, JUDGE_FEEDBACK_DURATION_MS } from '../constants/gameConstants';
+import { LANE_POSITIONS, JUDGE_FEEDBACK_DURATION_MS, KEY_EFFECT_DURATION_MS } from '../constants/gameConstants';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 import {
   HitNoteIdsRef,
@@ -358,16 +358,17 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       const currentState = gameStateRef.current;
       if (!currentState.gameStarted || currentState.gameEnded) return;
 
-      const expiresAt = Date.now() + JUDGE_FEEDBACK_DURATION_MS;
+      const feedbackExpiresAt = Date.now() + JUDGE_FEEDBACK_DURATION_MS;
+      const effectExpiresAt = Date.now() + KEY_EFFECT_DURATION_MS;
       const feedbackId = feedbackIdRef.current++;
       const effectId = keyEffectIdRef.current++;
       const effectX = laneCenters[lane] ?? LANE_POSITIONS[lane];
       const effectY = judgeLineY;
 
-      judgeFeedbacksRef.current = [{ id: feedbackId, judge, expiresAt, x: effectX, y: effectY, lane, timingDirection }];
+      judgeFeedbacksRef.current = [{ id: feedbackId, judge, expiresAt: feedbackExpiresAt, x: effectX, y: effectY, lane, timingDirection }];
       keyEffectsRef.current = [
         ...keyEffectsRef.current.filter((effect) => effect.lane !== lane),
-        { id: effectId, lane, x: effectX, y: effectY, judge, expiresAt },
+        { id: effectId, lane, x: effectX, y: effectY, judge, expiresAt: effectExpiresAt },
       ].slice(-4);
       uiDirtyRef.current.effects = true;
       scheduleUiCommit();

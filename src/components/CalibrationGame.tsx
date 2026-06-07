@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { GamePlayArea } from './GamePlayArea';
 import { GameplayHudCanvas } from './GameplayHudCanvas';
-import { BASE_FALL_DURATION, JUDGE_FEEDBACK_DURATION_MS, JUDGE_LINE_Y, START_DELAY_MS } from '../constants/gameConstants';
+import { BASE_FALL_DURATION, JUDGE_FEEDBACK_DURATION_MS, JUDGE_LINE_Y, KEY_EFFECT_DURATION_MS, START_DELAY_MS } from '../constants/gameConstants';
 import { buildPlayfieldGeometry, DEFAULT_GAME_VISUAL_SETTINGS } from '../constants/gameVisualSettings';
 import { GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH } from '../constants/gameLayout';
 import { getKeyBindingFromInput } from '../utils/keyBinding';
@@ -144,13 +144,14 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
   }, []);
 
   const pushFeedback = useCallback((judge: 'perfect' | 'great' | 'good' | 'miss', lane: Lane, timingDirection: 'fast' | 'slow' | null) => {
-    const expiresAt = Date.now() + JUDGE_FEEDBACK_DURATION_MS;
+    const feedbackExpiresAt = Date.now() + JUDGE_FEEDBACK_DURATION_MS;
+    const effectExpiresAt = Date.now() + KEY_EFFECT_DURATION_MS;
     const x = playfieldGeometry.laneCenters[lane];
     const y = JUDGE_LINE_Y;
-    judgeFeedbacksRef.current = [{ id: feedbackIdRef.current++, judge, expiresAt, x, y, lane, timingDirection }];
+    judgeFeedbacksRef.current = [{ id: feedbackIdRef.current++, judge, expiresAt: feedbackExpiresAt, x, y, lane, timingDirection }];
     keyEffectsRef.current = [
       ...keyEffectsRef.current.filter((effect) => effect.lane !== lane),
-      { id: effectIdRef.current++, lane, x, y, judge, expiresAt },
+      { id: effectIdRef.current++, lane, x, y, judge, expiresAt: effectExpiresAt },
     ].slice(-4);
     setEffectsRevision((prev) => prev + 1);
   }, [playfieldGeometry.laneCenters]);

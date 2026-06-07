@@ -53,7 +53,7 @@ const drawRoundedBar = (
 };
 
 const getKeyEffectProgress = (effect: KeyEffect, now: number) => {
-  const startedAt = effect.expiresAt - JUDGE_FEEDBACK_DURATION_MS;
+  const startedAt = effect.expiresAt - KEY_EFFECT_DURATION_MS;
   return Math.max(0, Math.min(1, (now - startedAt) / KEY_EFFECT_DURATION_MS));
 };
 
