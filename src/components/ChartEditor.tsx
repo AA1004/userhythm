@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Note, BPMChange, ChartTestPayload, SubtitleEditorChartData, Lane, SpeedChange, BgaVisibilityInterval, BgaVisibilityMode, EmbeddedAudioTrack } from '../types/game';
+import { Note, BPMChange, ChartTestPayload, SubtitleEditorChartData, Lane, SpeedChange, BgaVisibilityInterval, BgaVisibilityMode } from '../types/game';
 import { ChartEditorHeader } from './ChartEditor/ChartEditorHeader';
 import { ChartEditorSidebarLeft } from './ChartEditor/ChartEditorSidebarLeft';
 import { ChartEditorSidebarRight } from './ChartEditor/ChartEditorSidebarRight';
@@ -54,8 +54,6 @@ const blurPointerTimelineActionButton = (event: React.MouseEvent<HTMLButtonEleme
     event.currentTarget.blur();
   }
 };
-
-const MAX_VOICE_TRACK_SIZE_BYTES = 12 * 1024 * 1024;
 
 interface EditorTimelineActionRailsProps {
   isLongNoteMode: boolean;
@@ -225,7 +223,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [zoom, setZoom] = useState<number>(1);
   const [volume, setVolume] = useState<number>(100);
   const [hitSoundVolume, setHitSoundVolume] = useState<number>(40);
-  const [voiceTrack, setVoiceTrack] = useState<EmbeddedAudioTrack | null>(null);
   const [subtitleSessionId, setSubtitleSessionId] = useState(() => {
     if (typeof window === 'undefined') {
       return `local-${Date.now()}`;
@@ -361,8 +358,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [existingCharts, setExistingCharts] = useState<ApiChart[]>([]);
   const [existingChartsError, setExistingChartsError] = useState<string>('');
   const [existingChartSearch, setExistingChartSearch] = useState<string>('');
-  const voiceTrackInputRef = useRef<HTMLInputElement | null>(null);
-  const voicePreviewAudioRef = useRef<HTMLAudioElement | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   const resolvedAuthor = useMemo(() => {
@@ -760,23 +755,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     } else {
       setCurrentTime(0);
     }
-    if (
-      data.voiceTrack &&
-      typeof data.voiceTrack === 'object' &&
-      typeof data.voiceTrack.dataUrl === 'string' &&
-      typeof data.voiceTrack.name === 'string'
-    ) {
-      setVoiceTrack({
-        name: data.voiceTrack.name,
-        mimeType: typeof data.voiceTrack.mimeType === 'string' ? data.voiceTrack.mimeType : 'audio/mpeg',
-        dataUrl: data.voiceTrack.dataUrl,
-        offsetMs: typeof data.voiceTrack.offsetMs === 'number' ? data.voiceTrack.offsetMs : 0,
-        volume: typeof data.voiceTrack.volume === 'number' ? data.voiceTrack.volume : 100,
-      });
-    } else {
-      setVoiceTrack(null);
-    }
-
     setIsPlaying(false);
     setPendingLongNote(null);
     isDraggingPlayheadRef.current = false;
@@ -829,7 +807,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setShareDescription('');
     setEditingChartId(null);
     setYoutubeUrl('');
-    setVoiceTrack(null);
     noteIdRef.current = 0;
     speedChangeIdRef.current = 0;
     isDraggingPlayheadRef.current = false;
@@ -1589,7 +1566,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           isLongNoteMode,
           previewStartMeasure: sharePreviewStartMeasure,
           previewEndMeasure: sharePreviewEndMeasure,
-          voiceTrack,
         };
 
         if (editingChartId && isAdmin) {
@@ -1598,7 +1574,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
             bpm,
             difficulty: shareDifficulty || undefined,
             description: shareDescription || undefined,
-            dataJson: JSON.stringify({ ...chartData, voiceTrack: undefined }),
+            dataJson: JSON.stringify(chartData),
             youtubeUrl: youtubeUrl || undefined,
             previewImage: youtubeThumbnailUrl || undefined,
           });
@@ -1609,7 +1585,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
             bpm,
             difficulty: shareDifficulty || undefined,
             description: shareDescription || undefined,
-            dataJson: JSON.stringify({ ...chartData, voiceTrack: undefined }),
+            dataJson: JSON.stringify(chartData),
             youtubeUrl: youtubeUrl || undefined,
             previewImage: youtubeThumbnailUrl || undefined,
           });
@@ -1626,7 +1602,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     } finally {
       setIsUploading(false);
     }
-  }, [shareTitle, shareAuthor, shareDifficulty, shareDescription, bpm, youtubeUrl, youtubeVideoId, youtubeThumbnailUrl, notes, beatsPerMeasure, timeSignatureOffset, timelineExtraMs, audioOffsetMs, bpmChanges, speedChanges, bgaVisibilityIntervals, gridDivision, isLongNoteMode, user, subtitleSessionId, sharePreviewStartMeasure, sharePreviewEndMeasure, editingChartId, isAdmin, voiceTrack]);
+  }, [shareTitle, shareAuthor, shareDifficulty, shareDescription, bpm, youtubeUrl, youtubeVideoId, youtubeThumbnailUrl, notes, beatsPerMeasure, timeSignatureOffset, timelineExtraMs, audioOffsetMs, bpmChanges, speedChanges, bgaVisibilityIntervals, gridDivision, isLongNoteMode, user, subtitleSessionId, sharePreviewStartMeasure, sharePreviewEndMeasure, editingChartId, isAdmin]);
 
   const handleExportJson = useCallback(() => {
     try {
@@ -1643,7 +1619,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           subtitles: subtitles.length > 0 ? subtitles : undefined,
           previewStartMeasure: sharePreviewStartMeasure,
           previewEndMeasure: sharePreviewEndMeasure,
-          voiceTrack,
         },
       };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -1660,7 +1635,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       console.error('JSON 내보내기 실패:', error);
       alert('JSON 내보내기 중 오류가 발생했습니다.');
     }
-  }, [autoSaveData, notes, shareTitle, subtitleSessionId, sharePreviewStartMeasure, sharePreviewEndMeasure, voiceTrack]);
+  }, [autoSaveData, notes, shareTitle, subtitleSessionId, sharePreviewStartMeasure, sharePreviewEndMeasure]);
 
   const handleImportJsonClick = useCallback(() => {
     importInputRef.current?.click();
@@ -1780,7 +1755,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       audioOffsetMs,
       bgaVisibilityIntervals,
       chartId: subtitleSessionId,
-      overlayAudioTrack: voiceTrack,
     });
   }, [
     onTest,
@@ -1794,7 +1768,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       bgaVisibilityIntervals,
       subtitleSessionId,
       resolveEditorPreviewChartTimeMs,
-      voiceTrack,
     ]);
 
   const handleSetTestStartToCurrent = useCallback(() => {
@@ -1877,91 +1850,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       alert('채보 데이터를 불러오지 못했습니다.');
     }
   }, [handleRestore, seekTo]);
-
-  const handleVoiceTrackPickClick = useCallback(() => {
-    voiceTrackInputRef.current?.click();
-  }, []);
-
-  const handleVoiceTrackFile = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-
-    if (!file.type.startsWith('audio/')) {
-      alert('오디오 파일만 추가할 수 있습니다.');
-      return;
-    }
-
-    if (file.size > MAX_VOICE_TRACK_SIZE_BYTES) {
-      alert('보이스 트랙은 12MB 이하 파일만 허용합니다.');
-      return;
-    }
-
-    try {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result || ''));
-        reader.onerror = () => reject(reader.error || new Error('file_read_failed'));
-        reader.readAsDataURL(file);
-      });
-
-      setVoiceTrack({
-        name: file.name,
-        mimeType: file.type || 'audio/mpeg',
-        dataUrl,
-        offsetMs: 0,
-        volume: 100,
-      });
-    } catch (error) {
-      console.error('Failed to read voice track file:', error);
-      alert('보이스 트랙 파일을 읽지 못했습니다.');
-    }
-  }, []);
-
-  const handleClearVoiceTrack = useCallback(() => {
-    setVoiceTrack(null);
-  }, []);
-
-  useEffect(() => {
-    const audio = voicePreviewAudioRef.current;
-    if (!audio) return;
-
-    if (!voiceTrack) {
-      audio.pause();
-      audio.removeAttribute('src');
-      audio.load();
-      return;
-    }
-
-    if (audio.src !== voiceTrack.dataUrl) {
-      audio.src = voiceTrack.dataUrl;
-      audio.load();
-    }
-
-    audio.volume = Math.max(0, Math.min(1, voiceTrack.volume / 100));
-    audio.playbackRate = playbackSpeed;
-
-    const shouldPlayTrack = isPlaying && currentTime >= voiceTrack.offsetMs;
-    const targetSeconds = Math.max(0, (currentTime - voiceTrack.offsetMs) / 1000);
-
-    if (!shouldPlayTrack) {
-      if (!audio.paused) {
-        audio.pause();
-      }
-      if (currentTime < voiceTrack.offsetMs && Math.abs(audio.currentTime) > 0.04) {
-        audio.currentTime = 0;
-      }
-      return;
-    }
-
-    if (Math.abs(audio.currentTime - targetSeconds) > 0.12) {
-      audio.currentTime = targetSeconds;
-    }
-
-    if (audio.paused) {
-      void audio.play().catch(() => {});
-    }
-  }, [voiceTrack, currentTime, isPlaying, playbackSpeed]);
 
   // 자동 스크롤
   useEffect(() => {
@@ -2194,15 +2082,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           onTimelineExtraChange={(updater) => setTimelineExtraMs((prev) => updater(prev))}
           onAudioOffsetChange={(updater) => setAudioOffsetMs((prev) => updater(prev))}
           beatDuration={beatDuration}
-          voiceTrack={voiceTrack}
-          onVoiceTrackPickClick={handleVoiceTrackPickClick}
-          onVoiceTrackClear={handleClearVoiceTrack}
-          onVoiceTrackVolumeChange={(nextVolume) =>
-            setVoiceTrack((prev) => (prev ? { ...prev, volume: nextVolume } : prev))
-          }
-          onVoiceTrackOffsetChange={(nextOffsetMs) =>
-            setVoiceTrack((prev) => (prev ? { ...prev, offsetMs: nextOffsetMs } : prev))
-          }
         />
 
         {/* Main Timeline Canvas */}
@@ -2274,7 +2153,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                     zIndex: -1 
                 }}
             />
-            <audio ref={voicePreviewAudioRef} preload="auto" style={{ display: 'none' }} />
         </div>
 
         {/* Right Sidebar */}
@@ -2341,13 +2219,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         ref={importInputRef}
         style={{ display: 'none' }}
         onChange={handleImportJsonFile}
-      />
-      <input
-        type="file"
-        accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.webm"
-        ref={voiceTrackInputRef}
-        style={{ display: 'none' }}
-        onChange={handleVoiceTrackFile}
       />
     </div>
   );
