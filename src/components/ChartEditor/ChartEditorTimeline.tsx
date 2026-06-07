@@ -8,7 +8,6 @@ import {
   PIXELS_PER_SECOND,
 } from './constants';
 import { timeToMeasure } from '../../utils/bpmUtils';
-import { buildBgaVisibilitySegments } from '../../utils/bgaVisibility';
 
 // 노트가 레인 경계선 안에 딱 맞게 들어가도록 레인 너비에서 약간의 여백만 남김
 const NOTE_WIDTH = LANE_WIDTH - 4;
@@ -16,6 +15,7 @@ const NOTE_HALF = NOTE_WIDTH / 2;
 // 래퍼 전체 너비 (4개 레인 × 100px)
 const CONTENT_WIDTH = LANE_WIDTH * 4;
 const MARQUEE_DRAG_THRESHOLD_PX = 4;
+const BGA_MIN_DURATION_MS = 120;
 
 interface ChartEditorTimelineProps {
   notes: Note[];
@@ -40,6 +40,7 @@ interface ChartEditorTimelineProps {
   bpm: number;
   bpmChanges: BPMChange[];
   bgaVisibilityIntervals?: BgaVisibilityInterval[];
+  isBgaPlacementMode?: boolean;
   // 선택 영역 관련
   isSelectionMode?: boolean;
   selectedLane?: Lane | null;
@@ -61,6 +62,9 @@ interface ChartEditorTimelineProps {
   yToTime: (y: number) => number;
   // 롱노트 모드 관련
   pendingLongNote?: { lane: Lane; startTime: number } | null;
+  onAddBgaIntervalAt?: (startTimeMs: number) => void;
+  onUpdateBgaInterval?: (id: string, patch: Partial<BgaVisibilityInterval>) => void;
+  onDeleteBgaInterval?: (id: string) => void;
 }
 
 // 성능 최적화: 재생선 위치는 useEffect에서 직접 DOM 업데이트하므로 리렌더링 최소화
@@ -87,6 +91,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   bpm,
   bpmChanges,
   bgaVisibilityIntervals = [],
+  isBgaPlacementMode = false,
   isSelectionMode = false,
   selectedLane: _selectedLane = null,
   isMoveMode = false,
@@ -104,6 +109,9 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   onMoveUpdate,
   onMoveEnd,
   yToTime,
+  onAddBgaIntervalAt,
+  onUpdateBgaInterval,
+  onDeleteBgaInterval,
 }) => {
   // 재생선 ref (리렌더링 없이 직접 DOM 업데이트)
   const playheadRef = useRef<HTMLDivElement>(null);
@@ -379,12 +387,13 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
       const timeToYLocal = (timeMs: number): number => {
         return timelineContentHeight - TIMELINE_BOTTOM_PADDING - (timeMs / 1000) * PIXELS_PER_SECOND * zoom;
       };
-      return buildBgaVisibilitySegments(bgaVisibilityIntervals, timelineDurationMs)
+      return bgaVisibilityIntervals
         .map((segment) => {
-          const visualEndTime = Math.min(timelineDurationMs, segment.endTimeMs + segment.fadeOutMs);
-          const top = Math.min(timeToYLocal(segment.startTimeMs), timeToYLocal(visualEndTime));
-          const height = Math.max(2, Math.abs(timeToYLocal(visualEndTime) - timeToYLocal(segment.startTimeMs)));
-          return { segment, visualEndTime, top, height };
+          const startTime = Math.max(0, Math.min(timelineDurationMs, segment.startTimeMs));
+          const endTime = Math.max(startTime, Math.min(timelineDurationMs, segment.endTimeMs));
+          const top = Math.min(timeToYLocal(startTime), timeToYLocal(endTime));
+          const height = Math.max(28, Math.abs(timeToYLocal(endTime) - timeToYLocal(startTime)));
+          return { segment, top, height };
         })
         .filter(({ top, height }) => {
           const bottom = top + height;
@@ -438,6 +447,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   // 드래그 선택 핸들러
   const isDraggingSelectionRef = useRef(false);
   const isDraggingMoveRef = useRef(false);
+  const bgaResizeRef = useRef<{ id: string; edge: 'start' | 'end' } | null>(null);
   const moveStartRef = useRef<{ time: number; lane: number } | null>(null);
   const suppressNextTimelineClickRef = useRef(false);
   const selectionPointerStartRef = useRef<{
@@ -485,9 +495,23 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         return;
       }
 
+      if (
+        isBgaPlacementMode &&
+        !(e.target as HTMLElement).closest('[data-note], [data-playhead], [data-bga-segment], [data-bga-control]')
+      ) {
+        const content = timelineContentRef.current;
+        if (!content || !onAddBgaIntervalAt) return;
+        const rect = content.getBoundingClientRect();
+        const y = e.clientY - rect.top;
+        onAddBgaIntervalAt(yToTime(y));
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
       onTimelineClick(e);
     },
-    [isScrollbarInteraction, onTimelineClick]
+    [isScrollbarInteraction, isBgaPlacementMode, onAddBgaIntervalAt, onTimelineClick, timelineContentRef, yToTime]
   );
 
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -499,6 +523,31 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
 
     if (isScrollbarInteraction(e.clientX, e.clientY)) {
       suppressTimelineClick();
+      return;
+    }
+
+    const target = e.target as HTMLElement;
+    const bgaHandle = target.closest('[data-bga-resize]') as HTMLElement | null;
+    if (bgaHandle) {
+      const id = bgaHandle.dataset.bgaId;
+      const edge = bgaHandle.dataset.bgaResize as 'start' | 'end' | undefined;
+      if (id && edge) {
+        bgaResizeRef.current = { id, edge };
+        suppressTimelineClick();
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+    }
+
+    if (target.closest('[data-bga-control], [data-bga-segment]')) {
+      suppressTimelineClick();
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
+    if (isBgaPlacementMode) {
       return;
     }
 
@@ -577,9 +626,34 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     setIsTrackingSelection(true);
     window.getSelection()?.removeAllRanges();
     e.preventDefault();
-  }, [isSelectionMode, isMoveMode, selectedNoteIds, yToTime, onMoveStart, timelineContentRef, suppressTimelineClick, isScrollbarInteraction]);
+  }, [isSelectionMode, isMoveMode, selectedNoteIds, yToTime, onMoveStart, timelineContentRef, suppressTimelineClick, isScrollbarInteraction, isBgaPlacementMode]);
   
   const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (bgaResizeRef.current && onUpdateBgaInterval && timelineContentRef.current) {
+      const activeResize = bgaResizeRef.current;
+      const interval = bgaVisibilityIntervals.find((item) => item.id === activeResize.id);
+      if (!interval) {
+        bgaResizeRef.current = null;
+        return;
+      }
+
+      const rect = timelineContentRef.current.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const currentResizeTime = Math.max(0, yToTime(y));
+
+      if (activeResize.edge === 'start') {
+        onUpdateBgaInterval(activeResize.id, {
+          startTimeMs: Math.min(currentResizeTime, Math.max(0, interval.endTimeMs - BGA_MIN_DURATION_MS)),
+        });
+      } else {
+        onUpdateBgaInterval(activeResize.id, {
+          endTimeMs: Math.max(interval.startTimeMs + BGA_MIN_DURATION_MS, currentResizeTime),
+        });
+      }
+      e.preventDefault();
+      return;
+    }
+
     // 이동 모드 드래그 처리
     if (isDraggingMoveRef.current && onMoveUpdate && moveStartRef.current) {
       if (!timelineContentRef.current) return;
@@ -654,9 +728,12 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
 
     if (onSelectionUpdate) onSelectionUpdate(yToTime(y));
     e.preventDefault();
-  }, [isTrackingSelection, yToTime, onSelectionStart, onSelectionUpdate, onMoveUpdate, timelineContentRef, normalizeRect, onMarqueeStart, onMarqueeUpdate, computeMarqueeSelectedIds, suppressTimelineClick]);
+  }, [isTrackingSelection, yToTime, onSelectionStart, onSelectionUpdate, onMoveUpdate, timelineContentRef, normalizeRect, onMarqueeStart, onMarqueeUpdate, computeMarqueeSelectedIds, suppressTimelineClick, onUpdateBgaInterval, bgaVisibilityIntervals]);
   
   const handleMouseUp = useCallback(() => {
+    if (bgaResizeRef.current) {
+      bgaResizeRef.current = null;
+    }
     if (isDraggingMoveRef.current) {
       if (onMoveEnd) {
         onMoveEnd();
@@ -838,10 +915,10 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
 
 
         {/* 간주 구간 오버레이 (채보 레인 숨김) */}
-        {visibleBgaSegments.map(({ segment, visualEndTime, top, height }) => {
-          const total = Math.max(1, visualEndTime - segment.startTimeMs);
-          const fadeInRatio = Math.min(1, Math.max(0, segment.fadeInMs / total));
-          const fadeOutRatio = Math.min(1, Math.max(0, segment.fadeOutMs / total));
+        {visibleBgaSegments.map(({ segment, top, height }) => {
+          const total = Math.max(1, segment.endTimeMs - segment.startTimeMs);
+          const fadeInRatio = Math.min(1, Math.max(0, (segment.fadeInMs ?? 0) / total));
+          const fadeOutRatio = Math.min(1, Math.max(0, (segment.fadeOutMs ?? 0) / total));
           const midStart = fadeInRatio;
           const midEnd = Math.max(midStart, 1 - fadeOutRatio);
           const baseColor = 'rgba(248,113,113,0.22)';
@@ -854,6 +931,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
           return (
             <div
               key={segment.id}
+              data-bga-segment="true"
               style={{
                 position: 'absolute',
                 left: 0,
@@ -864,11 +942,51 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
                 border: '1px dashed rgba(239,68,68,0.6)',
                 borderRadius: 6,
                 boxShadow: '0 0 12px rgba(248,113,113,0.35)',
-                pointerEvents: 'none',
+                pointerEvents: 'auto',
                 zIndex: 6,
               }}
-              title={`간주 구간 (채보 레인 숨김) (${segment.startTimeMs}ms ~ ${segment.endTimeMs}ms)`}
+              title={`레인 페이드 구간 (${segment.startTimeMs}ms ~ ${segment.endTimeMs}ms)`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
             >
+              <button
+                type="button"
+                data-bga-resize="start"
+                data-bga-id={segment.id}
+                style={{
+                  position: 'absolute',
+                  top: -2,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: 90,
+                  height: 12,
+                  border: '1px solid rgba(254,202,202,0.45)',
+                  borderRadius: 999,
+                  background: 'rgba(127,29,29,0.82)',
+                  cursor: 'ns-resize',
+                }}
+                aria-label="BGA fade start resize"
+              />
+              <button
+                type="button"
+                data-bga-resize="end"
+                data-bga-id={segment.id}
+                style={{
+                  position: 'absolute',
+                  bottom: -2,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: 90,
+                  height: 12,
+                  border: '1px solid rgba(254,202,202,0.45)',
+                  borderRadius: 999,
+                  background: 'rgba(127,29,29,0.82)',
+                  cursor: 'ns-resize',
+                }}
+                aria-label="BGA fade end resize"
+              />
               <span
                 style={{
                   position: 'absolute',
@@ -881,8 +999,83 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
                   pointerEvents: 'none',
                 }}
               >
-                HIDE
+                FADE
               </span>
+              <div
+                data-bga-control="true"
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                }}
+                style={{
+                  position: 'absolute',
+                  left: '50%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '6px 8px',
+                  borderRadius: 10,
+                  background: 'rgba(2,6,23,0.82)',
+                  border: '1px solid rgba(248,113,113,0.35)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+                }}
+              >
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#fecaca' }}>
+                  IN
+                  <input
+                    data-bga-control="true"
+                    type="number"
+                    min={0}
+                    value={Math.round(segment.fadeInMs ?? 0)}
+                    onChange={(e) => onUpdateBgaInterval?.(segment.id, { fadeInMs: Math.max(0, Number(e.target.value) || 0) })}
+                    style={{
+                      width: 52,
+                      padding: '2px 4px',
+                      borderRadius: 6,
+                      border: '1px solid rgba(248,113,113,0.3)',
+                      background: 'rgba(15,23,42,0.9)',
+                      color: '#fff',
+                      fontSize: 10,
+                    }}
+                  />
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#fecaca' }}>
+                  OUT
+                  <input
+                    data-bga-control="true"
+                    type="number"
+                    min={0}
+                    value={Math.round(segment.fadeOutMs ?? 0)}
+                    onChange={(e) => onUpdateBgaInterval?.(segment.id, { fadeOutMs: Math.max(0, Number(e.target.value) || 0) })}
+                    style={{
+                      width: 52,
+                      padding: '2px 4px',
+                      borderRadius: 6,
+                      border: '1px solid rgba(248,113,113,0.3)',
+                      background: 'rgba(15,23,42,0.9)',
+                      color: '#fff',
+                      fontSize: 10,
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  data-bga-control="true"
+                  onClick={() => onDeleteBgaInterval?.(segment.id)}
+                  style={{
+                    padding: '3px 7px',
+                    borderRadius: 6,
+                    border: '1px solid rgba(248,113,113,0.5)',
+                    background: 'rgba(127,29,29,0.9)',
+                    color: '#fecaca',
+                    fontSize: 10,
+                    cursor: 'pointer',
+                  }}
+                >
+                  삭제
+                </button>
+              </div>
             </div>
           );
         })}

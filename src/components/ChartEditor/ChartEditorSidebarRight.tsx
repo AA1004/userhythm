@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import { SpeedChange, BgaVisibilityInterval, BPMChange, BgaVisibilityMode } from '../../types/game';
+import { SpeedChange, BgaVisibilityInterval, BPMChange } from '../../types/game';
 import { CHART_EDITOR_THEME } from './constants';
-import { timeToMeasure, beatIndexToTime, timeToBeatIndex } from '../../utils/bpmUtils';
+import { timeToMeasure, beatIndexToTime } from '../../utils/bpmUtils';
 import {
   blurEditorTransientAction,
   preventTransientEditorActionFocus,
@@ -13,7 +13,9 @@ export interface ChartEditorSidebarRightProps {
   onUpdateSpeedChange: (id: number, patch: Partial<SpeedChange>) => void;
   onDeleteSpeedChange: (id: number) => void;
   bgaVisibilityIntervals: BgaVisibilityInterval[];
-  onAddBgaEvent: (mode: BgaVisibilityMode) => void;
+  isBgaPlacementMode: boolean;
+  onToggleBgaPlacementMode: () => void;
+  onAddBgaIntervalAtCurrent: () => void;
   onUpdateBgaInterval: (id: string, patch: Partial<BgaVisibilityInterval>) => void;
   onDeleteBgaInterval: (id: string) => void;
   testStartInput: string;
@@ -126,7 +128,9 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
   onUpdateSpeedChange,
   onDeleteSpeedChange,
   bgaVisibilityIntervals,
-  onAddBgaEvent,
+  isBgaPlacementMode,
+  onToggleBgaPlacementMode,
+  onAddBgaIntervalAtCurrent,
   onUpdateBgaInterval,
   onDeleteBgaInterval,
   testStartInput,
@@ -332,12 +336,11 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
 
       <BgaEventsSection
         bgaVisibilityIntervals={bgaVisibilityIntervals}
-        onAddBgaEvent={onAddBgaEvent}
+        isBgaPlacementMode={isBgaPlacementMode}
+        onToggleBgaPlacementMode={onToggleBgaPlacementMode}
+        onAddBgaIntervalAtCurrent={onAddBgaIntervalAtCurrent}
         onUpdateBgaInterval={onUpdateBgaInterval}
         onDeleteBgaInterval={onDeleteBgaInterval}
-        bpm={bpm}
-        bpmChanges={sortedBpmChanges}
-        beatsPerMeasure={beatsPerMeasure}
       />
 
       <div
@@ -489,22 +492,20 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
 
 interface BgaEventsSectionProps {
   bgaVisibilityIntervals: BgaVisibilityInterval[];
-  onAddBgaEvent: (mode: BgaVisibilityMode) => void;
+  isBgaPlacementMode: boolean;
+  onToggleBgaPlacementMode: () => void;
+  onAddBgaIntervalAtCurrent: () => void;
   onUpdateBgaInterval: (id: string, patch: Partial<BgaVisibilityInterval>) => void;
   onDeleteBgaInterval: (id: string) => void;
-  bpm: number;
-  bpmChanges: BPMChange[];
-  beatsPerMeasure: number;
 }
 
 const BgaEventsSection: React.FC<BgaEventsSectionProps> = ({
   bgaVisibilityIntervals,
-  onAddBgaEvent,
+  isBgaPlacementMode,
+  onToggleBgaPlacementMode,
+  onAddBgaIntervalAtCurrent,
   onUpdateBgaInterval,
   onDeleteBgaInterval,
-  bpm,
-  bpmChanges,
-  beatsPerMeasure,
 }) => (
   <div
     style={{
@@ -515,192 +516,139 @@ const BgaEventsSection: React.FC<BgaEventsSectionProps> = ({
   >
     <SectionHeader
       label="BGA Lane Visibility"
-      description="Hide는 레인을 숨기고, Show는 다시 보이게 합니다. 페이드는 해당 방향만 적용합니다."
+      description="배치 모드로 타임라인 레인을 직접 클릭해 구간을 만들고, 블록 양 끝을 드래그해 길이를 조절합니다."
     >
       <Badge>{bgaVisibilityIntervals.length}개</Badge>
     </SectionHeader>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-      <span style={{ fontSize: 12, fontWeight: 600 }}>이벤트 추가</span>
-      <div style={{ display: 'flex', gap: 4 }}>
-        <button
-          data-editor-transient-action="true"
-          onMouseDown={keepTransientButtonFromTakingFocus}
-          onClick={(e) => {
-            onAddBgaEvent('hidden');
-            blurTransientButton(e);
-          }}
-          style={{
-            padding: '2px 6px',
-            fontSize: '10px',
-            borderRadius: CHART_EDITOR_THEME.radiusSm,
-            border: '1px solid rgba(239,68,68,0.55)',
-            backgroundColor: 'rgba(239,68,68,0.12)',
-            color: '#fca5a5',
-            cursor: 'pointer',
-          }}
-        >
-          + Hide
-        </button>
-        <button
-          data-editor-transient-action="true"
-          onMouseDown={keepTransientButtonFromTakingFocus}
-          onClick={(e) => {
-            onAddBgaEvent('visible');
-            blurTransientButton(e);
-          }}
-          style={{
-            padding: '2px 6px',
-            fontSize: '10px',
-            borderRadius: CHART_EDITOR_THEME.radiusSm,
-            border: '1px solid rgba(34,197,94,0.55)',
-            backgroundColor: 'rgba(34,197,94,0.12)',
-            color: '#86efac',
-            cursor: 'pointer',
-          }}
-        >
-          + Show
-        </button>
-      </div>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+      <button
+        data-editor-transient-action="true"
+        onMouseDown={keepTransientButtonFromTakingFocus}
+        onClick={(e) => {
+          onToggleBgaPlacementMode();
+          blurTransientButton(e);
+        }}
+        style={{
+          flex: 1,
+          padding: '6px 8px',
+          fontSize: '11px',
+          fontWeight: 700,
+          borderRadius: CHART_EDITOR_THEME.radiusSm,
+          border: `1px solid ${isBgaPlacementMode ? 'rgba(248,113,113,0.58)' : CHART_EDITOR_THEME.borderSubtle}`,
+          backgroundColor: isBgaPlacementMode ? 'rgba(239,68,68,0.14)' : 'rgba(15,23,42,0.58)',
+          color: isBgaPlacementMode ? '#fca5a5' : CHART_EDITOR_THEME.textPrimary,
+          cursor: 'pointer',
+        }}
+      >
+        {isBgaPlacementMode ? '배치 모드 ON' : '배치 모드 OFF'}
+      </button>
+      <button
+        data-editor-transient-action="true"
+        onMouseDown={keepTransientButtonFromTakingFocus}
+        onClick={(e) => {
+          onAddBgaIntervalAtCurrent();
+          blurTransientButton(e);
+        }}
+        style={{
+          padding: '6px 8px',
+          fontSize: '11px',
+          fontWeight: 700,
+          borderRadius: CHART_EDITOR_THEME.radiusSm,
+          border: '1px solid rgba(239,68,68,0.55)',
+          backgroundColor: 'rgba(239,68,68,0.12)',
+          color: '#fca5a5',
+          cursor: 'pointer',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        현재 위치 추가
+      </button>
+    </div>
+    <div style={{ fontSize: 10, color: CHART_EDITOR_THEME.textMuted, marginBottom: 8, lineHeight: 1.4 }}>
+      블록 내부 숫자칸에서 등장/퇴장 시간을 ms 단위로 바로 수정할 수 있습니다. `0`이면 즉시 전환입니다.
     </div>
     {bgaVisibilityIntervals.length === 0 ? (
       <div style={{ fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>구간 없음</div>
     ) : (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 140, overflowY: 'auto' }}>
-        {bgaVisibilityIntervals.map((it) => {
-          const startBeatIdx = timeToBeatIndex(it.startTimeMs, bpm, bpmChanges);
-          const startMeasureNum = Math.floor(startBeatIdx / beatsPerMeasure);
-          const startBeat = Math.floor(startBeatIdx % beatsPerMeasure) + 1;
-          const isHideEvent = it.mode === 'hidden';
-          const fadeLabel = isHideEvent ? 'Fade in' : 'Fade out';
-          const fadeValue = isHideEvent ? Math.round(it.fadeInMs ?? 0) : Math.round(it.fadeOutMs ?? 0);
-
-          return (
-            <div
-              key={it.id}
-              style={{
-                padding: '6px',
-                borderRadius: CHART_EDITOR_THEME.radiusSm,
-                border: `1px solid ${it.mode === 'hidden' ? 'rgba(239,68,68,0.4)' : 'rgba(34,197,94,0.4)'}`,
-                backgroundColor: 'rgba(15,23,42,0.4)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                <button
-                  data-editor-transient-action="true"
-                  onMouseDown={keepTransientButtonFromTakingFocus}
-                  onClick={(e) => {
-                    onUpdateBgaInterval(it.id, {
-                      mode: isHideEvent ? 'visible' : 'hidden',
-                      fadeInMs: isHideEvent ? 0 : 300,
-                      fadeOutMs: isHideEvent ? 300 : 0,
-                    });
-                    blurTransientButton(e);
-                  }}
-                  style={{
-                    fontSize: 10,
-                    padding: '3px 6px',
-                    minWidth: 42,
-                    borderRadius: CHART_EDITOR_THEME.radiusSm,
-                    border: `1px solid ${isHideEvent ? 'rgba(239,68,68,0.6)' : 'rgba(34,197,94,0.6)'}`,
-                    backgroundColor: isHideEvent ? 'rgba(239,68,68,0.15)' : 'rgba(34,197,94,0.15)',
-                    color: isHideEvent ? '#fca5a5' : '#86efac',
-                    cursor: 'pointer',
-                    fontWeight: 700,
-                  }}
-                  title="Hide/Show 전환"
-                >
-                  {isHideEvent ? 'Hide' : 'Show'}
-                </button>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  data-select-on-focus="true"
-                  placeholder="마디"
-                  value={startMeasureNum + 1}
-                  onChange={(e) => {
-                    const m = Math.max(0, (parseInt(e.target.value, 10) || 1) - 1);
-                    const beatIdx = m * beatsPerMeasure + (startBeat - 1);
-                    const newMs = beatIndexToTime(beatIdx, bpm, bpmChanges);
-                    onUpdateBgaInterval(it.id, { startTimeMs: newMs });
-                  }}
-                  style={{ ...inputBaseStyle, width: 32, padding: '3px 4px', fontSize: 11, textAlign: 'center' }}
-                />
-                <span style={{ fontSize: 11, color: CHART_EDITOR_THEME.textSecondary }}>.</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  data-select-on-focus="true"
-                  placeholder="박"
-                  value={startBeat}
-                  onChange={(e) => {
-                    const b = Math.max(1, Math.min(beatsPerMeasure, parseInt(e.target.value, 10) || 1));
-                    const beatIdx = startMeasureNum * beatsPerMeasure + (b - 1);
-                    const newMs = beatIndexToTime(beatIdx, bpm, bpmChanges);
-                    onUpdateBgaInterval(it.id, { startTimeMs: newMs });
-                  }}
-                  style={{ ...inputBaseStyle, width: 28, padding: '3px 4px', fontSize: 11, textAlign: 'center' }}
-                />
-                <div style={{ flex: 1 }} />
-                <button
-                  data-editor-transient-action="true"
-                  onMouseDown={keepTransientButtonFromTakingFocus}
-                  onClick={(e) => {
-                    onDeleteBgaInterval(it.id);
-                    blurTransientButton(e);
-                  }}
-                  style={{
-                    fontSize: 11,
-                    padding: '2px 6px',
-                    borderRadius: CHART_EDITOR_THEME.radiusSm,
-                    border: `1px solid ${CHART_EDITOR_THEME.danger}`,
-                    backgroundColor: 'rgba(239,68,68,0.12)',
-                    color: CHART_EDITOR_THEME.danger,
-                    cursor: 'pointer',
-                  }}
-                >
-                  ×
-                </button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 156, overflowY: 'auto' }}>
+        {[...bgaVisibilityIntervals]
+          .sort((a, b) => a.startTimeMs - b.startTimeMs)
+          .map((it, index) => {
+            const durationMs = Math.max(0, it.endTimeMs - it.startTimeMs);
+            return (
+              <div
+                key={it.id}
+                style={{
+                  padding: '6px',
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  border: '1px solid rgba(239,68,68,0.4)',
+                  backgroundColor: 'rgba(15,23,42,0.4)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#fca5a5' }}>Fade {index + 1}</span>
+                  <span style={{ fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>
+                    {Math.round(it.startTimeMs)}ms - {Math.round(it.endTimeMs)}ms
+                  </span>
+                  <div style={{ flex: 1 }} />
+                  <button
+                    data-editor-transient-action="true"
+                    onMouseDown={keepTransientButtonFromTakingFocus}
+                    onClick={(e) => {
+                      onDeleteBgaInterval(it.id);
+                      blurTransientButton(e);
+                    }}
+                    style={{
+                      fontSize: 11,
+                      padding: '2px 6px',
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      border: `1px solid ${CHART_EDITOR_THEME.danger}`,
+                      backgroundColor: 'rgba(239,68,68,0.12)',
+                      color: CHART_EDITOR_THEME.danger,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    삭제
+                  </button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>
+                    길이
+                    <input
+                      type="number"
+                      min={0}
+                      value={Math.round(durationMs)}
+                      onChange={(e) => {
+                        const nextDuration = Math.max(0, Number(e.target.value) || 0);
+                        onUpdateBgaInterval(it.id, { endTimeMs: it.startTimeMs + nextDuration });
+                      }}
+                      style={{ ...inputBaseStyle, width: '100%', padding: '3px 4px', fontSize: 11 }}
+                    />
+                  </label>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>
+                    등장
+                    <input
+                      type="number"
+                      min={0}
+                      value={Math.round(it.fadeInMs ?? 0)}
+                      onChange={(e) => onUpdateBgaInterval(it.id, { fadeInMs: Math.max(0, Number(e.target.value) || 0) })}
+                      style={{ ...inputBaseStyle, width: '100%', padding: '3px 4px', fontSize: 11 }}
+                    />
+                  </label>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>
+                    퇴장
+                    <input
+                      type="number"
+                      min={0}
+                      value={Math.round(it.fadeOutMs ?? 0)}
+                      onChange={(e) => onUpdateBgaInterval(it.id, { fadeOutMs: Math.max(0, Number(e.target.value) || 0) })}
+                      style={{ ...inputBaseStyle, width: '100%', padding: '3px 4px', fontSize: 11 }}
+                    />
+                  </label>
+                </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>{fadeLabel}</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={fadeValue}
-                  onChange={(e) => {
-                    const nextFade = Math.max(0, Number(e.target.value) || 0);
-                    onUpdateBgaInterval(
-                      it.id,
-                      isHideEvent ? { fadeInMs: nextFade, fadeOutMs: 0 } : { fadeInMs: 0, fadeOutMs: nextFade }
-                    );
-                  }}
-                  style={{ ...inputBaseStyle, width: 42, padding: '2px 4px', fontSize: 10, textAlign: 'center' }}
-                />
-                <span style={{ fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>ms</span>
-                <button
-                  data-editor-transient-action="true"
-                  onMouseDown={keepTransientButtonFromTakingFocus}
-                  onClick={(e) => {
-                    onUpdateBgaInterval(it.id, { fadeInMs: 0, fadeOutMs: 0 });
-                    blurTransientButton(e);
-                  }}
-                  title="페이드 제거 (하드컷)"
-                  style={{
-                    fontSize: 10,
-                    padding: '2px 6px',
-                    borderRadius: CHART_EDITOR_THEME.radiusSm,
-                    border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                    backgroundColor: 'rgba(148,163,184,0.12)',
-                    color: CHART_EDITOR_THEME.textSecondary,
-                    cursor: 'pointer',
-                  }}
-                >
-                  즉시
-                </button>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
       </div>
     )}
   </div>

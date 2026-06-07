@@ -133,3 +133,18 @@ export function buildBgaVisibilitySegments(
 
   return segments;
 }
+
+export function convertBgaEventsToEditableIntervals(
+  events: BgaVisibilityInterval[],
+  maxTimeMs = Number.POSITIVE_INFINITY
+): BgaVisibilityInterval[] {
+  return buildBgaVisibilitySegments(events, maxTimeMs).map((segment) => ({
+    id: segment.id,
+    startTimeMs: segment.startTimeMs,
+    endTimeMs: segment.endTimeMs,
+    mode: 'hidden' as const,
+    fadeInMs: segment.fadeInMs,
+    fadeOutMs: segment.fadeOutMs,
+    easing: 'linear' as const,
+  }));
+}

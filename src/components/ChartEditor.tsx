@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Note, BPMChange, ChartTestPayload, SubtitleEditorChartData, Lane, SpeedChange, BgaVisibilityInterval, BgaVisibilityMode } from '../types/game';
+import { Note, BPMChange, ChartTestPayload, SubtitleEditorChartData, Lane, SpeedChange, BgaVisibilityInterval } from '../types/game';
 import { ChartEditorHeader } from './ChartEditor/ChartEditorHeader';
 import { ChartEditorSidebarLeft } from './ChartEditor/ChartEditorSidebarLeft';
 import { ChartEditorSidebarRight } from './ChartEditor/ChartEditorSidebarRight';
@@ -27,7 +27,7 @@ import {
 import { extractYouTubeVideoId } from '../utils/youtube';
 import { localSubtitleStorage } from '../lib/subtitleAPI';
 import { MIN_LONG_NOTE_DURATION, validateNotes, getMaxNoteId } from '../utils/noteValidation';
-import { expandLegacyBgaVisibilityIntervals } from '../utils/bgaVisibility';
+import { convertBgaEventsToEditableIntervals } from '../utils/bgaVisibility';
 import {
   blurEditorNonTextControlAfterPointer,
   blurEditorNonTextControlOnFocus,
@@ -58,9 +58,11 @@ const blurPointerTimelineActionButton = (event: React.MouseEvent<HTMLButtonEleme
 interface EditorTimelineActionRailsProps {
   isLongNoteMode: boolean;
   isMoveMode: boolean;
+  isBgaPlacementMode: boolean;
   selectedNoteCount: number;
   onToggleLongNoteMode: () => void;
   onToggleMoveMode: () => void;
+  onToggleBgaPlacementMode: () => void;
   onMirrorNotes: () => void;
 }
 
@@ -88,9 +90,11 @@ const timelineRailButtonStyle = (active = false): React.CSSProperties => ({
 const EditorTimelineActionRails: React.FC<EditorTimelineActionRailsProps> = React.memo(({
   isLongNoteMode,
   isMoveMode,
+  isBgaPlacementMode,
   selectedNoteCount,
   onToggleLongNoteMode,
   onToggleMoveMode,
+  onToggleBgaPlacementMode,
   onMirrorNotes,
 }) => {
   const railBaseStyle: React.CSSProperties = {
@@ -170,6 +174,20 @@ const EditorTimelineActionRails: React.FC<EditorTimelineActionRailsProps> = Reac
             선택 이동
             <span style={{ display: 'block', marginTop: 3, color: CHART_EDITOR_THEME.textMuted, fontSize: 10 }}>
               {isMoveMode ? 'ON' : 'OFF'}
+            </span>
+          </button>
+          <button
+            data-editor-transient-action="true"
+            onMouseDown={keepTimelineActionButtonFromTakingFocus}
+            onClick={(e) => {
+              onToggleBgaPlacementMode();
+              blurPointerTimelineActionButton(e);
+            }}
+            style={timelineRailButtonStyle(isBgaPlacementMode)}
+          >
+            BGA 페이드
+            <span style={{ display: 'block', marginTop: 3, color: CHART_EDITOR_THEME.textMuted, fontSize: 10 }}>
+              {isBgaPlacementMode ? '배치 중' : '배치 대기'}
             </span>
           </button>
         </div>
@@ -321,6 +339,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [isBpmInputOpen, setIsBpmInputOpen] = useState<boolean>(false);
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState<boolean>(true);
   const [isLongNoteMode, setIsLongNoteMode] = useState<boolean>(false);
+  const [isBgaPlacementMode, setIsBgaPlacementMode] = useState<boolean>(false);
   const [testStartInput, setTestStartInput] = useState<string>('0');
   
   // --- Refs & 기타 ---
@@ -718,7 +737,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         id: typeof interval.id === 'string' ? interval.id : `bga-${idx}`,
         startTimeMs: Math.max(0, Number(interval.startTimeMs) || 0),
         endTimeMs: Math.max(0, Number(interval.endTimeMs) || 0),
-        mode: (interval.mode as BgaVisibilityMode) ?? 'hidden',
+        mode: interval.mode === 'visible' ? 'visible' : 'hidden',
         fadeInMs:
           interval.fadeInMs === undefined
             ? undefined
@@ -729,7 +748,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
             : Math.max(0, Number(interval.fadeOutMs) || 0),
         easing: interval.easing === 'linear' ? 'linear' : undefined,
       }));
-      setBgaVisibilityIntervals(expandLegacyBgaVisibilityIntervals(hydrated));
+      setBgaVisibilityIntervals(convertBgaEventsToEditableIntervals(hydrated));
     }
     if (typeof data.chartTitle === 'string') setShareTitle(data.chartTitle);
     if (typeof data.chartAuthor === 'string') setShareAuthor(data.chartAuthor);
@@ -800,6 +819,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setIsBpmInputOpen(false);
     setIsAutoScrollEnabled(true);
     setIsLongNoteMode(false);
+    setIsBgaPlacementMode(false);
     setTestStartInput('0');
     setShareTitle('');
     setShareAuthor('');
@@ -860,34 +880,36 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   // --- 간주 구간 (채보 레인 숨김) 핸들러 ---
   const normalizeInterval = useCallback(
     (raw: Partial<BgaVisibilityInterval> & { id: string }) => {
-      const start = clampTime(Math.max(0, raw.startTimeMs ?? 0));
-      const mode: BgaVisibilityMode = raw.mode === 'visible' ? 'visible' : 'hidden';
+      const start = clampTime(Math.max(0, Number(raw.startTimeMs) || 0));
+      const requestedEnd = clampTime(Math.max(0, Number(raw.endTimeMs) || start));
+      const end = Math.max(start, requestedEnd);
       return {
         id: raw.id,
         startTimeMs: start,
-        endTimeMs: start,
-        mode,
-        fadeInMs: mode === 'hidden' ? Math.max(0, Number(raw.fadeInMs ?? 300) || 0) : 0,
-        fadeOutMs: mode === 'visible' ? Math.max(0, Number(raw.fadeOutMs ?? 300) || 0) : 0,
+        endTimeMs: end,
+        mode: 'hidden' as const,
+        fadeInMs: Math.max(0, Number(raw.fadeInMs ?? 300) || 0),
+        fadeOutMs: Math.max(0, Number(raw.fadeOutMs ?? 300) || 0),
         easing: raw.easing === 'linear' ? 'linear' : undefined,
       } as BgaVisibilityInterval;
     },
     [clampTime]
   );
 
-  const handleAddBgaEvent = useCallback((mode: BgaVisibilityMode) => {
-    const start = clampTime(currentTime);
+  const handleAddBgaIntervalAt = useCallback((startTimeMs: number) => {
+    const start = clampTime(startTimeMs);
+    const defaultDuration = Math.max(600, beatDuration * beatsPerMeasure);
+    const end = clampTime(start + defaultDuration);
     const next: BgaVisibilityInterval = normalizeInterval({
       id: `bga-${Date.now()}`,
       startTimeMs: start,
-      endTimeMs: start,
-      mode,
-      fadeInMs: mode === 'hidden' ? 300 : 0,
-      fadeOutMs: mode === 'visible' ? 300 : 0,
+      endTimeMs: Math.max(end, start + 200),
+      fadeInMs: 300,
+      fadeOutMs: 300,
       easing: 'linear',
     });
     setBgaVisibilityIntervals((prev) => [...prev, next].sort((a, b) => a.startTimeMs - b.startTimeMs));
-  }, [clampTime, currentTime, normalizeInterval]);
+  }, [beatDuration, beatsPerMeasure, clampTime, normalizeInterval]);
 
   const handleUpdateBgaInterval = useCallback(
     (id: string, patch: Partial<BgaVisibilityInterval>) => {
@@ -2109,9 +2131,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                 timeToY={timeToY}
                 getNoteY={getNoteY}
                 currentTime={currentTime}
-                bpm={bpm}
-                bpmChanges={sortedBpmChanges}
+              bpm={bpm}
+              bpmChanges={sortedBpmChanges}
                 bgaVisibilityIntervals={bgaVisibilityIntervals}
+                isBgaPlacementMode={isBgaPlacementMode}
                  isSelectionMode={isSelectionMode}
                  selectedLane={selectedLane}
                  isMoveMode={isMoveMode}
@@ -2130,14 +2153,19 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                  onMoveEnd={handleMoveEnd}
                  yToTime={yToTime}
                  pendingLongNote={pendingLongNote}
+                 onAddBgaIntervalAt={handleAddBgaIntervalAt}
+                 onUpdateBgaInterval={handleUpdateBgaInterval}
+                 onDeleteBgaInterval={handleDeleteBgaInterval}
             />
 
             <EditorTimelineActionRails
               isLongNoteMode={isLongNoteMode}
               isMoveMode={isMoveMode}
+              isBgaPlacementMode={isBgaPlacementMode}
               selectedNoteCount={selectedNoteIds.size}
               onToggleLongNoteMode={handleToggleLongNoteMode}
               onToggleMoveMode={handleToggleMoveMode}
+              onToggleBgaPlacementMode={() => setIsBgaPlacementMode((prev) => !prev)}
               onMirrorNotes={handleMirrorNotes}
             />
             
@@ -2162,7 +2190,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           onUpdateSpeedChange={handleUpdateSpeedChange}
           onDeleteSpeedChange={handleDeleteSpeedChange}
           bgaVisibilityIntervals={bgaVisibilityIntervals}
-          onAddBgaEvent={handleAddBgaEvent}
+          isBgaPlacementMode={isBgaPlacementMode}
+          onToggleBgaPlacementMode={() => setIsBgaPlacementMode((prev) => !prev)}
+          onAddBgaIntervalAtCurrent={() => handleAddBgaIntervalAt(currentTime)}
           onUpdateBgaInterval={handleUpdateBgaInterval}
           onDeleteBgaInterval={handleDeleteBgaInterval}
           testStartInput={testStartInput}
