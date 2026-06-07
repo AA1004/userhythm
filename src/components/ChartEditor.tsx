@@ -44,6 +44,7 @@ const KEY_TO_LANE: Record<string, Lane> = {
   d: 2,
   f: 3,
 };
+const BGA_INTERVAL_MIN_DURATION_MS = 120;
 
 const keepTimelineActionButtonFromTakingFocus = (event: React.MouseEvent<HTMLButtonElement>) => {
   event.preventDefault();
@@ -748,7 +749,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
             : Math.max(0, Number(interval.fadeOutMs) || 0),
         easing: interval.easing === 'linear' ? 'linear' : undefined,
       }));
-      setBgaVisibilityIntervals(convertBgaEventsToEditableIntervals(hydrated));
+      setBgaVisibilityIntervals(sortAndClampBgaIntervals(convertBgaEventsToEditableIntervals(hydrated)));
     }
     if (typeof data.chartTitle === 'string') setShareTitle(data.chartTitle);
     if (typeof data.chartAuthor === 'string') setShareAuthor(data.chartAuthor);
@@ -882,7 +883,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     (raw: Partial<BgaVisibilityInterval> & { id: string }) => {
       const start = clampTime(Math.max(0, Number(raw.startTimeMs) || 0));
       const requestedEnd = clampTime(Math.max(0, Number(raw.endTimeMs) || start));
-      const end = Math.max(start, requestedEnd);
+      const end = Math.max(start + BGA_INTERVAL_MIN_DURATION_MS, requestedEnd);
       return {
         id: raw.id,
         startTimeMs: start,
@@ -896,30 +897,107 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     [clampTime]
   );
 
+  const sortAndClampBgaIntervals = useCallback(
+    (intervals: BgaVisibilityInterval[]) => {
+      const sorted = [...intervals]
+        .map((interval) => normalizeInterval(interval))
+        .sort((a, b) => a.startTimeMs - b.startTimeMs);
+
+      const clamped: BgaVisibilityInterval[] = [];
+      for (let index = 0; index < sorted.length; index += 1) {
+        const current = { ...sorted[index] };
+        const previous = clamped[index - 1];
+        const next = sorted[index + 1];
+        const minStart = previous ? previous.endTimeMs : 0;
+        const maxEnd = next ? next.startTimeMs : timelineDurationMs;
+
+        current.startTimeMs = Math.max(minStart, current.startTimeMs);
+        current.endTimeMs = Math.max(
+          current.startTimeMs + BGA_INTERVAL_MIN_DURATION_MS,
+          Math.min(maxEnd, current.endTimeMs)
+        );
+
+        if (next && current.endTimeMs > next.startTimeMs) {
+          current.endTimeMs = Math.max(
+            current.startTimeMs + BGA_INTERVAL_MIN_DURATION_MS,
+            next.startTimeMs
+          );
+        }
+
+        clamped.push(current);
+      }
+
+      return clamped.filter((interval) => interval.endTimeMs > interval.startTimeMs);
+    },
+    [normalizeInterval, timelineDurationMs]
+  );
+
   const handleAddBgaIntervalAt = useCallback((startTimeMs: number) => {
     const start = clampTime(startTimeMs);
     const defaultDuration = Math.max(600, beatDuration * beatsPerMeasure);
-    const end = clampTime(start + defaultDuration);
-    const next: BgaVisibilityInterval = normalizeInterval({
-      id: `bga-${Date.now()}`,
-      startTimeMs: start,
-      endTimeMs: Math.max(end, start + 200),
-      fadeInMs: 300,
-      fadeOutMs: 300,
-      easing: 'linear',
+    setBgaVisibilityIntervals((prev) => {
+      const sortedPrev = [...prev].sort((a, b) => a.startTimeMs - b.startTimeMs);
+      const nextIntervalIndex = sortedPrev.findIndex((interval) => interval.startTimeMs > start);
+      const nextInterval = nextIntervalIndex >= 0 ? sortedPrev[nextIntervalIndex] : null;
+      const previousInterval = nextIntervalIndex >= 0 ? sortedPrev[nextIntervalIndex - 1] : sortedPrev[sortedPrev.length - 1];
+      const clampedStart = Math.max(previousInterval?.endTimeMs ?? 0, start);
+      const maxEnd = nextInterval?.startTimeMs ?? timelineDurationMs;
+      const desiredEnd = Math.min(maxEnd, clampedStart + defaultDuration);
+      if (maxEnd - clampedStart < BGA_INTERVAL_MIN_DURATION_MS) {
+        return prev;
+      }
+
+      const next: BgaVisibilityInterval = normalizeInterval({
+        id: `bga-${Date.now()}`,
+        startTimeMs: clampedStart,
+        endTimeMs: Math.max(clampedStart + BGA_INTERVAL_MIN_DURATION_MS, desiredEnd),
+        fadeInMs: 300,
+        fadeOutMs: 300,
+        easing: 'linear',
+      });
+      return sortAndClampBgaIntervals([...prev, next]);
     });
-    setBgaVisibilityIntervals((prev) => [...prev, next].sort((a, b) => a.startTimeMs - b.startTimeMs));
-  }, [beatDuration, beatsPerMeasure, clampTime, normalizeInterval]);
+  }, [beatDuration, beatsPerMeasure, clampTime, normalizeInterval, sortAndClampBgaIntervals, timelineDurationMs]);
 
   const handleUpdateBgaInterval = useCallback(
     (id: string, patch: Partial<BgaVisibilityInterval>) => {
-      setBgaVisibilityIntervals((prev) =>
-        prev
-          .map((interval) => (interval.id === id ? normalizeInterval({ ...interval, ...patch, id }) : interval))
-          .sort((a, b) => a.startTimeMs - b.startTimeMs)
-      );
+      setBgaVisibilityIntervals((prev) => {
+        const target = prev.find((interval) => interval.id === id);
+        if (!target) return prev;
+
+        const others = prev
+          .filter((interval) => interval.id !== id)
+          .sort((a, b) => a.startTimeMs - b.startTimeMs);
+        const insertIndex = others.findIndex((interval) => interval.startTimeMs > target.startTimeMs);
+        const previous = insertIndex >= 0 ? others[insertIndex - 1] : others[others.length - 1];
+        const next = insertIndex >= 0 ? others[insertIndex] : undefined;
+
+        const desired = normalizeInterval({ ...target, ...patch, id });
+        const minStart = previous?.endTimeMs ?? 0;
+        const maxEnd = next?.startTimeMs ?? timelineDurationMs;
+        const nextStart = next?.startTimeMs ?? timelineDurationMs;
+
+        if (patch.startTimeMs !== undefined && patch.endTimeMs === undefined) {
+          desired.startTimeMs = Math.max(minStart, Math.min(desired.startTimeMs, target.endTimeMs - BGA_INTERVAL_MIN_DURATION_MS));
+          desired.endTimeMs = target.endTimeMs;
+        } else if (patch.endTimeMs !== undefined && patch.startTimeMs === undefined) {
+          desired.startTimeMs = target.startTimeMs;
+          desired.endTimeMs = Math.min(
+            nextStart,
+            Math.max(target.startTimeMs + BGA_INTERVAL_MIN_DURATION_MS, desired.endTimeMs)
+          );
+        } else {
+          desired.startTimeMs = Math.max(minStart, desired.startTimeMs);
+          desired.endTimeMs = Math.min(
+            maxEnd,
+            Math.max(desired.startTimeMs + BGA_INTERVAL_MIN_DURATION_MS, desired.endTimeMs)
+          );
+        }
+
+        return sortAndClampBgaIntervals([...others, desired]);
+      });
     },
-    [normalizeInterval]
+    [normalizeInterval, sortAndClampBgaIntervals, timelineDurationMs]
   );
 
   const handleDeleteBgaInterval = useCallback((id: string) => {

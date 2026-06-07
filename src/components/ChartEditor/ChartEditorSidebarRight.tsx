@@ -546,9 +546,11 @@ const BgaEventsSection: React.FC<BgaEventsSectionProps> = ({
         data-editor-transient-action="true"
         onMouseDown={keepTransientButtonFromTakingFocus}
         onClick={(e) => {
+          if (!isBgaPlacementMode) return;
           onAddBgaIntervalAtCurrent();
           blurTransientButton(e);
         }}
+        disabled={!isBgaPlacementMode}
         style={{
           padding: '6px 8px',
           fontSize: '11px',
@@ -556,8 +558,9 @@ const BgaEventsSection: React.FC<BgaEventsSectionProps> = ({
           borderRadius: CHART_EDITOR_THEME.radiusSm,
           border: '1px solid rgba(239,68,68,0.55)',
           backgroundColor: 'rgba(239,68,68,0.12)',
-          color: '#fca5a5',
-          cursor: 'pointer',
+          color: !isBgaPlacementMode ? CHART_EDITOR_THEME.textMuted : '#fca5a5',
+          cursor: !isBgaPlacementMode ? 'not-allowed' : 'pointer',
+          opacity: !isBgaPlacementMode ? 0.55 : 1,
           whiteSpace: 'nowrap',
         }}
       >
@@ -595,17 +598,20 @@ const BgaEventsSection: React.FC<BgaEventsSectionProps> = ({
                     data-editor-transient-action="true"
                     onMouseDown={keepTransientButtonFromTakingFocus}
                     onClick={(e) => {
+                      if (!isBgaPlacementMode) return;
                       onDeleteBgaInterval(it.id);
                       blurTransientButton(e);
                     }}
+                    disabled={!isBgaPlacementMode}
                     style={{
                       fontSize: 11,
                       padding: '2px 6px',
                       borderRadius: CHART_EDITOR_THEME.radiusSm,
                       border: `1px solid ${CHART_EDITOR_THEME.danger}`,
                       backgroundColor: 'rgba(239,68,68,0.12)',
-                      color: CHART_EDITOR_THEME.danger,
-                      cursor: 'pointer',
+                      color: !isBgaPlacementMode ? CHART_EDITOR_THEME.textMuted : CHART_EDITOR_THEME.danger,
+                      cursor: !isBgaPlacementMode ? 'not-allowed' : 'pointer',
+                      opacity: !isBgaPlacementMode ? 0.55 : 1,
                     }}
                   >
                     삭제
@@ -618,6 +624,7 @@ const BgaEventsSection: React.FC<BgaEventsSectionProps> = ({
                       type="number"
                       min={0}
                       value={Math.round(durationMs)}
+                      disabled={!isBgaPlacementMode}
                       onChange={(e) => {
                         const nextDuration = Math.max(0, Number(e.target.value) || 0);
                         onUpdateBgaInterval(it.id, { endTimeMs: it.startTimeMs + nextDuration });
@@ -631,6 +638,7 @@ const BgaEventsSection: React.FC<BgaEventsSectionProps> = ({
                       type="number"
                       min={0}
                       value={Math.round(it.fadeInMs ?? 0)}
+                      disabled={!isBgaPlacementMode}
                       onChange={(e) => onUpdateBgaInterval(it.id, { fadeInMs: Math.max(0, Number(e.target.value) || 0) })}
                       style={{ ...inputBaseStyle, width: '100%', padding: '3px 4px', fontSize: 11 }}
                     />
@@ -641,6 +649,7 @@ const BgaEventsSection: React.FC<BgaEventsSectionProps> = ({
                       type="number"
                       min={0}
                       value={Math.round(it.fadeOutMs ?? 0)}
+                      disabled={!isBgaPlacementMode}
                       onChange={(e) => onUpdateBgaInterval(it.id, { fadeOutMs: Math.max(0, Number(e.target.value) || 0) })}
                       style={{ ...inputBaseStyle, width: '100%', padding: '3px 4px', fontSize: 11 }}
                     />

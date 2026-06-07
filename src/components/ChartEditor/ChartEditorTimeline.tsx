@@ -527,7 +527,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     }
 
     const target = e.target as HTMLElement;
-    const bgaHandle = target.closest('[data-bga-resize]') as HTMLElement | null;
+    const bgaHandle = isBgaPlacementMode ? (target.closest('[data-bga-resize]') as HTMLElement | null) : null;
     if (bgaHandle) {
       const id = bgaHandle.dataset.bgaId;
       const edge = bgaHandle.dataset.bgaResize as 'start' | 'end' | undefined;
@@ -540,7 +540,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
       }
     }
 
-    if (target.closest('[data-bga-control], [data-bga-segment]')) {
+    if (isBgaPlacementMode && target.closest('[data-bga-control], [data-bga-segment]')) {
       suppressTimelineClick();
       e.preventDefault();
       e.stopPropagation();
@@ -942,7 +942,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
                 border: '1px dashed rgba(239,68,68,0.6)',
                 borderRadius: 6,
                 boxShadow: '0 0 12px rgba(248,113,113,0.35)',
-                pointerEvents: 'auto',
+                pointerEvents: isBgaPlacementMode ? 'auto' : 'none',
                 zIndex: 6,
               }}
               title={`레인 페이드 구간 (${segment.startTimeMs}ms ~ ${segment.endTimeMs}ms)`}
@@ -951,42 +951,64 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
                 e.stopPropagation();
               }}
             >
-              <button
-                type="button"
-                data-bga-resize="start"
-                data-bga-id={segment.id}
-                style={{
-                  position: 'absolute',
-                  top: -2,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: 90,
-                  height: 12,
-                  border: '1px solid rgba(254,202,202,0.45)',
-                  borderRadius: 999,
-                  background: 'rgba(127,29,29,0.82)',
-                  cursor: 'ns-resize',
-                }}
-                aria-label="BGA fade start resize"
-              />
-              <button
-                type="button"
-                data-bga-resize="end"
-                data-bga-id={segment.id}
-                style={{
-                  position: 'absolute',
-                  bottom: -2,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: 90,
-                  height: 12,
-                  border: '1px solid rgba(254,202,202,0.45)',
-                  borderRadius: 999,
-                  background: 'rgba(127,29,29,0.82)',
-                  cursor: 'ns-resize',
-                }}
-                aria-label="BGA fade end resize"
-              />
+              {isBgaPlacementMode && (
+                <>
+                  <button
+                    type="button"
+                    data-bga-resize="start"
+                    data-bga-id={segment.id}
+                    style={{
+                      position: 'absolute',
+                      top: -8,
+                      left: 0,
+                      width: '100%',
+                      height: 24,
+                      border: 'none',
+                      background: 'transparent',
+                      cursor: 'ns-resize',
+                    }}
+                    aria-label="BGA fade start resize"
+                  />
+                  <button
+                    type="button"
+                    data-bga-resize="end"
+                    data-bga-id={segment.id}
+                    style={{
+                      position: 'absolute',
+                      bottom: -8,
+                      left: 0,
+                      width: '100%',
+                      height: 24,
+                      border: 'none',
+                      background: 'transparent',
+                      cursor: 'ns-resize',
+                    }}
+                    aria-label="BGA fade end resize"
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: 12,
+                      borderTop: '2px solid rgba(254,202,202,0.72)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      width: '100%',
+                      height: 12,
+                      borderBottom: '2px solid rgba(254,202,202,0.72)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                </>
+              )}
               <span
                 style={{
                   position: 'absolute',
@@ -1001,81 +1023,83 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
               >
                 FADE
               </span>
-              <div
-                data-bga-control="true"
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                }}
-                style={{
-                  position: 'absolute',
-                  left: '50%',
-                  top: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '6px 8px',
-                  borderRadius: 10,
-                  background: 'rgba(2,6,23,0.82)',
-                  border: '1px solid rgba(248,113,113,0.35)',
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
-                }}
-              >
-                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#fecaca' }}>
-                  IN
-                  <input
-                    data-bga-control="true"
-                    type="number"
-                    min={0}
-                    value={Math.round(segment.fadeInMs ?? 0)}
-                    onChange={(e) => onUpdateBgaInterval?.(segment.id, { fadeInMs: Math.max(0, Number(e.target.value) || 0) })}
-                    style={{
-                      width: 52,
-                      padding: '2px 4px',
-                      borderRadius: 6,
-                      border: '1px solid rgba(248,113,113,0.3)',
-                      background: 'rgba(15,23,42,0.9)',
-                      color: '#fff',
-                      fontSize: 10,
-                    }}
-                  />
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#fecaca' }}>
-                  OUT
-                  <input
-                    data-bga-control="true"
-                    type="number"
-                    min={0}
-                    value={Math.round(segment.fadeOutMs ?? 0)}
-                    onChange={(e) => onUpdateBgaInterval?.(segment.id, { fadeOutMs: Math.max(0, Number(e.target.value) || 0) })}
-                    style={{
-                      width: 52,
-                      padding: '2px 4px',
-                      borderRadius: 6,
-                      border: '1px solid rgba(248,113,113,0.3)',
-                      background: 'rgba(15,23,42,0.9)',
-                      color: '#fff',
-                      fontSize: 10,
-                    }}
-                  />
-                </label>
-                <button
-                  type="button"
+              {isBgaPlacementMode && (
+                <div
                   data-bga-control="true"
-                  onClick={() => onDeleteBgaInterval?.(segment.id)}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                  }}
                   style={{
-                    padding: '3px 7px',
-                    borderRadius: 6,
-                    border: '1px solid rgba(248,113,113,0.5)',
-                    background: 'rgba(127,29,29,0.9)',
-                    color: '#fecaca',
-                    fontSize: 10,
-                    cursor: 'pointer',
+                    position: 'absolute',
+                    left: '50%',
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '6px 8px',
+                    borderRadius: 10,
+                    background: 'rgba(2,6,23,0.82)',
+                    border: '1px solid rgba(248,113,113,0.35)',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
                   }}
                 >
-                  삭제
-                </button>
-              </div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#fecaca' }}>
+                    IN
+                    <input
+                      data-bga-control="true"
+                      type="number"
+                      min={0}
+                      value={Math.round(segment.fadeInMs ?? 0)}
+                      onChange={(e) => onUpdateBgaInterval?.(segment.id, { fadeInMs: Math.max(0, Number(e.target.value) || 0) })}
+                      style={{
+                        width: 52,
+                        padding: '2px 4px',
+                        borderRadius: 6,
+                        border: '1px solid rgba(248,113,113,0.3)',
+                        background: 'rgba(15,23,42,0.9)',
+                        color: '#fff',
+                        fontSize: 10,
+                      }}
+                    />
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#fecaca' }}>
+                    OUT
+                    <input
+                      data-bga-control="true"
+                      type="number"
+                      min={0}
+                      value={Math.round(segment.fadeOutMs ?? 0)}
+                      onChange={(e) => onUpdateBgaInterval?.(segment.id, { fadeOutMs: Math.max(0, Number(e.target.value) || 0) })}
+                      style={{
+                        width: 52,
+                        padding: '2px 4px',
+                        borderRadius: 6,
+                        border: '1px solid rgba(248,113,113,0.3)',
+                        background: 'rgba(15,23,42,0.9)',
+                        color: '#fff',
+                        fontSize: 10,
+                      }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    data-bga-control="true"
+                    onClick={() => onDeleteBgaInterval?.(segment.id)}
+                    style={{
+                      padding: '3px 7px',
+                      borderRadius: 6,
+                      border: '1px solid rgba(248,113,113,0.5)',
+                      background: 'rgba(127,29,29,0.9)',
+                      color: '#fecaca',
+                      fontSize: 10,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    삭제
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
