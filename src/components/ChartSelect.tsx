@@ -19,6 +19,7 @@ interface ChartSelectProps {
 }
 
 const DEFAULT_THUMBNAIL_ASPECT_RATIO = 16 / 9;
+const PREVIEW_VOLUME = 35;
 
 const preferHighResolutionYouTubeThumbnail = (url: string | null) => {
   if (!url) return null;
@@ -390,8 +391,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
     }
 
     try {
-      player.mute?.();
-      player.setVolume?.(0);
+      player.setVolume?.(PREVIEW_VOLUME);
+      player.unMute?.();
       player.seekTo(previewStartSec, true);
       player.playVideo();
 
@@ -405,8 +406,9 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
 
           // 루프 시점
           if (currentTime >= previewEndSec - 0.05) {
-            player.mute?.();
             player.seekTo(previewStartSec, true);
+            player.setVolume?.(PREVIEW_VOLUME);
+            player.unMute?.();
             player.playVideo?.();
           }
         } catch (e) {
@@ -528,7 +530,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
             playerVars: {
               autoplay: 0,
               controls: 0,
-              mute: 1,
+              mute: 0,
               enablejsapi: 1,
               modestbranding: 1,
               rel: 0,
@@ -541,8 +543,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 previewPlayerRef.current = player;
                 currentVideoIdRef.current = youtubeVideoId;
                 try {
-                  player.mute?.();
-                  player.setVolume?.(0);
+                  player.setVolume?.(PREVIEW_VOLUME);
+                  player.unMute?.();
                 } catch {
                   // ignore
                 }
