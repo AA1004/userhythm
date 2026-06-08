@@ -306,6 +306,45 @@ const drawKeyLane = (
     const dpr = window.devicePixelRatio || 1;
     const laneChrome = getFullHudLaneChrome(width, top, keys, alpha, glowEnabled, dpr);
     ctx.drawImage(laneChrome, left, 0, width, top + height);
+
+    if (isPressed) {
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.82;
+      const pressedOverlay = ctx.createLinearGradient(left, top, left + width, top + height);
+      pressedOverlay.addColorStop(0, 'rgba(104, 244, 213, 0.78)');
+      pressedOverlay.addColorStop(0.5, 'rgba(255, 173, 102, 0.74)');
+      pressedOverlay.addColorStop(1, 'rgba(255, 109, 147, 0.8)');
+      ctx.fillStyle = pressedOverlay;
+      ctx.shadowColor = 'rgba(104, 244, 213, 0.22)';
+      ctx.shadowBlur = glowEnabled ? 16 : 0;
+      drawRoundedRect(ctx, left + 3, top + 3, width - 6, height - 6, 10);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      const sheen = ctx.createLinearGradient(left, top, left, top + height);
+      sheen.addColorStop(0, 'rgba(255,255,255,0.22)');
+      sheen.addColorStop(0.34, 'rgba(255,255,255,0.03)');
+      sheen.addColorStop(1, 'rgba(0,0,0,0.06)');
+      ctx.fillStyle = sheen;
+      drawRoundedRect(ctx, left + 3, top + 3, width - 6, height - 6, 10);
+      ctx.fill();
+
+      const meterHeight = 4;
+      const meterLeft = left + 8;
+      const meterTop = top + height - 12;
+      const meterWidth = width - 16;
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      drawRoundedRect(ctx, meterLeft, meterTop, meterWidth, meterHeight, 999);
+      ctx.fill();
+      ctx.fillStyle = '#68f4d5';
+      if (glowEnabled) {
+        ctx.shadowColor = 'rgba(104, 244, 213, 0.3)';
+        ctx.shadowBlur = 6;
+      }
+      drawRoundedRect(ctx, meterLeft, meterTop, meterWidth, meterHeight, 999);
+      ctx.fill();
+      ctx.restore();
+    }
   } else {
     ctx.fillStyle = 'rgba(12, 20, 36, 0.88)';
     ctx.strokeStyle = isPressed ? 'rgba(104, 244, 213, 0.78)' : 'rgba(104, 244, 213, 0.36)';
