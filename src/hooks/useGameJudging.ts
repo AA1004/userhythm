@@ -386,10 +386,8 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         const nextPressedKeys = new Set(pressedKeysRef.current);
         nextPressedKeys.add(lane);
         pressedKeysRef.current = nextPressedKeys;
-        if (pressedKeySnapshotsEnabled) {
-          uiDirtyRef.current.pressedKeys = true;
-          scheduleUiCommit();
-        }
+        uiDirtyRef.current.pressedKeys = true;
+        scheduleUiCommit();
       }
 
       const currentTime = currentTimeRef.current - timingOffsetMs;
@@ -489,10 +487,8 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         const nextPressedKeys = new Set(pressedKeysRef.current);
         nextPressedKeys.delete(lane);
         pressedKeysRef.current = nextPressedKeys;
-        if (pressedKeySnapshotsEnabled) {
-          uiDirtyRef.current.pressedKeys = true;
-          scheduleUiCommit();
-        }
+        uiDirtyRef.current.pressedKeys = true;
+        scheduleUiCommit();
       }
 
       const nextHoldingNotes = new Map(holdingNotesRef.current);
