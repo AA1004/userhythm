@@ -174,7 +174,7 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
         return parsed;
       }
     }
-    return 100; // 기본값 100%
+    return 30; // 기본값 30%
   });
   const [nextDisplayNameChangeAt, setNextDisplayNameChangeAt] = useState<Date | null>(null);
 

@@ -1144,6 +1144,8 @@ export const Game: React.FC = () => {
         onNoteSpeedChange={setNoteSpeed}
         timingOffsetMs={timingOffsetMs}
         onTimingOffsetChange={setTimingOffsetMs}
+        gameVolume={gameVolume}
+        onGameVolumeChange={setGameVolume}
         isBgaEnabled={isBgaEnabled}
         onBgaChange={setIsBgaEnabled}
         judgeLineY={judgeLineY}

@@ -27,6 +27,8 @@ interface SettingsModalProps {
   onNoteSpeedChange: (speed: number) => void;
   timingOffsetMs: number;
   onTimingOffsetChange: (offsetMs: number) => void;
+  gameVolume: number;
+  onGameVolumeChange: (volume: number) => void;
   isBgaEnabled: boolean;
   onBgaChange: (enabled: boolean) => void;
   judgeLineY: number;
@@ -224,6 +226,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onNoteSpeedChange,
   timingOffsetMs,
   onTimingOffsetChange,
+  gameVolume,
+  onGameVolumeChange,
   isBgaEnabled,
   onBgaChange,
   judgeLineY,
@@ -242,6 +246,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [activeTab, setActiveTab] = useState<SettingsTab>('gameplay');
   const [isSavingNickname, setIsSavingNickname] = useState(false);
   const [recordingKeyIndex, setRecordingKeyIndex] = useState<number | null>(null);
+  const [isVisualDetailsExpanded, setIsVisualDetailsExpanded] = useState(false);
   const visualRafRef = useRef<number | null>(null);
   const queuedVisualSettingsRef = useRef<Partial<GameVisualSettings>>({});
 
@@ -322,6 +327,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (isOpen) {
       setActiveTab('gameplay');
       setRecordingKeyIndex(null);
+      setIsVisualDetailsExpanded(false);
     }
   }, [isOpen]);
 
@@ -636,6 +642,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             <div style={sectionCardStyle}>
               <h3 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px', marginTop: 0, marginBottom: '8px' }}>
+                게임 볼륨
+              </h3>
+              <VisualSliderRow
+                label="마스터 볼륨"
+                value={gameVolume}
+                min={0}
+                max={100}
+                step={5}
+                suffix="%"
+                onChange={onGameVolumeChange}
+                onCommit={() => {}}
+              />
+              <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginTop: '6px', marginBottom: 0 }}>
+                플레이 오디오와 미리듣기 볼륨에 공통으로 적용됩니다.
+              </p>
+            </div>
+
+            <div style={sectionCardStyle}>
+              <h3 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px', marginTop: 0, marginBottom: '8px' }}>
                 배경 영상 (BGA)
               </h3>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
@@ -674,20 +699,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <span>90% 거의 숨김</span>
                 </div>
               </div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginTop: '14px' }}>
-                <input
-                  type="checkbox"
-                  checked={visualSettings.bgaBlurEnabled}
-                  onChange={(e) => applyToggleVisualSettings({ bgaBlurEnabled: e.target.checked })}
-                  style={{ width: '18px', height: '18px', accentColor: CHART_EDITOR_THEME.accent }}
-                />
-                <span style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px' }}>
-                  레인 뒤 BGA 소프트 블러
-                </span>
-              </label>
-              <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginTop: '6px', marginBottom: 0 }}>
-                플레이 중 레인 뒤에 보이는 배경 영상을 살짝 흐리게 처리합니다.
-              </p>
             </div>
 
             <div style={sectionCardStyle}>
@@ -913,6 +924,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   alignItems: 'center',
                   gap: '8px',
                   marginTop: '8px',
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={visualSettings.bgaBlurEnabled}
+                  onChange={(e) => applyToggleVisualSettings({ bgaBlurEnabled: e.target.checked })}
+                  style={{ accentColor: CHART_EDITOR_THEME.accent }}
+                />
+                레인 뒤 BGA 소프트 블러
+              </label>
+
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginTop: '8px',
                   marginBottom: '8px',
                   color: CHART_EDITOR_THEME.textPrimary,
                   fontSize: '12px',
@@ -991,22 +1022,43 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <h3 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px', margin: 0 }}>
                   비주얼 세부 설정
                 </h3>
-                <button
-                  onClick={handleResetVisualSettings}
-                  style={{
-                    padding: '4px 8px',
-                    borderRadius: CHART_EDITOR_THEME.radiusSm,
-                    border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                    background: 'transparent',
-                    color: CHART_EDITOR_THEME.textSecondary,
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  기본값으로
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    onClick={() => setIsVisualDetailsExpanded((prev) => !prev)}
+                    style={{
+                      padding: '4px 8px',
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                      background: 'transparent',
+                      color: CHART_EDITOR_THEME.textSecondary,
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {isVisualDetailsExpanded ? '숨기기' : '펼치기'}
+                  </button>
+                  <button
+                    onClick={handleResetVisualSettings}
+                    style={{
+                      padding: '4px 8px',
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                      background: 'transparent',
+                      color: CHART_EDITOR_THEME.textSecondary,
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    기본값으로
+                  </button>
+                </div>
               </div>
-
+              {!isVisualDetailsExpanded ? (
+                <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', margin: 0, lineHeight: 1.5 }}>
+                  레인 폭, 노트 크기, 색상, 투명도 같은 세부 시각 설정을 펼쳐서 조정할 수 있습니다.
+                </p>
+              ) : (
+              <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '14px' }}>
                 {(Object.keys(GAME_VISUAL_PRESETS) as Array<Exclude<VisualPresetId, 'custom'>>).map((presetId) => (
                   <button
@@ -1149,6 +1201,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <p style={{ color: CHART_EDITOR_THEME.accentStrong, fontSize: '11px', marginTop: '6px', lineHeight: 1.5, marginBottom: 0 }}>
                   플레이 중 변경한 비주얼 설정은 다음 판부터 적용됩니다.
                 </p>
+              )}
+              </>
               )}
             </div>
           </>
