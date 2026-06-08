@@ -465,13 +465,16 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
 
         if (visibleRef.current && activeRef.current && shouldRenderHud) {
           geometry.laneCenters.forEach((x, index) => {
+            const laneHasRecentKeyEffect = keyEffectsRef.current.some(
+              (effect) => effect.lane === (index as Lane) && getKeyEffectProgress(effect, now) < 1
+            );
             drawKeyLane(
               ctx,
               x,
               geometry.keyLaneY,
               geometry.laneWidth,
               laneKeyLabelsRef.current[index] ?? [],
-              pressedKeysRef.current.has(index as Lane),
+              pressedKeysRef.current.has(index as Lane) || laneHasRecentKeyEffect,
               geometry.keyLaneOpacity,
               hudMode,
               geometry.keyPressGlowEnabled,

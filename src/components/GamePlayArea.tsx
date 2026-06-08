@@ -9,6 +9,7 @@ import { PlayfieldGeometry } from '../constants/gameVisualSettings';
 import { GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 import { HitNoteIdsRef } from '../utils/noteRuntimeState';
 import { getLaneNoteColor } from '../utils/noteColors';
+import { KeyEffect } from '../hooks/useGameJudging';
 
 interface GamePlayAreaProps {
   notes: Note[];
@@ -18,6 +19,8 @@ interface GamePlayAreaProps {
   isLaneUiVisible: boolean;
   speed: number;
   pressedKeys: Set<Lane>;
+  keyEffectsRef: React.MutableRefObject<KeyEffect[]>;
+  effectsRevision: number;
   holdingNotesRef: React.MutableRefObject<Map<number, Note>>;
   laneKeyLabels: string[][];
   isFromEditor: boolean;
@@ -36,6 +39,8 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
   isLaneUiVisible,
   speed: _speed,
   pressedKeys,
+  keyEffectsRef,
+  effectsRevision,
   holdingNotesRef,
   laneKeyLabels,
   isFromEditor: _isFromEditor,
@@ -60,6 +65,14 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
     [playfieldGeometry.outerLaneNoteColor, playfieldGeometry.innerLaneNoteColor]
   );
   const topExtensionHeight = Math.max(100, Math.min(GAME_VIEW_HEIGHT * 0.58, judgeLineY - 36));
+  const activeKeyEffectLanes = useMemo(() => {
+    const now = Date.now();
+    return new Set(
+      keyEffectsRef.current
+        .filter((effect) => effect.expiresAt > now)
+        .map((effect) => effect.lane)
+    );
+  }, [effectsRevision, keyEffectsRef]);
 
   const laneBackgroundLayer = useMemo(
     () =>
@@ -91,7 +104,8 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
     () =>
       isLegacyHud && isLaneUiVisible && playfieldGeometry.lanePressTintEnabled
         ? playfieldGeometry.laneCenters.map((x, index) => {
-            const isPressed = pressedKeys.has(index as Lane);
+            const isPressed =
+              pressedKeys.has(index as Lane) || activeKeyEffectLanes.has(index as Lane);
             return (
               <div
                 key={`lane-press-${index}`}
@@ -122,6 +136,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       playfieldGeometry.laneWidth,
       playfieldGeometry.keyLaneY,
       pressedKeys,
+      activeKeyEffectLanes,
     ]
   );
 
@@ -345,7 +360,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
               top={playfieldGeometry.keyLaneY}
               width={playfieldGeometry.laneWidth}
               keys={laneKeyLabels[index]}
-              isPressed={pressedKeys.has(index as Lane)}
+              isPressed={pressedKeys.has(index as Lane) || activeKeyEffectLanes.has(index as Lane)}
               opacity={playfieldGeometry.keyLaneOpacity}
               styleVariant={playfieldGeometry.gameplayHudMode}
               glowEnabled={playfieldGeometry.keyPressGlowEnabled}
@@ -366,6 +381,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       playfieldGeometry.keyPressPulseEnabled,
       laneKeyLabels,
       pressedKeys,
+      activeKeyEffectLanes,
     ]
   );
 
