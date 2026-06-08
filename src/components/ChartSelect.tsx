@@ -4,7 +4,7 @@ import { extractYouTubeVideoId, waitForYouTubeAPI } from '../utils/youtube';
 import { measureToTime } from '../utils/bpmUtils';
 import { validateNotes } from '../utils/noteValidation';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
-import { PREVIEW_FADE_DURATION_MS, PREVIEW_TRANSITION_DURATION_MS, PREVIEW_VOLUME, PREVIEW_BGA_OPACITY } from '../constants/gameConstants';
+import { PREVIEW_TRANSITION_DURATION_MS, PREVIEW_BGA_OPACITY } from '../constants/gameConstants';
 import { getChartDifficultyColor, getDisplayChartDifficulty } from '../constants/chartDifficulty';
 
 interface ChartSelectProps {
@@ -326,58 +326,30 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
       clearInterval(previewLoopTimerRef.current);
       previewLoopTimerRef.current = null;
     }
+    if (fadeIntervalRef.current) {
+      clearInterval(fadeIntervalRef.current);
+      fadeIntervalRef.current = null;
+    }
 
     try {
-      // 페이드 인: 볼륨 0에서 시작
-      player.setVolume(0);
+      player.mute?.();
+      player.setVolume?.(0);
       player.seekTo(previewStartSec, true);
       player.playVideo();
 
-      // BGA 페이드 인 (360ms)
+      // BGA 페이드 인
       setBgaOpacity(PREVIEW_BGA_OPACITY);
-
-      // 오디오 페이드 인 애니메이션
-      const fadeSteps = 10;
-      const fadeStepDuration = PREVIEW_FADE_DURATION_MS / fadeSteps;
-      let currentStep = 0;
-      const fadeInInterval = setInterval(() => {
-        currentStep++;
-        const volume = (currentStep / fadeSteps) * PREVIEW_VOLUME;
-        try { player.setVolume(volume); } catch (e) { /* 무시 */ }
-        if (currentStep >= fadeSteps) {
-          clearInterval(fadeInInterval);
-        }
-      }, fadeStepDuration);
-
-      // 루프 타이머 시작 (페이드 아웃/인 포함)
-      const fadeOutStartSec = previewEndSec - (PREVIEW_FADE_DURATION_MS / 1000);
 
       previewLoopTimerRef.current = setInterval(() => {
         try {
           const currentTime = player.getCurrentTime?.();
           if (currentTime === undefined) return;
 
-          // 페이드 아웃 시작 시점 체크
-          if (currentTime >= fadeOutStartSec && currentTime < previewEndSec) {
-            const remaining = previewEndSec - currentTime;
-            const fadeProgress = 1 - (remaining / (PREVIEW_FADE_DURATION_MS / 1000));
-            const volume = PREVIEW_VOLUME * (1 - fadeProgress);
-            player.setVolume(Math.max(0, volume));
-          }
-
           // 루프 시점
           if (currentTime >= previewEndSec - 0.05) {
+            player.mute?.();
             player.seekTo(previewStartSec, true);
-            player.setVolume(0);
-
-            // 페이드 인 다시 시작
-            let step = 0;
-            const fadeIn = setInterval(() => {
-              step++;
-              const vol = (step / fadeSteps) * PREVIEW_VOLUME;
-              try { player.setVolume(vol); } catch (e) { /* 무시 */ }
-              if (step >= fadeSteps) clearInterval(fadeIn);
-            }, fadeStepDuration);
+            player.playVideo?.();
           }
         } catch (e) {
           // 무시
@@ -498,6 +470,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
             playerVars: {
               autoplay: 0,
               controls: 0,
+              mute: 1,
               enablejsapi: 1,
               modestbranding: 1,
               rel: 0,
@@ -509,6 +482,12 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                 const player = event.target;
                 previewPlayerRef.current = player;
                 currentVideoIdRef.current = youtubeVideoId;
+                try {
+                  player.mute?.();
+                  player.setVolume?.(0);
+                } catch {
+                  // ignore
+                }
 
                 // iframe 크기 100%로 설정
                 const iframe = player.getIframe?.();
