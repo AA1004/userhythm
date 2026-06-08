@@ -840,112 +840,125 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
           </div>
         </div>
 
-        {/* 검색 및 필터 */}
-          <div
-            className="chart-select-filter"
-            style={{
-              display: 'flex',
-              gap: '10px',
-              alignItems: 'center',
-              background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(56,189,248,0.05))',
-              padding: '8px',
-              borderRadius: CHART_EDITOR_THEME.radiusSm,
-              border: '1px solid rgba(59,130,246,0.12)',
-              transition: 'background 0.6s ease, border 0.6s ease',
-            }}
-          >
-          <input
-            className="chart-select-search"
-            type="text"
-            value={searchInput}
-            onChange={(e) => {
-              setSearchInput(e.target.value);
-              setCurrentPage(1);
-            }}
-            placeholder="제목 또는 작성자로 검색..."
-            style={{
-              flex: 1,
-              padding: '10px',
-              borderRadius: CHART_EDITOR_THEME.radiusSm,
-              border: `1px solid ${CHART_EDITOR_THEME.inputBorder}`,
-              backgroundColor: CHART_EDITOR_THEME.inputBg,
-              color: CHART_EDITOR_THEME.textPrimary,
-              fontSize: '14px',
-              transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.border = `1px solid ${CHART_EDITOR_THEME.inputBorderFocused}`;
-              e.currentTarget.style.boxShadow = CHART_EDITOR_THEME.shadowSoft;
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.border = `1px solid ${CHART_EDITOR_THEME.inputBorder}`;
-              e.currentTarget.style.boxShadow = 'none';
-            }}
-          />
-          <select
-            className="chart-select-sort"
-            value={sortBy}
-            onChange={(e) => {
-              setSortBy(e.target.value as any);
-              setCurrentPage(1);
-            }}
-            style={{
-              padding: '10px',
-              borderRadius: CHART_EDITOR_THEME.radiusSm,
-              border: `1px solid ${CHART_EDITOR_THEME.inputBorder}`,
-              backgroundColor: CHART_EDITOR_THEME.inputBg,
-              color: CHART_EDITOR_THEME.textPrimary,
-              fontSize: '14px',
-            }}
-          >
-            <option value="title">제목순</option>
-            <option value="author">작성자순</option>
-          </select>
-            <button
-            className="chart-select-sort-order"
-            onClick={() => {
-              setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-              setCurrentPage(1);
-            }}
-            style={{
-              padding: '10px 15px',
-              borderRadius: CHART_EDITOR_THEME.radiusSm,
-              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-              backgroundColor: CHART_EDITOR_THEME.buttonGhostBg,
-              color: CHART_EDITOR_THEME.textPrimary,
-              fontSize: '14px',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease-out',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = CHART_EDITOR_THEME.buttonGhostBgHover;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = CHART_EDITOR_THEME.buttonGhostBg;
-            }}
-          >
-            {sortOrder === 'asc' ? '↑' : '↓'}
-          </button>
-        </div>
-
-        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginTop: '10px' }}>
-          총 {(totalCount || charts.length)}개의 채보
-        </div>
       </div>
 
       {/* 메인 컨텐츠 */}
-      <div className="chart-select-main" style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative', zIndex: 2 }}>
-        {/* 채보 목록 */}
+      <div className="chart-select-main" style={{ flex: 1, overflow: 'hidden', position: 'relative', zIndex: 2 }}>
         <div
           className="chart-select-list-panel"
-            style={{
-              flex: 1,
-              overflowY: 'auto',
-              padding: '20px',
-              background: 'linear-gradient(180deg, rgba(15,23,42,0.45), rgba(15,23,42,0.8))',
-              transition: 'background 0.6s ease',
-            }}
+          style={{
+            height: '100%',
+            overflowY: 'auto',
+            padding: '24px 28px 36px',
+            background: 'linear-gradient(180deg, rgba(15,23,42,0.45), rgba(15,23,42,0.8))',
+            transition: 'background 0.6s ease',
+          }}
         >
+          <div style={{ width: '100%', maxWidth: '1480px', margin: '0 auto' }}>
+            <div
+              className="chart-select-filter"
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '10px',
+                alignItems: 'center',
+                marginBottom: '24px',
+                padding: '16px',
+                borderRadius: CHART_EDITOR_THEME.radiusMd,
+                border: '1px solid rgba(59,130,246,0.12)',
+                background: 'linear-gradient(135deg, rgba(8,12,24,0.88), rgba(20,33,61,0.74))',
+                boxShadow: CHART_EDITOR_THEME.shadowSoft,
+              }}
+            >
+              <div style={{ minWidth: '220px', flex: '1 1 420px' }}>
+                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginBottom: '6px', letterSpacing: '0.08em' }}>
+                  SEARCH
+                </div>
+                <input
+                  className="chart-select-search"
+                  type="text"
+                  value={searchInput}
+                  onChange={(e) => {
+                    setSearchInput(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  placeholder="제목 또는 작성자로 검색..."
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    border: `1px solid ${CHART_EDITOR_THEME.inputBorder}`,
+                    backgroundColor: CHART_EDITOR_THEME.inputBg,
+                    color: CHART_EDITOR_THEME.textPrimary,
+                    fontSize: '14px',
+                    transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.border = `1px solid ${CHART_EDITOR_THEME.inputBorderFocused}`;
+                    e.currentTarget.style.boxShadow = CHART_EDITOR_THEME.shadowSoft;
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.border = `1px solid ${CHART_EDITOR_THEME.inputBorder}`;
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flex: '0 0 auto' }}>
+                <div>
+                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginBottom: '6px', letterSpacing: '0.08em' }}>
+                    SORT
+                  </div>
+                  <select
+                    className="chart-select-sort"
+                    value={sortBy}
+                    onChange={(e) => {
+                      setSortBy(e.target.value as any);
+                      setCurrentPage(1);
+                    }}
+                    style={{
+                      padding: '12px 12px',
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      border: `1px solid ${CHART_EDITOR_THEME.inputBorder}`,
+                      backgroundColor: CHART_EDITOR_THEME.inputBg,
+                      color: CHART_EDITOR_THEME.textPrimary,
+                      fontSize: '14px',
+                    }}
+                  >
+                    <option value="title">제목순</option>
+                    <option value="author">작성자순</option>
+                  </select>
+                </div>
+                <button
+                  className="chart-select-sort-order"
+                  onClick={() => {
+                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                    setCurrentPage(1);
+                  }}
+                  style={{
+                    padding: '12px 15px',
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                    backgroundColor: CHART_EDITOR_THEME.buttonGhostBg,
+                    color: CHART_EDITOR_THEME.textPrimary,
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease-out',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = CHART_EDITOR_THEME.buttonGhostBgHover;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = CHART_EDITOR_THEME.buttonGhostBg;
+                  }}
+                >
+                  {sortOrder === 'asc' ? '↑' : '↓'}
+                </button>
+              </div>
+              <div style={{ marginLeft: 'auto', color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', alignSelf: 'flex-end' }}>
+                총 {(totalCount || charts.length)}개의 채보
+              </div>
+            </div>
+
           {status === 'loading' ? (
             <div className="chart-list-loading" role="status" aria-live="polite">
               <div className="chart-list-loading__orbit" aria-hidden="true">
@@ -1246,113 +1259,129 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               </button>
             )}
           </div>
-        </div>
-
-        {/* 상세 정보 패널 */}
-        {selectedChart && (
-          <div
-            className="chart-select-detail-panel"
-            key={selectedChart.id}
-            style={{
-              width: '400px',
-              backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
-              borderLeft: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-              overflowY: 'auto',
-              padding: '20px',
-              boxShadow: CHART_EDITOR_THEME.shadowSoft,
-              position: 'relative',
-            }}
-          >
-            {/* 블러 배경 */}
-            {selectedChart.preview_image && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  backgroundImage: `url(${selectedChart.preview_image})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  filter: 'blur(18px)',
-                  transform: 'scale(1.12)',
-                  opacity: 0.3,
-                  zIndex: 0,
-                  pointerEvents: 'none',
-                }}
-              />
-            )}
-            <div className="chart-select-detail-panel__content" style={{ position: 'relative', zIndex: 1 }}>
-            <h2 className="chart-select-detail-panel__title" style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '20px', marginBottom: '20px' }}>
-              {selectedChart.title}
-            </h2>
-
+          {selectedChart ? (
             <div
-              className="chart-select-detail-panel__sticky-action"
+              className="chart-select-detail-panel"
+              key={selectedChart.id}
               style={{
-                marginBottom: '20px',
+                marginTop: '24px',
+                backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                borderRadius: CHART_EDITOR_THEME.radiusLg,
+                overflow: 'hidden',
+                boxShadow: CHART_EDITOR_THEME.shadowSoft,
+                position: 'relative',
               }}
             >
-              <button
-                className="chart-select-play-button"
-                onClick={() => handleSelectChart(selectedChart)}
-                style={{
-                  width: '100%',
-                  padding: '15px',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  background: CHART_EDITOR_THEME.buttonPrimaryBg,
-                  color: CHART_EDITOR_THEME.buttonPrimaryText,
-                  border: 'none',
-                  borderRadius: CHART_EDITOR_THEME.radiusMd,
-                  cursor: 'pointer',
-                  boxShadow: CHART_EDITOR_THEME.shadowSoft,
-                  transition: 'all 0.15s ease-out',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = CHART_EDITOR_THEME.buttonPrimaryBgHover;
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = CHART_EDITOR_THEME.buttonPrimaryBg;
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                🎮 이 채보로 플레이
-              </button>
-            </div>
-
-            {selectedChart.preview_image && (
-              <div
-                className="chart-select-detail-panel__preview"
-                style={{
-                  width: '100%',
-                  marginBottom: '20px',
-                  borderRadius: CHART_EDITOR_THEME.radiusMd,
-                  overflow: 'hidden',
-                  backgroundColor: CHART_EDITOR_THEME.surface,
-                  boxShadow: `0 0 0 1px ${CHART_EDITOR_THEME.borderSubtle}`,
-                }}
-              >
-                <img
-                  src={selectedChart.preview_image}
-                  alt={selectedChart.title}
+              {selectedChart.preview_image && (
+                <div
                   style={{
-                    width: '100%',
-                    height: 'auto',
-                    display: 'block',
-                  }}
-                  loading="lazy"
-                  onError={(e) => {
-                    // 이미지 로드 실패 시 숨김
-                    e.currentTarget.style.display = 'none';
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundImage: `url(${selectedChart.preview_image})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    filter: 'blur(18px)',
+                    transform: 'scale(1.12)',
+                    opacity: 0.22,
+                    zIndex: 0,
+                    pointerEvents: 'none',
                   }}
                 />
-              </div>
-            )}
+              )}
+              <div className="chart-select-detail-panel__content" style={{ position: 'relative', zIndex: 1, padding: '24px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 440px) minmax(0, 1fr)', gap: '24px', alignItems: 'start' }}>
+                  <div>
+                    <h2 className="chart-select-detail-panel__title" style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '26px', marginBottom: '16px', marginTop: 0 }}>
+                      {selectedChart.title}
+                    </h2>
 
-            <div className="chart-select-detail-panel__facts" style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginBottom: '20px' }}>
+                    <div
+                      className="chart-select-detail-panel__sticky-action"
+                      style={{
+                        marginBottom: '20px',
+                      }}
+                    >
+                      <button
+                        className="chart-select-play-button"
+                        onClick={() => handleSelectChart(selectedChart)}
+                        style={{
+                          width: '100%',
+                          padding: '15px',
+                          fontSize: '16px',
+                          fontWeight: 'bold',
+                          background: CHART_EDITOR_THEME.buttonPrimaryBg,
+                          color: CHART_EDITOR_THEME.buttonPrimaryText,
+                          border: 'none',
+                          borderRadius: CHART_EDITOR_THEME.radiusMd,
+                          cursor: 'pointer',
+                          boxShadow: CHART_EDITOR_THEME.shadowSoft,
+                          transition: 'all 0.15s ease-out',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = CHART_EDITOR_THEME.buttonPrimaryBgHover;
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = CHART_EDITOR_THEME.buttonPrimaryBg;
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                      >
+                        🎮 이 채보로 플레이
+                      </button>
+                    </div>
+
+                    {selectedChart.preview_image && (
+                      <div
+                        className="chart-select-detail-panel__preview"
+                        style={{
+                          width: '100%',
+                          marginBottom: '20px',
+                          borderRadius: CHART_EDITOR_THEME.radiusMd,
+                          overflow: 'hidden',
+                          backgroundColor: CHART_EDITOR_THEME.surface,
+                          boxShadow: `0 0 0 1px ${CHART_EDITOR_THEME.borderSubtle}`,
+                        }}
+                      >
+                        <img
+                          src={selectedChart.preview_image}
+                          alt={selectedChart.title}
+                          style={{
+                            width: '100%',
+                            height: 'auto',
+                            display: 'block',
+                          }}
+                          loading="lazy"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {selectedChart.description && (
+                      <div
+                        className="chart-select-detail-panel__fact chart-select-detail-panel__fact--wide"
+                        style={{
+                          padding: '18px',
+                          borderRadius: CHART_EDITOR_THEME.radiusMd,
+                          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                          background: 'rgba(8, 12, 24, 0.46)',
+                        }}
+                      >
+                        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '8px', letterSpacing: '0.08em' }}>DESCRIPTION</div>
+                        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px', lineHeight: 1.65 }}>
+                          {selectedChart.description}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+            <div className="chart-select-detail-panel__facts" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '20px' }}>
               <div className="chart-select-detail-panel__fact">
                 <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>작성자</div>
                 <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px', display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -1459,14 +1488,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     : '없음'}
                 </div>
               </div>
-              {selectedChart.description && (
-                <div className="chart-select-detail-panel__fact chart-select-detail-panel__fact--wide">
-                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>설명</div>
-                  <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px', lineHeight: 1.5 }}>
-                    {selectedChart.description}
-                  </div>
-                </div>
-              )}
               {selectedChart.youtube_url && (
                 <div className="chart-select-detail-panel__fact chart-select-detail-panel__fact--wide">
                   <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>YouTube</div>
@@ -1492,7 +1513,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
 
             <div className="chart-select-leaderboard" style={{ marginTop: '20px' }}>
               <h3 className="chart-select-leaderboard__title" style={{ color: CHART_EDITOR_THEME.textPrimary, marginBottom: '10px' }}>정확도 리더보드</h3>
-              <div className="chart-select-leaderboard__grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
+              <div className="chart-select-leaderboard__grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
                 <div>
                   <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
                     곡별 상위 기록 (현재 선택)
@@ -1513,9 +1534,28 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 </div>
               </div>
             </div>
+                  </div>
+                </div>
+              </div>
             </div>
+          ) : (
+            <div
+              style={{
+                marginTop: '24px',
+                padding: '26px 24px',
+                borderRadius: CHART_EDITOR_THEME.radiusLg,
+                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                background: 'rgba(8, 12, 24, 0.42)',
+                color: CHART_EDITOR_THEME.textSecondary,
+                textAlign: 'center',
+                boxShadow: CHART_EDITOR_THEME.shadowSoft,
+              }}
+            >
+              카드 하나를 선택하면 아래에 곡 설명, 난이도, 리더보드가 넓게 펼쳐집니다.
+            </div>
+          )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
