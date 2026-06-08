@@ -650,6 +650,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
     }
   };
 
+  const isSelectionCompact = Boolean(selectedChart && isCardGridCompact);
+
   return (
     <div
       className="chart-select-screen"
@@ -849,13 +851,23 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
           className="chart-select-list-panel"
           style={{
             height: '100%',
-            overflowY: selectedChart && isCardGridCompact ? 'hidden' : 'auto',
+            overflowY: 'hidden',
             padding: '24px 28px 36px',
             background: 'linear-gradient(180deg, rgba(15,23,42,0.45), rgba(15,23,42,0.8))',
             transition: 'background 0.6s ease',
           }}
         >
-          <div style={{ width: '100%', maxWidth: '1480px', margin: '0 auto', height: selectedChart && isCardGridCompact ? '100%' : 'auto', display: 'flex', flexDirection: 'column' }}>
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '1480px',
+              margin: '0 auto',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0,
+            }}
+          >
             <div
               className="chart-select-filter"
               style={{
@@ -979,10 +991,10 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
 
           <div
             style={{
-              flex: selectedChart && isCardGridCompact ? '0 0 auto' : 1,
+              flex: isSelectionCompact ? '0 0 auto' : 1,
               minHeight: 0,
-              overflowY: selectedChart && isCardGridCompact ? 'auto' : 'visible',
-              paddingRight: selectedChart && isCardGridCompact ? '6px' : 0,
+              overflowY: isSelectionCompact ? 'hidden' : 'auto',
+              paddingRight: isSelectionCompact ? 0 : '6px',
             }}
           >
           {status === 'loading' ? (
@@ -1029,10 +1041,15 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               className="chart-select-list-grid"
               style={{
                 display: 'grid',
-                gridTemplateColumns: isCardGridCompact
+                gridTemplateColumns: isSelectionCompact
+                  ? 'repeat(auto-fit, minmax(180px, 1fr))'
+                  : isCardGridCompact
                   ? 'repeat(auto-fill, minmax(220px, 1fr))'
                   : 'repeat(auto-fill, minmax(300px, 1fr))',
-                gap: isCardGridCompact ? '14px' : '20px',
+                gap: isSelectionCompact ? '10px' : isCardGridCompact ? '14px' : '20px',
+                maxHeight: isSelectionCompact ? '92px' : 'none',
+                overflowY: isSelectionCompact ? 'auto' : 'visible',
+                paddingRight: isSelectionCompact ? '4px' : 0,
               }}
             >
               {charts.map((chart, index) => (
@@ -1049,7 +1066,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       ? 'linear-gradient(145deg, rgba(34,211,238,0.18), rgba(129,140,248,0.16))'
                       : CHART_EDITOR_THEME.surface,
                     borderRadius: CHART_EDITOR_THEME.radiusMd,
-                    padding: isCardGridCompact ? '14px' : '20px',
+                    padding: isSelectionCompact ? '14px 16px' : isCardGridCompact ? '14px' : '20px',
                     cursor: 'pointer',
                     border: selectedChart?.id === chart.id
                       ? `1px solid ${CHART_EDITOR_THEME.accentStrong}`
@@ -1058,6 +1075,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     boxShadow: selectedChart?.id === chart.id
                       ? CHART_EDITOR_THEME.shadowStrong
                       : CHART_EDITOR_THEME.shadowSoft,
+                    minHeight: isSelectionCompact ? '58px' : 'auto',
                   }}
                   onMouseEnter={(e) => {
                     if (selectedChart?.id !== chart.id) {
@@ -1079,7 +1097,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       <i />
                     </div>
                   )}
-                  {chart.preview_image ? (
+                  {!isSelectionCompact && chart.preview_image ? (
                     <div
                       className="chart-select-card__thumb"
                       style={{
@@ -1116,7 +1134,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                         }}
                       />
                     </div>
-                  ) : (
+                  ) : !isSelectionCompact ? (
                     <div
                       className="chart-select-card__thumb chart-select-card__thumb--empty"
                       style={{
@@ -1136,10 +1154,20 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     >
                       이미지 없음
                     </div>
-                  )}
-                  <div className="chart-select-card__title" style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: isCardGridCompact ? '15px' : '18px', fontWeight: 'bold', marginBottom: '8px' }}>
+                  ) : null}
+                  <div
+                    className="chart-select-card__title"
+                    style={{
+                      color: CHART_EDITOR_THEME.textPrimary,
+                      fontSize: isSelectionCompact ? '14px' : isCardGridCompact ? '15px' : '18px',
+                      fontWeight: 'bold',
+                      marginBottom: isSelectionCompact ? 0 : '8px',
+                      lineHeight: 1.3,
+                    }}
+                  >
                     {chart.title}
                   </div>
+                  {!isSelectionCompact && (
                   <div className="chart-select-card__author" style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: isCardGridCompact ? '12px' : '13px', marginBottom: '12px', display: 'flex', gap: '6px', alignItems: 'center' }}>
                     <span>{(chart as any)._authorChess || '♟'}</span>
                     <span
@@ -1156,6 +1184,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       </span>
                     )}
                   </div>
+                  )}
+                  {!isSelectionCompact && (
                   <div className="chart-select-card__badges" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
                     <span
                       style={{
@@ -1235,7 +1265,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       </span>
                     )}
                   </div>
-                  {!isCardGridCompact && chart.description && (
+                  )}
+                  {!isSelectionCompact && !isCardGridCompact && chart.description && (
                     <div
                       className="chart-select-card__description"
                       style={{
@@ -1265,8 +1296,9 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               justifyContent: 'center',
               alignItems: 'center',
               gap: '10px',
-              marginTop: isCardGridCompact ? '18px' : '30px',
+              marginTop: isSelectionCompact ? '10px' : isCardGridCompact ? '18px' : '30px',
               paddingBottom: '20px',
+              flex: isSelectionCompact ? '0 0 auto' : undefined,
             }}
           >
             {hasMore && (
@@ -1297,7 +1329,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               key={selectedChart.id}
               style={{
                 marginTop: '24px',
-                flex: selectedChart && isCardGridCompact ? '1 1 auto' : '0 0 auto',
+                flex: isSelectionCompact ? '1 1 auto' : '0 0 auto',
                 backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
                 border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
                 borderRadius: CHART_EDITOR_THEME.radiusLg,
@@ -1326,10 +1358,26 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   }}
                 />
               )}
-              <div className="chart-select-detail-panel__content" style={{ position: 'relative', zIndex: 1, padding: '24px', overflowY: selectedChart && isCardGridCompact ? 'auto' : 'visible', maxHeight: selectedChart && isCardGridCompact ? 'calc(100vh - 420px)' : 'none' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 440px) minmax(0, 1fr)', gap: '24px', alignItems: 'start' }}>
+              <div
+                className="chart-select-detail-panel__content"
+                style={{
+                  position: 'relative',
+                  zIndex: 1,
+                  padding: isSelectionCompact ? '20px' : '24px',
+                  overflowY: 'auto',
+                  height: '100%',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: isSelectionCompact ? 'minmax(280px, 360px) minmax(0, 1fr)' : 'minmax(320px, 440px) minmax(0, 1fr)',
+                    gap: isSelectionCompact ? '18px' : '24px',
+                    alignItems: 'start',
+                  }}
+                >
                   <div>
-                    <h2 className="chart-select-detail-panel__title" style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '26px', marginBottom: '16px', marginTop: 0 }}>
+                    <h2 className="chart-select-detail-panel__title" style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: isSelectionCompact ? '22px' : '26px', marginBottom: '16px', marginTop: 0 }}>
                       {selectedChart.title}
                     </h2>
 
@@ -1368,7 +1416,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       </button>
                     </div>
 
-                    {selectedChart.preview_image && (
+                    {!isSelectionCompact && selectedChart.preview_image && (
                       <div
                         className="chart-select-detail-panel__preview"
                         style={{
@@ -1400,7 +1448,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       <div
                         className="chart-select-detail-panel__fact chart-select-detail-panel__fact--wide"
                         style={{
-                          padding: '18px',
+                          padding: isSelectionCompact ? '14px' : '18px',
                           borderRadius: CHART_EDITOR_THEME.radiusMd,
                           border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
                           background: 'rgba(8, 12, 24, 0.46)',
