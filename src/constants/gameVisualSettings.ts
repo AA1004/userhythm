@@ -1,7 +1,7 @@
 import { JUDGE_LINE_Y } from './gameConstants';
 import { GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH } from './gameLayout';
 
-export const VISUAL_SETTINGS_VERSION = 5;
+export const VISUAL_SETTINGS_VERSION = 6;
 export const VISUAL_SETTINGS_STORAGE_KEY = 'RHYTHM_GAME_VISUAL_SETTINGS';
 export const LANE_COUNT = 4;
 export const KEY_LANE_HEIGHT = 100;
@@ -33,6 +33,7 @@ export interface GameVisualSettings {
   innerLaneNoteColor: NoteColorRgb;
   comboOpacity: number;
   bgaOpacity: number;
+  bgaBlurEnabled: boolean;
   gameplayHudMode: GameplayHudMode;
   topLaneExtensionEnabled: boolean;
   slotHudEnabled: boolean;
@@ -63,6 +64,7 @@ export interface PlayfieldGeometry {
   innerLaneNoteColor: NoteColorRgb;
   comboOpacity: number;
   bgaOpacity: number;
+  bgaBlurEnabled: boolean;
   gameplayHudMode: GameplayHudMode;
   topLaneExtensionEnabled: boolean;
   slotHudEnabled: boolean;
@@ -102,6 +104,7 @@ export const DEFAULT_GAME_VISUAL_SETTINGS: GameVisualSettings = {
   innerLaneNoteColor: { r: 255, g: 205, b: 96 },
   comboOpacity: 0.7,
   bgaOpacity: 0,
+  bgaBlurEnabled: true,
   gameplayHudMode: 'new-lite',
   topLaneExtensionEnabled: false,
   slotHudEnabled: false,
@@ -130,6 +133,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     innerLaneNoteColor: { r: 255, g: 205, b: 96 },
     comboOpacity: 0.7,
     bgaOpacity: 0,
+    bgaBlurEnabled: true,
     gameplayHudMode: 'new-lite',
     topLaneExtensionEnabled: false,
     slotHudEnabled: false,
@@ -155,6 +159,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     innerLaneNoteColor: { r: 255, g: 205, b: 96 },
     comboOpacity: 0.7,
     bgaOpacity: 0,
+    bgaBlurEnabled: true,
     gameplayHudMode: 'new-lite',
     topLaneExtensionEnabled: false,
     slotHudEnabled: false,
@@ -263,6 +268,7 @@ export const normalizeGameVisualSettings = (
     VISUAL_SETTING_LIMITS.bgaOpacity.min,
     VISUAL_SETTING_LIMITS.bgaOpacity.max
   );
+  const bgaBlurEnabled = booleanOr(raw.bgaBlurEnabled, fallback.bgaBlurEnabled);
   const rawGameplayHudMode = (raw as { gameplayHudMode?: unknown }).gameplayHudMode;
   const gameplayHudMode: GameplayHudMode =
     rawGameplayHudMode === 'new-full' || rawGameplayHudMode === 'new'
@@ -318,6 +324,7 @@ export const normalizeGameVisualSettings = (
     innerLaneNoteColor,
     comboOpacity,
     bgaOpacity,
+    bgaBlurEnabled,
     gameplayHudMode,
     topLaneExtensionEnabled,
     slotHudEnabled,
@@ -371,6 +378,7 @@ export const buildPlayfieldGeometry = (
     innerLaneNoteColor: normalized.innerLaneNoteColor,
     comboOpacity: normalized.comboOpacity,
     bgaOpacity: normalized.bgaOpacity,
+    bgaBlurEnabled: normalized.bgaBlurEnabled,
     gameplayHudMode: normalized.gameplayHudMode,
     topLaneExtensionEnabled: normalized.topLaneExtensionEnabled,
     slotHudEnabled: normalized.slotHudEnabled,

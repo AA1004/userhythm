@@ -980,6 +980,19 @@ export const Game: React.FC = () => {
               transition: 'background-color 80ms linear, border 80ms linear, box-shadow 80ms linear, border-radius 80ms linear',
             }}
           >
+            {isGameplayActive && activeLaneUiVisible && activeBgaMaskOpacity < 1 && visualSettings.bgaBlurEnabled && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  pointerEvents: 'none',
+                  zIndex: 1,
+                  backdropFilter: 'blur(5px) saturate(0.94)',
+                  WebkitBackdropFilter: 'blur(5px) saturate(0.94)',
+                  background: 'rgba(8, 12, 24, 0.05)',
+                }}
+              />
+            )}
             <div
               style={{
                 position: 'absolute',
@@ -989,6 +1002,7 @@ export const Game: React.FC = () => {
                 height: `${GAME_VIEW_HEIGHT}px`,
                 transform: `scale(${stageScale})`,
                 transformOrigin: 'top left',
+                zIndex: 2,
               }}
             >
                 {isGameplayActive && (

@@ -674,6 +674,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <span>90% 거의 숨김</span>
                 </div>
               </div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginTop: '14px' }}>
+                <input
+                  type="checkbox"
+                  checked={visualSettings.bgaBlurEnabled}
+                  onChange={(e) => applyToggleVisualSettings({ bgaBlurEnabled: e.target.checked })}
+                  style={{ width: '18px', height: '18px', accentColor: CHART_EDITOR_THEME.accent }}
+                />
+                <span style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px' }}>
+                  레인 뒤 BGA 소프트 블러
+                </span>
+              </label>
+              <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginTop: '6px', marginBottom: 0 }}>
+                플레이 중 레인 뒤에 보이는 배경 영상을 살짝 흐리게 처리합니다.
+              </p>
             </div>
 
             <div style={sectionCardStyle}>
