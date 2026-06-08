@@ -5,12 +5,17 @@ import { measureToTime } from '../utils/bpmUtils';
 import { validateNotes } from '../utils/noteValidation';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { PREVIEW_TRANSITION_DURATION_MS, PREVIEW_BGA_OPACITY } from '../constants/gameConstants';
-import { getChartDifficultyColor, getDisplayChartDifficulty } from '../constants/chartDifficulty';
+import {
+  ADMIN_CHART_DIFFICULTY_OPTIONS,
+  getChartDifficultyColor,
+  getDisplayChartDifficulty,
+} from '../constants/chartDifficulty';
 
 interface ChartSelectProps {
   onSelect: (chartData: any) => void;
   onClose: () => void;
   refreshToken?: number; // 외부에서 강제 새로고침 트리거
+  isAdmin?: boolean;
 }
 
 const DEFAULT_THUMBNAIL_ASPECT_RATIO = 16 / 9;
@@ -31,7 +36,12 @@ const getYouTubeThumbnailFallback = (url: string | null) => {
   );
 };
 
-export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, refreshToken }) => {
+export const ChartSelect: React.FC<ChartSelectProps> = ({
+  onSelect,
+  onClose,
+  refreshToken,
+  isAdmin = false,
+}) => {
   const requestControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
 
@@ -44,6 +54,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
   const [sortBy, setSortBy] = useState<'title' | 'author'>('title');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [selectedChart, setSelectedChart] = useState<ApiChart | null>(null);
+  const [adminDifficultyValue, setAdminDifficultyValue] = useState<string>('');
+  const [isSavingAdminDifficulty, setIsSavingAdminDifficulty] = useState<boolean>(false);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
@@ -175,6 +187,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         _bgaEventCount: bgaEventCount,
         _hasSubtitles: subtitleCount > 0,
         _hasBgaEvents: bgaEventCount > 0,
+        _adminDifficulty:
+          typeof chartData.adminDifficulty === 'string' ? chartData.adminDifficulty : chart.admin_difficulty ?? null,
         _displayDifficulty: displayDifficulty,
       };
     });
@@ -318,6 +332,50 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
       setPerChartScores([]);
     }
   }, [selectedChart, fetchLeaderboards]);
+
+  useEffect(() => {
+    if (!selectedChart) {
+      setAdminDifficultyValue('');
+      return;
+    }
+    setAdminDifficultyValue(((selectedChart as any)._adminDifficulty as string | null) || '');
+  }, [selectedChart]);
+
+  const handleSaveAdminDifficulty = useCallback(async () => {
+    if (!selectedChart || !isAdmin || isSavingAdminDifficulty) return;
+
+    setIsSavingAdminDifficulty(true);
+    try {
+      const parsed = JSON.parse(selectedChart.data_json || '{}');
+      if (adminDifficultyValue.trim()) {
+        parsed.adminDifficulty = adminDifficultyValue.trim();
+      } else {
+        delete parsed.adminDifficulty;
+      }
+
+      const result = await api.updateChart(selectedChart.id, {
+        title: selectedChart.title,
+        bpm: selectedChart.bpm,
+        dataJson: JSON.stringify(parsed),
+        youtubeUrl: selectedChart.youtube_url ?? undefined,
+        description: selectedChart.description ?? undefined,
+        difficulty: selectedChart.difficulty ?? undefined,
+        previewImage: selectedChart.preview_image ?? undefined,
+      });
+
+      const [nextChart] = normalizeCharts([result.chart as ApiChart]);
+      if (!nextChart) return;
+
+      setAllCharts((prev) => prev.map((chart) => (chart.id === nextChart.id ? nextChart : chart)));
+      setCharts((prev) => prev.map((chart) => (chart.id === nextChart.id ? nextChart : chart)));
+      setSelectedChart(nextChart);
+    } catch (error) {
+      console.error('Failed to save admin difficulty:', error);
+      alert('관리자 난이도 저장에 실패했습니다.');
+    } finally {
+      setIsSavingAdminDifficulty(false);
+    }
+  }, [adminDifficultyValue, isAdmin, isSavingAdminDifficulty, normalizeCharts, selectedChart]);
 
   // 플레이어로 미리듣기 시작하는 함수
   const startPreviewPlayback = (player: any, previewStartSec: number, previewEndSec: number) => {
@@ -1320,6 +1378,51 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                 <div className="chart-select-detail-panel__fact">
                   <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>난이도</div>
                   <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{(selectedChart as any)._displayDifficulty}</div>
+                </div>
+              )}
+              {isAdmin && (
+                <div className="chart-select-detail-panel__fact chart-select-detail-panel__fact--wide">
+                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '8px' }}>관리자 난이도</div>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <select
+                      value={adminDifficultyValue}
+                      onChange={(e) => setAdminDifficultyValue(e.target.value)}
+                      disabled={isSavingAdminDifficulty}
+                      style={{
+                        flex: 1,
+                        padding: '10px 12px',
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                        backgroundColor: CHART_EDITOR_THEME.inputBg,
+                        color: CHART_EDITOR_THEME.textPrimary,
+                      }}
+                    >
+                      <option value="">미지정</option>
+                      {ADMIN_CHART_DIFFICULTY_OPTIONS.map((value) => (
+                        <option key={value} value={value}>
+                          {value}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleSaveAdminDifficulty}
+                      disabled={isSavingAdminDifficulty}
+                      style={{
+                        padding: '10px 16px',
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                        border: 'none',
+                        background: CHART_EDITOR_THEME.buttonPrimaryBg,
+                        color: CHART_EDITOR_THEME.buttonPrimaryText,
+                        cursor: isSavingAdminDifficulty ? 'wait' : 'pointer',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {isSavingAdminDifficulty ? '저장 중' : '저장'}
+                    </button>
+                  </div>
+                  <div style={{ marginTop: '6px', color: CHART_EDITOR_THEME.textMuted, fontSize: '11px' }}>
+                    자기신고 난이도와 별도로 공개 표시 난이도를 덮어쓴다.
+                  </div>
                 </div>
               )}
               <div className="chart-select-detail-panel__fact">

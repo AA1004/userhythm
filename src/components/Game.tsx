@@ -786,6 +786,7 @@ export const Game: React.FC = () => {
           onSelect={handleChartSelect}
           onClose={() => setViewMode({ type: 'menu' })}
           refreshToken={viewMode.refreshToken ?? chartListRefreshToken}
+          isAdmin={isAdmin}
         />
       </div>
     );
