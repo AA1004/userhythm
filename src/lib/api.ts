@@ -26,6 +26,7 @@ export interface ApiChart {
   author_email_prefix?: string | null;
   bpm: number;
   difficulty?: string | null;
+  admin_difficulty?: string | null;
   preview_image?: string | null;
   youtube_url?: string | null;
   description?: string | null;

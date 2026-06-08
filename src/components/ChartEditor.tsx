@@ -25,6 +25,7 @@ import {
   CHART_EDITOR_THEME,
 } from './ChartEditor/constants';
 import { extractYouTubeVideoId } from '../utils/youtube';
+import { getDisplayChartDifficulty } from '../constants/chartDifficulty';
 import { localSubtitleStorage } from '../lib/subtitleAPI';
 import { MIN_LONG_NOTE_DURATION, validateNotes, getMaxNoteId } from '../utils/noteValidation';
 import { convertBgaEventsToEditableIntervals } from '../utils/bgaVisibility';
@@ -366,6 +367,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [shareTitle, setShareTitle] = useState<string>('');
   const [shareAuthor, setShareAuthor] = useState<string>('');
   const [shareDifficulty, setShareDifficulty] = useState<string>('Normal');
+  const [adminAssignedDifficulty, setAdminAssignedDifficulty] = useState<string>('');
   const [shareDescription, setShareDescription] = useState<string>('');
   const [sharePreviewStartMeasure, setSharePreviewStartMeasure] = useState<number>(1);
   const [sharePreviewEndMeasure, setSharePreviewEndMeasure] = useState<number>(5);
@@ -661,6 +663,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       editingChartId,
       chartTitle: shareTitle,
       chartAuthor: shareAuthor,
+      adminDifficulty: adminAssignedDifficulty,
       gridDivision,
       isLongNoteMode,
       testStartInput,
@@ -683,8 +686,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         speedChanges,
         bgaVisibilityIntervals,
         editingChartId,
-        shareTitle,
+      shareTitle,
       shareAuthor,
+      adminAssignedDifficulty,
       gridDivision,
       isLongNoteMode,
       testStartInput,
@@ -754,6 +758,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     if (typeof data.chartTitle === 'string') setShareTitle(data.chartTitle);
     if (typeof data.chartAuthor === 'string') setShareAuthor(data.chartAuthor);
     if (typeof data.chartDifficulty === 'string') setShareDifficulty(data.chartDifficulty);
+    setAdminAssignedDifficulty(typeof data.adminDifficulty === 'string' ? data.adminDifficulty : '');
     if (typeof data.chartDescription === 'string') setShareDescription(data.chartDescription);
     if (typeof data.editingChartId === 'string' && data.editingChartId.length > 0) {
       setEditingChartId(data.editingChartId);
@@ -825,6 +830,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setShareTitle('');
     setShareAuthor('');
     setShareDifficulty('Normal');
+    setAdminAssignedDifficulty('');
     setShareDescription('');
     setEditingChartId(null);
     setYoutubeUrl('');
@@ -1660,6 +1666,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           chartTitle: shareTitle,
           chartAuthor: shareAuthor,
           chartDifficulty: shareDifficulty,
+          adminDifficulty: adminAssignedDifficulty || undefined,
           chartDescription: shareDescription,
           editingChartId,
           gridDivision,
@@ -1702,7 +1709,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     } finally {
       setIsUploading(false);
     }
-  }, [shareTitle, shareAuthor, shareDifficulty, shareDescription, bpm, youtubeUrl, youtubeVideoId, youtubeThumbnailUrl, notes, beatsPerMeasure, timeSignatureOffset, timelineExtraMs, audioOffsetMs, bpmChanges, speedChanges, bgaVisibilityIntervals, gridDivision, isLongNoteMode, user, subtitleSessionId, sharePreviewStartMeasure, sharePreviewEndMeasure, editingChartId, isAdmin]);
+  }, [shareTitle, shareAuthor, shareDifficulty, adminAssignedDifficulty, shareDescription, bpm, youtubeUrl, youtubeVideoId, youtubeThumbnailUrl, notes, beatsPerMeasure, timeSignatureOffset, timelineExtraMs, audioOffsetMs, bpmChanges, speedChanges, bgaVisibilityIntervals, gridDivision, isLongNoteMode, user, subtitleSessionId, sharePreviewStartMeasure, sharePreviewEndMeasure, editingChartId, isAdmin]);
 
   const handleExportJson = useCallback(() => {
     try {
@@ -1914,7 +1921,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     const query = existingChartSearch.trim().toLowerCase();
     if (!query) return existingCharts;
     return existingCharts.filter((chart) =>
-      [chart.title, chart.author, chart.difficulty, chart.status]
+      [chart.title, chart.author, chart.difficulty, chart.admin_difficulty, getDisplayChartDifficulty(chart.difficulty, chart.admin_difficulty), chart.status]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query))
     );
@@ -1940,6 +1947,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       setShareTitle(chart.title);
       setShareAuthor(chart.author);
       setShareDifficulty(chart.difficulty || parsed.difficulty || 'Normal');
+      setAdminAssignedDifficulty(chart.admin_difficulty || parsed.adminDifficulty || '');
       setShareDescription(chart.description || parsed.description || '');
       setUploadStatus('');
       setIsShareModalOpen(false);

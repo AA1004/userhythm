@@ -8,6 +8,17 @@ const MAX_TITLE_LENGTH = 200;
 const MAX_DESCRIPTION_LENGTH = 1000;
 const MAX_DIFFICULTY_LENGTH = 50;
 
+const extractAdminDifficulty = (dataJson: string): string | null => {
+  try {
+    const parsed = JSON.parse(dataJson || '{}');
+    return typeof parsed.adminDifficulty === 'string' && parsed.adminDifficulty.trim().length > 0
+      ? parsed.adminDifficulty.trim().slice(0, MAX_DIFFICULTY_LENGTH)
+      : null;
+  } catch {
+    return null;
+  }
+};
+
 const serializeChart = (chart: Chart, opts?: { authorRole?: string; authorNickname?: string; authorEmail?: string }) => ({
   id: chart.id,
   title: chart.title,
@@ -17,6 +28,7 @@ const serializeChart = (chart: Chart, opts?: { authorRole?: string; authorNickna
   author_email_prefix: opts?.authorEmail ? opts.authorEmail.split('@')[0] : null,
   bpm: chart.bpm,
   difficulty: chart.difficulty,
+  admin_difficulty: extractAdminDifficulty(chart.dataJson),
   preview_image: chart.previewImage ?? null,
   youtube_url: chart.youtubeUrl ?? null,
   description: chart.description ?? null,

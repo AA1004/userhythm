@@ -3,6 +3,7 @@ import { api, ApiChart } from '../lib/api';
 import { extractYouTubeVideoId } from '../utils/youtube';
 import { validateNotes } from '../utils/noteValidation';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
+import { ADMIN_CHART_DIFFICULTY_OPTIONS, getDisplayChartDifficulty } from '../constants/chartDifficulty';
 
 interface ChartAdminProps {
   onClose: () => void;
@@ -20,6 +21,7 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [reviewComment, setReviewComment] = useState<string>('');
   const [processing, setProcessing] = useState<boolean>(false);
+  const [adminDifficultyValue, setAdminDifficultyValue] = useState<string>('');
 
   const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_TOKEN || 'admin123';
   
@@ -143,6 +145,8 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
           ...data,
           notes,
         },
+        _adminDifficulty: typeof data.adminDifficulty === 'string' ? data.adminDifficulty : chart.admin_difficulty ?? null,
+        _displayDifficulty: getDisplayChartDifficulty(chart.difficulty, typeof data.adminDifficulty === 'string' ? data.adminDifficulty : chart.admin_difficulty),
         _youtubeVideoId: youtubeVideoId,
         _youtubeUrl: youtubeUrl,
         _notesLength: notesLength,
@@ -163,6 +167,49 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
         _isAdmin: chart.author_role === 'admin',
         _isModerator: chart.author_role === 'moderator',
       };
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedChart) {
+      setAdminDifficultyValue('');
+      return;
+    }
+    const normalized = normalizeChart(selectedChart);
+    setAdminDifficultyValue((normalized as any)._adminDifficulty || '');
+  }, [selectedChart]);
+
+  const handleSaveAdminDifficulty = async () => {
+    if (!selectedChart) return;
+
+    setProcessing(true);
+    try {
+      const parsed = JSON.parse(selectedChart.data_json || '{}');
+      if (adminDifficultyValue.trim()) {
+        parsed.adminDifficulty = adminDifficultyValue.trim();
+      } else {
+        delete parsed.adminDifficulty;
+      }
+
+      const result = await api.updateChart(selectedChart.id, {
+        title: selectedChart.title,
+        bpm: selectedChart.bpm,
+        dataJson: JSON.stringify(parsed),
+        youtubeUrl: selectedChart.youtube_url ?? undefined,
+        description: selectedChart.description ?? undefined,
+        difficulty: selectedChart.difficulty ?? undefined,
+        previewImage: selectedChart.preview_image ?? undefined,
+      });
+
+      const nextSelected = normalizeChart(result.chart);
+      setSelectedChart(nextSelected);
+      setChartList((prev) => prev.map((chart) => (chart.id === nextSelected.id ? result.chart : chart)));
+      alert('관리자 난이도를 저장했습니다.');
+    } catch (error) {
+      console.error('Failed to save admin difficulty:', error);
+      alert('관리자 난이도 저장에 실패했습니다.');
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -415,7 +462,7 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
                           ADMIN
                         </span>
                       )}
-                      <span> | {chart.status} | BPM: {chart.bpm} | 난이도: {chart.difficulty}</span>
+                      <span> | {chart.status} | BPM: {chart.bpm} | 난이도: {(normalized as any)._displayDifficulty || chart.difficulty || '없음'}</span>
                   </div>
                   <div style={{ color: CHART_EDITOR_THEME.textMuted, fontSize: '11px' }}>
                     {chart.created_at ? new Date(chart.created_at).toLocaleString('ko-KR') : '정보 없음'}
@@ -484,7 +531,9 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
                   </div>
                   <div>
                     <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>난이도</div>
-                    <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart.difficulty}</div>
+                    <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
+                      {(selectedChart as any)._displayDifficulty || selectedChart.difficulty || '없음'}
+                    </div>
                   </div>
                   <div>
                     <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>노트 수</div>
@@ -619,6 +668,50 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
                   >
                     {processing ? '처리 중...' : '✅ 승인'}
                   </button>
+                </div>
+
+                <div style={{ marginTop: '18px', paddingTop: '18px', borderTop: `1px solid ${CHART_EDITOR_THEME.borderSubtle}` }}>
+                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '8px' }}>관리자 난이도</div>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <select
+                      value={adminDifficultyValue}
+                      onChange={(e) => setAdminDifficultyValue(e.target.value)}
+                      disabled={processing}
+                      style={{
+                        flex: 1,
+                        padding: '10px 12px',
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                        backgroundColor: CHART_EDITOR_THEME.inputBg,
+                        color: CHART_EDITOR_THEME.textPrimary,
+                      }}
+                    >
+                      <option value="">미지정</option>
+                      {ADMIN_CHART_DIFFICULTY_OPTIONS.map((value) => (
+                        <option key={value} value={value}>
+                          {value}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleSaveAdminDifficulty}
+                      disabled={processing}
+                      style={{
+                        padding: '10px 16px',
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                        border: 'none',
+                        background: CHART_EDITOR_THEME.buttonPrimaryBg,
+                        color: CHART_EDITOR_THEME.buttonPrimaryText,
+                        cursor: processing ? 'wait' : 'pointer',
+                        fontWeight: 700,
+                      }}
+                    >
+                      저장
+                    </button>
+                  </div>
+                  <div style={{ marginTop: '6px', color: CHART_EDITOR_THEME.textMuted, fontSize: '11px' }}>
+                    자기신고 난이도와 별도로 공개 표시 난이도를 덮어씁니다.
+                  </div>
                 </div>
                 <button
                   onClick={() => handleDelete(selectedChart.id)}

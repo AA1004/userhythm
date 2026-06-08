@@ -5,7 +5,7 @@ import { measureToTime } from '../utils/bpmUtils';
 import { validateNotes } from '../utils/noteValidation';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { PREVIEW_FADE_DURATION_MS, PREVIEW_TRANSITION_DURATION_MS, PREVIEW_VOLUME, PREVIEW_BGA_OPACITY } from '../constants/gameConstants';
-import { getChartDifficultyColor } from '../constants/chartDifficulty';
+import { getChartDifficultyColor, getDisplayChartDifficulty } from '../constants/chartDifficulty';
 
 interface ChartSelectProps {
   onSelect: (chartData: any) => void;
@@ -156,6 +156,10 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
       const bgaEventCount = Array.isArray(chartData.bgaVisibilityIntervals)
         ? chartData.bgaVisibilityIntervals.length
         : 0;
+      const displayDifficulty = getDisplayChartDifficulty(
+        chart.difficulty,
+        typeof chartData.adminDifficulty === 'string' ? chartData.adminDifficulty : chart.admin_difficulty
+      );
 
       return {
         ...chart,
@@ -171,6 +175,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
         _bgaEventCount: bgaEventCount,
         _hasSubtitles: subtitleCount > 0,
         _hasBgaEvents: bgaEventCount > 0,
+        _displayDifficulty: displayDifficulty,
       };
     });
   }, []);
@@ -1091,18 +1096,18 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                     >
                       NOTES {(chart as any)._noteCount ?? 0}
                     </span>
-                    {chart.difficulty && (
+                    {(chart as any)._displayDifficulty && (
                       <span
                         style={{
                           padding: '4px 8px',
-                            backgroundColor: getChartDifficultyColor(chart.difficulty),
+                            backgroundColor: getChartDifficultyColor((chart as any)._displayDifficulty),
                           borderRadius: CHART_EDITOR_THEME.radiusSm,
                           color: '#fff',
                           fontSize: '11px',
                           fontWeight: 'bold',
                         }}
                       >
-                        {chart.difficulty}
+                        {(chart as any)._displayDifficulty}
                       </span>
                     )}
                     <span
@@ -1332,10 +1337,10 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({ onSelect, onClose, ref
                 <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>BPM</div>
                 <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart.bpm}</div>
               </div>
-              {selectedChart.difficulty && (
+              {(selectedChart as any)._displayDifficulty && (
                 <div className="chart-select-detail-panel__fact">
                   <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>난이도</div>
-                  <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart.difficulty}</div>
+                  <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{(selectedChart as any)._displayDifficulty}</div>
                 </div>
               )}
               <div className="chart-select-detail-panel__fact">

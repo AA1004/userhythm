@@ -10,6 +10,30 @@ const MAX_TITLE_LENGTH = 200;
 const MAX_DESCRIPTION_LENGTH = 1000;
 const MAX_DIFFICULTY_LENGTH = 50;
 
+const extractAdminDifficulty = (dataJson: string): string | null => {
+  try {
+    const parsed = JSON.parse(dataJson || '{}');
+    return typeof parsed.adminDifficulty === 'string' && parsed.adminDifficulty.trim().length > 0
+      ? parsed.adminDifficulty.trim().slice(0, MAX_DIFFICULTY_LENGTH)
+      : null;
+  } catch {
+    return null;
+  }
+};
+
+const sanitizeChartDataJsonForUserUpload = (raw: string): string => {
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && 'adminDifficulty' in parsed) {
+      delete (parsed as Record<string, unknown>).adminDifficulty;
+      return JSON.stringify(parsed);
+    }
+    return raw;
+  } catch {
+    return raw;
+  }
+};
+
 const serializeChart = (chart: Chart, opts?: { authorRole?: string; authorNickname?: string; authorEmail?: string }) => ({
   id: chart.id,
   title: chart.title,
@@ -19,6 +43,7 @@ const serializeChart = (chart: Chart, opts?: { authorRole?: string; authorNickna
   author_email_prefix: opts?.authorEmail ? opts.authorEmail.split('@')[0] : null,
   bpm: chart.bpm,
   difficulty: chart.difficulty,
+  admin_difficulty: extractAdminDifficulty(chart.dataJson),
   preview_image: chart.previewImage ?? null,
   youtube_url: chart.youtubeUrl ?? null,
   description: chart.description ?? null,
@@ -144,6 +169,7 @@ export async function POST(req: NextRequest) {
     if (typeof dataJson !== 'string' || dataJson.trim().length === 0 || dataJson.length > MAX_DATA_JSON_LENGTH) {
       return NextResponse.json({ error: 'invalid_dataJson' }, { status: 400 });
     }
+    const sanitizedDataJson = sanitizeChartDataJsonForUserUpload(dataJson);
 
     const trimmedDescription =
       typeof description === 'string' && description.trim().length > 0
@@ -181,7 +207,7 @@ export async function POST(req: NextRequest) {
         description: trimmedDescription,
         youtubeUrl: trimmedYoutubeUrl,
         previewImage: trimmedPreviewImage,
-        dataJson,
+        dataJson: sanitizedDataJson,
         userId: dbUser.id,
         // status는 prisma schema default("pending") 사용
       },

@@ -167,7 +167,7 @@ export const ChartEditorLoadExistingModal: React.FC<ChartEditorLoadExistingModal
                       {chart.title}
                     </div>
                     <div style={{ marginTop: 4, fontSize: 12, color: CHART_EDITOR_THEME.textSecondary }}>
-                      {chart.author} · {chart.difficulty || '난이도 없음'} · {chart.status}
+                      {chart.author} · {getDisplayChartDifficulty(chart.difficulty, chart.admin_difficulty) || '난이도 없음'} · {chart.status}
                     </div>
                   </div>
                   <div
@@ -193,3 +193,4 @@ export const ChartEditorLoadExistingModal: React.FC<ChartEditorLoadExistingModal
     </div>
   );
 };
+import { getDisplayChartDifficulty } from '../../constants/chartDifficulty';
