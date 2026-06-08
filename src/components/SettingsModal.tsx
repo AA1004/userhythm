@@ -1151,6 +1151,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   type="text"
                   value={displayName}
                   onChange={(e) => onDisplayNameChange(e.target.value)}
+                  disabled={!isLoggedIn}
                   placeholder="닉네임 입력"
                   maxLength={20}
                   style={{
@@ -1161,22 +1162,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     background: CHART_EDITOR_THEME.surface,
                     color: CHART_EDITOR_THEME.textPrimary,
                     fontSize: '14px',
+                    opacity: isLoggedIn ? 1 : 0.55,
+                    cursor: isLoggedIn ? 'text' : 'not-allowed',
                   }}
                 />
                 <button
                   onClick={handleSaveNickname}
-                  disabled={!canChangeDisplayName || isSavingNickname || !displayName.trim()}
+                  disabled={!isLoggedIn || !canChangeDisplayName || isSavingNickname || !displayName.trim()}
                   style={{
                     padding: '10px 16px',
                     borderRadius: CHART_EDITOR_THEME.radiusSm,
                     border: 'none',
-                    background: canChangeDisplayName && displayName.trim()
+                    background: isLoggedIn && canChangeDisplayName && displayName.trim()
                       ? CHART_EDITOR_THEME.ctaButtonGradient
                       : CHART_EDITOR_THEME.borderSubtle,
                     color: CHART_EDITOR_THEME.textPrimary,
                     fontSize: '14px',
-                    cursor: canChangeDisplayName && displayName.trim() ? 'pointer' : 'not-allowed',
-                    opacity: canChangeDisplayName && displayName.trim() ? 1 : 0.5,
+                    cursor: isLoggedIn && canChangeDisplayName && displayName.trim() ? 'pointer' : 'not-allowed',
+                    opacity: isLoggedIn && canChangeDisplayName && displayName.trim() ? 1 : 0.5,
                   }}
                 >
                   {isSavingNickname ? '저장 중...' : '저장'}
@@ -1188,7 +1191,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </p>
               )}
               <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginTop: '4px', marginBottom: 0 }}>
-                {isLoggedIn ? '닉네임은 일주일에 한 번만 변경할 수 있습니다.' : '로그인 없이도 로컬에 저장됩니다.'}
+                {isLoggedIn ? '닉네임은 일주일에 한 번만 변경할 수 있습니다.' : '닉네임은 로그인 후에만 변경할 수 있습니다.'}
               </p>
             </div>
 

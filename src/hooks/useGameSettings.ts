@@ -308,7 +308,7 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
   const handleDisplayNameSave = useCallback(async () => {
     if (!displayName.trim()) return;
     if (!authUserId) {
-      safeWriteLocalStorage(DISPLAY_NAME_STORAGE_KEY, displayName.trim());
+      alert('닉네임은 로그인 후 저장할 수 있습니다.');
       return;
     }
     try {
@@ -341,7 +341,7 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
 
   // 닉네임 변경 가능 여부
   const canChangeDisplayName = useMemo(() => {
-    if (!authUserId) return true;
+    if (!authUserId) return false;
     if (!nextDisplayNameChangeAt) return true;
     return new Date() >= nextDisplayNameChangeAt;
   }, [authUserId, nextDisplayNameChangeAt]);
