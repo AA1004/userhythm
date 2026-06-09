@@ -1487,7 +1487,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 <div
                   style={{
                     display: 'flex',
-                    justifyContent: 'flex-end',
+                    justifyContent: 'center',
                     marginBottom: '12px',
                   }}
                 >
@@ -1497,21 +1497,25 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     aria-label={isCardGridCompact ? '상세정보 펼치기' : '상세정보 접기'}
                     title={isCardGridCompact ? '상세정보 펼치기' : '상세정보 접기'}
                     style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: 999,
+                      minWidth: '84px',
+                      height: '34px',
+                      padding: '0 14px',
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
                       border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
                       background: CHART_EDITOR_THEME.buttonGhostBg,
                       color: CHART_EDITOR_THEME.textPrimary,
                       cursor: 'pointer',
-                      fontSize: '16px',
+                      fontSize: '14px',
+                      fontWeight: 700,
                       display: 'inline-flex',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      gap: '8px',
                       boxShadow: CHART_EDITOR_THEME.shadowSoft,
                     }}
                   >
-                    {isCardGridCompact ? '▼' : '▲'}
+                    <span>{isCardGridCompact ? '▼' : '▲'}</span>
+                    <span>{isCardGridCompact ? '펼치기' : '접기'}</span>
                   </button>
                 </div>
                 {isSelectionCompact ? (
