@@ -1100,23 +1100,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               <div style={{ marginLeft: 'auto', color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', alignSelf: 'flex-end' }}>
                 총 {(totalCount || charts.length)}개의 채보
               </div>
-              {selectedChart && (
-                <button
-                  onClick={() => setIsCardGridCompact((prev) => !prev)}
-                  style={{
-                    padding: '12px 14px',
-                    borderRadius: CHART_EDITOR_THEME.radiusSm,
-                    border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                    background: CHART_EDITOR_THEME.buttonGhostBg,
-                    color: CHART_EDITOR_THEME.textPrimary,
-                    fontSize: '13px',
-                    cursor: 'pointer',
-                    marginLeft: '8px',
-                  }}
-                >
-                  {isCardGridCompact ? '카드 확대' : '카드 축소'}
-                </button>
-              )}
             </div>
 
           <div
@@ -1501,6 +1484,36 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   height: '100%',
                 }}
               >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    marginBottom: '12px',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setIsCardGridCompact((prev) => !prev)}
+                    aria-label={isCardGridCompact ? '상세정보 펼치기' : '상세정보 접기'}
+                    title={isCardGridCompact ? '상세정보 펼치기' : '상세정보 접기'}
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: 999,
+                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                      background: CHART_EDITOR_THEME.buttonGhostBg,
+                      color: CHART_EDITOR_THEME.textPrimary,
+                      cursor: 'pointer',
+                      fontSize: '16px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: CHART_EDITOR_THEME.shadowSoft,
+                    }}
+                  >
+                    {isCardGridCompact ? '▼' : '▲'}
+                  </button>
+                </div>
                 {isSelectionCompact ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', minHeight: 0 }}>
                     <div
