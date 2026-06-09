@@ -654,6 +654,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   };
 
   const isSelectionCompact = Boolean(selectedChart && isCardGridCompact);
+  const isSelectionExpanded = Boolean(selectedChart && !isCardGridCompact);
   const currentDifficultyDisplay = adminDifficultyValue || ((selectedChart as any)?._displayDifficulty as string | undefined) || '미지정';
   const currentDifficultyColor = getChartDifficultyColor(currentDifficultyDisplay === '미지정' ? 'Normal' : currentDifficultyDisplay);
 
@@ -1172,6 +1173,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 display: 'grid',
                 gridTemplateColumns: isSelectionCompact
                   ? 'repeat(auto-fit, minmax(180px, 1fr))'
+                  : isSelectionExpanded
+                  ? 'repeat(auto-fill, minmax(340px, 1fr))'
                   : isCardGridCompact
                   ? 'repeat(auto-fill, minmax(220px, 1fr))'
                   : 'repeat(auto-fill, minmax(300px, 1fr))',
@@ -1268,7 +1271,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       className="chart-select-card__thumb chart-select-card__thumb--empty"
                       style={{
                         width: '100%',
-                          height: isCardGridCompact ? '132px' : '180px',
+                          height: isSelectionExpanded ? '220px' : isCardGridCompact ? '132px' : '180px',
                           marginBottom: isCardGridCompact ? '10px' : '12px',
                           borderRadius: CHART_EDITOR_THEME.radiusSm,
                           background:
@@ -1458,7 +1461,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               key={selectedChart.id}
               style={{
                 marginTop: '24px',
-                flex: isSelectionCompact ? '1 1 auto' : '0 0 auto',
+                flex: isSelectionCompact ? '1 1 auto' : isSelectionExpanded ? '0 0 320px' : '0 0 auto',
                 backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
                 border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
                 borderRadius: CHART_EDITOR_THEME.radiusLg,
@@ -1466,6 +1469,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 boxShadow: CHART_EDITOR_THEME.shadowSoft,
                 position: 'relative',
                 minHeight: 0,
+                maxHeight: isSelectionExpanded ? '320px' : 'none',
               }}
             >
               {selectedChart.preview_image && (
@@ -1702,7 +1706,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   style={{
                     display: 'grid',
                     gridTemplateColumns: 'minmax(320px, 440px) minmax(0, 1fr)',
-                    gap: '24px',
+                    gap: isSelectionExpanded ? '18px' : '24px',
                     alignItems: 'start',
                   }}
                 >
