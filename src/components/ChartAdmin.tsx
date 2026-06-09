@@ -189,6 +189,28 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
     }
   };
 
+  const handleExportChartJson = (chart: ApiChart) => {
+    try {
+      const parsed = JSON.parse(chart.data_json || '{}');
+      const prettyJson = JSON.stringify(parsed, null, 2);
+      const safeTitle = (chart.title || 'chart')
+        .replace(/[<>:"/\\|?*\x00-\x1F]/g, '')
+        .trim() || 'chart';
+      const blob = new Blob([prettyJson], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${safeTitle}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Chart JSON export failed:', error);
+      alert('채보 JSON 내보내기에 실패했습니다.');
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div
@@ -539,23 +561,40 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
               </div>
 
               {onTestChart && (
-                <button
-                  onClick={() => handleTestChart(selectedChart)}
-                  style={{
-                    padding: '12px 20px',
-                    fontSize: '14px',
-                    fontWeight: 'bold',
-                    background: CHART_EDITOR_THEME.buttonPrimaryBg,
-                    color: CHART_EDITOR_THEME.buttonPrimaryText,
-                    border: 'none',
-                    borderRadius: CHART_EDITOR_THEME.radiusSm,
-                    cursor: 'pointer',
-                    marginBottom: '20px',
-                    width: '100%',
-                  }}
-                >
-                  🎮 채보 테스트
-                </button>
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                  <button
+                    onClick={() => handleTestChart(selectedChart)}
+                    style={{
+                      flex: 1,
+                      padding: '12px 20px',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      background: CHART_EDITOR_THEME.buttonPrimaryBg,
+                      color: CHART_EDITOR_THEME.buttonPrimaryText,
+                      border: 'none',
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🎮 채보 테스트
+                  </button>
+                  <button
+                    onClick={() => handleExportChartJson(selectedChart)}
+                    style={{
+                      flex: 1,
+                      padding: '12px 20px',
+                      fontSize: '14px',
+                      fontWeight: 'bold',
+                      background: CHART_EDITOR_THEME.buttonGhostBg,
+                      color: CHART_EDITOR_THEME.textPrimary,
+                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    JSON 내려받기
+                  </button>
+                </div>
               )}
 
               <div
