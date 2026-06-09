@@ -1120,29 +1120,48 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   
   const handleMoveEnd = useCallback(() => {
     if (dragOffset && selectedNoteIds.size > 0) {
-      // 이동 전 선택된 노트 ID를 저장 (이동 후에도 유지하기 위해)
       const idsToKeep = new Set(selectedNoteIds);
-      const currentDragOffset = dragOffset; // 클로저로 현재 오프셋 저장
+      const currentDragOffset = dragOffset;
       
       setNotes((prev) => {
+        const selectedNotes = prev.filter((note) => idsToKeep.has(note.id));
+        if (selectedNotes.length === 0) {
+          setDragOffset(null);
+          dragStartRef.current = null;
+          return prev;
+        }
+
+        // 이동량은 선택 그룹 전체에 대해 한 번만 계산한다.
+        // 노트마다 개별 스냅/개별 clamp를 하면 큰 선택 구간이 찢어진다.
+        const anchorTime = Math.min(...selectedNotes.map((note) => note.time));
+        const snappedAnchorTime = snapToGrid(Math.max(0, anchorTime + currentDragOffset.time));
+        const snappedTimeDelta = snappedAnchorTime - anchorTime;
+
+        const minLane = Math.min(...selectedNotes.map((note) => note.lane));
+        const maxLane = Math.max(...selectedNotes.map((note) => note.lane));
+        const minLaneDelta = -minLane;
+        const maxLaneDelta = 3 - maxLane;
+        const clampedLaneDelta = Math.max(
+          minLaneDelta,
+          Math.min(maxLaneDelta, currentDragOffset.lane)
+        );
+
         const newNotes = prev.map((note) => {
           if (idsToKeep.has(note.id)) {
-            // 이동 후 시간을 계산하고 그리드에 스냅
-            const movedTime = Math.max(0, note.time + currentDragOffset.time);
-            const snappedTime = snapToGrid(movedTime);
-            const newLane = Math.max(0, Math.min(3, note.lane + currentDragOffset.lane)) as Lane;
+            const movedTime = Math.max(0, note.time + snappedTimeDelta);
+            const newLane = (note.lane + clampedLaneDelta) as Lane;
             return {
               ...note,
-              time: snappedTime,
+              time: movedTime,
               lane: newLane,
+              endTime: note.type === 'hold' ? movedTime + Math.max(0, note.duration || 0) : movedTime,
             };
           }
           return note;
         });
-        const sortedNotes = newNotes.sort((a, b) => a.time - b.time);
+        const sortedNotes = [...newNotes].sort((a, b) => a.time - b.time);
         saveToHistory(sortedNotes);
         
-        // 노트 업데이트 후 오프셋 초기화 (렌더링이 올바른 위치에 표시되도록)
         setDragOffset(null);
         dragStartRef.current = null;
         
