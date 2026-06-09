@@ -57,6 +57,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   const [selectedChart, setSelectedChart] = useState<ApiChart | null>(null);
   const [isCardGridCompact, setIsCardGridCompact] = useState<boolean>(false);
   const [adminDifficultyValue, setAdminDifficultyValue] = useState<string>('');
+  const [isDifficultyMenuOpen, setIsDifficultyMenuOpen] = useState<boolean>(false);
   const [isSavingAdminDifficulty, setIsSavingAdminDifficulty] = useState<boolean>(false);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -338,9 +339,11 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   useEffect(() => {
     if (!selectedChart) {
       setAdminDifficultyValue('');
+      setIsDifficultyMenuOpen(false);
       return;
     }
     setAdminDifficultyValue(((selectedChart as any)._adminDifficulty as string | null) || '');
+    setIsDifficultyMenuOpen(false);
   }, [selectedChart]);
 
   const handleSaveAdminDifficulty = useCallback(async () => {
@@ -651,6 +654,132 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   };
 
   const isSelectionCompact = Boolean(selectedChart && isCardGridCompact);
+  const currentDifficultyDisplay = adminDifficultyValue || ((selectedChart as any)?._displayDifficulty as string | undefined) || '미지정';
+  const currentDifficultyColor = getChartDifficultyColor(currentDifficultyDisplay === '미지정' ? 'Normal' : currentDifficultyDisplay);
+
+  const renderDifficultyFact = () => (
+    <div className="chart-select-detail-panel__fact">
+      <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '8px' }}>난이도</div>
+      {isAdmin ? (
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <button
+              type="button"
+              onClick={() => setIsDifficultyMenuOpen((prev) => !prev)}
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: CHART_EDITOR_THEME.radiusSm,
+                border: `1px solid ${currentDifficultyColor}`,
+                background: `${currentDifficultyColor}22`,
+                color: currentDifficultyColor,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '10px',
+              }}
+            >
+              <span>{currentDifficultyDisplay}</span>
+              <span style={{ fontSize: '11px', opacity: 0.9 }}>{isDifficultyMenuOpen ? '▲' : '▼'}</span>
+            </button>
+            {isDifficultyMenuOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  left: 0,
+                  right: 0,
+                  zIndex: 20,
+                  padding: '8px',
+                  borderRadius: CHART_EDITOR_THEME.radiusMd,
+                  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                  background: 'rgba(8, 12, 24, 0.98)',
+                  boxShadow: CHART_EDITOR_THEME.shadowSoft,
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(84px, 1fr))',
+                  gap: '6px',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdminDifficultyValue('');
+                    setIsDifficultyMenuOpen(false);
+                  }}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                    background: CHART_EDITOR_THEME.buttonGhostBg,
+                    color: CHART_EDITOR_THEME.textSecondary,
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                  }}
+                >
+                  미지정
+                </button>
+                {ADMIN_CHART_DIFFICULTY_OPTIONS.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => {
+                      setAdminDifficultyValue(value);
+                      setIsDifficultyMenuOpen(false);
+                    }}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      border: `1px solid ${getChartDifficultyColor(value)}`,
+                      background: `${getChartDifficultyColor(value)}22`,
+                      color: getChartDifficultyColor(value),
+                      cursor: 'pointer',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {value}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={handleSaveAdminDifficulty}
+            disabled={isSavingAdminDifficulty}
+            style={{
+              padding: '9px 12px',
+              borderRadius: CHART_EDITOR_THEME.radiusSm,
+              border: 'none',
+              background: CHART_EDITOR_THEME.buttonPrimaryBg,
+              color: CHART_EDITOR_THEME.buttonPrimaryText,
+              cursor: isSavingAdminDifficulty ? 'wait' : 'pointer',
+              fontWeight: 700,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {isSavingAdminDifficulty ? '저장 중' : '저장'}
+          </button>
+        </div>
+      ) : (
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '8px 12px',
+            borderRadius: 999,
+            border: `1px solid ${currentDifficultyColor}`,
+            background: `${currentDifficultyColor}22`,
+            color: currentDifficultyColor,
+            fontSize: '15px',
+            fontWeight: 700,
+          }}
+        >
+          {currentDifficultyDisplay}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div
@@ -1487,60 +1616,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>BPM</div>
                 <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart.bpm}</div>
               </div>
-              <div className="chart-select-detail-panel__fact">
-                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>난이도</div>
-                {isAdmin ? (
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <select
-                      value={adminDifficultyValue}
-                      onChange={(e) => setAdminDifficultyValue(e.target.value)}
-                      disabled={isSavingAdminDifficulty}
-                      style={{
-                        flex: 1,
-                        padding: '9px 12px',
-                        borderRadius: CHART_EDITOR_THEME.radiusSm,
-                        border: `1px solid ${getChartDifficultyColor(adminDifficultyValue || (selectedChart as any)._displayDifficulty || 'Normal')}`,
-                        backgroundColor: CHART_EDITOR_THEME.inputBg,
-                        color: getChartDifficultyColor(adminDifficultyValue || (selectedChart as any)._displayDifficulty || 'Normal'),
-                        fontWeight: 700,
-                      }}
-                    >
-                      <option value="">미지정</option>
-                      {ADMIN_CHART_DIFFICULTY_OPTIONS.map((value) => (
-                        <option key={value} value={value}>
-                          {value}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={handleSaveAdminDifficulty}
-                      disabled={isSavingAdminDifficulty}
-                      style={{
-                        padding: '9px 12px',
-                        borderRadius: CHART_EDITOR_THEME.radiusSm,
-                        border: 'none',
-                        background: CHART_EDITOR_THEME.buttonPrimaryBg,
-                        color: CHART_EDITOR_THEME.buttonPrimaryText,
-                        cursor: isSavingAdminDifficulty ? 'wait' : 'pointer',
-                        fontWeight: 700,
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {isSavingAdminDifficulty ? '저장 중' : '저장'}
-                    </button>
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      color: getChartDifficultyColor((selectedChart as any)._displayDifficulty || 'Normal'),
-                      fontSize: '16px',
-                      fontWeight: 700,
-                    }}
-                  >
-                    {(selectedChart as any)._displayDifficulty || '미지정'}
-                  </div>
-                )}
-              </div>
+              {renderDifficultyFact()}
               <div className="chart-select-detail-panel__fact">
                 <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>플레이 횟수</div>
                 <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart.play_count}</div>
@@ -1741,60 +1817,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>BPM</div>
                 <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart.bpm}</div>
               </div>
-              <div className="chart-select-detail-panel__fact">
-                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>난이도</div>
-                {isAdmin ? (
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <select
-                      value={adminDifficultyValue}
-                      onChange={(e) => setAdminDifficultyValue(e.target.value)}
-                      disabled={isSavingAdminDifficulty}
-                      style={{
-                        flex: 1,
-                        padding: '9px 12px',
-                        borderRadius: CHART_EDITOR_THEME.radiusSm,
-                        border: `1px solid ${getChartDifficultyColor(adminDifficultyValue || (selectedChart as any)._displayDifficulty || 'Normal')}`,
-                        backgroundColor: CHART_EDITOR_THEME.inputBg,
-                        color: getChartDifficultyColor(adminDifficultyValue || (selectedChart as any)._displayDifficulty || 'Normal'),
-                        fontWeight: 700,
-                      }}
-                    >
-                      <option value="">미지정</option>
-                      {ADMIN_CHART_DIFFICULTY_OPTIONS.map((value) => (
-                        <option key={value} value={value}>
-                          {value}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={handleSaveAdminDifficulty}
-                      disabled={isSavingAdminDifficulty}
-                      style={{
-                        padding: '9px 12px',
-                        borderRadius: CHART_EDITOR_THEME.radiusSm,
-                        border: 'none',
-                        background: CHART_EDITOR_THEME.buttonPrimaryBg,
-                        color: CHART_EDITOR_THEME.buttonPrimaryText,
-                        cursor: isSavingAdminDifficulty ? 'wait' : 'pointer',
-                        fontWeight: 700,
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {isSavingAdminDifficulty ? '저장 중' : '저장'}
-                    </button>
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      color: getChartDifficultyColor((selectedChart as any)._displayDifficulty || 'Normal'),
-                      fontSize: '16px',
-                      fontWeight: 700,
-                    }}
-                  >
-                    {(selectedChart as any)._displayDifficulty || '미지정'}
-                  </div>
-                )}
-              </div>
+              {renderDifficultyFact()}
               <div className="chart-select-detail-panel__fact">
                 <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>플레이 횟수</div>
                 <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart.play_count}</div>
