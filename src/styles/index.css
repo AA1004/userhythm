@@ -1160,6 +1160,10 @@ body {
   animation-delay: 300ms;
 }
 
+.game-menu-action:nth-child(5) {
+  animation-delay: 370ms;
+}
+
 .game-menu-action::before {
   content: '';
   position: absolute;

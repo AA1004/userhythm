@@ -85,7 +85,9 @@ export interface ApiVersion {
 const toJson = async (res: Response) => {
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(text || res.statusText);
+    const error = new Error(text || res.statusText) as Error & { status?: number };
+    error.status = res.status;
+    throw error;
   }
   return res.json();
 };
@@ -117,13 +119,21 @@ export const api = {
     });
     return toJson(res);
   },
-  async getCharts(params: { search?: string; sortBy?: string; sortOrder?: string; limit?: number; offset?: number }) {
+  async getCharts(params: {
+    search?: string;
+    sortBy?: string;
+    sortOrder?: string;
+    limit?: number;
+    offset?: number;
+    status?: 'approved' | 'pending';
+  }) {
     const qs = new URLSearchParams();
     if (params.search) qs.set('search', params.search);
     if (params.sortBy) qs.set('sortBy', params.sortBy);
     if (params.sortOrder) qs.set('sortOrder', params.sortOrder);
     if (params.limit) qs.set('limit', String(params.limit));
     if (params.offset) qs.set('offset', String(params.offset));
+    if (params.status) qs.set('status', params.status);
     const res = await fetch(`${API_BASE}/api/charts?${qs.toString()}`, { credentials: 'include' });
     return toJson(res) as Promise<{ charts: ApiChart[]; total: number }>;
   },

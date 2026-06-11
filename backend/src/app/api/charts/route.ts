@@ -62,11 +62,13 @@ export async function GET(req: NextRequest) {
     const sortOrder = (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc';
     const limit = Math.min(parseInt(searchParams.get('limit') || `${DEFAULT_LIMIT}`, 10) || DEFAULT_LIMIT, MAX_LIMIT);
     const offset = parseInt(searchParams.get('offset') || '0', 10) || 0;
+    const statusParam = (searchParams.get('status') || 'approved').trim().toLowerCase();
+    const statusFilter = statusParam === 'pending' ? 'pending' : 'approved';
 
     const where: any = search
       ? {
           AND: [
-            { status: 'approved' },
+            { status: statusFilter },
             {
               OR: [
                 { title: { contains: search, mode: 'insensitive' } },
@@ -76,7 +78,7 @@ export async function GET(req: NextRequest) {
             },
           ],
         }
-      : { status: 'approved' };
+      : { status: statusFilter };
 
     const orderBy =
       sortBy === 'play_count'

@@ -53,7 +53,7 @@ type ViewMode =
   | { type: 'menu' }
   | { type: 'tutorial' }
   | { type: 'calibration' }
-  | { type: 'chartSelect'; refreshToken?: number }
+  | { type: 'chartSelect'; refreshToken?: number; chartStatus?: 'approved' | 'pending' }
   | { type: 'editor' }
   | { type: 'admin' }
   | { type: 'subtitleEditor'; data: SubtitleEditorChartData }
@@ -62,6 +62,7 @@ type ViewMode =
 type ChartSelectTransitionState = {
   phase: 'enter' | 'exit';
   refreshToken?: number;
+  chartStatus?: 'approved' | 'pending';
 };
 
 // Gameplay logic/rendering uses currentTimeRef every frame.
@@ -493,10 +494,10 @@ export const Game: React.FC = () => {
     chartSelectTransitionTimersRef.current = [];
   }, []);
 
-  const openChartSelect = useCallback((refreshToken?: number) => {
+  const openChartSelect = useCallback((refreshToken?: number, chartStatus: 'approved' | 'pending' = 'approved') => {
     clearChartSelectTransitionTimers();
 
-    setChartSelectTransition({ phase: 'enter', refreshToken });
+    setChartSelectTransition({ phase: 'enter', refreshToken, chartStatus });
 
     const exitTimer = window.setTimeout(() => {
       setChartSelectTransition((prev) =>
@@ -507,7 +508,7 @@ export const Game: React.FC = () => {
     const routeTimer = window.setTimeout(() => {
       chartSelectTransitionTimersRef.current = [];
       setChartSelectTransition(null);
-      setViewMode({ type: 'chartSelect', refreshToken });
+      setViewMode({ type: 'chartSelect', refreshToken, chartStatus });
     }, 680);
 
     chartSelectTransitionTimersRef.current = [exitTimer, routeTimer];
@@ -595,10 +596,23 @@ export const Game: React.FC = () => {
     if (!activePlayableChartId || hasSubmittedScoreRef.current) return;
 
     hasSubmittedScoreRef.current = true;
-    void api.submitScore(activePlayableChartId, accuracy).catch((error: unknown) => {
-      hasSubmittedScoreRef.current = false;
-      console.error('Failed to submit leaderboard score:', error);
-    });
+    void api
+      .submitScore(activePlayableChartId, accuracy)
+      .then(() => {
+        window.dispatchEvent(
+          new CustomEvent('userhythm:leaderboard-updated', {
+            detail: { chartId: activePlayableChartId },
+          })
+        );
+      })
+      .catch((error: any) => {
+        hasSubmittedScoreRef.current = false;
+        if (error?.status === 401) {
+          console.warn('Leaderboard score submission skipped: login required.');
+          return;
+        }
+        console.error('Failed to submit leaderboard score:', error);
+      });
   }, [gameState.gameEnded, isFromEditor, activePlayableChartId, accuracy]);
 
   // 채보 저장 핸들러 (현재 미사용)
@@ -787,6 +801,8 @@ export const Game: React.FC = () => {
           onClose={() => setViewMode({ type: 'menu' })}
           refreshToken={viewMode.refreshToken ?? chartListRefreshToken}
           isAdmin={isAdmin}
+          isLoggedIn={!!authUser}
+          chartStatus={viewMode.chartStatus ?? 'approved'}
         />
       </div>
     );
@@ -1060,6 +1076,7 @@ export const Game: React.FC = () => {
                   isAdmin={isAdmin}
                   isModerator={isModerator}
                   onPlay={() => openChartSelect()}
+                  onWorkInProgress={() => openChartSelect(undefined, 'pending')}
                   onEdit={() => setViewMode({ type: 'editor' })}
                   onAdmin={() => setViewMode({ type: 'admin' })}
                   onTutorial={() => setViewMode({ type: 'tutorial' })}

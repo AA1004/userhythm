@@ -37,6 +37,7 @@ interface GameMenuProps {
   isAdmin: boolean;
   isModerator: boolean;
   onPlay: () => void;
+  onWorkInProgress: () => void;
   onEdit: () => void;
   onAdmin: () => void;
   onTutorial: () => void;
@@ -55,6 +56,7 @@ export const GameMenu: React.FC<GameMenuProps> = ({
   isAdmin,
   isModerator,
   onPlay,
+  onWorkInProgress,
   onEdit,
   onAdmin,
   onTutorial,
@@ -115,6 +117,14 @@ export const GameMenu: React.FC<GameMenuProps> = ({
           >
             <span>플레이</span>
             <small>PLAY</small>
+          </button>
+
+          <button
+            className="game-menu-action game-menu-action--secondary"
+            onClick={onWorkInProgress}
+          >
+            <span>제작 중인 채보</span>
+            <small>WIP</small>
           </button>
 
           <button

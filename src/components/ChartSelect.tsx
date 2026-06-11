@@ -16,6 +16,8 @@ interface ChartSelectProps {
   onClose: () => void;
   refreshToken?: number; // 외부에서 강제 새로고침 트리거
   isAdmin?: boolean;
+  isLoggedIn?: boolean;
+  chartStatus?: 'approved' | 'pending';
 }
 
 const DEFAULT_THUMBNAIL_ASPECT_RATIO = 16 / 9;
@@ -42,6 +44,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   onClose,
   refreshToken,
   isAdmin = false,
+  isLoggedIn = false,
+  chartStatus = 'approved',
 }) => {
   const requestControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
@@ -70,6 +74,9 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   const [perChartScores, setPerChartScores] = useState<ApiScore[]>([]);
   const [globalScores, setGlobalScores] = useState<ApiScore[]>([]);
   const [perUserScores, setPerUserScores] = useState<ApiUserAggregate[]>([]);
+  const [leaderboardStatus, setLeaderboardStatus] =
+    useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
 
   // YouTube preview player (BGA용)
   const bgaContainerRef = useRef<HTMLDivElement | null>(null);
@@ -231,6 +238,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
           sortOrder,
           limit: 500,
           offset: 0,
+          status: chartStatus,
         });
         const normalizedCharts = normalizeCharts(charts as ApiChart[]);
         if (!isMountedRef.current) return;
@@ -256,21 +264,26 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
         setIsLoadingMore(false);
       }
     },
-    [normalizeCharts, searchQuery, sortBy, sortOrder]
+    [normalizeCharts, searchQuery, sortBy, sortOrder, chartStatus]
   );
 
   const fetchLeaderboards = useCallback(
     async (chartId?: string) => {
+      setLeaderboardStatus('loading');
+      setLeaderboardError(null);
       try {
         const data = await api.getLeaderboard(chartId);
         setPerChartScores(data.perChart || []);
         setGlobalScores(data.global || []);
         setPerUserScores(data.perUser || []);
+        setLeaderboardStatus('success');
       } catch (e: any) {
         console.error('Failed to load leaderboard:', e);
         setPerChartScores([]);
         setGlobalScores([]);
         setPerUserScores([]);
+        setLeaderboardStatus('error');
+        setLeaderboardError(e?.message || '리더보드를 불러오지 못했습니다.');
       }
     },
     []
@@ -279,15 +292,25 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   // 최초 로드 및 새로고침 버튼/외부 트리거 시 호출
   useEffect(() => {
     fetchAllCharts(true);
-    fetchLeaderboards();
-  }, [fetchAllCharts]);
+    if (chartStatus === 'approved') {
+      fetchLeaderboards();
+    } else {
+      setPerChartScores([]);
+      setGlobalScores([]);
+      setPerUserScores([]);
+      setLeaderboardStatus('success');
+      setLeaderboardError(null);
+    }
+  }, [fetchAllCharts, fetchLeaderboards, chartStatus]);
 
   // 외부 트리거로 새로고침
   useEffect(() => {
     if (refreshToken === undefined) return;
     fetchAllCharts(true);
-    fetchLeaderboards(selectedChart?.id);
-  }, [refreshToken, fetchAllCharts]);
+    if (chartStatus === 'approved') {
+      fetchLeaderboards(selectedChart?.id);
+    }
+  }, [refreshToken, fetchAllCharts, fetchLeaderboards, selectedChart?.id, chartStatus]);
 
   // 검색/정렬 변경 시 페이지 리셋
   useEffect(() => {
@@ -329,12 +352,30 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   }, [filteredCharts, currentPage, chartsPerPage, status]);
   useEffect(() => {
     // when selected chart changes, load per-chart leaderboard
+    if (chartStatus !== 'approved') {
+      setPerChartScores([]);
+      return;
+    }
     if (selectedChart) {
       fetchLeaderboards(selectedChart.id);
     } else {
       setPerChartScores([]);
     }
-  }, [selectedChart, fetchLeaderboards]);
+  }, [selectedChart, fetchLeaderboards, chartStatus]);
+
+  useEffect(() => {
+    const handleLeaderboardUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{ chartId?: string }>;
+      const updatedChartId = customEvent.detail?.chartId;
+      if (chartStatus !== 'approved') return;
+      fetchLeaderboards(selectedChart?.id ?? updatedChartId);
+    };
+
+    window.addEventListener('userhythm:leaderboard-updated', handleLeaderboardUpdated as EventListener);
+    return () => {
+      window.removeEventListener('userhythm:leaderboard-updated', handleLeaderboardUpdated as EventListener);
+    };
+  }, [fetchLeaderboards, selectedChart, chartStatus]);
 
   useEffect(() => {
     if (!selectedChart) {
@@ -643,7 +684,9 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
         youtubeVideoId,
         youtubeUrl,
         playbackSpeed: chartData.playbackSpeed || 1,
-        chartId: chart.id,
+        chartId: chart.status === 'approved' ? chart.id : undefined,
+        sourceChartId: chart.id,
+        isWorkInProgress: chart.status !== 'approved',
         chartTitle: chart.title,
         chartAuthor: (chart as any)._authorLabel || chart.author,
       });
@@ -657,6 +700,14 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   const isSelectionExpanded = Boolean(selectedChart && !isCardGridCompact);
   const currentDifficultyDisplay = adminDifficultyValue || ((selectedChart as any)?._displayDifficulty as string | undefined) || '미지정';
   const currentDifficultyColor = getChartDifficultyColor(currentDifficultyDisplay === '미지정' ? 'Normal' : currentDifficultyDisplay);
+  const leaderboardHint =
+    chartStatus === 'pending'
+      ? '제작 중인 채보는 테스트 플레이만 가능하며 리더보드와 플레이 횟수에 반영되지 않습니다.'
+      : leaderboardStatus === 'error'
+      ? leaderboardError || '리더보드를 불러오지 못했습니다.'
+      : !isLoggedIn
+      ? '로그인 후 일반 플레이를 완료해야 기록이 반영됩니다.'
+      : '일반 플레이 완료 기록만 반영됩니다. 에디터/관리자 테스트는 제외됩니다.';
 
   const renderDifficultyFact = () => (
     <div className="chart-select-detail-panel__fact">
@@ -890,18 +941,25 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
           }}
         />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', position: 'relative', zIndex: 1 }}>
-          <h1
-            className="chart-select-title"
-            style={{
-              color: CHART_EDITOR_THEME.textPrimary,
-              fontSize: '24px',
-              margin: 0,
-              letterSpacing: '0.05em',
-              textShadow: CHART_EDITOR_THEME.titleGlow,
-            }}
-          >
-            채보 선택하기
-          </h1>
+          <div>
+            <h1
+              className="chart-select-title"
+              style={{
+                color: CHART_EDITOR_THEME.textPrimary,
+                fontSize: '24px',
+                margin: 0,
+                letterSpacing: '0.05em',
+                textShadow: CHART_EDITOR_THEME.titleGlow,
+              }}
+            >
+              {chartStatus === 'pending' ? '제작 중인 채보' : '채보 선택하기'}
+            </h1>
+            {chartStatus === 'pending' && (
+              <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginTop: '6px' }}>
+                완성 전 채보를 플레이해 보고 이어 만들 수 있는 목록입니다.
+              </div>
+            )}
+          </div>
           <span
             className="chart-select-count"
             style={{
@@ -914,7 +972,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               boxShadow: CHART_EDITOR_THEME.shadowSoft,
             }}
           >
-            총 {totalCount}곡
+            {chartStatus === 'pending' ? '제작중' : '승인됨'} {totalCount}곡
           </span>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
@@ -1118,7 +1176,9 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 <span />
               </div>
               <strong>곡 목록 동기화 중</strong>
-              <p>Railway 서버에서 최신 공개 채보를 불러오고 있습니다.</p>
+              <p>
+                Railway 서버에서 최신 {chartStatus === 'pending' ? '제작 중인' : '공개'} 채보를 불러오고 있습니다.
+              </p>
             </div>
           ) : error ? (
             <div className="chart-select-empty chart-select-empty--error" style={{ color: CHART_EDITOR_THEME.danger, textAlign: 'center', padding: '40px' }}>
@@ -1147,7 +1207,11 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
             </div>
           ) : charts.length === 0 ? (
             <div className="chart-select-empty" style={{ color: CHART_EDITOR_THEME.textSecondary, textAlign: 'center', padding: '40px' }}>
-              {searchQuery ? '검색 결과가 없습니다.' : '공개된 채보가 없습니다.'}
+              {searchQuery
+                ? '검색 결과가 없습니다.'
+                : chartStatus === 'pending'
+                ? '제작 중인 채보가 없습니다.'
+                : '공개된 채보가 없습니다.'}
             </div>
           ) : (
             <div
@@ -1302,6 +1366,20 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   )}
                   {!isSelectionCompact && (
                   <div className="chart-select-card__badges" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                    {chart.status !== 'approved' && (
+                      <span
+                        style={{
+                          padding: isCardGridCompact ? '3px 7px' : '4px 8px',
+                          backgroundColor: 'rgba(251, 191, 36, 0.18)',
+                          borderRadius: CHART_EDITOR_THEME.radiusSm,
+                          color: '#fde68a',
+                          fontSize: isCardGridCompact ? '10px' : '11px',
+                          fontWeight: 800,
+                        }}
+                      >
+                        WIP
+                      </span>
+                    )}
                     <span
                       style={{
                         padding: isCardGridCompact ? '3px 7px' : '4px 8px',
@@ -1590,7 +1668,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                               e.currentTarget.style.transform = 'translateY(0)';
                             }}
                           >
-                            🎮 이 채보로 플레이
+                            {chartStatus === 'pending' ? '이 WIP 채보로 테스트' : '🎮 이 채보로 플레이'}
                           </button>
                         </div>
                         {selectedChart.description && (
@@ -1695,24 +1773,27 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
 
             <div className="chart-select-leaderboard" style={{ marginTop: '20px' }}>
               <h3 className="chart-select-leaderboard__title" style={{ color: CHART_EDITOR_THEME.textPrimary, marginBottom: '10px' }}>정확도 리더보드</h3>
+              <div style={{ color: leaderboardStatus === 'error' ? '#fca5a5' : CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '10px' }}>
+                {leaderboardHint}
+              </div>
               <div className="chart-select-leaderboard__grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
                 <div>
                   <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
                     곡별 상위 기록 (현재 선택)
                   </div>
-                  <LeaderboardList scores={perChartScores} emptyText="데이터 없음" />
+                  <LeaderboardList scores={perChartScores} emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'} />
                 </div>
                 <div>
                   <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
                     글로벌 상위 기록
                   </div>
-                  <LeaderboardList scores={globalScores} emptyText="데이터 없음" />
+                  <LeaderboardList scores={globalScores} emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'} />
                 </div>
                 <div>
                   <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
                     사용자별 평균 정확도
                   </div>
-                  <UserLeaderboardList entries={perUserScores} emptyText="데이터 없음" />
+                  <UserLeaderboardList entries={perUserScores} emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'} />
                 </div>
               </div>
             </div>
@@ -1763,7 +1844,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                           e.currentTarget.style.transform = 'translateY(0)';
                         }}
                       >
-                        🎮 이 채보로 플레이
+                        {chartStatus === 'pending' ? '이 WIP 채보로 테스트' : '🎮 이 채보로 플레이'}
                       </button>
                     </div>
 
@@ -1896,24 +1977,27 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
 
             <div className="chart-select-leaderboard" style={{ marginTop: '20px' }}>
               <h3 className="chart-select-leaderboard__title" style={{ color: CHART_EDITOR_THEME.textPrimary, marginBottom: '10px' }}>정확도 리더보드</h3>
+              <div style={{ color: leaderboardStatus === 'error' ? '#fca5a5' : CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '10px' }}>
+                {leaderboardHint}
+              </div>
               <div className="chart-select-leaderboard__grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
                 <div>
                   <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
                     곡별 상위 기록 (현재 선택)
                   </div>
-                  <LeaderboardList scores={perChartScores} emptyText="데이터 없음" />
+                  <LeaderboardList scores={perChartScores} emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'} />
                 </div>
                 <div>
                   <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
                     글로벌 상위 기록
                   </div>
-                  <LeaderboardList scores={globalScores} emptyText="데이터 없음" />
+                  <LeaderboardList scores={globalScores} emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'} />
                 </div>
                 <div>
                   <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
                     사용자별 평균 정확도
                   </div>
-                  <UserLeaderboardList entries={perUserScores} emptyText="데이터 없음" />
+                  <UserLeaderboardList entries={perUserScores} emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'} />
                 </div>
               </div>
             </div>
