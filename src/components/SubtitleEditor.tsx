@@ -94,24 +94,29 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     [beatDurationMs]
   );
 
+  const syncChartIdToSession = useCallback((nextChartId: string) => {
+    setActiveChartId(nextChartId);
+    setChartIdInput(nextChartId);
+    try {
+      localStorage.setItem('subtitle-session-id', nextChartId);
+    } catch (error) {
+      console.warn('Failed to persist subtitle session id:', error);
+    }
+    try {
+      window.dispatchEvent(new CustomEvent('subtitle-chart-id-update', { detail: nextChartId }));
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const handleApplyChartId = useCallback(() => {
     const nextId = chartIdInput.trim();
     if (!nextId) {
       alert('Chart ID를 입력하세요.');
       return;
     }
-    setActiveChartId(nextId);
-    try {
-      localStorage.setItem('subtitle-session-id', nextId);
-    } catch (error) {
-      console.warn('Failed to persist subtitle session id:', error);
-    }
-    try {
-      window.dispatchEvent(new CustomEvent('subtitle-chart-id-update', { detail: nextId }));
-    } catch {
-      // ignore
-    }
-  }, [chartIdInput]);
+    syncChartIdToSession(nextId);
+  }, [chartIdInput, syncChartIdToSession]);
 
   // 로컬 저장소에서 기존 자막 복원 (게임 테스트용 임시 저장)
   useEffect(() => {
@@ -119,12 +124,12 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     subtitlesLoadedRef.current = false;
     setSelectedSubtitleId(null);
 
-    const storedCues = localSubtitleStorage.get(chartId);
+    const storedCues = localSubtitleStorage.get(activeChartId);
     hadLocalSubtitlesRef.current = storedCues.length > 0;
     setSubtitles(storedCues);
 
     subtitlesLoadedRef.current = true;
-  }, [chartId]);
+  }, [activeChartId]);
 
   useEffect(() => {
     if (!subtitlesLoadedRef.current) return;
@@ -182,18 +187,7 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   const handleSubtitleRestore = useCallback((data: any) => {
     if (data && typeof data === 'object') {
       if (typeof data.chartId === 'string') {
-        setActiveChartId(data.chartId);
-        setChartIdInput(data.chartId);
-        try {
-          localStorage.setItem('subtitle-session-id', data.chartId);
-        } catch {
-          // ignore
-        }
-        try {
-          window.dispatchEvent(new CustomEvent('subtitle-chart-id-update', { detail: data.chartId }));
-        } catch {
-          // ignore
-        }
+        syncChartIdToSession(data.chartId);
       }
       if (Array.isArray(data.tracks) && data.tracks.length > 0) {
         setTracks(data.tracks);
@@ -231,15 +225,15 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
 
     async function loadSupabaseSubtitles() {
       if (!isSupabaseConfigured) return;
-      if (!chartId) return;
+      if (!activeChartId) return;
       if (hadLocalSubtitlesRef.current) return;
 
       try {
-        const cues = await subtitleAPI.getSubtitlesByChartId(chartId);
+        const cues = await subtitleAPI.getSubtitlesByChartId(activeChartId);
         if (!isMounted) return;
         if (cues.length > 0) {
           setSubtitles(cues);
-          localSubtitleStorage.save(chartId, cues);
+          localSubtitleStorage.save(activeChartId, cues);
         }
       } catch (error) {
         console.error('Failed to load subtitles from Supabase:', error);
@@ -253,7 +247,23 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [chartId]);
+  }, [activeChartId]);
+
+  useEffect(() => {
+    const handleRestoredSubtitles = (event: Event) => {
+      const customEvent = event as CustomEvent<SubtitleCue[]>;
+      const nextSubtitles = Array.isArray(customEvent.detail) ? customEvent.detail : [];
+      hadLocalSubtitlesRef.current = nextSubtitles.length > 0;
+      subtitlesLoadedRef.current = true;
+      setSelectedSubtitleId(null);
+      setSubtitles(nextSubtitles);
+    };
+
+    window.addEventListener('subtitles-restored', handleRestoredSubtitles as EventListener);
+    return () => {
+      window.removeEventListener('subtitles-restored', handleRestoredSubtitles as EventListener);
+    };
+  }, [syncChartIdToSession]);
 
   // --- 에디터 전용 타이머 (재생선 시간 소스) ---
   useEffect(() => {
@@ -309,7 +319,7 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     };
     setSubtitles((prev) => [...prev, next]);
     setSelectedSubtitleId(next.id);
-  }, [chartId, currentTimeMs, durationMs, tracks]);
+  }, [activeChartId, currentTimeMs, durationMs, selectedTrackId, tracks]);
 
   // 끝 시간에서 이어서 복사본 생성
   const handleDuplicateAtEnd = useCallback((baseCue: SubtitleCue) => {

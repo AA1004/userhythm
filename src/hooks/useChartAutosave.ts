@@ -31,11 +31,19 @@ export function useChartAutosave<T>(
   const { key, data: dataValue, onRestore: onRestoreValue, debounceMs: debounceMsValue = 1000 } = options;
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isRestoredRef = useRef(false);
+  const previousKeyRef = useRef<string | null>(null);
 
-  // 컴포넌트 마운트 시 복원
+  useEffect(() => {
+    if (previousKeyRef.current !== key) {
+      previousKeyRef.current = key;
+      isRestoredRef.current = false;
+    }
+  }, [key]);
+
+  // key별로 한 번씩 복원
   useEffect(() => {
     if (isRestoredRef.current) return;
-    
+
     try {
       const saved = localStorage.getItem(key);
       if (saved) {
