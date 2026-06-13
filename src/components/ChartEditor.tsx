@@ -756,6 +756,17 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       speedChangeIdRef.current = maxId + 1;
     }
     if (Array.isArray(data.bgaVisibilityIntervals)) {
+      const restoredNotes = Array.isArray(data.notes) ? validateNotes(data.notes) : notes;
+      const restoredTimelineExtraMs =
+        typeof data.timelineExtraMs === 'number' ? data.timelineExtraMs : timelineExtraMs;
+      const restoredLastNoteTime =
+        restoredNotes.length > 0
+          ? Math.max(...restoredNotes.map((note) => note.endTime || note.time))
+          : 0;
+      const restoreTimelineDurationMs = Math.max(
+        MIN_TIMELINE_DURATION_MS,
+        restoredLastNoteTime + 5000 + restoredTimelineExtraMs
+      );
       const hydrated = data.bgaVisibilityIntervals.map((interval: any, idx: number) => ({
         id: typeof interval.id === 'string' ? interval.id : `bga-${idx}`,
         startTimeMs: Math.max(0, Number(interval.startTimeMs) || 0),
@@ -771,7 +782,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
             : Math.max(0, Number(interval.fadeOutMs) || 0),
         easing: interval.easing === 'linear' ? 'linear' : undefined,
       }));
-      setBgaVisibilityIntervals(sortAndClampBgaIntervals(convertBgaEventsToEditableIntervals(hydrated)));
+      setBgaVisibilityIntervals(
+        sortAndClampBgaIntervals(
+          convertBgaEventsToEditableIntervals(hydrated, restoreTimelineDurationMs),
+          restoreTimelineDurationMs
+        )
+      );
+    } else {
+      setBgaVisibilityIntervals([]);
     }
     if (typeof data.chartTitle === 'string') setShareTitle(data.chartTitle);
     if (typeof data.chartAuthor === 'string') setShareAuthor(data.chartAuthor);
@@ -930,9 +948,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
   // --- 간주 구간 (채보 레인 숨김) 핸들러 ---
   const normalizeInterval = useCallback(
-    (raw: Partial<BgaVisibilityInterval> & { id: string }) => {
-      const start = clampTime(Math.max(0, Number(raw.startTimeMs) || 0));
-      const requestedEnd = clampTime(Math.max(0, Number(raw.endTimeMs) || start));
+    (
+      raw: Partial<BgaVisibilityInterval> & { id: string },
+      maxDurationMs: number = timelineDurationMs
+    ) => {
+      const clampWithDuration = (time: number) => Math.max(0, Math.min(time, maxDurationMs));
+      const start = clampWithDuration(Math.max(0, Number(raw.startTimeMs) || 0));
+      const requestedEnd = clampWithDuration(Math.max(0, Number(raw.endTimeMs) || start));
       const end = Math.max(start + BGA_INTERVAL_MIN_DURATION_MS, requestedEnd);
       return {
         id: raw.id,
@@ -944,13 +966,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         easing: raw.easing === 'linear' ? 'linear' : undefined,
       } as BgaVisibilityInterval;
     },
-    [clampTime]
+    [timelineDurationMs]
   );
 
   const sortAndClampBgaIntervals = useCallback(
-    (intervals: BgaVisibilityInterval[]) => {
+    (intervals: BgaVisibilityInterval[], maxDurationMs: number = timelineDurationMs) => {
       const sorted = [...intervals]
-        .map((interval) => normalizeInterval(interval))
+        .map((interval) => normalizeInterval(interval, maxDurationMs))
         .sort((a, b) => a.startTimeMs - b.startTimeMs);
 
       const clamped: BgaVisibilityInterval[] = [];
@@ -959,7 +981,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         const previous = clamped[index - 1];
         const next = sorted[index + 1];
         const minStart = previous ? previous.endTimeMs : 0;
-        const maxEnd = next ? next.startTimeMs : timelineDurationMs;
+        const maxEnd = next ? next.startTimeMs : maxDurationMs;
 
         current.startTimeMs = Math.max(minStart, current.startTimeMs);
         current.endTimeMs = Math.max(

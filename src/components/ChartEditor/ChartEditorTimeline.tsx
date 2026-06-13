@@ -116,6 +116,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   // 재생선 ref (리렌더링 없이 직접 DOM 업데이트)
   const playheadRef = useRef<HTMLDivElement>(null);
   const measureLabelRef = useRef<HTMLDivElement>(null);
+  const [isBgaResizing, setIsBgaResizing] = useState(false);
 
   // 재생선 위치 업데이트 (리렌더링 없이 직접 DOM 조작)
   useEffect(() => {
@@ -533,6 +534,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
       const edge = bgaHandle.dataset.bgaResize as 'start' | 'end' | undefined;
       if (id && edge) {
         bgaResizeRef.current = { id, edge };
+        setIsBgaResizing(true);
         suppressTimelineClick();
         e.preventDefault();
         e.stopPropagation();
@@ -734,6 +736,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     if (bgaResizeRef.current) {
       bgaResizeRef.current = null;
     }
+    setIsBgaResizing(false);
     if (isDraggingMoveRef.current) {
       if (onMoveEnd) {
         onMoveEnd();
@@ -761,7 +764,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   }, [onSelectionEnd, onMoveEnd, onMarqueeUpdate, onMarqueeEnd, marqueeRect, computeMarqueeSelectedIds]);
   
   useEffect(() => {
-    if (isTrackingSelection || isDraggingSelectionRef.current || isDraggingMoveRef.current) {
+    if (isTrackingSelection || isDraggingSelectionRef.current || isDraggingMoveRef.current || isBgaResizing) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
       return () => {
@@ -769,7 +772,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         window.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isTrackingSelection, handleMouseMove, handleMouseUp]);
+  }, [isTrackingSelection, isBgaResizing, handleMouseMove, handleMouseUp]);
 
   // 기존 세로 선택(selectionBox)은 마퀴 선택으로 대체됨
 
@@ -1189,6 +1192,9 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
                onDragStart={preventNativeDrag}
                onClick={(e) => {
                  e.stopPropagation();
+                 if (isBgaPlacementMode) {
+                   return;
+                 }
                  // 이동 모드에서는 노트 클릭 시 삭제하지 않고 드래그만 허용
                  if (!isMoveMode) {
                    onNoteClick(note.id);
