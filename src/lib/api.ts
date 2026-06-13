@@ -125,7 +125,7 @@ export const api = {
     sortOrder?: string;
     limit?: number;
     offset?: number;
-    status?: 'approved' | 'pending';
+    status?: 'approved' | 'wip';
   }) {
     const qs = new URLSearchParams();
     if (params.search) qs.set('search', params.search);

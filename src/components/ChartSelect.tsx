@@ -17,7 +17,8 @@ interface ChartSelectProps {
   refreshToken?: number; // 외부에서 강제 새로고침 트리거
   isAdmin?: boolean;
   isLoggedIn?: boolean;
-  chartStatus?: 'approved' | 'pending';
+  chartStatus?: 'approved' | 'wip';
+  onContribute?: (chart: ApiChart) => void;
 }
 
 const DEFAULT_THUMBNAIL_ASPECT_RATIO = 16 / 9;
@@ -46,6 +47,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   isAdmin = false,
   isLoggedIn = false,
   chartStatus = 'approved',
+  onContribute,
 }) => {
   const requestControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
@@ -178,6 +180,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
       const bgaEventCount = Array.isArray(chartData.bgaVisibilityIntervals)
         ? chartData.bgaVisibilityIntervals.length
         : 0;
+      const isWipChart = chartData.wip?.enabled === true;
       const displayDifficulty = getDisplayChartDifficulty(
         chart.difficulty,
         typeof chartData.adminDifficulty === 'string' ? chartData.adminDifficulty : chart.admin_difficulty
@@ -197,6 +200,9 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
         _bgaEventCount: bgaEventCount,
         _hasSubtitles: subtitleCount > 0,
         _hasBgaEvents: bgaEventCount > 0,
+        _isWip: isWipChart,
+        _wipNote: typeof chartData.wip?.note === 'string' ? chartData.wip.note : '',
+        _wipParentChartId: typeof chartData.wip?.parentChartId === 'string' ? chartData.wip.parentChartId : null,
         _adminDifficulty:
           typeof chartData.adminDifficulty === 'string' ? chartData.adminDifficulty : chart.admin_difficulty ?? null,
         _displayDifficulty: displayDifficulty,
@@ -684,9 +690,9 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
         youtubeVideoId,
         youtubeUrl,
         playbackSpeed: chartData.playbackSpeed || 1,
-        chartId: chart.status === 'approved' ? chart.id : undefined,
+        chartId: chartStatus === 'approved' ? chart.id : undefined,
         sourceChartId: chart.id,
-        isWorkInProgress: chart.status !== 'approved',
+        isWorkInProgress: chartStatus === 'wip',
         chartTitle: chart.title,
         chartAuthor: (chart as any)._authorLabel || chart.author,
       });
@@ -701,7 +707,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   const currentDifficultyDisplay = adminDifficultyValue || ((selectedChart as any)?._displayDifficulty as string | undefined) || '미지정';
   const currentDifficultyColor = getChartDifficultyColor(currentDifficultyDisplay === '미지정' ? 'Normal' : currentDifficultyDisplay);
   const leaderboardHint =
-    chartStatus === 'pending'
+    chartStatus === 'wip'
       ? '제작 중인 채보는 테스트 플레이만 가능하며 리더보드와 플레이 횟수에 반영되지 않습니다.'
       : leaderboardStatus === 'error'
       ? leaderboardError || '리더보드를 불러오지 못했습니다.'
@@ -833,6 +839,28 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
     </div>
   );
 
+  const renderWipNote = () => {
+    const wipNote = ((selectedChart as any)?._wipNote || '').trim();
+    if (chartStatus !== 'wip' || !wipNote) return null;
+    return (
+      <div
+        className="chart-select-detail-panel__fact chart-select-detail-panel__fact--wide"
+        style={{
+          marginTop: '12px',
+          padding: '14px',
+          borderRadius: CHART_EDITOR_THEME.radiusMd,
+          border: '1px solid rgba(251, 191, 36, 0.32)',
+          background: 'rgba(251, 191, 36, 0.1)',
+        }}
+      >
+        <div style={{ color: '#fde68a', fontSize: '12px', marginBottom: '8px', letterSpacing: '0.08em', fontWeight: 800 }}>WIP MEMO</div>
+        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '13px', lineHeight: 1.6 }}>
+          {wipNote}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       className="chart-select-screen"
@@ -952,9 +980,9 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 textShadow: CHART_EDITOR_THEME.titleGlow,
               }}
             >
-              {chartStatus === 'pending' ? '제작 중인 채보' : '채보 선택하기'}
+              {chartStatus === 'wip' ? '제작 중인 채보' : '채보 선택하기'}
             </h1>
-            {chartStatus === 'pending' && (
+            {chartStatus === 'wip' && (
               <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginTop: '6px' }}>
                 완성 전 채보를 플레이해 보고 이어 만들 수 있는 목록입니다.
               </div>
@@ -972,7 +1000,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               boxShadow: CHART_EDITOR_THEME.shadowSoft,
             }}
           >
-            {chartStatus === 'pending' ? '제작중' : '승인됨'} {totalCount}곡
+            {chartStatus === 'wip' ? 'WIP' : '승인됨'} {totalCount}곡
           </span>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button
@@ -1177,7 +1205,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               </div>
               <strong>곡 목록 동기화 중</strong>
               <p>
-                Railway 서버에서 최신 {chartStatus === 'pending' ? '제작 중인' : '공개'} 채보를 불러오고 있습니다.
+                Railway 서버에서 최신 {chartStatus === 'wip' ? '제작 중인' : '공개'} 채보를 불러오고 있습니다.
               </p>
             </div>
           ) : error ? (
@@ -1209,7 +1237,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
             <div className="chart-select-empty" style={{ color: CHART_EDITOR_THEME.textSecondary, textAlign: 'center', padding: '40px' }}>
               {searchQuery
                 ? '검색 결과가 없습니다.'
-                : chartStatus === 'pending'
+                : chartStatus === 'wip'
                 ? '제작 중인 채보가 없습니다.'
                 : '공개된 채보가 없습니다.'}
             </div>
@@ -1366,7 +1394,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   )}
                   {!isSelectionCompact && (
                   <div className="chart-select-card__badges" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
-                    {chart.status !== 'approved' && (
+                    {(chart as any)._isWip && (
                       <span
                         style={{
                           padding: isCardGridCompact ? '3px 7px' : '4px 8px',
@@ -1668,8 +1696,28 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                               e.currentTarget.style.transform = 'translateY(0)';
                             }}
                           >
-                            {chartStatus === 'pending' ? '이 WIP 채보로 테스트' : '🎮 이 채보로 플레이'}
+                            {chartStatus === 'wip' ? '이 WIP 채보로 테스트' : '🎮 이 채보로 플레이'}
                           </button>
+                          {chartStatus === 'wip' && onContribute && (
+                            <button
+                              className="chart-select-contribute-button"
+                              onClick={() => onContribute(selectedChart)}
+                              style={{
+                                width: '100%',
+                                marginTop: '10px',
+                                padding: '13px',
+                                fontSize: '15px',
+                                fontWeight: 'bold',
+                                background: 'rgba(251, 191, 36, 0.18)',
+                                color: '#fde68a',
+                                border: '1px solid rgba(251, 191, 36, 0.35)',
+                                borderRadius: CHART_EDITOR_THEME.radiusMd,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              이어 만들기
+                            </button>
+                          )}
                         </div>
                         {selectedChart.description && (
                           <div
@@ -1687,6 +1735,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                             </div>
                           </div>
                         )}
+                        {renderWipNote()}
                       </div>
                     </div>
 
@@ -1844,8 +1893,28 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                           e.currentTarget.style.transform = 'translateY(0)';
                         }}
                       >
-                        {chartStatus === 'pending' ? '이 WIP 채보로 테스트' : '🎮 이 채보로 플레이'}
+                        {chartStatus === 'wip' ? '이 WIP 채보로 테스트' : '🎮 이 채보로 플레이'}
                       </button>
+                      {chartStatus === 'wip' && onContribute && (
+                        <button
+                          className="chart-select-contribute-button"
+                          onClick={() => onContribute(selectedChart)}
+                          style={{
+                            width: '100%',
+                            marginTop: '10px',
+                            padding: '13px',
+                            fontSize: '15px',
+                            fontWeight: 'bold',
+                            background: 'rgba(251, 191, 36, 0.18)',
+                            color: '#fde68a',
+                            border: '1px solid rgba(251, 191, 36, 0.35)',
+                            borderRadius: CHART_EDITOR_THEME.radiusMd,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          이어 만들기
+                        </button>
+                      )}
                     </div>
 
                     {!isSelectionCompact && selectedChart.preview_image && (
@@ -1892,6 +1961,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                         </div>
                       </div>
                     )}
+                    {renderWipNote()}
                   </div>
 
                   <div>

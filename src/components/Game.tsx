@@ -35,8 +35,10 @@ import { GAME_VIEW_WIDTH, GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 import { buildPlayfieldGeometry } from '../constants/gameVisualSettings';
 import { KEY_LANE_HEIGHT } from '../constants/gameVisualSettings';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
-import { api } from '../lib/api';
+import { api, ApiChart } from '../lib/api';
 import { chartAPI } from '../lib/supabaseClient';
+
+const EDITOR_CONTRIBUTION_DRAFT_KEY = 'userhythm:editor-contribution-draft';
 
 // Subtitle editor chart data
 interface SubtitleEditorChartData {
@@ -53,7 +55,7 @@ type ViewMode =
   | { type: 'menu' }
   | { type: 'tutorial' }
   | { type: 'calibration' }
-  | { type: 'chartSelect'; refreshToken?: number; chartStatus?: 'approved' | 'pending' }
+  | { type: 'chartSelect'; refreshToken?: number; chartStatus?: 'approved' | 'wip' }
   | { type: 'editor' }
   | { type: 'admin' }
   | { type: 'subtitleEditor'; data: SubtitleEditorChartData }
@@ -62,7 +64,7 @@ type ViewMode =
 type ChartSelectTransitionState = {
   phase: 'enter' | 'exit';
   refreshToken?: number;
-  chartStatus?: 'approved' | 'pending';
+  chartStatus?: 'approved' | 'wip';
 };
 
 // Gameplay logic/rendering uses currentTimeRef every frame.
@@ -494,7 +496,7 @@ export const Game: React.FC = () => {
     chartSelectTransitionTimersRef.current = [];
   }, []);
 
-  const openChartSelect = useCallback((refreshToken?: number, chartStatus: 'approved' | 'pending' = 'approved') => {
+  const openChartSelect = useCallback((refreshToken?: number, chartStatus: 'approved' | 'wip' = 'approved') => {
     clearChartSelectTransitionTimers();
 
     setChartSelectTransition({ phase: 'enter', refreshToken, chartStatus });
@@ -519,6 +521,33 @@ export const Game: React.FC = () => {
     setChartSelectTransition(null);
     setViewMode({ type: 'menu' });
   }, [clearChartSelectTransitionTimers]);
+
+  const handleContributeWipChart = useCallback((chart: ApiChart) => {
+    if (!ensureEditorAccess()) return;
+
+    try {
+      const parsed = JSON.parse(chart.data_json || '{}');
+      const draft = {
+        ...parsed,
+        editingChartId: null,
+        chartTitle: parsed.chartTitle ?? chart.title,
+        chartAuthor: parsed.chartAuthor ?? chart.author,
+        chartDifficulty: parsed.chartDifficulty ?? chart.difficulty ?? 'Normal',
+        chartDescription: parsed.chartDescription ?? chart.description ?? '',
+        youtubeUrl: parsed.youtubeUrl ?? chart.youtube_url ?? '',
+        wip: {
+          ...(parsed.wip && typeof parsed.wip === 'object' ? parsed.wip : {}),
+          enabled: true,
+          parentChartId: parsed.wip?.parentChartId ?? chart.id,
+        },
+      };
+      localStorage.setItem(EDITOR_CONTRIBUTION_DRAFT_KEY, JSON.stringify(draft));
+      setViewMode({ type: 'editor' });
+    } catch (error) {
+      console.error('Failed to prepare WIP contribution:', error);
+      alert('이어 만들기용 채보 데이터를 열 수 없습니다.');
+    }
+  }, [ensureEditorAccess]);
 
   useEffect(() => {
     return clearChartSelectTransitionTimers;
@@ -803,6 +832,7 @@ export const Game: React.FC = () => {
           isAdmin={isAdmin}
           isLoggedIn={!!authUser}
           chartStatus={viewMode.chartStatus ?? 'approved'}
+          onContribute={viewMode.chartStatus === 'wip' ? handleContributeWipChart : undefined}
         />
       </div>
     );
@@ -1076,7 +1106,7 @@ export const Game: React.FC = () => {
                   isAdmin={isAdmin}
                   isModerator={isModerator}
                   onPlay={() => openChartSelect()}
-                  onWorkInProgress={() => openChartSelect(undefined, 'pending')}
+                  onWorkInProgress={() => openChartSelect(undefined, 'wip')}
                   onEdit={() => setViewMode({ type: 'editor' })}
                   onAdmin={() => setViewMode({ type: 'admin' })}
                   onTutorial={() => setViewMode({ type: 'tutorial' })}

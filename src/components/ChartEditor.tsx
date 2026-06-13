@@ -46,6 +46,7 @@ const KEY_TO_LANE: Record<string, Lane> = {
   f: 3,
 };
 const BGA_INTERVAL_MIN_DURATION_MS = 120;
+const EDITOR_CONTRIBUTION_DRAFT_KEY = 'userhythm:editor-contribution-draft';
 
 const keepTimelineActionButtonFromTakingFocus = (event: React.MouseEvent<HTMLButtonElement>) => {
   event.preventDefault();
@@ -369,6 +370,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [shareDifficulty, setShareDifficulty] = useState<string>('Normal');
   const [adminAssignedDifficulty, setAdminAssignedDifficulty] = useState<string>('');
   const [shareDescription, setShareDescription] = useState<string>('');
+  const [shareIsWip, setShareIsWip] = useState<boolean>(false);
+  const [shareWipNote, setShareWipNote] = useState<string>('');
+  const [wipParentChartId, setWipParentChartId] = useState<string | null>(null);
   const [sharePreviewStartMeasure, setSharePreviewStartMeasure] = useState<number>(1);
   const [sharePreviewEndMeasure, setSharePreviewEndMeasure] = useState<number>(5);
   const [isUploading, setIsUploading] = useState<boolean>(false);
@@ -663,7 +667,16 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       editingChartId,
       chartTitle: shareTitle,
       chartAuthor: shareAuthor,
+      chartDifficulty: shareDifficulty,
+      chartDescription: shareDescription,
       adminDifficulty: adminAssignedDifficulty,
+      wip: shareIsWip
+        ? {
+            enabled: true,
+            note: shareWipNote,
+            parentChartId: wipParentChartId,
+          }
+        : undefined,
       gridDivision,
       isLongNoteMode,
       testStartInput,
@@ -685,10 +698,15 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     bpmChanges,
         speedChanges,
         bgaVisibilityIntervals,
-        editingChartId,
+      editingChartId,
       shareTitle,
       shareAuthor,
+      shareDifficulty,
+      shareDescription,
       adminAssignedDifficulty,
+      shareIsWip,
+      shareWipNote,
+      wipParentChartId,
       gridDivision,
       isLongNoteMode,
       testStartInput,
@@ -760,6 +778,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     if (typeof data.chartDifficulty === 'string') setShareDifficulty(data.chartDifficulty);
     setAdminAssignedDifficulty(typeof data.adminDifficulty === 'string' ? data.adminDifficulty : '');
     if (typeof data.chartDescription === 'string') setShareDescription(data.chartDescription);
+    const restoredWip = data.wip && typeof data.wip === 'object' ? data.wip : null;
+    setShareIsWip(restoredWip?.enabled === true);
+    setShareWipNote(typeof restoredWip?.note === 'string' ? restoredWip.note : '');
+    setWipParentChartId(typeof restoredWip?.parentChartId === 'string' ? restoredWip.parentChartId : null);
     if (typeof data.editingChartId === 'string' && data.editingChartId.length > 0) {
       setEditingChartId(data.editingChartId);
     } else if (data.editingChartId === null) {
@@ -795,6 +817,25 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       }
     }
   }, [subtitleSessionId]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(EDITOR_CONTRIBUTION_DRAFT_KEY);
+      if (!raw) return;
+      localStorage.removeItem(EDITOR_CONTRIBUTION_DRAFT_KEY);
+      localStorage.removeItem(AUTO_SAVE_KEY);
+      const parsed = JSON.parse(raw);
+      handleRestore(parsed);
+      setEditingChartId(null);
+      setShareIsWip(true);
+      setWipParentChartId(
+        typeof parsed?.wip?.parentChartId === 'string' ? parsed.wip.parentChartId : null
+      );
+      setUploadStatus('WIP 채보를 이어 만들기 작업으로 불러왔습니다.');
+    } catch (error) {
+      console.error('Failed to restore WIP contribution draft:', error);
+    }
+  }, [handleRestore]);
 
   useChartAutosave(AUTO_SAVE_KEY, autoSaveData, handleRestore);
 
@@ -832,6 +873,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setShareDifficulty('Normal');
     setAdminAssignedDifficulty('');
     setShareDescription('');
+    setShareIsWip(false);
+    setShareWipNote('');
+    setWipParentChartId(null);
     setEditingChartId(null);
     setYoutubeUrl('');
     noteIdRef.current = 0;
@@ -1692,6 +1736,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           isLongNoteMode,
           previewStartMeasure: sharePreviewStartMeasure,
           previewEndMeasure: sharePreviewEndMeasure,
+          wip: shareIsWip
+            ? {
+                enabled: true,
+                note: shareWipNote.trim(),
+                parentChartId: wipParentChartId,
+              }
+            : undefined,
         };
 
         if (editingChartId && isAdmin) {
@@ -1728,7 +1779,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     } finally {
       setIsUploading(false);
     }
-  }, [shareTitle, shareAuthor, shareDifficulty, adminAssignedDifficulty, shareDescription, bpm, youtubeUrl, youtubeVideoId, youtubeThumbnailUrl, notes, beatsPerMeasure, timeSignatureOffset, timelineExtraMs, audioOffsetMs, bpmChanges, speedChanges, bgaVisibilityIntervals, gridDivision, isLongNoteMode, user, subtitleSessionId, sharePreviewStartMeasure, sharePreviewEndMeasure, editingChartId, isAdmin]);
+  }, [shareTitle, shareAuthor, shareDifficulty, adminAssignedDifficulty, shareDescription, bpm, youtubeUrl, youtubeVideoId, youtubeThumbnailUrl, notes, beatsPerMeasure, timeSignatureOffset, timelineExtraMs, audioOffsetMs, bpmChanges, speedChanges, bgaVisibilityIntervals, gridDivision, isLongNoteMode, user, subtitleSessionId, sharePreviewStartMeasure, sharePreviewEndMeasure, shareIsWip, shareWipNote, wipParentChartId, editingChartId, isAdmin]);
 
   const handleExportJson = useCallback(() => {
     try {
@@ -1968,6 +2019,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       setShareDifficulty(chart.difficulty || parsed.difficulty || 'Normal');
       setAdminAssignedDifficulty(chart.admin_difficulty || parsed.adminDifficulty || '');
       setShareDescription(chart.description || parsed.description || '');
+      setShareIsWip(parsed.wip?.enabled === true);
+      setShareWipNote(typeof parsed.wip?.note === 'string' ? parsed.wip.note : '');
+      setWipParentChartId(typeof parsed.wip?.parentChartId === 'string' ? parsed.wip.parentChartId : null);
       setUploadStatus('');
       setIsShareModalOpen(false);
       setIsLoadExistingModalOpen(false);
@@ -2324,6 +2378,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         onDifficultyChange={setShareDifficulty}
         description={shareDescription}
         onDescriptionChange={setShareDescription}
+        isWip={shareIsWip}
+        onIsWipChange={setShareIsWip}
+        wipNote={shareWipNote}
+        onWipNoteChange={setShareWipNote}
         thumbnailUrl={youtubeThumbnailUrl}
         isUploading={isUploading}
         uploadStatus={uploadStatus}

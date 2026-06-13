@@ -11,6 +11,10 @@ interface ChartShareModalProps {
   onDifficultyChange: (difficulty: string) => void;
   description: string;
   onDescriptionChange: (description: string) => void;
+  isWip: boolean;
+  onIsWipChange: (value: boolean) => void;
+  wipNote: string;
+  onWipNoteChange: (value: string) => void;
   thumbnailUrl: string | null;
   isUploading: boolean;
   uploadStatus: string;
@@ -35,6 +39,10 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
   onDifficultyChange,
   description,
   onDescriptionChange,
+  isWip,
+  onIsWipChange,
+  wipNote,
+  onWipNoteChange,
   thumbnailUrl,
   isUploading,
   uploadStatus,
@@ -208,6 +216,34 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
             }}
             placeholder="채보에 대한 설명을 입력하세요"
           />
+        </div>
+
+        <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#262626', borderRadius: '8px', border: '1px solid #3a3a3a' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 'bold', marginBottom: isWip ? '10px' : 0 }}>
+            <input
+              type="checkbox"
+              checked={isWip}
+              onChange={(e) => onIsWipChange(e.target.checked)}
+            />
+            제작 중인 채보로 공개
+          </label>
+          {isWip && (
+            <textarea
+              value={wipNote}
+              onChange={(e) => onWipNoteChange(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '8px',
+                backgroundColor: '#1f1f1f',
+                color: '#fff',
+                border: '1px solid #444',
+                borderRadius: '6px',
+                minHeight: '64px',
+                resize: 'vertical',
+              }}
+              placeholder="이어 만들 사람에게 남길 메모"
+            />
+          )}
         </div>
 
         <div style={{ marginBottom: '16px' }}>

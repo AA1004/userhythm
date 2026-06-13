@@ -9,6 +9,7 @@ const MAX_DATA_JSON_LENGTH = 1_000_000; // ~1MB
 const MAX_TITLE_LENGTH = 200;
 const MAX_DESCRIPTION_LENGTH = 1000;
 const MAX_DIFFICULTY_LENGTH = 50;
+const WIP_DATA_MARKER = '"wip":{"enabled":true';
 
 const extractAdminDifficulty = (dataJson: string): string | null => {
   try {
@@ -63,12 +64,17 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || `${DEFAULT_LIMIT}`, 10) || DEFAULT_LIMIT, MAX_LIMIT);
     const offset = parseInt(searchParams.get('offset') || '0', 10) || 0;
     const statusParam = (searchParams.get('status') || 'approved').trim().toLowerCase();
-    const statusFilter = statusParam === 'pending' ? 'pending' : 'approved';
+    const isWipList = statusParam === 'wip';
+    const statusFilter = 'approved';
+    const wipFilter = isWipList
+      ? { dataJson: { contains: WIP_DATA_MARKER } }
+      : { NOT: { dataJson: { contains: WIP_DATA_MARKER } } };
 
     const where: any = search
       ? {
           AND: [
             { status: statusFilter },
+            wipFilter,
             {
               OR: [
                 { title: { contains: search, mode: 'insensitive' } },
@@ -78,7 +84,7 @@ export async function GET(req: NextRequest) {
             },
           ],
         }
-      : { status: statusFilter };
+      : { AND: [{ status: statusFilter }, wipFilter] };
 
     const orderBy =
       sortBy === 'play_count'
