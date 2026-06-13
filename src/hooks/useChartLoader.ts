@@ -3,7 +3,8 @@ import { GameState, Note, BgaVisibilityInterval } from '../types/game';
 import { buildInitialScore, AudioSettings } from '../utils/gameHelpers';
 import { calculateGameDuration } from '../utils/gameHelpers';
 import { START_DELAY_MS } from '../constants/gameConstants';
-import { SubtitleCue, DEFAULT_SUBTITLE_STYLE } from '../types/subtitle';
+import { SubtitleCue } from '../types/subtitle';
+import { normalizeSubtitlePayload } from '../utils/subtitleNormalization';
 
 export interface UseChartLoaderOptions {
   setGameState: React.Dispatch<React.SetStateAction<GameState>>;
@@ -206,17 +207,12 @@ export function useChartLoader({
 
       // 자막 로드: 채보에 포함된 자막이 있으면 사용, 없으면 로컬 스토리지에서 로드
       if (Array.isArray(chartData.subtitles) && chartData.subtitles.length > 0) {
-        // 자막 데이터를 SubtitleCue 형식으로 변환
-        const convertedSubtitles: SubtitleCue[] = chartData.subtitles.map((sub: any, idx: number) => ({
-          id: sub.id || `subtitle-${idx}`,
-          chartId: sub.chartId || chartData.chartId || '',
-          trackId: sub.trackId || 'default',
-          startTimeMs: sub.startTimeMs ?? sub.startTime ?? 0,
-          endTimeMs: sub.endTimeMs ?? sub.endTime ?? 0,
-          text: sub.text || '',
-          style: sub.style || DEFAULT_SUBTITLE_STYLE,
-        }));
-        onSubtitlesSet(convertedSubtitles);
+        const subtitlePayload = normalizeSubtitlePayload(
+          chartData.chartId || '',
+          chartData.subtitles,
+          chartData.subtitleTracks
+        );
+        onSubtitlesSet(subtitlePayload.subtitles);
       } else if (chartData.chartId) {
         onSubtitlesLoad(chartData.chartId);
       } else {

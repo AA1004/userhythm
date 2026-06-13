@@ -37,6 +37,7 @@ import { KEY_LANE_HEIGHT } from '../constants/gameVisualSettings';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 import { api, ApiChart } from '../lib/api';
 import { chartAPI } from '../lib/supabaseClient';
+import type { SubtitleTrack } from '../types/subtitle';
 
 const EDITOR_CONTRIBUTION_DRAFT_KEY = 'userhythm:editor-contribution-draft';
 
@@ -48,6 +49,7 @@ interface SubtitleEditorChartData {
   youtubeVideoId?: string | null;
   youtubeUrl?: string;
   title?: string;
+  subtitleTracks?: SubtitleTrack[];
 }
 
 // 화면 상태 타입 - 여러 boolean을 단일 상태로 통합

@@ -3,6 +3,7 @@ import {
   SubtitleCueCreate,
   SubtitleCueUpdate,
   DEFAULT_SUBTITLE_STYLE,
+  SubtitleTrack,
 } from '../types/subtitle';
 
 // 현재 Supabase 백엔드 의존성을 제거하고 로컬 스토리지만 사용합니다.
@@ -191,6 +192,10 @@ export const localSubtitleStorage = {
     return `subtitles_${chartId}`;
   },
 
+  getTracksKey(chartId: string): string {
+    return `subtitle_tracks_${chartId}`;
+  },
+
   get(chartId: string): SubtitleCue[] {
     try {
       const key = this.getKey(chartId);
@@ -212,10 +217,37 @@ export const localSubtitleStorage = {
     }
   },
 
+  getTracks(chartId: string): SubtitleTrack[] {
+    try {
+      const key = this.getTracksKey(chartId);
+      const stored = localStorage.getItem(key);
+      if (!stored) return [];
+      return JSON.parse(stored);
+    } catch (e) {
+      console.error('Failed to load local subtitle tracks:', e);
+      return [];
+    }
+  },
+
+  saveTracks(chartId: string, tracks: SubtitleTrack[]): void {
+    try {
+      const key = this.getTracksKey(chartId);
+      localStorage.setItem(key, JSON.stringify(tracks));
+    } catch (e) {
+      console.error('Failed to save local subtitle tracks:', e);
+    }
+  },
+
+  savePayload(chartId: string, cues: SubtitleCue[], tracks: SubtitleTrack[]): void {
+    this.save(chartId, cues);
+    this.saveTracks(chartId, tracks);
+  },
+
   clear(chartId: string): void {
     try {
       const key = this.getKey(chartId);
       localStorage.removeItem(key);
+      localStorage.removeItem(this.getTracksKey(chartId));
     } catch (e) {
       console.error('Failed to clear local subtitles:', e);
     }

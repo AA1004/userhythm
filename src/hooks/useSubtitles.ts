@@ -1,9 +1,10 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, type MutableRefObject } from 'react';
 import { SubtitleCue, SubtitleStyle, ensureSubtitleFontsReady } from '../types/subtitle';
 import { subtitleAPI, localSubtitleStorage } from '../lib/subtitleAPI';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { GameState } from '../types/game';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
+import { getSubtitleFontKey, normalizeSubtitlePayload } from '../utils/subtitleNormalization';
 
 export interface ActiveSubtitle {
   cue: SubtitleCue;
@@ -42,8 +43,16 @@ const getSubtitleEffectiveEndTime = (cue: SubtitleCue): number => {
 const sortSubtitles = (cues: SubtitleCue[]): SubtitleCue[] =>
   [...cues].sort((a, b) => a.startTimeMs - b.startTimeMs || a.endTimeMs - b.endTimeMs);
 
-const prepareSubtitleFonts = (cues: SubtitleCue[]) => {
+const getSubtitleStateKey = (cues: SubtitleCue[]): string =>
+  cues
+    .map((cue) => `${cue.id}:${cue.trackId ?? cue.style?.trackId ?? ''}:${cue.startTimeMs}:${cue.endTimeMs}:${cue.text}:${JSON.stringify(cue.style ?? {})}`)
+    .join('|');
+
+const prepareSubtitleFonts = (cues: SubtitleCue[], lastFontKeyRef: MutableRefObject<string>) => {
   if (!cues.length) return;
+  const fontKey = getSubtitleFontKey(cues);
+  if (lastFontKeyRef.current === fontKey) return;
+  lastFontKeyRef.current = fontKey;
   void ensureSubtitleFontsReady(
     cues.map((cue) => cue.style?.fontFamily || 'Noto Sans KR, sans-serif')
   ).catch((error) => {
@@ -81,6 +90,8 @@ const lowerBoundNotEnded = (entries: SubtitleTimelineEntry[], timeMs: number): n
 
 export function useSubtitles(gameState: GameState, currentChartTimeMs: number): UseSubtitlesReturn {
   const [subtitles, setSubtitlesState] = useState<SubtitleCue[]>([]);
+  const lastSubtitleStateKeyRef = useRef('');
+  const lastFontKeyRef = useRef('');
   const subtitleClockTimeMs = useMemo(
     () => Math.floor(currentChartTimeMs / SUBTITLE_ACTIVE_BUCKET_MS) * SUBTITLE_ACTIVE_BUCKET_MS,
     [currentChartTimeMs]
@@ -90,14 +101,24 @@ export function useSubtitles(gameState: GameState, currentChartTimeMs: number): 
     if (typeof value === 'function') {
       setSubtitlesState((prev) => {
         const next = sortSubtitles(value(prev));
-        prepareSubtitleFonts(next);
+        const nextKey = getSubtitleStateKey(next);
+        if (lastSubtitleStateKeyRef.current === nextKey) {
+          return prev;
+        }
+        lastSubtitleStateKeyRef.current = nextKey;
+        prepareSubtitleFonts(next, lastFontKeyRef);
         return next;
       });
       return;
     }
 
     const next = sortSubtitles(value);
-    prepareSubtitleFonts(next);
+    const nextKey = getSubtitleStateKey(next);
+    if (lastSubtitleStateKeyRef.current === nextKey) {
+      return;
+    }
+    lastSubtitleStateKeyRef.current = nextKey;
+    prepareSubtitleFonts(next, lastFontKeyRef);
     setSubtitlesState(next);
   }, []);
 
@@ -117,10 +138,15 @@ export function useSubtitles(gameState: GameState, currentChartTimeMs: number): 
         }
       }
 
-      await ensureSubtitleFontsReady(
-        cues.map((cue) => cue.style?.fontFamily || 'Noto Sans KR, sans-serif')
+      const normalized = normalizeSubtitlePayload(
+        chartId,
+        cues,
+        localSubtitleStorage.getTracks(chartId)
       );
-      setSubtitles(sortSubtitles(cues));
+      await ensureSubtitleFontsReady(
+        normalized.subtitles.map((cue) => cue.style?.fontFamily || 'Noto Sans KR, sans-serif')
+      );
+      setSubtitles(normalized.subtitles);
     } catch (e) {
       console.error('Failed to load subtitles', e);
       setSubtitles([]);

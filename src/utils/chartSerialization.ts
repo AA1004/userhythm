@@ -1,4 +1,5 @@
 import { Note, BPMChange, SpeedChange, BgaVisibilityInterval } from '../types/game';
+import { SubtitleCue, SubtitleTrack } from '../types/subtitle';
 import { validateNotes, getMaxNoteId } from './noteValidation';
 
 /**
@@ -16,6 +17,8 @@ export interface ChartData {
   bpmChanges: BPMChange[];
   speedChanges: SpeedChange[];
   bgaVisibilityIntervals: BgaVisibilityInterval[];
+  subtitles?: SubtitleCue[];
+  subtitleTracks?: SubtitleTrack[];
   chartTitle?: string;
   chartAuthor?: string;
   gridDivision?: number;
@@ -99,6 +102,8 @@ export function restoreChartData(data: ChartData): {
     bpmChanges: Array.isArray(data.bpmChanges) ? data.bpmChanges : [],
     speedChanges: Array.isArray(data.speedChanges) ? data.speedChanges : [],
     bgaVisibilityIntervals: Array.isArray(data.bgaVisibilityIntervals) ? data.bgaVisibilityIntervals : [],
+    subtitles: Array.isArray(data.subtitles) ? data.subtitles : undefined,
+    subtitleTracks: Array.isArray(data.subtitleTracks) ? data.subtitleTracks : undefined,
     chartTitle: data.chartTitle,
     chartAuthor: data.chartAuthor,
     gridDivision: data.gridDivision,
@@ -131,6 +136,8 @@ export function createExportData(data: ChartData): ChartData {
     bpmChanges: data.bpmChanges,
     speedChanges: data.speedChanges,
     bgaVisibilityIntervals: data.bgaVisibilityIntervals,
+    subtitles: data.subtitles,
+    subtitleTracks: data.subtitleTracks,
     chartTitle: data.chartTitle,
     chartAuthor: data.chartAuthor,
     gridDivision: data.gridDivision,

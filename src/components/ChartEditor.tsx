@@ -29,6 +29,7 @@ import { getDisplayChartDifficulty } from '../constants/chartDifficulty';
 import { localSubtitleStorage } from '../lib/subtitleAPI';
 import { MIN_LONG_NOTE_DURATION, validateNotes, getMaxNoteId } from '../utils/noteValidation';
 import { convertBgaEventsToEditableIntervals } from '../utils/bgaVisibility';
+import { normalizeSubtitlePayload } from '../utils/subtitleNormalization';
 import {
   blurEditorNonTextControlAfterPointer,
   blurEditorNonTextControlOnFocus,
@@ -258,12 +259,30 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
     return generated;
   });
+  const [cachedSubtitlePayload, setCachedSubtitlePayload] = useState(() =>
+    normalizeSubtitlePayload(
+      typeof window === 'undefined' ? 'local' : localStorage.getItem('subtitle-session-id') || 'local',
+      typeof window === 'undefined'
+        ? []
+        : localSubtitleStorage.get(localStorage.getItem('subtitle-session-id') || 'local'),
+      typeof window === 'undefined'
+        ? []
+        : localSubtitleStorage.getTracks(localStorage.getItem('subtitle-session-id') || 'local')
+    )
+  );
   useEffect(() => {
     const handler = (event: Event) => {
       try {
         const custom = event as CustomEvent<string>;
         if (typeof custom.detail === 'string' && custom.detail.length > 0) {
           setSubtitleSessionId(custom.detail);
+          setCachedSubtitlePayload(
+            normalizeSubtitlePayload(
+              custom.detail,
+              localSubtitleStorage.get(custom.detail),
+              localSubtitleStorage.getTracks(custom.detail)
+            )
+          );
         }
       } catch {
         // ignore
@@ -652,41 +671,45 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
   // --- 자동 저장 ---
   const autoSaveData = useMemo(
-    () => ({
-      notes,
-      bpm,
-      youtubeUrl,
-      youtubeVideoId,
-      beatsPerMeasure,
-      timeSignatureOffset,
-      timelineExtraMs,
-      audioOffsetMs,
-      bpmChanges,
-      speedChanges,
-      bgaVisibilityIntervals,
-      editingChartId,
-      chartTitle: shareTitle,
-      chartAuthor: shareAuthor,
-      chartDifficulty: shareDifficulty,
-      chartDescription: shareDescription,
-      adminDifficulty: adminAssignedDifficulty,
-      wip: shareIsWip
-        ? {
-            enabled: true,
-            note: shareWipNote,
-            parentChartId: wipParentChartId,
-          }
-        : undefined,
-      gridDivision,
-      isLongNoteMode,
-      testStartInput,
-      playbackSpeed,
-      volume,
-      hitSoundVolume,
-      currentTime,
-      isAutoScrollEnabled,
-      zoom,
-    }),
+    () => {
+      return {
+        notes,
+        bpm,
+        youtubeUrl,
+        youtubeVideoId,
+        beatsPerMeasure,
+        timeSignatureOffset,
+        timelineExtraMs,
+        audioOffsetMs,
+        bpmChanges,
+        speedChanges,
+        bgaVisibilityIntervals,
+        subtitles: cachedSubtitlePayload.subtitles.length > 0 ? cachedSubtitlePayload.subtitles : undefined,
+        subtitleTracks: cachedSubtitlePayload.subtitleTracks,
+        editingChartId,
+        chartTitle: shareTitle,
+        chartAuthor: shareAuthor,
+        chartDifficulty: shareDifficulty,
+        chartDescription: shareDescription,
+        adminDifficulty: adminAssignedDifficulty,
+        wip: shareIsWip
+          ? {
+              enabled: true,
+              note: shareWipNote,
+              parentChartId: wipParentChartId,
+            }
+          : undefined,
+        gridDivision,
+        isLongNoteMode,
+        testStartInput,
+        playbackSpeed,
+        volume,
+        hitSoundVolume,
+        currentTime,
+        isAutoScrollEnabled,
+        zoom,
+      };
+    },
     [
     notes,
     bpm,
@@ -707,6 +730,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       shareIsWip,
       shareWipNote,
       wipParentChartId,
+      subtitleSessionId,
       gridDivision,
       isLongNoteMode,
       testStartInput,
@@ -717,6 +741,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       isAutoScrollEnabled,
       zoom,
       timelineExtraMs,
+      cachedSubtitlePayload,
     ]
   );
 
@@ -827,10 +852,41 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     // 자막은 notes와 같은 복원 단위로 본다.
     // JSON/기존 채보에 자막이 없으면 현재 세션 자막도 비워서 이전 곡 흔적이 남지 않게 한다.
     try {
-      const restoredSubtitles =
-        Array.isArray(data.subtitles) && data.subtitles.length > 0 ? data.subtitles : [];
-      localSubtitleStorage.save(subtitleSessionId, restoredSubtitles);
-      window.dispatchEvent(new CustomEvent('subtitles-restored', { detail: restoredSubtitles }));
+      const restoredSubtitlePayload = normalizeSubtitlePayload(
+        subtitleSessionId,
+        Array.isArray(data.subtitles) ? data.subtitles : [],
+        Array.isArray(data.subtitleTracks) ? data.subtitleTracks : [],
+        undefined
+      );
+      localSubtitleStorage.savePayload(
+        subtitleSessionId,
+        restoredSubtitlePayload.subtitles,
+        restoredSubtitlePayload.subtitleTracks
+      );
+      localStorage.setItem(
+        `subtitle-editor-${subtitleSessionId}`,
+        JSON.stringify({
+          chartId: subtitleSessionId,
+          tracks: restoredSubtitlePayload.subtitleTracks,
+          subtitleTracks: restoredSubtitlePayload.subtitleTracks,
+          subtitles: restoredSubtitlePayload.subtitles,
+          selectedTrackId: restoredSubtitlePayload.selectedTrackId,
+          beatsPerMeasure,
+          noteValue: 4,
+          isPlayheadLocked: false,
+          gridOffsetMs: timeSignatureOffset,
+          currentTimeMs: 0,
+        })
+      );
+      setCachedSubtitlePayload(restoredSubtitlePayload);
+      window.dispatchEvent(
+        new CustomEvent('subtitles-restored', {
+          detail: {
+            ...restoredSubtitlePayload,
+            explicit: true,
+          },
+        })
+      );
     } catch (error) {
       console.error('Failed to restore subtitles:', error);
     }
@@ -1734,7 +1790,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     try {
       const playableNotes = validateNotes(notes);
       // 공유 시에는 채보 데이터만 포함 (에디터 상태 제외)
-      const subtitles = localSubtitleStorage.get(subtitleSessionId);
+      const subtitlePayload = normalizeSubtitlePayload(
+        subtitleSessionId,
+        localSubtitleStorage.get(subtitleSessionId),
+        localSubtitleStorage.getTracks(subtitleSessionId)
+      );
         const chartData = {
           notes: playableNotes,
           bpm,
@@ -1747,7 +1807,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         bpmChanges,
         speedChanges,
         bgaVisibilityIntervals,
-          subtitles: subtitles.length > 0 ? subtitles : undefined,
+          subtitles: subtitlePayload.subtitles.length > 0 ? subtitlePayload.subtitles : undefined,
+          subtitleTracks: subtitlePayload.subtitleTracks,
           chartTitle: shareTitle,
           chartAuthor: shareAuthor,
           chartDifficulty: shareDifficulty,
@@ -1807,7 +1868,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     try {
       const playableNotes = validateNotes(notes);
       // 자막 데이터 가져오기
-      const subtitles = localSubtitleStorage.get(subtitleSessionId);
+      const subtitlePayload = normalizeSubtitlePayload(
+        subtitleSessionId,
+        localSubtitleStorage.get(subtitleSessionId),
+        localSubtitleStorage.getTracks(subtitleSessionId)
+      );
       
       const payload = {
         version: 1,
@@ -1815,7 +1880,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         chart: {
           ...autoSaveData,
           notes: playableNotes,
-          subtitles: subtitles.length > 0 ? subtitles : undefined,
+          subtitles: subtitlePayload.subtitles.length > 0 ? subtitlePayload.subtitles : undefined,
+          subtitleTracks: subtitlePayload.subtitleTracks,
           previewStartMeasure: sharePreviewStartMeasure,
           previewEndMeasure: sharePreviewEndMeasure,
         },
@@ -1974,7 +2040,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   }, [resolveEditorPreviewChartTimeMs]);
 
   const handleOpenShareModal = useCallback(() => {
-    const subtitles = localSubtitleStorage.get(subtitleSessionId);
+    const { subtitles } = normalizeSubtitlePayload(
+      subtitleSessionId,
+      localSubtitleStorage.get(subtitleSessionId),
+      localSubtitleStorage.getTracks(subtitleSessionId)
+    );
     if (subtitles.length > 0) {
       const firstCue = subtitles[0];
       const startMeasure = timeToMeasure(firstCue.startTimeMs, bpm, bpmChanges, beatsPerMeasure);
@@ -2225,6 +2295,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
             youtubeVideoId,
             youtubeUrl,
                   title: shareTitle || 'Untitled',
+                  subtitleTracks: normalizeSubtitlePayload(
+                    subtitleSessionId,
+                    localSubtitleStorage.get(subtitleSessionId),
+                    localSubtitleStorage.getTracks(subtitleSessionId)
+                  ).subtitleTracks,
                 })
             : undefined
         }

@@ -1,3 +1,5 @@
+import type { SubtitleTrack } from './subtitle';
+
 export type Lane = 0 | 1 | 2 | 3;
 
 export type NoteType = 'tap' | 'hold';
@@ -103,4 +105,5 @@ export interface SubtitleEditorChartData {
   youtubeVideoId?: string | null;
   youtubeUrl?: string;
   title?: string;
+  subtitleTracks?: SubtitleTrack[];
 }

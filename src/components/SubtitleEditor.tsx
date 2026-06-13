@@ -14,6 +14,7 @@ import { useYoutubeAudio } from '../hooks/useYoutubeAudio';
 import { useChartAutosave } from '../hooks/useChartAutosave';
 import { localSubtitleStorage, subtitleAPI } from '../lib/subtitleAPI';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
+import { normalizeSubtitlePayload } from '../utils/subtitleNormalization';
 
 interface SubtitleEditorProps {
   chartId: string;
@@ -23,6 +24,7 @@ interface SubtitleEditorProps {
     youtubeVideoId?: string | null;
     youtubeUrl?: string;
     title?: string;
+    subtitleTracks?: SubtitleTrack[];
   };
   onClose: () => void;
 }
@@ -124,17 +126,27 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     subtitlesLoadedRef.current = false;
     setSelectedSubtitleId(null);
 
-    const storedCues = localSubtitleStorage.get(activeChartId);
-    hadLocalSubtitlesRef.current = storedCues.length > 0;
-    setSubtitles(storedCues);
+    const storedPayload = normalizeSubtitlePayload(
+      activeChartId,
+      localSubtitleStorage.get(activeChartId),
+      chartData.subtitleTracks?.length
+        ? chartData.subtitleTracks
+        : localSubtitleStorage.getTracks(activeChartId),
+      undefined
+    );
+    hadLocalSubtitlesRef.current = storedPayload.subtitles.length > 0;
+    setTracks(storedPayload.subtitleTracks);
+    setSelectedTrackId(storedPayload.selectedTrackId);
+    setSubtitles(storedPayload.subtitles);
 
     subtitlesLoadedRef.current = true;
-  }, [activeChartId]);
+  }, [activeChartId, chartData.subtitleTracks]);
 
   useEffect(() => {
     if (!subtitlesLoadedRef.current) return;
     if (!activeChartId) return;
-    localSubtitleStorage.save(activeChartId, subtitles);
+    const payload = normalizeSubtitlePayload(activeChartId, subtitles, tracks, selectedTrackId);
+    localSubtitleStorage.savePayload(activeChartId, payload.subtitles, payload.subtitleTracks);
 
     if (isSupabaseConfigured) {
       if (supabaseSaveTimeoutRef.current) {
@@ -143,13 +155,13 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
 
       supabaseSaveTimeoutRef.current = setTimeout(async () => {
         try {
-          await subtitleAPI.upsertSubtitles(activeChartId, subtitles);
+          await subtitleAPI.upsertSubtitles(activeChartId, payload.subtitles);
         } catch (error) {
           console.error('Failed to sync subtitles to Supabase:', error);
         }
       }, 800);
     }
-  }, [activeChartId, subtitles]);
+  }, [activeChartId, selectedTrackId, subtitles, tracks]);
 
   useEffect(() => {
     return () => {
@@ -163,6 +175,7 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     () => ({
       chartId: activeChartId,
       tracks,
+      subtitleTracks: tracks,
       subtitles,
       beatsPerMeasure,
       noteValue,
@@ -186,15 +199,19 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
 
   const handleSubtitleRestore = useCallback((data: any) => {
     if (data && typeof data === 'object') {
+      const restoreChartId = typeof data.chartId === 'string' ? data.chartId : activeChartId;
       if (typeof data.chartId === 'string') {
         syncChartIdToSession(data.chartId);
       }
-      if (Array.isArray(data.tracks) && data.tracks.length > 0) {
-        setTracks(data.tracks);
-      }
-      if (Array.isArray(data.subtitles)) {
-        setSubtitles(data.subtitles);
-      }
+      const payload = normalizeSubtitlePayload(
+        restoreChartId,
+        Array.isArray(data.subtitles) ? data.subtitles : [],
+        Array.isArray(data.subtitleTracks) ? data.subtitleTracks : Array.isArray(data.tracks) ? data.tracks : [],
+        typeof data.selectedTrackId === 'string' ? data.selectedTrackId : undefined
+      );
+      setTracks(payload.subtitleTracks);
+      setSelectedTrackId(payload.selectedTrackId);
+      setSubtitles(payload.subtitles);
       if (typeof data.beatsPerMeasure === 'number') {
         setBeatsPerMeasure(data.beatsPerMeasure);
       }
@@ -207,14 +224,11 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
       if (typeof data.isPlayheadLocked === 'boolean') {
         setIsPlayheadLocked(data.isPlayheadLocked);
       }
-      if (typeof data.selectedTrackId === 'string') {
-        setSelectedTrackId(data.selectedTrackId);
-      }
       if (typeof data.currentTimeMs === 'number') {
         setCurrentTimeMs(Math.max(0, data.currentTimeMs));
       }
     }
-  }, []);
+  }, [activeChartId, syncChartIdToSession]);
 
   // 자동 저장 훅 (로컬)
   useChartAutosave(subtitleAutosaveKey, subtitleAutosaveData, handleSubtitleRestore);
@@ -232,8 +246,15 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
         const cues = await subtitleAPI.getSubtitlesByChartId(activeChartId);
         if (!isMounted) return;
         if (cues.length > 0) {
-          setSubtitles(cues);
-          localSubtitleStorage.save(activeChartId, cues);
+          const payload = normalizeSubtitlePayload(
+            activeChartId,
+            cues,
+            localSubtitleStorage.getTracks(activeChartId)
+          );
+          setTracks(payload.subtitleTracks);
+          setSelectedTrackId(payload.selectedTrackId);
+          setSubtitles(payload.subtitles);
+          localSubtitleStorage.savePayload(activeChartId, payload.subtitles, payload.subtitleTracks);
         }
       } catch (error) {
         console.error('Failed to load subtitles from Supabase:', error);
@@ -251,19 +272,27 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
 
   useEffect(() => {
     const handleRestoredSubtitles = (event: Event) => {
-      const customEvent = event as CustomEvent<SubtitleCue[]>;
-      const nextSubtitles = Array.isArray(customEvent.detail) ? customEvent.detail : [];
-      hadLocalSubtitlesRef.current = nextSubtitles.length > 0;
+      const customEvent = event as CustomEvent<any>;
+      const detail = customEvent.detail;
+      if (!detail?.explicit) return;
+      const payload = normalizeSubtitlePayload(
+        typeof detail.chartId === 'string' ? detail.chartId : activeChartId,
+        Array.isArray(detail.subtitles) ? detail.subtitles : [],
+        Array.isArray(detail.subtitleTracks) ? detail.subtitleTracks : []
+      );
+      hadLocalSubtitlesRef.current = payload.subtitles.length > 0;
       subtitlesLoadedRef.current = true;
+      setTracks(payload.subtitleTracks);
+      setSelectedTrackId(payload.selectedTrackId);
       setSelectedSubtitleId(null);
-      setSubtitles(nextSubtitles);
+      setSubtitles(payload.subtitles);
     };
 
     window.addEventListener('subtitles-restored', handleRestoredSubtitles as EventListener);
     return () => {
       window.removeEventListener('subtitles-restored', handleRestoredSubtitles as EventListener);
     };
-  }, [syncChartIdToSession]);
+  }, [activeChartId]);
 
   // --- 에디터 전용 타이머 (재생선 시간 소스) ---
   useEffect(() => {
