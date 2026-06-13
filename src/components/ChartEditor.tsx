@@ -806,15 +806,15 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setPendingLongNote(null);
     isDraggingPlayheadRef.current = false;
 
-    // 자막 데이터 복원
-    if (Array.isArray(data.subtitles) && data.subtitles.length > 0) {
-      try {
-        localSubtitleStorage.save(subtitleSessionId, data.subtitles);
-        // 자막 에디터에 알림
-        window.dispatchEvent(new CustomEvent('subtitles-restored', { detail: data.subtitles }));
-      } catch (error) {
-        console.error('Failed to restore subtitles:', error);
-      }
+    // 자막은 notes와 같은 복원 단위로 본다.
+    // JSON/기존 채보에 자막이 없으면 현재 세션 자막도 비워서 이전 곡 흔적이 남지 않게 한다.
+    try {
+      const restoredSubtitles =
+        Array.isArray(data.subtitles) && data.subtitles.length > 0 ? data.subtitles : [];
+      localSubtitleStorage.save(subtitleSessionId, restoredSubtitles);
+      window.dispatchEvent(new CustomEvent('subtitles-restored', { detail: restoredSubtitles }));
+    } catch (error) {
+      console.error('Failed to restore subtitles:', error);
     }
   }, [subtitleSessionId]);
 

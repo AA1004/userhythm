@@ -116,11 +116,13 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   // 로컬 저장소에서 기존 자막 복원 (게임 테스트용 임시 저장)
   useEffect(() => {
     hadLocalSubtitlesRef.current = false;
+    subtitlesLoadedRef.current = false;
+    setSelectedSubtitleId(null);
+
     const storedCues = localSubtitleStorage.get(chartId);
-    if (storedCues.length > 0) {
-      hadLocalSubtitlesRef.current = true;
-      setSubtitles((prev) => (prev.length > 0 ? prev : storedCues));
-    }
+    hadLocalSubtitlesRef.current = storedCues.length > 0;
+    setSubtitles(storedCues);
+
     subtitlesLoadedRef.current = true;
   }, [chartId]);
 
@@ -244,14 +246,14 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
       }
     }
 
-    if (subtitles.length === 0) {
+    if (!hadLocalSubtitlesRef.current) {
       loadSupabaseSubtitles();
     }
 
     return () => {
       isMounted = false;
     };
-  }, [chartId, subtitles.length]);
+  }, [chartId]);
 
   // --- 에디터 전용 타이머 (재생선 시간 소스) ---
   useEffect(() => {
