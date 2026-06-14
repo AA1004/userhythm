@@ -14,6 +14,7 @@ export interface UseTestYoutubePlayerOptions {
   externalPlayer?: any | null;
   volume?: number; // 0-100
   performanceMode?: PerformanceMode;
+  onPlaybackEnded?: () => void;
 }
 
 export interface UseTestYoutubePlayerReturn {
@@ -33,6 +34,7 @@ export function useTestYoutubePlayer({
   externalPlayer,
   volume = 100,
   performanceMode = 'balanced',
+  onPlaybackEnded,
 }: UseTestYoutubePlayerOptions): UseTestYoutubePlayerReturn {
   const [player, setPlayer] = useState<any>(null);
   const playerRef = useRef<HTMLDivElement>(null);
@@ -46,10 +48,23 @@ export function useTestYoutubePlayer({
   const lastAudioSyncCheckAtRef = useRef(0);
   const isExternalPlayerRef = useRef(false);
   const latestVolumeRef = useRef(volume);
+  const onPlaybackEndedRef = useRef(onPlaybackEnded);
 
   useEffect(() => {
     latestVolumeRef.current = volume;
   }, [volume]);
+
+  useEffect(() => {
+    onPlaybackEndedRef.current = onPlaybackEnded;
+  }, [onPlaybackEnded]);
+
+  const markPlaybackEnded = () => {
+    if (audioPlaybackEndedRef.current) return;
+    audioHasStartedRef.current = false;
+    audioPrewarmedRef.current = false;
+    audioPlaybackEndedRef.current = true;
+    onPlaybackEndedRef.current?.();
+  };
 
   // External player가 있으면 재사용
   useEffect(() => {
@@ -187,9 +202,7 @@ export function useTestYoutubePlayer({
             onStateChange: (event: any) => {
               if (isCancelled) return;
               if (event.data !== window.YT?.PlayerState?.ENDED) return;
-              audioHasStartedRef.current = false;
-              audioPrewarmedRef.current = false;
-              audioPlaybackEndedRef.current = true;
+              markPlaybackEnded();
               try {
                 event.target.mute?.();
                 event.target.pauseVideo?.();
@@ -293,7 +306,7 @@ export function useTestYoutubePlayer({
         }
         audioHasStartedRef.current = false;
         audioPrewarmedRef.current = false;
-        audioPlaybackEndedRef.current = true;
+        markPlaybackEnded();
         if (shouldProfile) {
           recordGameplayMetric('audioSync', performance.now() - syncStart, durationSeconds);
         }

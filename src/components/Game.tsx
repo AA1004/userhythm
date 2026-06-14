@@ -324,6 +324,12 @@ export const Game: React.FC = () => {
     },
   });
 
+  const finishCurrentGame = useCallback(() => {
+    setGameState((prev) => (
+      prev.gameEnded ? prev : { ...prev, currentTime: currentTimeRef.current, gameEnded: true }
+    ));
+  }, []);
+
   // YouTube 플레이어 훅
   const {
     playerRef: testYoutubePlayerRef,
@@ -340,6 +346,11 @@ export const Game: React.FC = () => {
     externalPlayer: null, // 외부 플레이어 재사용 비활성화 - 미리보기 루프 타이머 충돌 방지
     volume: gameVolume,
     performanceMode: visualSettings.performanceMode,
+    onPlaybackEnded: () => {
+      if (!isFromEditor) {
+        finishCurrentGame();
+      }
+    },
   });
 
   const handleEditorTestWithRuntimeReset = useCallback(
@@ -371,11 +382,11 @@ export const Game: React.FC = () => {
 
     let frameId: number | null = null;
     const tick = () => {
-      if (currentTimeRef.current >= dynamicGameDuration) {
-        setGameState((prev) => (
-          prev.gameEnded ? prev : { ...prev, currentTime: currentTimeRef.current, gameEnded: true }
-        ));
+      const shouldEndByChartDuration =
+        isFromEditor || !hasYoutubeAudioSession || !testYoutubeVideoId;
 
+      if (shouldEndByChartDuration && currentTimeRef.current >= dynamicGameDuration) {
+        finishCurrentGame();
         if (hasYoutubeAudioSession && testYoutubePlayerReady) {
           pauseYoutubePlayer();
         }
@@ -395,9 +406,12 @@ export const Game: React.FC = () => {
     gameState.gameStarted,
     gameState.gameEnded,
     dynamicGameDuration,
+    isFromEditor,
     hasYoutubeAudioSession,
+    testYoutubeVideoId,
     testYoutubePlayerReady,
     pauseYoutubePlayer,
+    finishCurrentGame,
   ]);
 
   useEffect(() => {

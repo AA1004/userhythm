@@ -60,3 +60,24 @@ export const calculateGameDuration = (notes: Note[]): number => {
   );
 };
 
+export const calculatePlayableChartDuration = (
+  notes: Note[],
+  timelineExtraMs = 0
+): number => {
+  const lastNoteTime = notes.length
+    ? Math.max(
+        ...notes.map((n) =>
+          typeof n.endTime === 'number' ? n.endTime : n.time
+        )
+      )
+    : 0;
+  const TAIL_MARGIN_MS = 5000;
+  const MIN_DURATION_MS = 60000;
+  const extraMs = Number.isFinite(timelineExtraMs) ? Math.max(0, timelineExtraMs) : 0;
+  const computedDuration = lastNoteTime + TAIL_MARGIN_MS + extraMs;
+  return Math.max(
+    MIN_DURATION_MS,
+    Math.min(computedDuration, MAX_CHART_DURATION)
+  );
+};
+

@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import { GameState, Note, BgaVisibilityInterval } from '../types/game';
-import { buildInitialScore, AudioSettings } from '../utils/gameHelpers';
-import { calculateGameDuration } from '../utils/gameHelpers';
+import { buildInitialScore, AudioSettings, calculatePlayableChartDuration } from '../utils/gameHelpers';
 import { START_DELAY_MS } from '../constants/gameConstants';
 import { SubtitleCue } from '../types/subtitle';
 import { normalizeSubtitlePayload } from '../utils/subtitleNormalization';
@@ -190,8 +189,11 @@ export function useChartLoader({
       onBgaIntervalsSet(sortedIntervals);
       onBgaIntervalsRefSet(sortedIntervals);
 
-      // 채보 마지막 노트 기준으로 게임 길이 계산
-      const clampedDuration = calculateGameDuration(preparedNotes);
+      // 일반 플레이는 에디터 테스트와 달리 채보 타임라인 여유분까지 재생한다.
+      const clampedDuration = calculatePlayableChartDuration(
+        preparedNotes,
+        typeof chartData.timelineExtraMs === 'number' ? chartData.timelineExtraMs : 0
+      );
       onDynamicGameDurationSet(clampedDuration);
       
       setGameState({
