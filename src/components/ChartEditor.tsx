@@ -1853,7 +1853,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
             youtubeUrl: youtubeUrl || undefined,
             previewImage: youtubeThumbnailUrl || undefined,
           });
-          setUploadStatus('업로드 완료! 관리자 승인 후 공개됩니다.');
+          setUploadStatus(
+            shareIsWip
+              ? 'WIP 업로드 완료! 제작 중인 채보 목록에 공개됩니다.'
+              : '업로드 완료! 관리자 승인 후 공개됩니다.'
+          );
         }
 
         setTimeout(() => {

@@ -376,7 +376,9 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
               opacity: isUploading || !user ? 0.5 : 1,
             }}
           >
-            {isUploading ? (isEditingExisting ? '저장 중...' : '업로드 중...') : (isEditingExisting ? '수정 저장' : '업로드')}
+            {isUploading
+              ? (isEditingExisting ? '저장 중...' : '업로드 중...')
+              : (isEditingExisting ? '수정 저장' : isWip ? 'WIP으로 업로드' : '업로드')}
           </button>
         </div>
       </div>

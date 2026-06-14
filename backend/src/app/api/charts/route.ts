@@ -35,6 +35,15 @@ const sanitizeChartDataJsonForUserUpload = (raw: string): string => {
   }
 };
 
+const isWipChartDataJson = (raw: string): boolean => {
+  try {
+    const parsed = JSON.parse(raw || '{}');
+    return parsed?.wip?.enabled === true;
+  } catch {
+    return raw.includes(WIP_DATA_MARKER);
+  }
+};
+
 const serializeChart = (chart: Chart, opts?: { authorRole?: string; authorNickname?: string; authorEmail?: string }) => ({
   id: chart.id,
   title: chart.title,
@@ -178,6 +187,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'invalid_dataJson' }, { status: 400 });
     }
     const sanitizedDataJson = sanitizeChartDataJsonForUserUpload(dataJson);
+    const isWipUpload = isWipChartDataJson(sanitizedDataJson);
 
     const trimmedDescription =
       typeof description === 'string' && description.trim().length > 0
@@ -217,7 +227,9 @@ export async function POST(req: NextRequest) {
         previewImage: trimmedPreviewImage,
         dataJson: sanitizedDataJson,
         userId: dbUser.id,
-        // status는 prisma schema default("pending") 사용
+        // WIP는 협업용 공개 목록에 바로 보여야 하므로 승인 상태로 저장한다.
+        // 일반 공유 채보는 기존처럼 관리자 승인 대기 상태로 둔다.
+        status: isWipUpload ? 'approved' : 'pending',
       },
     });
 
