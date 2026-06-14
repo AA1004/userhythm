@@ -1065,20 +1065,24 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     const defaultDuration = Math.max(600, beatDuration * beatsPerMeasure);
     setBgaVisibilityIntervals((prev) => {
       const sortedPrev = [...prev].sort((a, b) => a.startTimeMs - b.startTimeMs);
-      const nextIntervalIndex = sortedPrev.findIndex((interval) => interval.startTimeMs > start);
-      const nextInterval = nextIntervalIndex >= 0 ? sortedPrev[nextIntervalIndex] : null;
-      const previousInterval = nextIntervalIndex >= 0 ? sortedPrev[nextIntervalIndex - 1] : sortedPrev[sortedPrev.length - 1];
-      const clampedStart = Math.max(previousInterval?.endTimeMs ?? 0, start);
+      const overlapsExisting = sortedPrev.some(
+        (interval) => start >= interval.startTimeMs && start < interval.endTimeMs
+      );
+      if (overlapsExisting) {
+        return prev;
+      }
+
+      const nextInterval = sortedPrev.find((interval) => interval.startTimeMs > start);
       const maxEnd = nextInterval?.startTimeMs ?? timelineDurationMs;
-      const desiredEnd = Math.min(maxEnd, clampedStart + defaultDuration);
-      if (maxEnd - clampedStart < BGA_INTERVAL_MIN_DURATION_MS) {
+      const desiredEnd = Math.min(maxEnd, start + defaultDuration);
+      if (maxEnd - start < BGA_INTERVAL_MIN_DURATION_MS) {
         return prev;
       }
 
       const next: BgaVisibilityInterval = normalizeInterval({
         id: `bga-${Date.now()}`,
-        startTimeMs: clampedStart,
-        endTimeMs: Math.max(clampedStart + BGA_INTERVAL_MIN_DURATION_MS, desiredEnd),
+        startTimeMs: start,
+        endTimeMs: Math.max(start + BGA_INTERVAL_MIN_DURATION_MS, desiredEnd),
         fadeInMs: 300,
         fadeOutMs: 300,
         easing: 'linear',

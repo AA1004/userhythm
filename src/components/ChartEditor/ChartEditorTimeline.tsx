@@ -496,10 +496,13 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         return;
       }
 
-      if (
-        isBgaPlacementMode &&
-        !(e.target as HTMLElement).closest('[data-note], [data-playhead], [data-bga-segment], [data-bga-control]')
-      ) {
+      if (isBgaPlacementMode) {
+        if ((e.target as HTMLElement).closest('[data-playhead], [data-bga-segment], [data-bga-control]')) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+
         const content = timelineContentRef.current;
         if (!content || !onAddBgaIntervalAt) return;
         const rect = content.getBoundingClientRect();
@@ -1193,6 +1196,12 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
                onClick={(e) => {
                  e.stopPropagation();
                  if (isBgaPlacementMode) {
+                   const content = timelineContentRef.current;
+                   if (content && onAddBgaIntervalAt) {
+                     const rect = content.getBoundingClientRect();
+                     const y = e.clientY - rect.top;
+                     onAddBgaIntervalAt(yToTime(y));
+                   }
                    return;
                  }
                  // 이동 모드에서는 노트 클릭 시 삭제하지 않고 드래그만 허용
