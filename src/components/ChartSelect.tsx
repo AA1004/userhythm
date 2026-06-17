@@ -725,6 +725,16 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
 
   const isSelectionCompact = Boolean(selectedChart && isCardGridCompact);
   const isSelectionExpanded = Boolean(selectedChart && !isCardGridCompact);
+  const detailSheetHeight = selectedChart
+    ? isSelectionCompact
+      ? 'min(38dvh, 360px)'
+      : 'min(64dvh, 760px)'
+    : '0px';
+  const detailListBottomPadding = selectedChart
+    ? isSelectionCompact
+      ? 'calc(min(38dvh, 360px) + 28px)'
+      : 'calc(min(64dvh, 760px) + 28px)'
+    : '20px';
   const currentDifficultyDisplay = adminDifficultyValue || ((selectedChart as any)?._displayDifficulty as string | undefined) || '미지정';
   const currentDifficultyColor = getChartDifficultyColor(currentDifficultyDisplay === '미지정' ? 'Normal' : currentDifficultyDisplay);
   const leaderboardHint =
@@ -881,6 +891,124 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
       </div>
     );
   };
+
+  const renderDetailFacts = () => (
+    <div
+      className="chart-select-detail-panel__facts"
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gap: '14px',
+      }}
+    >
+      <div className="chart-select-detail-panel__fact">
+        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>작성자</div>
+        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <span>{(selectedChart as any)?._authorChess || '♟'}</span>
+          <span
+            style={{
+              fontWeight: (selectedChart as any)?._isAdmin ? 'bold' : undefined,
+              color: (selectedChart as any)?._isAdmin ? '#f87171' : undefined,
+            }}
+          >
+            {(selectedChart as any)?._authorLabel || selectedChart?.author}
+          </span>
+          {(selectedChart as any)?._isAdmin && (
+            <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', backgroundColor: '#b91c1c', color: '#fff' }}>
+              ADMIN
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="chart-select-detail-panel__fact">
+        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>BPM</div>
+        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart?.bpm}</div>
+      </div>
+      {renderDifficultyFact()}
+      <div className="chart-select-detail-panel__fact">
+        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>플레이 횟수</div>
+        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart?.play_count}</div>
+      </div>
+      <div className="chart-select-detail-panel__fact">
+        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>노트 수</div>
+        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
+          {(selectedChart as any)?._noteCount ?? 0}
+        </div>
+      </div>
+      <div className="chart-select-detail-panel__fact">
+        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>롱노트</div>
+        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
+          {(selectedChart as any)?._holdCount ?? 0}
+        </div>
+      </div>
+      <div className="chart-select-detail-panel__fact">
+        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>자막</div>
+        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
+          {(selectedChart as any)?._subtitleCount > 0
+            ? `${(selectedChart as any)?._subtitleCount}개`
+            : '없음'}
+        </div>
+      </div>
+      <div className="chart-select-detail-panel__fact">
+        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>BGA 연출</div>
+        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
+          {(selectedChart as any)?._bgaEventCount > 0
+            ? `${(selectedChart as any)?._bgaEventCount}개`
+            : '없음'}
+        </div>
+      </div>
+      {selectedChart?.youtube_url && (
+        <div className="chart-select-detail-panel__fact chart-select-detail-panel__fact--wide">
+          <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>YouTube</div>
+          <a
+            href={selectedChart.youtube_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: CHART_EDITOR_THEME.accentStrong, fontSize: '14px', wordBreak: 'break-all' }}
+          >
+            링크 열기
+          </a>
+        </div>
+      )}
+      <div className="chart-select-detail-panel__fact">
+        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>업로드 일시</div>
+        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px' }}>
+          {selectedChart?.created_at
+            ? new Date(selectedChart.created_at).toLocaleString('ko-KR')
+            : '정보 없음'}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderDetailLeaderboard = () => (
+    <div className="chart-select-leaderboard" style={{ marginTop: '20px' }}>
+      <h3 className="chart-select-leaderboard__title" style={{ color: CHART_EDITOR_THEME.textPrimary, marginBottom: '10px' }}>정확도 리더보드</h3>
+      <div style={{ color: leaderboardStatus === 'error' ? '#fca5a5' : CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '10px' }}>
+        {leaderboardHint}
+      </div>
+      <div className="chart-select-leaderboard__grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+        <div>
+          <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
+            곡별 상위 기록 (현재 선택)
+          </div>
+          <LeaderboardList scores={perChartScores} emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'} />
+        </div>
+        <div>
+          <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
+            글로벌 상위 기록
+          </div>
+          <LeaderboardList scores={globalScores} emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'} />
+        </div>
+        <div>
+          <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
+            사용자별 평균 정확도
+          </div>
+          <UserLeaderboardList entries={perUserScores} emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'} />
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div
@@ -1215,6 +1343,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               minHeight: 0,
               overflowY: isSelectionCompact ? 'hidden' : 'auto',
               paddingRight: isSelectionCompact ? 0 : '6px',
+              paddingBottom: detailListBottomPadding,
             }}
           >
           {status === 'loading' ? (
@@ -1570,16 +1699,19 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               className="chart-select-detail-panel"
               key={selectedChart.id}
               style={{
-                marginTop: '24px',
-                flex: isSelectionCompact ? '1 1 auto' : isSelectionExpanded ? '0 0 320px' : '0 0 auto',
+                position: 'absolute',
+                left: 'clamp(20px, 4vw, 72px)',
+                right: 'clamp(20px, 4vw, 72px)',
+                bottom: '16px',
+                height: detailSheetHeight,
                 backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
                 border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                borderRadius: CHART_EDITOR_THEME.radiusLg,
+                borderRadius: '28px',
                 overflow: 'hidden',
                 boxShadow: CHART_EDITOR_THEME.shadowSoft,
-                position: 'relative',
                 minHeight: 0,
-                maxHeight: isSelectionExpanded ? '320px' : 'none',
+                zIndex: 4,
+                backdropFilter: 'blur(16px)',
               }}
             >
               {selectedChart.preview_image && (
@@ -1593,9 +1725,9 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     backgroundImage: `url(${selectedChart.preview_image})`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
-                    filter: 'blur(18px)',
-                    transform: 'scale(1.12)',
-                    opacity: 0.22,
+                    filter: 'blur(24px)',
+                    transform: 'scale(1.08)',
+                    opacity: 0.12,
                     zIndex: 0,
                     pointerEvents: 'none',
                   }}
@@ -1606,7 +1738,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 style={{
                   position: 'relative',
                   zIndex: 1,
-                  padding: isSelectionCompact ? '20px' : '24px',
+                  padding: isSelectionCompact ? '18px 20px 20px' : '22px 24px 24px',
                   overflowY: 'auto',
                   height: '100%',
                 }}
@@ -1615,7 +1747,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   style={{
                     display: 'flex',
                     justifyContent: 'center',
-                    marginBottom: '12px',
+                    marginBottom: '14px',
                   }}
                 >
                   <button
@@ -1623,263 +1755,57 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     onClick={() => setIsCardGridCompact((prev) => !prev)}
                     aria-label={isCardGridCompact ? '상세정보 펼치기' : '상세정보 접기'}
                     title={isCardGridCompact ? '상세정보 펼치기' : '상세정보 접기'}
+                    className="chart-select-detail-panel__toggle"
                     style={{
-                      minWidth: '84px',
-                      height: '34px',
-                      padding: '0 14px',
-                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      minWidth: '136px',
+                      height: '36px',
+                      padding: '0 16px',
+                      borderRadius: '12px',
                       border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
                       background: CHART_EDITOR_THEME.buttonGhostBg,
                       color: CHART_EDITOR_THEME.textPrimary,
                       cursor: 'pointer',
-                      fontSize: '14px',
+                      fontSize: '13px',
                       fontWeight: 700,
                       display: 'inline-flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '8px',
+                      gap: '10px',
                       boxShadow: CHART_EDITOR_THEME.shadowSoft,
                     }}
                   >
-                    <span>{isCardGridCompact ? '▼' : '▲'}</span>
+                    <span>{isCardGridCompact ? '▲' : '▼'}</span>
                     <span>{isCardGridCompact ? '펼치기' : '접기'}</span>
                   </button>
                 </div>
-                {isSelectionCompact ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', minHeight: 0 }}>
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: selectedChart.preview_image ? '280px minmax(0, 1fr)' : 'minmax(0, 1fr)',
-                        gap: '18px',
-                        alignItems: 'start',
-                      }}
-                    >
-                      {selectedChart.preview_image && (
-                        <div
-                          className="chart-select-detail-panel__preview"
-                          style={{
-                            width: '100%',
-                            borderRadius: CHART_EDITOR_THEME.radiusMd,
-                            overflow: 'hidden',
-                            backgroundColor: CHART_EDITOR_THEME.surface,
-                            boxShadow: `0 0 0 1px ${CHART_EDITOR_THEME.borderSubtle}`,
-                          }}
-                        >
-                          <img
-                            src={selectedChart.preview_image}
-                            alt={selectedChart.title}
-                            style={{
-                              width: '100%',
-                              aspectRatio: '16 / 9',
-                              objectFit: 'cover',
-                              display: 'block',
-                            }}
-                            loading="lazy"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                            }}
-                          />
-                        </div>
-                      )}
-                      <div>
-                        <h2 className="chart-select-detail-panel__title" style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '22px', marginBottom: '12px', marginTop: 0 }}>
-                          {selectedChart.title}
-                        </h2>
-                        <div
-                          className="chart-select-detail-panel__sticky-action"
-                          style={{
-                            marginBottom: '14px',
-                          }}
-                        >
-                          <button
-                            className="chart-select-play-button"
-                            onClick={() => handleSelectChart(selectedChart)}
-                            style={{
-                              width: '100%',
-                              padding: '15px',
-                              fontSize: '16px',
-                              fontWeight: 'bold',
-                              background: CHART_EDITOR_THEME.buttonPrimaryBg,
-                              color: CHART_EDITOR_THEME.buttonPrimaryText,
-                              border: 'none',
-                              borderRadius: CHART_EDITOR_THEME.radiusMd,
-                              cursor: 'pointer',
-                              boxShadow: CHART_EDITOR_THEME.shadowSoft,
-                              transition: 'all 0.15s ease-out',
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = CHART_EDITOR_THEME.buttonPrimaryBgHover;
-                              e.currentTarget.style.transform = 'translateY(-2px)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = CHART_EDITOR_THEME.buttonPrimaryBg;
-                              e.currentTarget.style.transform = 'translateY(0)';
-                            }}
-                          >
-                            {chartStatus === 'wip' ? '이 WIP 채보로 테스트' : '🎮 이 채보로 플레이'}
-                          </button>
-                          {chartStatus === 'wip' && onContribute && (
-                            <button
-                              className="chart-select-contribute-button"
-                              onClick={() => onContribute(selectedChart)}
-                              style={{
-                                width: '100%',
-                                marginTop: '10px',
-                                padding: '13px',
-                                fontSize: '15px',
-                                fontWeight: 'bold',
-                                background: 'rgba(251, 191, 36, 0.18)',
-                                color: '#fde68a',
-                                border: '1px solid rgba(251, 191, 36, 0.35)',
-                                borderRadius: CHART_EDITOR_THEME.radiusMd,
-                                cursor: 'pointer',
-                              }}
-                            >
-                              이어 만들기
-                            </button>
-                          )}
-                        </div>
-                        {selectedChart.description && (
-                          <div
-                            className="chart-select-detail-panel__fact chart-select-detail-panel__fact--wide"
-                            style={{
-                              padding: '14px',
-                              borderRadius: CHART_EDITOR_THEME.radiusMd,
-                              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                              background: 'rgba(8, 12, 24, 0.46)',
-                            }}
-                          >
-                            <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '8px', letterSpacing: '0.08em' }}>DESCRIPTION</div>
-                            <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '13px', lineHeight: 1.6 }}>
-                              {selectedChart.description}
-                            </div>
-                          </div>
-                        )}
-                        {renderWipNote()}
-                      </div>
-                    </div>
-
-                    <div>
-            <div className="chart-select-detail-panel__facts" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '20px' }}>
-              <div className="chart-select-detail-panel__fact">
-                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>작성자</div>
-                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  <span>{(selectedChart as any)._authorChess || '♟'}</span>
-                  <span
-                    style={{
-                      fontWeight: (selectedChart as any)._isAdmin ? 'bold' : undefined,
-                      color: (selectedChart as any)._isAdmin ? '#f87171' : undefined,
-                    }}
-                  >
-                    {(selectedChart as any)._authorLabel || selectedChart.author}
-                  </span>
-                  {(selectedChart as any)._isAdmin && (
-                    <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', backgroundColor: '#b91c1c', color: '#fff' }}>
-                      ADMIN
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="chart-select-detail-panel__fact">
-                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>BPM</div>
-                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart.bpm}</div>
-              </div>
-              {renderDifficultyFact()}
-              <div className="chart-select-detail-panel__fact">
-                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>플레이 횟수</div>
-                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart.play_count}</div>
-              </div>
-              <div className="chart-select-detail-panel__fact">
-                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>노트 수</div>
-                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
-                  {(selectedChart as any)._noteCount ?? 0}
-                </div>
-              </div>
-              <div className="chart-select-detail-panel__fact">
-                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>롱노트</div>
-                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
-                  {(selectedChart as any)._holdCount ?? 0}
-                </div>
-              </div>
-              <div className="chart-select-detail-panel__fact">
-                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>자막</div>
-                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
-                  {(selectedChart as any)._subtitleCount > 0
-                    ? `${(selectedChart as any)._subtitleCount}개`
-                    : '없음'}
-                </div>
-              </div>
-              <div className="chart-select-detail-panel__fact">
-                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>BGA 연출</div>
-                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
-                  {(selectedChart as any)._bgaEventCount > 0
-                    ? `${(selectedChart as any)._bgaEventCount}개`
-                    : '없음'}
-                </div>
-              </div>
-              {selectedChart.youtube_url && (
-                <div className="chart-select-detail-panel__fact chart-select-detail-panel__fact--wide">
-                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>YouTube</div>
-                  <a
-                    href={selectedChart.youtube_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ color: CHART_EDITOR_THEME.accentStrong, fontSize: '14px', wordBreak: 'break-all' }}
-                  >
-                    링크 열기
-                  </a>
-                </div>
-              )}
-              <div className="chart-select-detail-panel__fact">
-                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>업로드 일시</div>
-                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px' }}>
-                  {selectedChart.created_at
-                    ? new Date(selectedChart.created_at).toLocaleString('ko-KR')
-                    : '정보 없음'}
-                </div>
-              </div>
-            </div>
-
-            <div className="chart-select-leaderboard" style={{ marginTop: '20px' }}>
-              <h3 className="chart-select-leaderboard__title" style={{ color: CHART_EDITOR_THEME.textPrimary, marginBottom: '10px' }}>정확도 리더보드</h3>
-              <div style={{ color: leaderboardStatus === 'error' ? '#fca5a5' : CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '10px' }}>
-                {leaderboardHint}
-              </div>
-              <div className="chart-select-leaderboard__grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
-                <div>
-                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
-                    곡별 상위 기록 (현재 선택)
-                  </div>
-                  <LeaderboardList scores={perChartScores} emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'} />
-                </div>
-                <div>
-                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
-                    글로벌 상위 기록
-                  </div>
-                  <LeaderboardList scores={globalScores} emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'} />
-                </div>
-                <div>
-                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
-                    사용자별 평균 정확도
-                  </div>
-                  <UserLeaderboardList entries={perUserScores} emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'} />
-                </div>
-              </div>
-            </div>
-                    </div>
-                  </div>
-                ) : (
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'minmax(320px, 440px) minmax(0, 1fr)',
-                    gap: isSelectionExpanded ? '18px' : '24px',
+                    gridTemplateColumns: isSelectionCompact ? 'minmax(0, 1fr)' : 'minmax(300px, 420px) minmax(0, 1fr)',
+                    gap: isSelectionCompact ? '16px' : '24px',
                     alignItems: 'start',
                   }}
                 >
                   <div>
-                    <h2 className="chart-select-detail-panel__title" style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '26px', marginBottom: '16px', marginTop: 0 }}>
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '7px 12px',
+                        borderRadius: '999px',
+                        background: 'rgba(8, 12, 24, 0.42)',
+                        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                        color: CHART_EDITOR_THEME.accentStrong,
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        letterSpacing: '0.14em',
+                        marginBottom: '12px',
+                      }}
+                    >
+                      LIVE PREVIEW
+                    </div>
+                    <h2 className="chart-select-detail-panel__title" style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: isSelectionCompact ? '24px' : '34px', marginBottom: '14px', marginTop: 0, maxWidth: '16ch' }}>
                       {selectedChart.title}
                     </h2>
 
@@ -1938,34 +1864,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       )}
                     </div>
 
-                    {!isSelectionCompact && selectedChart.preview_image && (
-                      <div
-                        className="chart-select-detail-panel__preview"
-                        style={{
-                          width: '100%',
-                          marginBottom: '20px',
-                          borderRadius: CHART_EDITOR_THEME.radiusMd,
-                          overflow: 'hidden',
-                          backgroundColor: CHART_EDITOR_THEME.surface,
-                          boxShadow: `0 0 0 1px ${CHART_EDITOR_THEME.borderSubtle}`,
-                        }}
-                      >
-                        <img
-                          src={selectedChart.preview_image}
-                          alt={selectedChart.title}
-                          style={{
-                            width: '100%',
-                            height: 'auto',
-                            display: 'block',
-                          }}
-                          loading="lazy"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                      </div>
-                    )}
-
                     {selectedChart.description && (
                       <div
                         className="chart-select-detail-panel__fact chart-select-detail-panel__fact--wide"
@@ -1986,115 +1884,10 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   </div>
 
                   <div>
-            <div className="chart-select-detail-panel__facts" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '20px' }}>
-              <div className="chart-select-detail-panel__fact">
-                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>작성자</div>
-                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  <span>{(selectedChart as any)._authorChess || '♟'}</span>
-                  <span
-                    style={{
-                      fontWeight: (selectedChart as any)._isAdmin ? 'bold' : undefined,
-                      color: (selectedChart as any)._isAdmin ? '#f87171' : undefined,
-                    }}
-                  >
-                    {(selectedChart as any)._authorLabel || selectedChart.author}
-                  </span>
-                  {(selectedChart as any)._isAdmin && (
-                    <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', backgroundColor: '#b91c1c', color: '#fff' }}>
-                      ADMIN
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="chart-select-detail-panel__fact">
-                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>BPM</div>
-                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart.bpm}</div>
-              </div>
-              {renderDifficultyFact()}
-              <div className="chart-select-detail-panel__fact">
-                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>플레이 횟수</div>
-                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart.play_count}</div>
-              </div>
-              <div className="chart-select-detail-panel__fact">
-                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>노트 수</div>
-                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
-                  {(selectedChart as any)._noteCount ?? 0}
-                </div>
-              </div>
-              <div className="chart-select-detail-panel__fact">
-                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>롱노트</div>
-                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
-                  {(selectedChart as any)._holdCount ?? 0}
-                </div>
-              </div>
-              <div className="chart-select-detail-panel__fact">
-                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>자막</div>
-                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
-                  {(selectedChart as any)._subtitleCount > 0
-                    ? `${(selectedChart as any)._subtitleCount}개`
-                    : '없음'}
-                </div>
-              </div>
-              <div className="chart-select-detail-panel__fact">
-                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>BGA 연출</div>
-                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
-                  {(selectedChart as any)._bgaEventCount > 0
-                    ? `${(selectedChart as any)._bgaEventCount}개`
-                    : '없음'}
-                </div>
-              </div>
-              {selectedChart.youtube_url && (
-                <div className="chart-select-detail-panel__fact chart-select-detail-panel__fact--wide">
-                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>YouTube</div>
-                  <a
-                    href={selectedChart.youtube_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ color: CHART_EDITOR_THEME.accentStrong, fontSize: '14px', wordBreak: 'break-all' }}
-                  >
-                    링크 열기
-                  </a>
-                </div>
-              )}
-              <div className="chart-select-detail-panel__fact">
-                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>업로드 일시</div>
-                <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px' }}>
-                  {selectedChart.created_at
-                    ? new Date(selectedChart.created_at).toLocaleString('ko-KR')
-                    : '정보 없음'}
-                </div>
-              </div>
-            </div>
-
-            <div className="chart-select-leaderboard" style={{ marginTop: '20px' }}>
-              <h3 className="chart-select-leaderboard__title" style={{ color: CHART_EDITOR_THEME.textPrimary, marginBottom: '10px' }}>정확도 리더보드</h3>
-              <div style={{ color: leaderboardStatus === 'error' ? '#fca5a5' : CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '10px' }}>
-                {leaderboardHint}
-              </div>
-              <div className="chart-select-leaderboard__grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
-                <div>
-                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
-                    곡별 상위 기록 (현재 선택)
-                  </div>
-                  <LeaderboardList scores={perChartScores} emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'} />
-                </div>
-                <div>
-                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
-                    글로벌 상위 기록
-                  </div>
-                  <LeaderboardList scores={globalScores} emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'} />
-                </div>
-                <div>
-                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
-                    사용자별 평균 정확도
-                  </div>
-                  <UserLeaderboardList entries={perUserScores} emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'} />
-                </div>
-              </div>
-            </div>
+                    {renderDetailFacts()}
+                    {renderDetailLeaderboard()}
                   </div>
                 </div>
-                )}
               </div>
             </div>
           ) : (

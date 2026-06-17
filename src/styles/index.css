@@ -1732,6 +1732,9 @@ body {
   scrollbar-width: thin;
   scrollbar-color: rgba(119, 255, 214, 0.35) rgba(255, 255, 255, 0.04);
   animation: chartSelectDetailIn 260ms ease-out both;
+  background:
+    linear-gradient(160deg, rgba(10, 16, 28, 0.94), rgba(9, 12, 22, 0.88)),
+    rgba(6, 9, 16, 0.82);
 }
 
 .chart-select-detail-panel::before {
@@ -1745,6 +1748,11 @@ body {
     radial-gradient(circle at 18% 12%, rgba(119, 255, 214, 0.16), transparent 38%),
     radial-gradient(circle at 92% 10%, rgba(255, 78, 122, 0.13), transparent 34%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.055), transparent);
+}
+
+.chart-select-detail-panel__content {
+  display: flex;
+  flex-direction: column;
 }
 
 .chart-select-detail-panel__title {
@@ -1772,6 +1780,12 @@ body {
   background:
     linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(15, 23, 42, 0.72) 72%, transparent);
   backdrop-filter: blur(8px);
+}
+
+.chart-select-detail-panel__toggle:hover,
+.chart-select-detail-panel__toggle:focus-visible {
+  border-color: rgba(119, 255, 214, 0.32) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
 }
 
 .chart-select-play-button:hover,
@@ -1849,6 +1863,24 @@ body {
 .chart-select-load-more {
   position: relative;
   z-index: 1;
+}
+
+@media (max-width: 960px) {
+  .chart-select-detail-panel {
+    left: 14px !important;
+    right: 14px !important;
+    bottom: 12px !important;
+    border-radius: 22px !important;
+  }
+
+  .chart-select-detail-panel__content {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  .chart-select-detail-panel__title {
+    max-width: none !important;
+  }
 }
 
 /* =========================
