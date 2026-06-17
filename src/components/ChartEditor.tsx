@@ -12,7 +12,7 @@ import { useChartAutosave } from '../hooks/useChartAutosave';
 import { useChartHistory } from '../hooks/useChartHistory';
 import { useHitSound } from '../hooks/useHitSound';
 import { TapBPMCalculator, isValidBPM } from '../utils/bpmAnalyzer';
-import { calculateTotalBeatsWithChanges, formatSongLength } from '../utils/bpmUtils';
+import { calculateTotalBeatsWithChanges, formatSongLength, timeToMeasure } from '../utils/bpmUtils';
 import { chartAPI, supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { api, ApiChart } from '../lib/api';
 import {
@@ -749,6 +749,49 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     ]
   );
 
+  const derivePreviewMeasureRange = useCallback((data: any) => {
+    const explicitStart =
+      typeof data?.previewStartMeasure === 'number' && Number.isFinite(data.previewStartMeasure)
+        ? Math.max(1, Math.floor(data.previewStartMeasure))
+        : null;
+    const explicitEnd =
+      typeof data?.previewEndMeasure === 'number' && Number.isFinite(data.previewEndMeasure)
+        ? Math.floor(data.previewEndMeasure)
+        : null;
+
+    if (explicitStart !== null) {
+      return {
+        start: explicitStart,
+        end: Math.max(explicitStart + 1, explicitEnd ?? explicitStart + 4),
+      };
+    }
+
+    if (Array.isArray(data?.subtitles) && data.subtitles.length > 0) {
+      const firstCue = data.subtitles[0];
+      const cueStartMs = Number(firstCue?.startTimeMs);
+      if (Number.isFinite(cueStartMs)) {
+        const derivedStart = Math.max(
+          1,
+          timeToMeasure(
+            cueStartMs,
+            typeof data?.bpm === 'number' ? data.bpm : bpm,
+            Array.isArray(data?.bpmChanges) ? data.bpmChanges : bpmChanges,
+            typeof data?.beatsPerMeasure === 'number' ? data.beatsPerMeasure : beatsPerMeasure
+          )
+        );
+        return {
+          start: derivedStart,
+          end: derivedStart + 4,
+        };
+      }
+    }
+
+    return {
+      start: 1,
+      end: Math.max(2, explicitEnd ?? 5),
+    };
+  }, [beatsPerMeasure, bpm, bpmChanges]);
+
   const handleRestore = useCallback((data: any) => {
     if (!data || typeof data !== 'object') {
       console.warn('Invalid chart data provided to restore:', data);
@@ -825,22 +868,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     if (typeof data.chartDifficulty === 'string') setShareDifficulty(data.chartDifficulty);
     setAdminAssignedDifficulty(typeof data.adminDifficulty === 'string' ? data.adminDifficulty : '');
     if (typeof data.chartDescription === 'string') setShareDescription(data.chartDescription);
-    const restoredPreviewStart =
-      typeof data.previewStartMeasure === 'number' && Number.isFinite(data.previewStartMeasure)
-        ? Math.max(1, Math.floor(data.previewStartMeasure))
-        : null;
-    const restoredPreviewEnd =
-      typeof data.previewEndMeasure === 'number' && Number.isFinite(data.previewEndMeasure)
-        ? Math.floor(data.previewEndMeasure)
-        : null;
-    if (restoredPreviewStart !== null) {
-      setSharePreviewStartMeasure(restoredPreviewStart);
-      if (restoredPreviewEnd !== null) {
-        setSharePreviewEndMeasure(Math.max(restoredPreviewStart + 1, restoredPreviewEnd));
-      }
-    } else if (restoredPreviewEnd !== null) {
-      setSharePreviewEndMeasure(Math.max(2, restoredPreviewEnd));
-    }
+    const restoredPreviewRange = derivePreviewMeasureRange(data);
+    setSharePreviewStartMeasure(restoredPreviewRange.start);
+    setSharePreviewEndMeasure(restoredPreviewRange.end);
     const restoredWip = data.wip && typeof data.wip === 'object' ? data.wip : null;
     setShareIsWip(restoredWip?.enabled === true);
     setShareWipNote(typeof restoredWip?.note === 'string' ? restoredWip.note : '');
@@ -910,7 +940,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     } catch (error) {
       console.error('Failed to restore subtitles:', error);
     }
-  }, [subtitleSessionId]);
+  }, [subtitleSessionId, derivePreviewMeasureRange]);
 
   useEffect(() => {
     try {

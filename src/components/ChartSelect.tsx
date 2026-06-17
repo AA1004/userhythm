@@ -356,6 +356,22 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
       setStatus('success');
     }
   }, [filteredCharts, currentPage, chartsPerPage, status]);
+
+  useEffect(() => {
+    if (!selectedChart) return;
+    const refreshedSelectedChart = allCharts.find((chart) => chart.id === selectedChart.id);
+    if (!refreshedSelectedChart) return;
+    if (refreshedSelectedChart === selectedChart) return;
+    if (
+      refreshedSelectedChart.data_json === selectedChart.data_json &&
+      refreshedSelectedChart.preview_image === selectedChart.preview_image &&
+      refreshedSelectedChart.updated_at === selectedChart.updated_at
+    ) {
+      return;
+    }
+    setSelectedChart(refreshedSelectedChart);
+  }, [allCharts, selectedChart]);
+
   useEffect(() => {
     // when selected chart changes, load per-chart leaderboard
     if (chartStatus !== 'approved') {
