@@ -26,6 +26,9 @@ export interface ChartEditorSidebarRightProps {
   onShareClick: () => void;
   isAdmin: boolean;
   onLoadExistingClick: () => void;
+  isEditingExisting?: boolean;
+  editingChartTitle?: string;
+  onClearEditingExisting?: () => void;
   bpm: number;
   bpmChanges: BPMChange[];
   beatsPerMeasure: number;
@@ -141,6 +144,9 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
   onShareClick,
   isAdmin,
   onLoadExistingClick,
+  isEditingExisting = false,
+  editingChartTitle,
+  onClearEditingExisting,
   bpm,
   bpmChanges,
   beatsPerMeasure,
@@ -441,6 +447,51 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
       </div>
 
       <SectionHeader label="Share" />
+      {isAdmin && isEditingExisting && (
+        <div
+          style={{
+            ...panelSectionStyle,
+            marginBottom: '8px',
+            padding: '8px',
+            backgroundColor: 'rgba(251, 191, 36, 0.12)',
+            border: '1px solid rgba(251, 191, 36, 0.4)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 800, color: '#fde68a', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              기존 채보 덮어쓰기 모드
+            </span>
+            <Badge tone="green">overwrite</Badge>
+          </div>
+          <div style={{ marginTop: '4px', fontSize: '12px', color: CHART_EDITOR_THEME.textPrimary, lineHeight: 1.4 }}>
+            {editingChartTitle || '불러온 기존 채보'}
+          </div>
+          {onClearEditingExisting && (
+            <button
+              data-editor-transient-action="true"
+              onMouseDown={keepTransientButtonFromTakingFocus}
+              onClick={(e) => {
+                onClearEditingExisting();
+                blurTransientButton(e);
+              }}
+              style={{
+                width: '100%',
+                marginTop: '8px',
+                padding: '5px 6px',
+                backgroundColor: 'rgba(15,23,42,0.82)',
+                color: CHART_EDITOR_THEME.textPrimary,
+                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                borderRadius: CHART_EDITOR_THEME.radiusSm,
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: 700,
+              }}
+            >
+              새 채보로 저장 전환
+            </button>
+          )}
+        </div>
+      )}
       <button
         data-editor-transient-action="true"
         onMouseDown={keepTransientButtonFromTakingFocus}
@@ -460,7 +511,7 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
           fontSize: '12px',
         }}
       >
-        공유
+        {isEditingExisting ? '기존 채보 수정 저장' : '공유'}
       </button>
       {isAdmin && (
         <button

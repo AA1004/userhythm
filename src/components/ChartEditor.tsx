@@ -2132,6 +2132,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
   }, [handleRestore, seekTo]);
 
+  const handleClearEditingExisting = useCallback(() => {
+    setEditingChartId(null);
+    setUploadStatus('');
+  }, []);
+
   // 자동 스크롤
   useEffect(() => {
     if (!isPlaying || !isAutoScrollEnabled || isDraggingPlayheadRef.current) return;
@@ -2467,6 +2472,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           onShareClick={handleOpenShareModal}
           isAdmin={isAdmin}
           onLoadExistingClick={handleOpenLoadExistingModal}
+          isEditingExisting={!!editingChartId && isAdmin}
+          editingChartTitle={shareTitle}
+          onClearEditingExisting={handleClearEditingExisting}
           bpm={bpm}
           bpmChanges={sortedBpmChanges}
           beatsPerMeasure={beatsPerMeasure}
