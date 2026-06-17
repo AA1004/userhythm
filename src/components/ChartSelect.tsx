@@ -727,12 +727,12 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   const isSelectionExpanded = Boolean(selectedChart && !isCardGridCompact);
   const detailSheetHeight = selectedChart
     ? isSelectionCompact
-      ? 'min(38dvh, 360px)'
+      ? '92px'
       : 'min(64dvh, 760px)'
     : '0px';
   const detailListBottomPadding = selectedChart
     ? isSelectionCompact
-      ? 'calc(min(38dvh, 360px) + 28px)'
+      ? '120px'
       : 'calc(min(64dvh, 760px) + 28px)'
     : '20px';
   const currentDifficultyDisplay = adminDifficultyValue || ((selectedChart as any)?._displayDifficulty as string | undefined) || '미지정';
@@ -1778,147 +1778,228 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     <span>{isCardGridCompact ? '펼치기' : '접기'}</span>
                   </button>
                 </div>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: isSelectionCompact ? 'minmax(0, 1fr)' : 'minmax(300px, 420px) minmax(0, 1fr)',
-                    gap: isSelectionCompact ? '16px' : '24px',
-                    alignItems: 'start',
-                  }}
-                >
-                  <div>
-                    {selectedChart.preview_image && (
+                {isSelectionCompact ? (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'minmax(0, 1fr) auto auto',
+                      gap: '14px',
+                      alignItems: 'center',
+                      minHeight: '100%',
+                    }}
+                  >
+                    <div style={{ minWidth: 0 }}>
                       <div
-                        className="chart-select-detail-panel__preview"
                         style={{
-                          width: '100%',
-                          marginBottom: '16px',
-                          borderRadius: '18px',
-                          overflow: 'hidden',
-                          backgroundColor: CHART_EDITOR_THEME.surface,
-                          boxShadow: `0 0 0 1px ${CHART_EDITOR_THEME.borderSubtle}`,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '6px 10px',
+                          borderRadius: '999px',
+                          background: 'rgba(8, 12, 24, 0.42)',
+                          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                          color: CHART_EDITOR_THEME.accentStrong,
+                          fontSize: '10px',
+                          fontWeight: 800,
+                          letterSpacing: '0.14em',
+                          marginBottom: '8px',
                         }}
                       >
-                        <img
-                          src={selectedChart.preview_image}
-                          alt={selectedChart.title}
-                          style={{
-                            width: '100%',
-                            aspectRatio: String(
-                              thumbnailAspectRatios[selectedChart.id] ?? DEFAULT_THUMBNAIL_ASPECT_RATIO
-                            ),
-                            objectFit: 'cover',
-                            display: 'block',
-                            maxHeight: isSelectionCompact ? '180px' : '240px',
-                          }}
-                          loading="lazy"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
+                        LIVE PREVIEW
                       </div>
-                    )}
-                    <div
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '7px 12px',
-                        borderRadius: '999px',
-                        background: 'rgba(8, 12, 24, 0.42)',
-                        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                        color: CHART_EDITOR_THEME.accentStrong,
-                        fontSize: '11px',
-                        fontWeight: 800,
-                        letterSpacing: '0.14em',
-                        marginBottom: '12px',
-                      }}
-                    >
-                      LIVE PREVIEW
-                    </div>
-                    <h2 className="chart-select-detail-panel__title" style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: isSelectionCompact ? '22px' : '30px', marginBottom: '14px', marginTop: 0, maxWidth: '18ch' }}>
-                      {selectedChart.title}
-                    </h2>
-
-                    <div
-                      className="chart-select-detail-panel__sticky-action"
-                      style={{
-                        marginBottom: '20px',
-                      }}
-                    >
-                      <button
-                        className="chart-select-play-button"
-                        onClick={() => handleSelectChart(selectedChart)}
+                      <h2
+                        className="chart-select-detail-panel__title"
                         style={{
-                          width: '100%',
-                          padding: '15px',
-                          fontSize: '16px',
-                          fontWeight: 'bold',
-                          background: CHART_EDITOR_THEME.buttonPrimaryBg,
-                          color: CHART_EDITOR_THEME.buttonPrimaryText,
-                          border: 'none',
-                          borderRadius: CHART_EDITOR_THEME.radiusMd,
-                          cursor: 'pointer',
-                          boxShadow: CHART_EDITOR_THEME.shadowSoft,
-                          transition: 'all 0.15s ease-out',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = CHART_EDITOR_THEME.buttonPrimaryBgHover;
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = CHART_EDITOR_THEME.buttonPrimaryBg;
-                          e.currentTarget.style.transform = 'translateY(0)';
+                          color: CHART_EDITOR_THEME.textPrimary,
+                          fontSize: '18px',
+                          margin: 0,
+                          maxWidth: 'none',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
                         }}
                       >
-                        {chartStatus === 'wip' ? '이 WIP 채보로 테스트' : '🎮 이 채보로 플레이'}
-                      </button>
-                      {chartStatus === 'wip' && onContribute && (
-                        <button
-                          className="chart-select-contribute-button"
-                          onClick={() => onContribute(selectedChart)}
+                        {selectedChart.title}
+                      </h2>
+                    </div>
+                    {(selectedChart as any)?._displayDifficulty && (
+                      <span
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '999px',
+                          backgroundColor: `${getChartDifficultyColor((selectedChart as any)._displayDifficulty)}22`,
+                          border: `1px solid ${getChartDifficultyColor((selectedChart as any)._displayDifficulty)}`,
+                          color: getChartDifficultyColor((selectedChart as any)._displayDifficulty),
+                          fontSize: '13px',
+                          fontWeight: 800,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {(selectedChart as any)._displayDifficulty}
+                      </span>
+                    )}
+                    <button
+                      className="chart-select-play-button"
+                      onClick={() => handleSelectChart(selectedChart)}
+                      style={{
+                        padding: '12px 18px',
+                        fontSize: '14px',
+                        fontWeight: 'bold',
+                        background: CHART_EDITOR_THEME.buttonPrimaryBg,
+                        color: CHART_EDITOR_THEME.buttonPrimaryText,
+                        border: 'none',
+                        borderRadius: CHART_EDITOR_THEME.radiusMd,
+                        cursor: 'pointer',
+                        boxShadow: CHART_EDITOR_THEME.shadowSoft,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      플레이
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'minmax(300px, 420px) minmax(0, 1fr)',
+                      gap: '24px',
+                      alignItems: 'start',
+                    }}
+                  >
+                    <div>
+                      {selectedChart.preview_image && (
+                        <div
+                          className="chart-select-detail-panel__preview"
                           style={{
                             width: '100%',
-                            marginTop: '10px',
-                            padding: '13px',
-                            fontSize: '15px',
-                            fontWeight: 'bold',
-                            background: 'rgba(251, 191, 36, 0.18)',
-                            color: '#fde68a',
-                            border: '1px solid rgba(251, 191, 36, 0.35)',
-                            borderRadius: CHART_EDITOR_THEME.radiusMd,
-                            cursor: 'pointer',
+                            marginBottom: '16px',
+                            borderRadius: '18px',
+                            overflow: 'hidden',
+                            backgroundColor: CHART_EDITOR_THEME.surface,
+                            boxShadow: `0 0 0 1px ${CHART_EDITOR_THEME.borderSubtle}`,
                           }}
                         >
-                          이어 만들기
-                        </button>
+                          <img
+                            src={selectedChart.preview_image}
+                            alt={selectedChart.title}
+                            style={{
+                              width: '100%',
+                              aspectRatio: String(
+                                thumbnailAspectRatios[selectedChart.id] ?? DEFAULT_THUMBNAIL_ASPECT_RATIO
+                              ),
+                              objectFit: 'cover',
+                              display: 'block',
+                              maxHeight: '240px',
+                            }}
+                            loading="lazy"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        </div>
                       )}
-                    </div>
-
-                    {selectedChart.description && (
                       <div
-                        className="chart-select-detail-panel__fact chart-select-detail-panel__fact--wide"
                         style={{
-                          padding: isSelectionCompact ? '14px' : '18px',
-                          borderRadius: CHART_EDITOR_THEME.radiusMd,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '7px 12px',
+                          borderRadius: '999px',
+                          background: 'rgba(8, 12, 24, 0.42)',
                           border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                          background: 'rgba(8, 12, 24, 0.46)',
+                          color: CHART_EDITOR_THEME.accentStrong,
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          letterSpacing: '0.14em',
+                          marginBottom: '12px',
                         }}
                       >
-                        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '8px', letterSpacing: '0.08em' }}>DESCRIPTION</div>
-                        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px', lineHeight: 1.65 }}>
-                          {selectedChart.description}
-                        </div>
+                        LIVE PREVIEW
                       </div>
-                    )}
-                    {renderWipNote()}
-                  </div>
+                      <h2 className="chart-select-detail-panel__title" style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '30px', marginBottom: '14px', marginTop: 0, maxWidth: '18ch' }}>
+                        {selectedChart.title}
+                      </h2>
 
-                  <div>
-                    {renderDetailFacts()}
-                    {renderDetailLeaderboard()}
+                      <div
+                        className="chart-select-detail-panel__sticky-action"
+                        style={{
+                          marginBottom: '20px',
+                        }}
+                      >
+                        <button
+                          className="chart-select-play-button"
+                          onClick={() => handleSelectChart(selectedChart)}
+                          style={{
+                            width: '100%',
+                            padding: '15px',
+                            fontSize: '16px',
+                            fontWeight: 'bold',
+                            background: CHART_EDITOR_THEME.buttonPrimaryBg,
+                            color: CHART_EDITOR_THEME.buttonPrimaryText,
+                            border: 'none',
+                            borderRadius: CHART_EDITOR_THEME.radiusMd,
+                            cursor: 'pointer',
+                            boxShadow: CHART_EDITOR_THEME.shadowSoft,
+                            transition: 'all 0.15s ease-out',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = CHART_EDITOR_THEME.buttonPrimaryBgHover;
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = CHART_EDITOR_THEME.buttonPrimaryBg;
+                            e.currentTarget.style.transform = 'translateY(0)';
+                          }}
+                        >
+                          {chartStatus === 'wip' ? '이 WIP 채보로 테스트' : '🎮 이 채보로 플레이'}
+                        </button>
+                        {chartStatus === 'wip' && onContribute && (
+                          <button
+                            className="chart-select-contribute-button"
+                            onClick={() => onContribute(selectedChart)}
+                            style={{
+                              width: '100%',
+                              marginTop: '10px',
+                              padding: '13px',
+                              fontSize: '15px',
+                              fontWeight: 'bold',
+                              background: 'rgba(251, 191, 36, 0.18)',
+                              color: '#fde68a',
+                              border: '1px solid rgba(251, 191, 36, 0.35)',
+                              borderRadius: CHART_EDITOR_THEME.radiusMd,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            이어 만들기
+                          </button>
+                        )}
+                      </div>
+
+                      {selectedChart.description && (
+                        <div
+                          className="chart-select-detail-panel__fact chart-select-detail-panel__fact--wide"
+                          style={{
+                            padding: '18px',
+                            borderRadius: CHART_EDITOR_THEME.radiusMd,
+                            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                            background: 'rgba(8, 12, 24, 0.46)',
+                          }}
+                        >
+                          <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '8px', letterSpacing: '0.08em' }}>DESCRIPTION</div>
+                          <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px', lineHeight: 1.65 }}>
+                            {selectedChart.description}
+                          </div>
+                        </div>
+                      )}
+                      {renderWipNote()}
+                    </div>
+
+                    <div>
+                      {renderDetailFacts()}
+                      {renderDetailLeaderboard()}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           ) : (
