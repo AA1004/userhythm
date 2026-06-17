@@ -148,3 +148,32 @@ export function convertBgaEventsToEditableIntervals(
     easing: 'linear' as const,
   }));
 }
+
+export function normalizeBgaIntervalsForRuntime(
+  intervals: BgaVisibilityInterval[],
+  maxTimeMs: number
+): BgaVisibilityInterval[] {
+  return intervals
+    .map((interval) => {
+      const startTimeMs = Math.max(0, Number(interval.startTimeMs) || 0);
+      const endTimeMs = Math.max(0, Number(interval.endTimeMs) || 0);
+
+      // A hide interval that extends beyond the playable duration should never
+      // synthesize a trailing show event near chart end during runtime.
+      if (interval.mode !== 'visible' && endTimeMs >= maxTimeMs) {
+        return {
+          ...interval,
+          startTimeMs,
+          endTimeMs: startTimeMs,
+          mode: 'hidden' as const,
+        };
+      }
+
+      return {
+        ...interval,
+        startTimeMs,
+        endTimeMs,
+      };
+    })
+    .sort((a, b) => a.startTimeMs - b.startTimeMs);
+}

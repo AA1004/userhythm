@@ -4,6 +4,7 @@ import { buildInitialScore, AudioSettings, calculatePlayableChartDuration } from
 import { START_DELAY_MS } from '../constants/gameConstants';
 import { SubtitleCue } from '../types/subtitle';
 import { normalizeSubtitlePayload } from '../utils/subtitleNormalization';
+import { normalizeBgaIntervalsForRuntime } from '../utils/bgaVisibility';
 
 export interface UseChartLoaderOptions {
   setGameState: React.Dispatch<React.SetStateAction<GameState>>;
@@ -166,10 +167,16 @@ export function useChartLoader({
         return;
       }
 
+      // 일반 플레이는 에디터 테스트와 달리 채보 타임라인 여유분까지 재생한다.
+      const clampedDuration = calculatePlayableChartDuration(
+        preparedNotes,
+        typeof chartData.timelineExtraMs === 'number' ? chartData.timelineExtraMs : 0
+      );
+
       const chartIntervals: BgaVisibilityInterval[] = Array.isArray(chartData.bgaVisibilityIntervals)
         ? [...chartData.bgaVisibilityIntervals]
         : [];
-      const sortedIntervals: BgaVisibilityInterval[] = chartIntervals
+      const sortedIntervals: BgaVisibilityInterval[] = normalizeBgaIntervalsForRuntime(chartIntervals
         .map((it, idx): BgaVisibilityInterval => ({
           id: typeof it.id === 'string' ? it.id : `bga-${idx}`,
           startTimeMs: Math.max(0, Number(it.startTimeMs) || 0),
@@ -185,15 +192,10 @@ export function useChartLoader({
               : Math.max(0, Number(it.fadeOutMs) || 0),
           easing: it.easing === 'linear' ? 'linear' : undefined,
         }))
-        .sort((a, b) => a.startTimeMs - b.startTimeMs);
+        , clampedDuration);
       onBgaIntervalsSet(sortedIntervals);
       onBgaIntervalsRefSet(sortedIntervals);
 
-      // 일반 플레이는 에디터 테스트와 달리 채보 타임라인 여유분까지 재생한다.
-      const clampedDuration = calculatePlayableChartDuration(
-        preparedNotes,
-        typeof chartData.timelineExtraMs === 'number' ? chartData.timelineExtraMs : 0
-      );
       onDynamicGameDurationSet(clampedDuration);
       
       setGameState({

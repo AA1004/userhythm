@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { GameState, Note, BgaVisibilityInterval, EmbeddedAudioTrack } from '../types/game';
 import { buildInitialScore, calculateGameDuration } from '../utils/gameHelpers';
 import { DEFAULT_GAME_DURATION, START_DELAY_MS } from '../constants/gameConstants';
+import { normalizeBgaIntervalsForRuntime } from '../utils/bgaVisibility';
 
 export interface EditorTestPayload {
   notes: Note[];
@@ -73,9 +74,7 @@ export function useTestSession({
       const clampedDuration = calculateGameDuration(preparedNotes);
       setDynamicGameDuration(clampedDuration);
       
-      const sortedIntervals = [...visibilityIntervals].sort(
-        (a, b) => a.startTimeMs - b.startTimeMs
-      );
+      const sortedIntervals = normalizeBgaIntervalsForRuntime(visibilityIntervals, clampedDuration);
       bgaIntervalsRef.current = sortedIntervals;
       onBgaIntervalsSet(sortedIntervals);
 
