@@ -2,26 +2,29 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getSessionFromRequest } from '../../../lib/auth';
 
-const serializeScore = (score: any) => ({
+const serializeScore = (score: any, userMap?: Map<string, any>, chartMap?: Map<string, any>) => ({
   id: score.id,
   user_id: score.userId,
   chart_id: score.chartId,
   accuracy: score.accuracy,
   created_at: (score as any).createdAt?.toISOString?.() ?? null,
-  user: score.user
+  user: (score.user ?? userMap?.get(score.userId))
     ? {
-        id: score.user.id,
-        email: score.user.email,
-        role: score.user.role,
-        profile: score.user.profile,
-        nickname: score.user.profile?.nickname || (score.user.profile as any)?.display_name || null,
+        id: (score.user ?? userMap?.get(score.userId)).id,
+        email: (score.user ?? userMap?.get(score.userId)).email,
+        role: (score.user ?? userMap?.get(score.userId)).role,
+        profile: (score.user ?? userMap?.get(score.userId)).profile,
+        nickname:
+          (score.user ?? userMap?.get(score.userId)).profile?.nickname ||
+          ((score.user ?? userMap?.get(score.userId)).profile as any)?.display_name ||
+          null,
       }
     : null,
-  chart: score.chart
+  chart: (score.chart ?? chartMap?.get(score.chartId))
     ? {
-        id: score.chart.id,
-        title: score.chart.title,
-        difficulty: score.chart.difficulty,
+        id: (score.chart ?? chartMap?.get(score.chartId)).id,
+        title: (score.chart ?? chartMap?.get(score.chartId)).title,
+        difficulty: (score.chart ?? chartMap?.get(score.chartId)).difficulty,
       }
     : null,
 });
@@ -31,40 +34,51 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const chartId = searchParams.get('chartId');
 
-    // per-chart leaderboard (top 20)
-    const perChart =
-      chartId &&
-      (await prisma.score.findMany({
-        where: { chartId },
+    const [perChartRaw, globalRaw, grouped] = await Promise.all([
+      chartId
+        ? prisma.score.findMany({
+            where: { chartId },
+            orderBy: { accuracy: 'desc' },
+            take: 20,
+          })
+        : Promise.resolve([]),
+      prisma.score.findMany({
         orderBy: { accuracy: 'desc' },
         take: 20,
-        include: { user: { include: { profile: true } }, chart: true },
-      })).map(serializeScore);
-
-    // global leaderboard (top 20)
-    const global = (
-      await prisma.score.findMany({
-        orderBy: { accuracy: 'desc' },
+      }),
+      prisma.score.groupBy({
+        by: ['userId'],
+        _avg: { accuracy: true },
+        _max: { accuracy: true },
+        _count: { _all: true },
+        orderBy: { _avg: { accuracy: 'desc' } },
         take: 20,
-        include: { user: { include: { profile: true } }, chart: true },
-      })
-    ).map(serializeScore);
+      }),
+    ]);
 
-    // per-user average accuracy (top 20)
-    const grouped = await prisma.score.groupBy({
-      by: ['userId'],
-      _avg: { accuracy: true },
-      _max: { accuracy: true },
-      _count: { _all: true },
-      orderBy: { _avg: { accuracy: 'desc' } },
-      take: 20,
-    });
+    const scoreRows = [...perChartRaw, ...globalRaw];
+    const userIds = Array.from(new Set([...scoreRows.map((score) => score.userId), ...grouped.map((g) => g.userId)]));
+    const chartIds = Array.from(new Set(scoreRows.map((score) => score.chartId)));
 
-    const users = await prisma.user.findMany({
-      where: { id: { in: grouped.map((g) => g.userId) } },
-      include: { profile: true },
-    });
+    const [users, charts] = await Promise.all([
+      userIds.length > 0
+        ? prisma.user.findMany({
+            where: { id: { in: userIds } },
+            include: { profile: true },
+          })
+        : Promise.resolve([]),
+      chartIds.length > 0
+        ? prisma.chart.findMany({
+            where: { id: { in: chartIds } },
+          })
+        : Promise.resolve([]),
+    ]);
+
     const userMap = new Map(users.map((u) => [u.id, u]));
+    const chartMap = new Map(charts.map((chart) => [chart.id, chart]));
+
+    const perChart = perChartRaw.map((score) => serializeScore(score, userMap, chartMap));
+    const global = globalRaw.map((score) => serializeScore(score, userMap, chartMap));
 
     const perUser = grouped.map((g) => {
       const u = userMap.get(g.userId);
