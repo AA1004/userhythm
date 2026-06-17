@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { extractYouTubeVideoId, waitForYouTubeAPI, getYouTubeVideoDuration } from '../utils/youtube';
+import { extractYouTubeVideoId, waitForYouTubeAPI, getYouTubeVideoDuration, YOUTUBE_EMBED_HOST } from '../utils/youtube';
 
 interface UseChartYoutubePlayerOptions {
   currentTime: number;
@@ -199,6 +199,7 @@ export function useChartYoutubePlayer({
       try {
         playerInstance = new window.YT.Player(mountNode as any, {
           videoId: videoId,
+          host: YOUTUBE_EMBED_HOST,
           playerVars: {
             autoplay: 0,
             controls: 0,

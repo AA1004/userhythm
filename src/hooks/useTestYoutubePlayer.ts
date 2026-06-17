@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, RefObject, MutableRefObject } from 'react';
-import { waitForYouTubeAPI } from '../utils/youtube';
+import { waitForYouTubeAPI, YOUTUBE_EMBED_HOST } from '../utils/youtube';
 import { getAudioBaseSeconds, getAudioPositionSeconds, AudioSettings } from '../utils/gameHelpers';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 import { PerformanceMode } from '../constants/gameVisualSettings';
@@ -162,6 +162,7 @@ export function useTestYoutubePlayer({
       try {
         playerInstance = new window.YT.Player(mountNode as any, {
           videoId: videoIdValue,
+          host: YOUTUBE_EMBED_HOST,
           playerVars: {
             autoplay: 0,
             controls: 0,

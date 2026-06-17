@@ -1,3 +1,5 @@
+export const YOUTUBE_EMBED_HOST = 'https://www.youtube-nocookie.com';
+
 // YouTube URL에서 Video ID 추출
 export function extractYouTubeVideoId(url: string): string | null {
   const patterns = [
@@ -28,6 +30,7 @@ declare global {
         elementId: string,
         config: {
           videoId: string;
+          host?: string;
           playerVars?: {
             autoplay?: number;
             controls?: number;
@@ -121,6 +124,7 @@ export function getYouTubeVideoDuration(videoId: string): Promise<number | null>
       try {
         player = new window.YT.Player(tempPlayerId, {
           videoId: videoId,
+          host: YOUTUBE_EMBED_HOST,
           playerVars: {
             autoplay: 0,
             controls: 0,

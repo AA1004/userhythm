@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { waitForYouTubeAPI } from '../utils/youtube';
+import { waitForYouTubeAPI, YOUTUBE_EMBED_HOST } from '../utils/youtube';
 
 interface UseYoutubeAudioOptions {
   videoId?: string | null;
@@ -77,6 +77,7 @@ export function useYoutubeAudio({
       try {
         const player = new window.YT.Player(playerId, {
           videoId,
+          host: YOUTUBE_EMBED_HOST,
           playerVars: {
             autoplay: 0,
             controls: 0,

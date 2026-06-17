@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { YOUTUBE_EMBED_HOST } from '../utils/youtube';
 
 type YouTubeEmbedProps = {
   videoId: string;
@@ -22,7 +23,7 @@ export const YouTubeEmbed: React.FC<YouTubeEmbedProps> = ({
   queryParams,
 }) => {
   const src = useMemo(() => {
-    const base = `https://www.youtube.com/embed/${videoId}`;
+    const base = `${YOUTUBE_EMBED_HOST}/embed/${videoId}`;
     // 배경용 기본 쿼리: 자동재생, 무음, 컨트롤러 숨김, 반복 재생
     const defaultParams =
       'autoplay=1&mute=1&controls=0&playsinline=1&rel=0&modestbranding=1&loop=1&playlist=' +

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { waitForYouTubeAPI } from '../utils/youtube';
+import { waitForYouTubeAPI, YOUTUBE_EMBED_HOST } from '../utils/youtube';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 import { PerformanceMode } from '../constants/gameVisualSettings';
 
@@ -156,6 +156,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       try {
         playerInstance = new window.YT.Player(playerId, {
           videoId,
+          host: YOUTUBE_EMBED_HOST,
           playerVars: {
             autoplay: 0,
             controls: 0,

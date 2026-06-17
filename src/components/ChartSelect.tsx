@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { api, ApiChart, ApiScore, ApiUserAggregate } from '../lib/api';
-import { extractYouTubeVideoId, waitForYouTubeAPI } from '../utils/youtube';
+import { extractYouTubeVideoId, waitForYouTubeAPI, YOUTUBE_EMBED_HOST } from '../utils/youtube';
 import { measureToTime } from '../utils/bpmUtils';
 import { validateNotes } from '../utils/noteValidation';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
@@ -592,6 +592,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
         try {
           new window.YT.Player(mountNode as any, {
             videoId: youtubeVideoId,
+            host: YOUTUBE_EMBED_HOST,
             width: '100%',
             height: '100%',
             playerVars: {
