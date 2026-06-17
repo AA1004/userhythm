@@ -1787,6 +1787,37 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   }}
                 >
                   <div>
+                    {selectedChart.preview_image && (
+                      <div
+                        className="chart-select-detail-panel__preview"
+                        style={{
+                          width: '100%',
+                          marginBottom: '16px',
+                          borderRadius: '18px',
+                          overflow: 'hidden',
+                          backgroundColor: CHART_EDITOR_THEME.surface,
+                          boxShadow: `0 0 0 1px ${CHART_EDITOR_THEME.borderSubtle}`,
+                        }}
+                      >
+                        <img
+                          src={selectedChart.preview_image}
+                          alt={selectedChart.title}
+                          style={{
+                            width: '100%',
+                            aspectRatio: String(
+                              thumbnailAspectRatios[selectedChart.id] ?? DEFAULT_THUMBNAIL_ASPECT_RATIO
+                            ),
+                            objectFit: 'cover',
+                            display: 'block',
+                            maxHeight: isSelectionCompact ? '180px' : '240px',
+                          }}
+                          loading="lazy"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    )}
                     <div
                       style={{
                         display: 'inline-flex',
@@ -1805,7 +1836,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     >
                       LIVE PREVIEW
                     </div>
-                    <h2 className="chart-select-detail-panel__title" style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: isSelectionCompact ? '24px' : '34px', marginBottom: '14px', marginTop: 0, maxWidth: '16ch' }}>
+                    <h2 className="chart-select-detail-panel__title" style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: isSelectionCompact ? '22px' : '30px', marginBottom: '14px', marginTop: 0, maxWidth: '18ch' }}>
                       {selectedChart.title}
                     </h2>
 
