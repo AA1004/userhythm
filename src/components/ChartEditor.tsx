@@ -12,7 +12,7 @@ import { useChartAutosave } from '../hooks/useChartAutosave';
 import { useChartHistory } from '../hooks/useChartHistory';
 import { useHitSound } from '../hooks/useHitSound';
 import { TapBPMCalculator, isValidBPM } from '../utils/bpmAnalyzer';
-import { calculateTotalBeatsWithChanges, formatSongLength, timeToMeasure } from '../utils/bpmUtils';
+import { calculateTotalBeatsWithChanges, formatSongLength } from '../utils/bpmUtils';
 import { chartAPI, supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { api, ApiChart } from '../lib/api';
 import {
@@ -692,6 +692,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         chartDifficulty: shareDifficulty,
         chartDescription: shareDescription,
         adminDifficulty: adminAssignedDifficulty,
+        previewStartMeasure: sharePreviewStartMeasure,
+        previewEndMeasure: sharePreviewEndMeasure,
         wip: shareIsWip
           ? {
               enabled: true,
@@ -727,6 +729,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       shareDifficulty,
       shareDescription,
       adminAssignedDifficulty,
+      sharePreviewStartMeasure,
+      sharePreviewEndMeasure,
       shareIsWip,
       shareWipNote,
       wipParentChartId,
@@ -821,6 +825,22 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     if (typeof data.chartDifficulty === 'string') setShareDifficulty(data.chartDifficulty);
     setAdminAssignedDifficulty(typeof data.adminDifficulty === 'string' ? data.adminDifficulty : '');
     if (typeof data.chartDescription === 'string') setShareDescription(data.chartDescription);
+    const restoredPreviewStart =
+      typeof data.previewStartMeasure === 'number' && Number.isFinite(data.previewStartMeasure)
+        ? Math.max(1, Math.floor(data.previewStartMeasure))
+        : null;
+    const restoredPreviewEnd =
+      typeof data.previewEndMeasure === 'number' && Number.isFinite(data.previewEndMeasure)
+        ? Math.floor(data.previewEndMeasure)
+        : null;
+    if (restoredPreviewStart !== null) {
+      setSharePreviewStartMeasure(restoredPreviewStart);
+      if (restoredPreviewEnd !== null) {
+        setSharePreviewEndMeasure(Math.max(restoredPreviewStart + 1, restoredPreviewEnd));
+      }
+    } else if (restoredPreviewEnd !== null) {
+      setSharePreviewEndMeasure(Math.max(2, restoredPreviewEnd));
+    }
     const restoredWip = data.wip && typeof data.wip === 'object' ? data.wip : null;
     setShareIsWip(restoredWip?.enabled === true);
     setShareWipNote(typeof restoredWip?.note === 'string' ? restoredWip.note : '');
@@ -2048,23 +2068,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   }, [resolveEditorPreviewChartTimeMs]);
 
   const handleOpenShareModal = useCallback(() => {
-    const { subtitles } = normalizeSubtitlePayload(
-      subtitleSessionId,
-      localSubtitleStorage.get(subtitleSessionId),
-      localSubtitleStorage.getTracks(subtitleSessionId)
-    );
-    if (subtitles.length > 0) {
-      const firstCue = subtitles[0];
-      const startMeasure = timeToMeasure(firstCue.startTimeMs, bpm, bpmChanges, beatsPerMeasure);
-      const endMeasure = startMeasure + 4;
-      setSharePreviewStartMeasure(startMeasure);
-      setSharePreviewEndMeasure(endMeasure);
-    } else {
-      setSharePreviewStartMeasure(1);
-      setSharePreviewEndMeasure(5);
-    }
     setIsShareModalOpen(true);
-  }, [subtitleSessionId, bpm, bpmChanges, beatsPerMeasure]);
+  }, []);
 
   const loadExistingCharts = useCallback(async () => {
     setIsLoadingExistingCharts(true);
