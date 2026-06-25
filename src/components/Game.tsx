@@ -908,6 +908,56 @@ export const Game: React.FC = () => {
     isGameplayActive && playfieldGeometry.topLaneExtensionEnabled && activeLaneUiVisible
       ? Math.max(0, stageViewportTop)
       : 0;
+  const topLaneViewportOverlay = useMemo(() => {
+    if (topLaneViewportExtensionHeight <= 0) {
+      return null;
+    }
+
+    const leftPx = playfieldGeometry.laneGroupLeft * stageScale;
+    const widthPx = playfieldGeometry.laneGroupWidth * stageScale;
+    const laneOpacity = playfieldGeometry.laneOpacity;
+    const lineSpacing = Math.max(1, Math.round((playfieldGeometry.laneWidth + playfieldGeometry.laneGap) * stageScale));
+
+    return (
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          left: `${leftPx}px`,
+          top: `${-topLaneViewportExtensionHeight}px`,
+          width: `${widthPx}px`,
+          height: `${topLaneViewportExtensionHeight}px`,
+          pointerEvents: 'none',
+          zIndex: 0,
+          overflow: 'hidden',
+          contain: 'paint',
+          backgroundColor: `rgba(15, 23, 42, ${0.6 * laneOpacity})`,
+          backgroundImage: `
+            linear-gradient(180deg,
+              rgba(255,255,255,${0.025 * laneOpacity}) 0%,
+              rgba(255,255,255,0) 42%,
+              rgba(255,255,255,0) 100%),
+            repeating-linear-gradient(
+              90deg,
+              transparent 0,
+              transparent calc(${lineSpacing}px - 2px),
+              rgba(255,255,255,${0.12 * laneOpacity}) calc(${lineSpacing}px - 2px),
+              rgba(255,255,255,${0.12 * laneOpacity}) ${lineSpacing}px
+            )`,
+          boxShadow: `inset 0 1px 0 rgba(255,255,255,${0.08 * laneOpacity})`,
+          borderTop: `1px solid rgba(255,255,255,${0.1 * laneOpacity})`,
+        }}
+      />
+    );
+  }, [
+    topLaneViewportExtensionHeight,
+    playfieldGeometry.laneGroupLeft,
+    playfieldGeometry.laneGroupWidth,
+    playfieldGeometry.laneOpacity,
+    playfieldGeometry.laneWidth,
+    playfieldGeometry.laneGap,
+    stageScale,
+  ]);
 
   return (
     <>
@@ -1033,52 +1083,7 @@ export const Game: React.FC = () => {
             marginTop: 0,
           }}
         >
-          {topLaneViewportExtensionHeight > 0 && (
-            <div
-              aria-hidden
-              style={{
-                position: 'absolute',
-                left: `${playfieldGeometry.laneGroupLeft * stageScale}px`,
-                top: `${-topLaneViewportExtensionHeight}px`,
-                width: `${playfieldGeometry.laneGroupWidth * stageScale}px`,
-                height: `${topLaneViewportExtensionHeight}px`,
-                pointerEvents: 'none',
-                zIndex: 0,
-                backgroundColor: `rgba(15, 23, 42, ${0.6 * playfieldGeometry.laneOpacity})`,
-                boxShadow: `inset 0 1px 0 rgba(255,255,255,${0.08 * playfieldGeometry.laneOpacity})`,
-                borderTop: `1px solid rgba(255,255,255,${0.1 * playfieldGeometry.laneOpacity})`,
-                overflow: 'hidden',
-              }}
-            >
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  background: `linear-gradient(180deg,
-                    rgba(255,255,255,${0.025 * playfieldGeometry.laneOpacity}) 0%,
-                    rgba(255,255,255,0) 42%,
-                    rgba(255,255,255,0) 100%)`,
-                }}
-              />
-              {playfieldGeometry.laneEdges.map((x) => (
-                <div
-                  key={`viewport-top-edge-${x}`}
-                  style={{
-                    position: 'absolute',
-                    left: `${(x - playfieldGeometry.laneGroupLeft) * stageScale}px`,
-                    top: 0,
-                    width: '2px',
-                    height: '100%',
-                    transform: 'translateX(-50%)',
-                    background: `linear-gradient(180deg,
-                      rgba(255,255,255,${0.14 * playfieldGeometry.laneOpacity}) 0%,
-                      rgba(255,255,255,${0.08 * playfieldGeometry.laneOpacity}) 55%,
-                      rgba(255,255,255,0) 100%)`,
-                  }}
-                />
-              ))}
-            </div>
-          )}
+          {topLaneViewportOverlay}
           <div
             ref={gameContainerRef}
             style={{
