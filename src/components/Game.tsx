@@ -78,6 +78,7 @@ export const Game: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>({ type: 'menu' });
   const [chartListRefreshToken, setChartListRefreshToken] = useState<number>(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [stageViewportTop, setStageViewportTop] = useState<number>(0);
   const gameContainerRef = useRef<HTMLDivElement | null>(null);
   const processedMissNotes = useRef<Set<number>>(new Set());
   const hitNoteIdsRef = useRef<Set<number>>(new Set());
@@ -329,6 +330,21 @@ export const Game: React.FC = () => {
       prev.gameEnded ? prev : { ...prev, currentTime: currentTimeRef.current, gameEnded: true }
     ));
   }, []);
+
+  useEffect(() => {
+    const updateStageViewportTop = () => {
+      const rect = gameContainerRef.current?.getBoundingClientRect();
+      setStageViewportTop(rect ? Math.max(0, rect.top) : 0);
+    };
+
+    updateStageViewportTop();
+    window.addEventListener('resize', updateStageViewportTop);
+    window.visualViewport?.addEventListener('resize', updateStageViewportTop);
+    return () => {
+      window.removeEventListener('resize', updateStageViewportTop);
+      window.visualViewport?.removeEventListener('resize', updateStageViewportTop);
+    };
+  }, [viewportSize.width, viewportSize.height, viewMode.type, stageScale, gameState.gameStarted, gameState.gameEnded]);
 
   // YouTube 플레이어 훅
   const {
@@ -888,6 +904,10 @@ export const Game: React.FC = () => {
   const gameplayStageBackdropAlpha = 0.16;
   const gameplayStageBorderAlpha = 0.14;
   const gameplayStageShadowAlpha = 0.26;
+  const topLaneViewportExtensionHeight =
+    isGameplayActive && playfieldGeometry.topLaneExtensionEnabled && activeLaneUiVisible
+      ? Math.max(0, stageViewportTop)
+      : 0;
 
   return (
     <>
@@ -1013,6 +1033,52 @@ export const Game: React.FC = () => {
             marginTop: 0,
           }}
         >
+          {topLaneViewportExtensionHeight > 0 && (
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute',
+                left: `${playfieldGeometry.laneGroupLeft * stageScale}px`,
+                top: `${-topLaneViewportExtensionHeight}px`,
+                width: `${playfieldGeometry.laneGroupWidth * stageScale}px`,
+                height: `${topLaneViewportExtensionHeight}px`,
+                pointerEvents: 'none',
+                zIndex: 0,
+                backgroundColor: `rgba(15, 23, 42, ${0.6 * playfieldGeometry.laneOpacity})`,
+                boxShadow: `inset 0 1px 0 rgba(255,255,255,${0.08 * playfieldGeometry.laneOpacity})`,
+                borderTop: `1px solid rgba(255,255,255,${0.1 * playfieldGeometry.laneOpacity})`,
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: `linear-gradient(180deg,
+                    rgba(255,255,255,${0.025 * playfieldGeometry.laneOpacity}) 0%,
+                    rgba(255,255,255,0) 42%,
+                    rgba(255,255,255,0) 100%)`,
+                }}
+              />
+              {playfieldGeometry.laneEdges.map((x) => (
+                <div
+                  key={`viewport-top-edge-${x}`}
+                  style={{
+                    position: 'absolute',
+                    left: `${(x - playfieldGeometry.laneGroupLeft) * stageScale}px`,
+                    top: 0,
+                    width: '2px',
+                    height: '100%',
+                    transform: 'translateX(-50%)',
+                    background: `linear-gradient(180deg,
+                      rgba(255,255,255,${0.14 * playfieldGeometry.laneOpacity}) 0%,
+                      rgba(255,255,255,${0.08 * playfieldGeometry.laneOpacity}) 55%,
+                      rgba(255,255,255,0) 100%)`,
+                  }}
+                />
+              ))}
+            </div>
+          )}
           <div
             ref={gameContainerRef}
             style={{
