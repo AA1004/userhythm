@@ -10,8 +10,22 @@ permissions:
   contents: write
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  build-release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            npm_script: player:dist:win
+            artifact_glob: |
+              apps/player/dist/*.exe
+              apps/player/dist/*.zip
+          - os: macos-latest
+            npm_script: player:dist:mac
+            artifact_glob: |
+              apps/player/dist/*.dmg
+              apps/player/dist/*.zip
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout
@@ -31,14 +45,12 @@ jobs:
       - name: Validate player config
         run: npm run player:build
 
-      - name: Build Windows artifacts
-        run: npm run player:dist
+      - name: Build player artifacts
+        run: npm run ${{ matrix.npm_script }}
 
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/player-v')
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            apps/player/dist/*.exe
-            apps/player/dist/*.zip
+          files: ${{ matrix.artifact_glob }}
           generate_release_notes: true

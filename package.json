@@ -11,6 +11,8 @@
     "player:dev": "npm --prefix apps/player run dev",
     "player:build": "npm --prefix apps/player run build",
     "player:dist": "npm --prefix apps/player run dist",
+    "player:dist:win": "npm --prefix apps/player run dist:win",
+    "player:dist:mac": "npm --prefix apps/player run dist:mac",
     "preview": "vite preview",
     "server:start": "cd server && npm start",
     "server:stop": "echo Server stopped",
