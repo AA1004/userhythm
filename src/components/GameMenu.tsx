@@ -159,12 +159,20 @@ export const GameMenu: React.FC<GameMenuProps> = ({
 
         <div className="game-menu-account">
           {isSupabaseConfigured && !authUser ? (
-            <button
-              className="game-menu-link"
-              onClick={onLogin}
-            >
-              Google 로그인
-            </button>
+            <div className="game-menu-userbar">
+              <button
+                className="game-menu-link"
+                onClick={onSettings}
+              >
+                설정
+              </button>
+              <button
+                className="game-menu-link"
+                onClick={onLogin}
+              >
+                Google 로그인
+              </button>
+            </div>
           ) : authUser ? (
             <div className="game-menu-userbar">
               <div className="game-menu-user">
