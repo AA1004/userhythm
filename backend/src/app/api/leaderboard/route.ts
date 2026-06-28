@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const chartId = searchParams.get('chartId');
 
-    const [perChartRaw, globalRaw, grouped] = await Promise.all([
+    const [perChartRaw, globalRaw, aggregateRaw] = await Promise.all([
       chartId
         ? prisma.score.findMany({
             where: { chartId },
@@ -46,18 +46,34 @@ export async function GET(req: NextRequest) {
         orderBy: { accuracy: 'desc' },
         take: 20,
       }),
-      prisma.score.groupBy({
-        by: ['userId'],
-        _avg: { accuracy: true },
-        _max: { accuracy: true },
-        _count: { _all: true },
-        orderBy: { _avg: { accuracy: 'desc' } },
-        take: 20,
+      prisma.score.findMany({
+        select: {
+          userId: true,
+          accuracy: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 2000,
       }),
     ]);
 
     const scoreRows = [...perChartRaw, ...globalRaw];
-    const userIds = Array.from(new Set([...scoreRows.map((score) => score.userId), ...grouped.map((g) => g.userId)]));
+    const aggregateByUser = new Map<
+      string,
+      { total: number; count: number; max: number }
+    >();
+    aggregateRaw.forEach((score) => {
+      const current = aggregateByUser.get(score.userId) ?? {
+        total: 0,
+        count: 0,
+        max: 0,
+      };
+      current.total += score.accuracy;
+      current.count += 1;
+      current.max = Math.max(current.max, score.accuracy);
+      aggregateByUser.set(score.userId, current);
+    });
+
+    const userIds = Array.from(new Set([...scoreRows.map((score) => score.userId), ...aggregateByUser.keys()]));
     const chartIds = Array.from(new Set(scoreRows.map((score) => score.chartId)));
 
     const [users, charts] = await Promise.all([
@@ -80,13 +96,14 @@ export async function GET(req: NextRequest) {
     const perChart = perChartRaw.map((score) => serializeScore(score, userMap, chartMap));
     const global = globalRaw.map((score) => serializeScore(score, userMap, chartMap));
 
-    const perUser = grouped.map((g) => {
-      const u = userMap.get(g.userId);
+    const perUser = Array.from(aggregateByUser.entries())
+      .map(([userId, aggregate]) => {
+      const u = userMap.get(userId);
       return {
-        user_id: g.userId,
-        avg_accuracy: g._avg.accuracy,
-        max_accuracy: g._max.accuracy,
-        play_count: g._count._all,
+        user_id: userId,
+        avg_accuracy: aggregate.count > 0 ? aggregate.total / aggregate.count : null,
+        max_accuracy: aggregate.max,
+        play_count: aggregate.count,
         user: u
           ? {
               id: u.id,
@@ -96,7 +113,9 @@ export async function GET(req: NextRequest) {
             }
           : null,
       };
-    });
+      })
+      .sort((a, b) => (b.avg_accuracy ?? 0) - (a.avg_accuracy ?? 0))
+      .slice(0, 20);
 
     return NextResponse.json({
       perChart: perChart || [],

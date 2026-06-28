@@ -484,7 +484,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
 
     const MAX_DELTA_MS = 100; // 백그라운드 복귀 시 큰 점프 방지 (100ms 상한)
-    const UI_COMMIT_INTERVAL_MS = 1000 / 60;
+    const UI_COMMIT_INTERVAL_MS = 1000 / 120;
     internalTimeRef.current = currentTime; // 초기값 동기화
 
     const tick = (timestamp: number) => {
@@ -2201,8 +2201,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     const centerOffset = container.clientHeight / 2;
     const targetScrollTop = playheadY - centerOffset;
     
-    // 재생 중에는 항상 재생선을 화면 중앙 근처로 유지
-    container.scrollTop = targetScrollTop;
+    if (Math.abs(container.scrollTop - targetScrollTop) > 0.5) {
+      container.scrollTop = targetScrollTop;
+    }
   }, [isPlaying, isAutoScrollEnabled, playheadY]);
 
   // 줌 변경 시 (자동 스크롤이 켜져 있다면) 재생선을 화면 중앙에 고정
