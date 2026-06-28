@@ -14,15 +14,20 @@ const MAIN_MENU_MIN_GAP = 36;
 
 const getMainMenuSidebarLayout = (viewportWidth: number) => {
   if (viewportWidth > 1920) {
-    return { width: 600, edge: 60 };
+    return { mode: 'full' as const, width: 600, edge: 60, top: 60, height: 'calc(100dvh - 120px)', padding: 24 };
   }
 
   if (viewportWidth > 1680) {
-    return { width: 500, edge: 40 };
+    return { mode: 'full' as const, width: 500, edge: 40, top: 60, height: 'calc(100dvh - 120px)', padding: 24 };
   }
 
   if (viewportWidth > 1520) {
-    return { width: 420, edge: 28 };
+    return { mode: 'full' as const, width: 420, edge: 28, top: 60, height: 'calc(100dvh - 120px)', padding: 24 };
+  }
+
+  if (viewportWidth >= 900) {
+    const width = viewportWidth >= 1200 ? 280 : 200;
+    return { mode: 'compact' as const, width, edge: 12, top: 72, height: 'clamp(150px, 24dvh, 220px)', padding: 14 };
   }
 
   return null;
@@ -46,6 +51,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
   const sidebarLayout = useMemo(() => {
     const layout = getMainMenuSidebarLayout(windowSize.width);
     if (!layout) return null;
+    if (layout.mode === 'compact') return layout;
 
     const centerHalf = MAIN_MENU_RESERVED_WIDTH / 2;
     const availableHalf = windowSize.width / 2;
@@ -119,7 +125,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
   };
 
   const getSidebarHeight = () => {
-    return 'calc(100dvh - 120px)';
+    return sidebarLayout.height;
   };
 
   const getFontSize = (large: number, medium: number, small: number) => {
@@ -136,13 +142,13 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
 
   const sidebarStyle: React.CSSProperties = {
     position: 'fixed',
-    top: '60px',
+    top: `${sidebarLayout.top}px`,
     height: getSidebarHeight(),
     width: getSidebarWidth(),
     backgroundColor: '#0b1120',
     border: `2px solid ${CHART_EDITOR_THEME.borderStrong}`,
     borderRadius: CHART_EDITOR_THEME.radiusLg,
-    padding: '24px',
+    padding: `${sidebarLayout.padding}px`,
     boxShadow: '0 0 30px rgba(0, 0, 0, 0.9)',
     overflow: 'hidden',
     display: 'flex',
@@ -160,6 +166,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
     'main-menu-sidebar',
     `main-menu-sidebar--${type}`,
     `main-menu-sidebar--${position}`,
+    `main-menu-sidebar--${sidebarLayout.mode}`,
   ].join(' ');
 
   return (
