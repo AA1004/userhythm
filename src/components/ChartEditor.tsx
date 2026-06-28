@@ -378,6 +378,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const playheadRafIdRef = useRef<number | null>(null);
   const dragPlayheadRafIdRef = useRef<number | null>(null);
   const lastTickTimestampRef = useRef<number | null>(null);
+  const lastUiCommitTimestampRef = useRef<number | null>(null);
   const lastHitCheckTimeRef = useRef<number>(0);
   const playedNoteIdsRef = useRef<Set<number>>(new Set());
   const lastCheckedNoteIndexRef = useRef<number>(0); // 성능 최적화: 마지막으로 확인한 노트 인덱스
@@ -468,6 +469,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   // --- 에디터 전용 타이머(재생선 시간 소스) ---
   // 매 프레임 상태 업데이트 (모니터 주사율에 맞춤)
   const internalTimeRef = useRef<number>(0);
+  const [autosaveCurrentTime, setAutosaveCurrentTime] = useState<number>(0);
 
   useEffect(() => {
     if (!isPlaying) {
@@ -476,10 +478,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         playheadRafIdRef.current = null;
       }
       lastTickTimestampRef.current = null;
+      lastUiCommitTimestampRef.current = null;
       return;
     }
 
     const MAX_DELTA_MS = 100; // 백그라운드 복귀 시 큰 점프 방지 (100ms 상한)
+    const UI_COMMIT_INTERVAL_MS = 1000 / 60;
     internalTimeRef.current = currentTime; // 초기값 동기화
 
     const tick = (timestamp: number) => {
@@ -496,7 +500,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
       if (deltaMs > 0) {
         internalTimeRef.current = Math.max(0, internalTimeRef.current + deltaMs);
-        setCurrentTime(internalTimeRef.current);
+        const shouldCommitUi =
+          lastUiCommitTimestampRef.current === null ||
+          timestamp - lastUiCommitTimestampRef.current >= UI_COMMIT_INTERVAL_MS;
+
+        if (shouldCommitUi) {
+          lastUiCommitTimestampRef.current = timestamp;
+          setCurrentTime(internalTimeRef.current);
+        }
       }
       playheadRafIdRef.current = requestAnimationFrame(tick);
     };
@@ -509,6 +520,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         playheadRafIdRef.current = null;
       }
       lastTickTimestampRef.current = null;
+      lastUiCommitTimestampRef.current = null;
       // 최종 시간 동기화
       setCurrentTime(internalTimeRef.current);
       };
@@ -517,6 +529,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   useEffect(() => {
     if (!isPlaying) {
       internalTimeRef.current = currentTime;
+    }
+  }, [currentTime, isPlaying]);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      const next = Math.max(0, Math.floor(currentTime));
+      setAutosaveCurrentTime((prev) => (prev === next ? prev : next));
     }
   }, [currentTime, isPlaying]);
 
@@ -707,7 +726,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         playbackSpeed,
         volume,
         hitSoundVolume,
-        currentTime,
+        currentTime: autosaveCurrentTime,
         isAutoScrollEnabled,
         zoom,
       };
@@ -741,7 +760,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       playbackSpeed,
       volume,
       hitSoundVolume,
-      currentTime,
+      autosaveCurrentTime,
       isAutoScrollEnabled,
       zoom,
       timelineExtraMs,
