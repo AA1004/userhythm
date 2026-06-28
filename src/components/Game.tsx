@@ -816,64 +816,6 @@ export const Game: React.FC = () => {
     }
   }, [isTestMode, gameState.gameStarted, gameState.gameEnded, isFromEditor, viewMode.type]);
 
-  // 화면 라우팅
-  if (viewMode.type === 'tutorial') {
-    return <TutorialScreen onClose={() => setViewMode({ type: 'menu' })} />;
-  }
-
-  if (viewMode.type === 'calibration') {
-    return (
-      <CalibrationGame
-        keyBindings={keyBindings}
-        currentOffsetMs={timingOffsetMs}
-        currentNoteSpeed={noteSpeed}
-        onApplyTimingOffset={setTimingOffsetMs}
-        onClose={() => setViewMode({ type: 'menu' })}
-      />
-    );
-  }
-
-  if (viewMode.type === 'subtitleEditor') {
-    return (
-      <SubtitleEditor
-        chartId={viewMode.data.chartId}
-        chartData={viewMode.data}
-        onClose={handleCloseSubtitleEditor}
-      />
-    );
-  }
-
-  if (viewMode.type === 'editor') {
-      return (
-        <ChartEditor
-          onCancel={handleEditorCancel}
-          onTest={handleEditorTestWithRuntimeReset}
-          onOpenSubtitleEditor={handleOpenSubtitleEditor}
-          isAdmin={isAdmin}
-        />
-      );
-  }
-
-  if (viewMode.type === 'chartSelect') {
-    return (
-      <div className="chart-select-route-in">
-        <ChartSelect
-          onSelect={handleChartSelect}
-          onClose={() => setViewMode({ type: 'menu' })}
-          refreshToken={viewMode.refreshToken ?? chartListRefreshToken}
-          isAdmin={isAdmin}
-          isLoggedIn={!!authUser}
-          chartStatus={viewMode.chartStatus ?? 'approved'}
-          onContribute={viewMode.chartStatus === 'wip' ? handleContributeWipChart : undefined}
-        />
-      </div>
-    );
-  }
-
-  if (viewMode.type === 'admin') {
-    return <ChartAdmin onClose={() => setViewMode({ type: 'menu' })} onTestChart={handleAdminTest} />;
-  }
-
   const isChartSelectTransitioning = chartSelectTransition !== null;
   const isGameplayActive = gameState.gameStarted && !gameState.gameEnded;
   const isWaitingForYoutubeAudio =
@@ -958,6 +900,64 @@ export const Game: React.FC = () => {
     playfieldGeometry.laneGap,
     stageScale,
   ]);
+
+  // 화면 라우팅은 모든 hooks 계산 이후에 수행해야 한다.
+  if (viewMode.type === 'tutorial') {
+    return <TutorialScreen onClose={() => setViewMode({ type: 'menu' })} />;
+  }
+
+  if (viewMode.type === 'calibration') {
+    return (
+      <CalibrationGame
+        keyBindings={keyBindings}
+        currentOffsetMs={timingOffsetMs}
+        currentNoteSpeed={noteSpeed}
+        onApplyTimingOffset={setTimingOffsetMs}
+        onClose={() => setViewMode({ type: 'menu' })}
+      />
+    );
+  }
+
+  if (viewMode.type === 'subtitleEditor') {
+    return (
+      <SubtitleEditor
+        chartId={viewMode.data.chartId}
+        chartData={viewMode.data}
+        onClose={handleCloseSubtitleEditor}
+      />
+    );
+  }
+
+  if (viewMode.type === 'editor') {
+    return (
+      <ChartEditor
+        onCancel={handleEditorCancel}
+        onTest={handleEditorTestWithRuntimeReset}
+        onOpenSubtitleEditor={handleOpenSubtitleEditor}
+        isAdmin={isAdmin}
+      />
+    );
+  }
+
+  if (viewMode.type === 'chartSelect') {
+    return (
+      <div className="chart-select-route-in">
+        <ChartSelect
+          onSelect={handleChartSelect}
+          onClose={() => setViewMode({ type: 'menu' })}
+          refreshToken={viewMode.refreshToken ?? chartListRefreshToken}
+          isAdmin={isAdmin}
+          isLoggedIn={!!authUser}
+          chartStatus={viewMode.chartStatus ?? 'approved'}
+          onContribute={viewMode.chartStatus === 'wip' ? handleContributeWipChart : undefined}
+        />
+      </div>
+    );
+  }
+
+  if (viewMode.type === 'admin') {
+    return <ChartAdmin onClose={() => setViewMode({ type: 'menu' })} onTestChart={handleAdminTest} />;
+  }
 
   return (
     <>
