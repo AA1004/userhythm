@@ -126,7 +126,7 @@ export function analyzeBPMByOnsets(audioBuffer: AudioBuffer): BPMResult | null {
     const tolerance = 100; // 100ms 허용 오차 (더 관대하게)
     
     for (const interval of intervals) {
-      // BPM 범위: 30-300 (200ms ~ 2000ms 간격)
+      // BPM 범위: 30-500 (120ms ~ 2000ms 간격)
       if (interval >= 200 && interval <= 2000) {
         const rounded = Math.round(interval / tolerance) * tolerance;
         histogram[rounded] = (histogram[rounded] || 0) + 1;
@@ -201,7 +201,7 @@ export function analyzeBPMByAutocorrelation(audioBuffer: AudioBuffer): BPMResult
     const dataLength = audioData.length;
     const effectiveSampleRate = sampleRate > targetSampleRate ? targetSampleRate : sampleRate;
     const maxLag = Math.floor((60 / 30) * effectiveSampleRate); // 30 BPM = 2초
-    const minLag = Math.floor((60 / 300) * effectiveSampleRate); // 300 BPM = 0.2초
+    const minLag = Math.floor((60 / 500) * effectiveSampleRate); // 500 BPM = 0.12초
     
     console.log('Lag 범위:', minLag, '-', maxLag, '데이터 길이:', dataLength);
     

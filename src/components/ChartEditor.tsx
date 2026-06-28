@@ -1802,7 +1802,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     if (bpmInput === null) return;
     const newBpm = parseFloat(bpmInput);
     if (isNaN(newBpm) || !isValidBPM(newBpm)) {
-      alert('유효한 BPM을 입력해주세요. (30-300)');
+      alert('유효한 BPM을 입력해주세요. (30-500)');
       return;
     }
     

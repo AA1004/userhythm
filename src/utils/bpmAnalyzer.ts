@@ -37,8 +37,8 @@ export class TapBPMCalculator {
     const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
     const bpm = Math.round((60 * 1000) / avgInterval);
 
-    // BPM 범위 검증 (30-300 BPM)
-    if (bpm < 30 || bpm > 300) {
+    // BPM 범위 검증 (30-500 BPM)
+    if (bpm < 30 || bpm > 500) {
       return null;
     }
 
@@ -67,7 +67,7 @@ export class TapBPMCalculator {
 
 // BPM 범위 검증
 export function isValidBPM(bpm: number): boolean {
-  return bpm >= 30 && bpm <= 300;
+  return bpm >= 30 && bpm <= 500;
 }
 
 // BPM을 ms 단위 비트 간격으로 변환

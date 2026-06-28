@@ -87,8 +87,8 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
 
   const submitBpmDraft = React.useCallback(() => {
     const nextBpm = Number(bpmDraft);
-    if (!Number.isFinite(nextBpm) || nextBpm < 30 || nextBpm > 300) {
-      setBpmError('BPM은 30 이상 300 이하로 입력해야 합니다.');
+    if (!Number.isFinite(nextBpm) || nextBpm < 30 || nextBpm > 500) {
+      setBpmError('BPM은 30 이상 500 이하로 입력해야 합니다.');
       return;
     }
     setBpmError(null);
