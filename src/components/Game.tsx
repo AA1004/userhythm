@@ -865,31 +865,49 @@ export const Game: React.FC = () => {
         aria-hidden
         style={{
           position: 'absolute',
-          left: `${leftPx}px`,
+          left: 0,
           top: `${-topLaneViewportExtensionHeight}px`,
-          width: `${widthPx}px`,
+          width: '100%',
           height: `${topLaneViewportExtensionHeight}px`,
           pointerEvents: 'none',
           zIndex: 0,
           overflow: 'hidden',
           contain: 'paint',
-          backgroundColor: `rgba(15, 23, 42, ${0.6 * laneOpacity})`,
-          backgroundImage: `
-            linear-gradient(180deg,
-              rgba(255,255,255,${0.025 * laneOpacity}) 0%,
-              rgba(255,255,255,0) 42%,
-              rgba(255,255,255,0) 100%),
-            repeating-linear-gradient(
-              90deg,
-              transparent 0,
-              transparent calc(${lineSpacing}px - 2px),
-              rgba(255,255,255,${0.12 * laneOpacity}) calc(${lineSpacing}px - 2px),
-              rgba(255,255,255,${0.12 * laneOpacity}) ${lineSpacing}px
-            )`,
-          boxShadow: `inset 0 1px 0 rgba(255,255,255,${0.08 * laneOpacity})`,
-          borderTop: `1px solid rgba(255,255,255,${0.1 * laneOpacity})`,
+          backgroundColor: `rgba(8, 12, 24, ${gameplayStageBackdropAlpha.toFixed(3)})`,
+          borderTopLeftRadius: CHART_EDITOR_THEME.radiusLg,
+          borderTopRightRadius: CHART_EDITOR_THEME.radiusLg,
+          borderLeft: `1px solid rgba(238, 247, 242, ${gameplayStageBorderAlpha.toFixed(3)})`,
+          borderRight: `1px solid rgba(238, 247, 242, ${gameplayStageBorderAlpha.toFixed(3)})`,
+          borderTop: `1px solid rgba(238, 247, 242, ${gameplayStageBorderAlpha.toFixed(3)})`,
+          boxShadow: `0 -10px 30px rgba(0, 0, 0, ${gameplayStageShadowAlpha.toFixed(3)})`,
+          backdropFilter: visualSettings.bgaBlurEnabled ? 'blur(5px) saturate(0.94)' : undefined,
+          WebkitBackdropFilter: visualSettings.bgaBlurEnabled ? 'blur(5px) saturate(0.94)' : undefined,
         }}
-      />
+      >
+        <div
+          style={{
+            position: 'absolute',
+            left: `${leftPx}px`,
+            top: 0,
+            width: `${widthPx}px`,
+            height: '100%',
+            backgroundColor: `rgba(15, 23, 42, ${0.6 * laneOpacity})`,
+            backgroundImage: `
+              linear-gradient(180deg,
+                rgba(255,255,255,${0.025 * laneOpacity}) 0%,
+                rgba(255,255,255,0) 42%,
+                rgba(255,255,255,0) 100%),
+              repeating-linear-gradient(
+                90deg,
+                transparent 0,
+                transparent calc(${lineSpacing}px - 2px),
+                rgba(255,255,255,${0.12 * laneOpacity}) calc(${lineSpacing}px - 2px),
+                rgba(255,255,255,${0.12 * laneOpacity}) ${lineSpacing}px
+              )`,
+            boxShadow: `inset 0 1px 0 rgba(255,255,255,${0.08 * laneOpacity})`,
+          }}
+        />
+      </div>
     );
   }, [
     topLaneViewportExtensionHeight,
@@ -899,6 +917,7 @@ export const Game: React.FC = () => {
     playfieldGeometry.laneWidth,
     playfieldGeometry.laneGap,
     stageScale,
+    visualSettings.bgaBlurEnabled,
   ]);
 
   // 화면 라우팅은 모든 hooks 계산 이후에 수행해야 한다.
