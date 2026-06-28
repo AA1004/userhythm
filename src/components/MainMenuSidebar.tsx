@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { api, ApiNotice, ApiVersion } from '../lib/api';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { useAuth } from '../hooks/useAuth';
@@ -9,23 +9,23 @@ interface MainMenuSidebarProps {
   position: 'left' | 'right';
 }
 
-// 반응형 체크를 위한 훅
-const useIsWideScreen = () => {
-  const [isWideScreen, setIsWideScreen] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    return window.innerWidth > 1200;
-  });
+const MAIN_MENU_RESERVED_WIDTH = 560;
+const MAIN_MENU_MIN_GAP = 36;
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const handleResize = () => {
-      setIsWideScreen(window.innerWidth > 1200);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+const getMainMenuSidebarLayout = (viewportWidth: number) => {
+  if (viewportWidth > 1920) {
+    return { width: 600, edge: 60 };
+  }
 
-  return isWideScreen;
+  if (viewportWidth > 1680) {
+    return { width: 500, edge: 40 };
+  }
+
+  if (viewportWidth > 1520) {
+    return { width: 420, edge: 28 };
+  }
+
+  return null;
 };
 
 export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
@@ -38,11 +38,22 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const { isAdmin } = useAuth();
-  useIsWideScreen();
   const [windowSize, setWindowSize] = useState(() => {
     if (typeof window === 'undefined') return { width: 1920, height: 1080 };
     return { width: window.innerWidth, height: window.innerHeight };
   });
+
+  const sidebarLayout = useMemo(() => {
+    const layout = getMainMenuSidebarLayout(windowSize.width);
+    if (!layout) return null;
+
+    const centerHalf = MAIN_MENU_RESERVED_WIDTH / 2;
+    const availableHalf = windowSize.width / 2;
+    const sidebarRightEdge = layout.edge + layout.width;
+    const hasGapFromCenter = sidebarRightEdge + MAIN_MENU_MIN_GAP <= availableHalf - centerHalf;
+
+    return hasGapFromCenter ? layout : null;
+  }, [windowSize.width]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -54,6 +65,8 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
   }, []);
 
   useEffect(() => {
+    if (!sidebarLayout) return;
+
     if (type === 'notice') {
       setIsLoading(true);
       setError(null);
@@ -93,27 +106,20 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
           setIsLoading(false);
         });
     }
-  }, [type]);
+  }, [type, sidebarLayout]);
 
   const isLeft = position === 'left';
 
-  // 작은 화면에서는 숨김 (하지만 일단 렌더링은 함)
-  // if (!isWideScreen) {
-  //   return null;
-  // }
+  if (!sidebarLayout) {
+    return null;
+  }
 
-  // 화면 크기에 따라 동적으로 계산
   const getSidebarWidth = () => {
-    const viewportWidth = windowSize.width;
-    if (viewportWidth > 1920) return '600px';
-    if (viewportWidth > 1440) return '500px';
-    if (viewportWidth > 1024) return '450px';
-    return '400px';
+    return `${sidebarLayout.width}px`;
   };
 
   const getSidebarHeight = () => {
-    // 위아래 여백을 남기고 높이 설정 (위 60px + 아래 60px)
-    return 'calc(100vh - 120px)';
+    return 'calc(100dvh - 120px)';
   };
 
   const getFontSize = (large: number, medium: number, small: number) => {
@@ -125,11 +131,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
   };
 
   const getSidebarPosition = () => {
-    const viewportWidth = windowSize.width;
-    if (viewportWidth > 1920) return '60px';
-    if (viewportWidth > 1440) return '40px';
-    if (viewportWidth > 1024) return '30px';
-    return '20px';
+    return `${sidebarLayout.edge}px`;
   };
 
   const sidebarStyle: React.CSSProperties = {
