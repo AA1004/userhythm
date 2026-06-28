@@ -2382,7 +2382,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         onExit={onCancel}
         onYoutubePasteButton={handleYoutubePasteButton}
         onToggleBpmInput={() => setIsBpmInputOpen(prev => !prev)}
-        onBpmInput={(val) => { setBpm(parseFloat(val)); setIsBpmInputOpen(false); }}
+        onBpmInput={(val) => {
+          const nextBpm = Number(val);
+          if (!Number.isFinite(nextBpm) || !isValidBPM(nextBpm)) return;
+          setBpm(nextBpm);
+          setIsBpmInputOpen(false);
+        }}
         onTapBpm={handleTapBpm}
         onAddBpmChange={handleAddBpmChange}
         onAddBpmChangeAtCurrent={handleAddBpmChangeAtCurrentPosition}

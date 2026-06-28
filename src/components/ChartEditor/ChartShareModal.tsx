@@ -57,6 +57,32 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
   beatsPerMeasure,
 }) => {
   const shouldCloseRef = useRef(false);
+  const [previewStartDraft, setPreviewStartDraft] = React.useState(() => String(previewStartMeasure));
+  const [previewEndDraft, setPreviewEndDraft] = React.useState(() => String(previewEndMeasure));
+  const [previewMeasureError, setPreviewMeasureError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    setPreviewStartDraft(String(previewStartMeasure));
+    setPreviewEndDraft(String(previewEndMeasure));
+    setPreviewMeasureError(null);
+  }, [isOpen, previewStartMeasure, previewEndMeasure]);
+
+  const commitPreviewMeasureDrafts = React.useCallback(() => {
+    const start = Number(previewStartDraft);
+    const end = Number(previewEndDraft);
+    if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < 2) {
+      setPreviewMeasureError('마디는 1 이상의 정수로 입력해야 합니다.');
+      return;
+    }
+    if (end <= start) {
+      setPreviewMeasureError('끝 마디는 시작 마디보다 커야 합니다.');
+      return;
+    }
+    setPreviewMeasureError(null);
+    onPreviewStartMeasureChange(start);
+    onPreviewEndMeasureChange(end);
+  }, [onPreviewEndMeasureChange, onPreviewStartMeasureChange, previewEndDraft, previewStartDraft]);
 
   if (!isOpen) return null;
 
@@ -257,22 +283,22 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
                 type="number"
                 min={1}
                 step={1}
-                value={previewStartMeasure}
+                value={previewStartDraft}
                 onChange={(e) => {
-                  const raw = e.target.value;
-                  const n = Math.max(1, parseInt(raw || '1', 10));
-                  onPreviewStartMeasureChange(n);
-                  // end가 start 이하이면 자동 보정
-                  if (previewEndMeasure <= n) {
-                    onPreviewEndMeasureChange(n + 1);
-                  }
+                  setPreviewStartDraft(e.target.value);
+                  if (previewMeasureError) setPreviewMeasureError(null);
                 }}
+                onBlur={commitPreviewMeasureDrafts}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitPreviewMeasureDrafts();
+                }}
+                aria-invalid={previewMeasureError ? true : undefined}
                 style={{
                   width: '100%',
                   padding: '8px',
                   backgroundColor: '#2a2a2a',
                   color: '#fff',
-                  border: '1px solid #444',
+                  border: `1px solid ${previewMeasureError ? '#ef4444' : '#444'}`,
                   borderRadius: '6px',
                 }}
               />
@@ -283,23 +309,32 @@ export const ChartShareModal: React.FC<ChartShareModalProps> = ({
                 type="number"
                 min={2}
                 step={1}
-                value={previewEndMeasure}
+                value={previewEndDraft}
                 onChange={(e) => {
-                  const raw = e.target.value;
-                  const n = Math.max(previewStartMeasure + 1, parseInt(raw || String(previewStartMeasure + 1), 10));
-                  onPreviewEndMeasureChange(n);
+                  setPreviewEndDraft(e.target.value);
+                  if (previewMeasureError) setPreviewMeasureError(null);
                 }}
+                onBlur={commitPreviewMeasureDrafts}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitPreviewMeasureDrafts();
+                }}
+                aria-invalid={previewMeasureError ? true : undefined}
                 style={{
                   width: '100%',
                   padding: '8px',
                   backgroundColor: '#2a2a2a',
                   color: '#fff',
-                  border: '1px solid #444',
+                  border: `1px solid ${previewMeasureError ? '#ef4444' : '#444'}`,
                   borderRadius: '6px',
                 }}
               />
             </div>
           </div>
+          {previewMeasureError && (
+            <div style={{ marginTop: '8px', color: '#fca5a5', fontSize: '12px' }}>
+              {previewMeasureError}
+            </div>
+          )}
         </div>
 
         <div style={{ marginBottom: '16px' }}>

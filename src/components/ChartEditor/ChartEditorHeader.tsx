@@ -75,6 +75,25 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
 }) => {
   const measures = Math.max(1, Math.round(songInfo.totalBeats / beatsPerMeasure));
   const beatsRounded = Math.round(songInfo.totalBeats);
+  const [bpmDraft, setBpmDraft] = React.useState(() => Math.round(bpm).toString());
+  const [bpmError, setBpmError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (isBpmInputOpen) {
+      setBpmDraft(Math.round(bpm).toString());
+      setBpmError(null);
+    }
+  }, [bpm, isBpmInputOpen]);
+
+  const submitBpmDraft = React.useCallback(() => {
+    const nextBpm = Number(bpmDraft);
+    if (!Number.isFinite(nextBpm) || nextBpm < 30 || nextBpm > 300) {
+      setBpmError('BPM은 30 이상 300 이하로 입력해야 합니다.');
+      return;
+    }
+    setBpmError(null);
+    onBpmInput(bpmDraft);
+  }, [bpmDraft, onBpmInput]);
 
   const actionButtons = [
     ...(onImportJson ? [{ label: 'JSON 불러오기', onClick: onImportJson }] : []),
@@ -222,26 +241,38 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
             BPM
           </span>
         {isBpmInputOpen ? (
-          <input
-            type="number"
-            defaultValue={Math.round(bpm).toString()}
-            onBlur={(e) => onBpmInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                onBpmInput(e.currentTarget.value);
-              }
-            }}
-            autoFocus
-            style={{
-              width: '60px',
-              padding: '4px',
-                backgroundColor: '#020617',
-                color: CHART_EDITOR_THEME.textPrimary,
-                border: `1px solid ${CHART_EDITOR_THEME.borderStrong}`,
-                borderRadius: CHART_EDITOR_THEME.radiusSm,
-                fontSize: '13px',
-            }}
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+            <input
+              type="number"
+              value={bpmDraft}
+              onChange={(e) => {
+                setBpmDraft(e.target.value);
+                if (bpmError) setBpmError(null);
+              }}
+              onBlur={submitBpmDraft}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  submitBpmDraft();
+                }
+              }}
+              autoFocus
+              aria-invalid={bpmError ? true : undefined}
+              style={{
+                width: '72px',
+                padding: '4px',
+                  backgroundColor: '#020617',
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  border: `1px solid ${bpmError ? CHART_EDITOR_THEME.danger : CHART_EDITOR_THEME.borderStrong}`,
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  fontSize: '13px',
+              }}
+            />
+            {bpmError && (
+              <span style={{ color: CHART_EDITOR_THEME.danger, fontSize: '10px', lineHeight: 1.2 }}>
+                {bpmError}
+              </span>
+            )}
+          </div>
         ) : (
           <button
             data-editor-transient-action="true"

@@ -61,6 +61,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   const [sortBy, setSortBy] = useState<'title' | 'author'>('title');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [selectedChart, setSelectedChart] = useState<ApiChart | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
+  const [isDetailExpanded, setIsDetailExpanded] = useState<boolean>(false);
   const [isCardGridCompact] = useState<boolean>(false);
   const [adminDifficultyValue, setAdminDifficultyValue] = useState<string>('');
   const [isDifficultyMenuOpen, setIsDifficultyMenuOpen] = useState<boolean>(false);
@@ -407,6 +409,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
     }
     setAdminDifficultyValue(((selectedChart as any)._adminDifficulty as string | null) || '');
     setIsDifficultyMenuOpen(false);
+    setIsDetailExpanded(false);
   }, [selectedChart]);
 
   const handleSaveAdminDifficulty = useCallback(async () => {
@@ -886,13 +889,13 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
       className="chart-select-detail-panel__facts"
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-        gap: '14px',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(116px, 1fr))',
+        gap: '8px',
       }}
     >
       <div className="chart-select-detail-panel__fact">
-        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>작성자</div>
-        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '10px', marginBottom: '4px' }}>작성자</div>
+        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '13px', display: 'flex', gap: '6px', alignItems: 'center' }}>
           <span>{(selectedChart as any)?._authorChess || '♟'}</span>
           <span
             style={{
@@ -910,37 +913,37 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
         </div>
       </div>
       <div className="chart-select-detail-panel__fact">
-        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>BPM</div>
-        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart?.bpm}</div>
+        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '10px', marginBottom: '4px' }}>BPM</div>
+        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '13px' }}>{selectedChart?.bpm}</div>
       </div>
       {renderDifficultyFact()}
       <div className="chart-select-detail-panel__fact">
-        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>플레이 횟수</div>
-        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>{selectedChart?.play_count}</div>
+        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '10px', marginBottom: '4px' }}>플레이 횟수</div>
+        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '13px' }}>{selectedChart?.play_count}</div>
       </div>
       <div className="chart-select-detail-panel__fact">
-        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>노트 수</div>
-        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
+        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '10px', marginBottom: '4px' }}>노트 수</div>
+        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '13px' }}>
           {(selectedChart as any)?._noteCount ?? 0}
         </div>
       </div>
       <div className="chart-select-detail-panel__fact">
-        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>롱노트</div>
-        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
+        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '10px', marginBottom: '4px' }}>롱노트</div>
+        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '13px' }}>
           {(selectedChart as any)?._holdCount ?? 0}
         </div>
       </div>
       <div className="chart-select-detail-panel__fact">
-        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>자막</div>
-        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
+        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '10px', marginBottom: '4px' }}>자막</div>
+        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '13px' }}>
           {(selectedChart as any)?._subtitleCount > 0
             ? `${(selectedChart as any)?._subtitleCount}개`
             : '없음'}
         </div>
       </div>
       <div className="chart-select-detail-panel__fact">
-        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>BGA 연출</div>
-        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px' }}>
+        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '10px', marginBottom: '4px' }}>BGA 연출</div>
+        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '13px' }}>
           {(selectedChart as any)?._bgaEventCount > 0
             ? `${(selectedChart as any)?._bgaEventCount}개`
             : '없음'}
@@ -948,7 +951,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
       </div>
       {selectedChart?.youtube_url && (
         <div className="chart-select-detail-panel__fact chart-select-detail-panel__fact--wide">
-          <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>YouTube</div>
+          <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '10px', marginBottom: '4px' }}>YouTube</div>
           <a
             href={selectedChart.youtube_url}
             target="_blank"
@@ -960,8 +963,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
         </div>
       )}
       <div className="chart-select-detail-panel__fact">
-        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '5px' }}>업로드 일시</div>
-        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px' }}>
+        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '10px', marginBottom: '4px' }}>업로드 일시</div>
+        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '12px' }}>
           {selectedChart?.created_at
             ? new Date(selectedChart.created_at).toLocaleString('ko-KR')
             : '정보 없음'}
@@ -1229,21 +1232,37 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               className="chart-select-filter"
               style={{
                 display: 'flex',
-                flexWrap: 'wrap',
+                flexWrap: 'nowrap',
                 gap: '10px',
                 alignItems: 'center',
-                marginBottom: '24px',
-                padding: '16px',
+                marginBottom: '18px',
+                padding: '10px',
                 borderRadius: CHART_EDITOR_THEME.radiusMd,
                 border: '1px solid rgba(59,130,246,0.12)',
-                background: 'linear-gradient(135deg, rgba(8,12,24,0.88), rgba(20,33,61,0.74))',
+                background: 'linear-gradient(135deg, rgba(8,12,24,0.7), rgba(20,33,61,0.54))',
                 boxShadow: CHART_EDITOR_THEME.shadowSoft,
               }}
             >
-              <div style={{ minWidth: '220px', flex: '1 1 420px' }}>
-                <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginBottom: '6px', letterSpacing: '0.08em' }}>
-                  SEARCH
-                </div>
+              <button
+                type="button"
+                aria-label="검색"
+                onClick={() => setIsSearchOpen((prev) => !prev)}
+                style={{
+                  width: '42px',
+                  height: '42px',
+                  flex: '0 0 42px',
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  border: `1px solid ${isSearchOpen || searchQuery ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.borderSubtle}`,
+                  background: isSearchOpen || searchQuery ? 'rgba(34,211,238,0.16)' : CHART_EDITOR_THEME.buttonGhostBg,
+                  color: CHART_EDITOR_THEME.textPrimary,
+                  cursor: 'pointer',
+                  fontSize: '18px',
+                  lineHeight: 1,
+                }}
+              >
+                🔍
+              </button>
+              {isSearchOpen && (
                 <input
                   className="chart-select-search"
                   type="text"
@@ -1252,9 +1271,10 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     setSearchInput(e.target.value);
                     setCurrentPage(1);
                   }}
-                  placeholder="제목 또는 작성자로 검색..."
+                  placeholder="제목 또는 작성자"
+                  autoFocus
                   style={{
-                    width: '100%',
+                    width: 'min(360px, 42vw)',
                     padding: '12px 14px',
                     borderRadius: CHART_EDITOR_THEME.radiusSm,
                     border: `1px solid ${CHART_EDITOR_THEME.inputBorder}`,
@@ -1263,21 +1283,10 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     fontSize: '14px',
                     transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
                   }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.border = `1px solid ${CHART_EDITOR_THEME.inputBorderFocused}`;
-                    e.currentTarget.style.boxShadow = CHART_EDITOR_THEME.shadowSoft;
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.border = `1px solid ${CHART_EDITOR_THEME.inputBorder}`;
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
                 />
-              </div>
+              )}
               <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flex: '0 0 auto' }}>
                 <div>
-                  <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', marginBottom: '6px', letterSpacing: '0.08em' }}>
-                    SORT
-                  </div>
                   <select
                     className="chart-select-sort"
                     value={sortBy}
@@ -1324,7 +1333,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   {sortOrder === 'asc' ? '↑' : '↓'}
                 </button>
               </div>
-              <div style={{ marginLeft: 'auto', color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', alignSelf: 'flex-end' }}>
+              <div style={{ marginLeft: 'auto', color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px' }}>
                 총 {(totalCount || charts.length)}개의 채보
               </div>
             </div>
@@ -1390,8 +1399,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 display: 'grid',
                 gridTemplateColumns: isCardGridCompact
                   ? 'repeat(auto-fill, minmax(220px, 1fr))'
-                  : 'repeat(auto-fill, minmax(300px, 1fr))',
-                gap: isCardGridCompact ? '14px' : '20px',
+                  : 'repeat(auto-fill, minmax(260px, 1fr))',
+                gap: isCardGridCompact ? '12px' : '16px',
                 overflowY: 'visible',
               }}
             >
@@ -1406,9 +1415,9 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     animationDelay: `${Math.min(index, 11) * 36}ms`,
                     background: selectedChart?.id === chart.id
                       ? 'linear-gradient(145deg, rgba(34,211,238,0.18), rgba(129,140,248,0.16))'
-                      : CHART_EDITOR_THEME.surface,
+                      : 'rgba(2,6,23,0.38)',
                     borderRadius: CHART_EDITOR_THEME.radiusMd,
-                    padding: isCardGridCompact ? '14px' : '20px',
+                    padding: '0',
                     cursor: 'pointer',
                     border: selectedChart?.id === chart.id
                       ? `1px solid ${CHART_EDITOR_THEME.accentStrong}`
@@ -1416,17 +1425,19 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     transition: 'all 0.2s ease-out',
                     boxShadow: selectedChart?.id === chart.id
                       ? CHART_EDITOR_THEME.shadowStrong
-                      : CHART_EDITOR_THEME.shadowSoft,
+                      : '0 16px 34px rgba(0,0,0,0.24)',
                     minHeight: 'auto',
+                    overflow: 'hidden',
+                    position: 'relative',
                   }}
                   onMouseEnter={(e) => {
                     if (selectedChart?.id !== chart.id) {
-                      e.currentTarget.style.background = CHART_EDITOR_THEME.buttonGhostBgHover;
+                      e.currentTarget.style.background = 'rgba(15,23,42,0.56)';
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (selectedChart?.id !== chart.id) {
-                      e.currentTarget.style.background = CHART_EDITOR_THEME.surface;
+                      e.currentTarget.style.background = 'rgba(2,6,23,0.38)';
                     }
                   }}
                 >
@@ -1447,11 +1458,10 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                         aspectRatio: String(
                           thumbnailAspectRatios[chart.id] ?? DEFAULT_THUMBNAIL_ASPECT_RATIO
                         ),
-                        marginBottom: isCardGridCompact ? '10px' : '12px',
-                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                        marginBottom: 0,
+                        borderRadius: 0,
                         overflow: 'hidden',
                         backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
-                        boxShadow: `0 0 0 1px ${CHART_EDITOR_THEME.borderSubtle}`,
                       }}
                     >
                       <img
@@ -1463,6 +1473,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                           height: '100%',
                           objectFit: 'cover',
                           display: 'block',
+                          filter: selectedChart?.id === chart.id ? 'saturate(1.12)' : 'saturate(0.9)',
                         }}
                         loading="lazy"
                         onLoad={(e) => handleThumbnailLoad(chart.id, e)}
@@ -1482,8 +1493,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       style={{
                         width: '100%',
                           height: isCardGridCompact ? '132px' : '180px',
-                          marginBottom: isCardGridCompact ? '10px' : '12px',
-                          borderRadius: CHART_EDITOR_THEME.radiusSm,
+                          marginBottom: 0,
+                          borderRadius: 0,
                           background:
                             'linear-gradient(135deg, rgba(56, 189, 248, 0.16), rgba(129, 140, 248, 0.12))',
                         display: 'flex',
@@ -1498,143 +1509,46 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     </div>
                   )}
                   <div
-                    className="chart-select-card__title"
+                    className="chart-select-card__overlay"
                     style={{
-                      color: CHART_EDITOR_THEME.textPrimary,
-                      fontSize: isCardGridCompact ? '15px' : '18px',
-                      fontWeight: 'bold',
-                      marginBottom: '8px',
-                      lineHeight: 1.3,
+                      position: 'absolute',
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      padding: '34px 14px 13px',
+                      background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.72) 64%, rgba(0,0,0,0.9) 100%)',
+                      display: 'flex',
+                      alignItems: 'flex-end',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      textShadow: '0 2px 10px rgba(0,0,0,0.85)',
                     }}
                   >
-                    {chart.title}
-                  </div>
-                  <div className="chart-select-card__author" style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: isCardGridCompact ? '12px' : '13px', marginBottom: '12px', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                    <span>{(chart as any)._authorChess || '♟'}</span>
-                    <span
+                    <div
                       style={{
-                        fontWeight: (chart as any)._isAdmin ? 'bold' : undefined,
-                        color: (chart as any)._isAdmin ? '#f87171' : undefined,
+                        color: CHART_EDITOR_THEME.textPrimary,
+                        fontSize: isCardGridCompact ? '14px' : '16px',
+                        fontWeight: 900,
+                        lineHeight: 1.25,
+                        minWidth: 0,
                       }}
                     >
-                      {(chart as any)._authorLabel || chart.author}
-                    </span>
-                    {(chart as any)._isAdmin && (
-                      <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '999px', backgroundColor: '#b91c1c', color: '#fff' }}>
-                        ADMIN
-                      </span>
-                    )}
-                  </div>
-                  <div className="chart-select-card__badges" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
-                    {(chart as any)._isWip && (
-                      <span
+                      {chart.title}
+                    </div>
+                    <span
                         style={{
-                          padding: isCardGridCompact ? '3px 7px' : '4px 8px',
-                          backgroundColor: 'rgba(251, 191, 36, 0.18)',
+                          flex: '0 0 auto',
+                          padding: '5px 8px',
+                          backgroundColor: getChartDifficultyColor((chart as any)._displayDifficulty || 'Normal'),
                           borderRadius: CHART_EDITOR_THEME.radiusSm,
-                          color: '#fde68a',
-                          fontSize: isCardGridCompact ? '10px' : '11px',
+                          color: '#fff',
+                          fontSize: '11px',
                           fontWeight: 800,
                         }}
                       >
-                        WIP
-                      </span>
-                    )}
-                    <span
-                      style={{
-                        padding: isCardGridCompact ? '3px 7px' : '4px 8px',
-                        backgroundColor: CHART_EDITOR_THEME.buttonGhostBgHover,
-                        borderRadius: CHART_EDITOR_THEME.radiusSm,
-                        color: CHART_EDITOR_THEME.textPrimary,
-                        fontSize: isCardGridCompact ? '10px' : '11px',
-                      }}
-                    >
-                      BPM {chart.bpm}
+                        {(chart as any)._displayDifficulty || chart.difficulty || 'Normal'}
                     </span>
-                    <span
-                      style={{
-                        padding: isCardGridCompact ? '3px 7px' : '4px 8px',
-                        backgroundColor: CHART_EDITOR_THEME.buttonGhostBgHover,
-                        borderRadius: CHART_EDITOR_THEME.radiusSm,
-                        color: CHART_EDITOR_THEME.textPrimary,
-                        fontSize: isCardGridCompact ? '10px' : '11px',
-                      }}
-                    >
-                      NOTES {(chart as any)._noteCount ?? 0}
-                    </span>
-                    {(chart as any)._displayDifficulty && (
-                      <span
-                        style={{
-                          padding: isCardGridCompact ? '3px 7px' : '4px 8px',
-                            backgroundColor: getChartDifficultyColor((chart as any)._displayDifficulty),
-                          borderRadius: CHART_EDITOR_THEME.radiusSm,
-                          color: '#fff',
-                          fontSize: isCardGridCompact ? '10px' : '11px',
-                          fontWeight: 'bold',
-                        }}
-                      >
-                        {(chart as any)._displayDifficulty}
-                      </span>
-                    )}
-                    <span
-                      style={{
-                        padding: isCardGridCompact ? '3px 7px' : '4px 8px',
-                        backgroundColor: CHART_EDITOR_THEME.buttonGhostBgHover,
-                        borderRadius: CHART_EDITOR_THEME.radiusSm,
-                        color: CHART_EDITOR_THEME.textPrimary,
-                        fontSize: isCardGridCompact ? '10px' : '11px',
-                      }}
-                    >
-                      ▶ {chart.play_count}
-                    </span>
-                    {(chart as any)._hasSubtitles && (
-                      <span
-                        className="chart-select-card__feature-badge"
-                        style={{
-                          padding: isCardGridCompact ? '3px 7px' : '4px 8px',
-                          backgroundColor: 'rgba(167,139,250,0.18)',
-                          borderRadius: CHART_EDITOR_THEME.radiusSm,
-                          color: '#ddd6fe',
-                          fontSize: isCardGridCompact ? '10px' : '11px',
-                          fontWeight: 700,
-                        }}
-                      >
-                        SUB
-                      </span>
-                    )}
-                    {(chart as any)._hasBgaEvents && (
-                      <span
-                        className="chart-select-card__feature-badge"
-                        style={{
-                          padding: isCardGridCompact ? '3px 7px' : '4px 8px',
-                          backgroundColor: 'rgba(244,114,182,0.16)',
-                          borderRadius: CHART_EDITOR_THEME.radiusSm,
-                          color: '#fbcfe8',
-                          fontSize: isCardGridCompact ? '10px' : '11px',
-                          fontWeight: 700,
-                        }}
-                      >
-                        BGA FX
-                      </span>
-                    )}
                   </div>
-                  {!isCardGridCompact && chart.description && (
-                    <div
-                      className="chart-select-card__description"
-                      style={{
-                        color: CHART_EDITOR_THEME.textSecondary,
-                        fontSize: '12px',
-                        lineHeight: 1.4,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                      }}
-                    >
-                      {chart.description}
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
@@ -1804,7 +1718,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 <div
                   className="chart-select-detail-panel__sticky-action"
                   style={{
-                    marginBottom: '18px',
+                    marginBottom: '12px',
                   }}
                 >
                   <button
@@ -1848,25 +1762,76 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   )}
                 </div>
 
-                {selectedChart.description && (
-                  <div
-                    className="chart-select-detail-panel__fact chart-select-detail-panel__fact--wide"
-                    style={{
-                      padding: '18px',
-                      borderRadius: CHART_EDITOR_THEME.radiusMd,
-                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                      background: 'rgba(8, 12, 24, 0.46)',
-                    }}
-                  >
-                    <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '8px', letterSpacing: '0.08em' }}>DESCRIPTION</div>
-                    <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px', lineHeight: 1.65 }}>
-                      {selectedChart.description}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: '8px',
+                    marginBottom: '12px',
+                  }}
+                >
+                  {[
+                    ['BPM', selectedChart.bpm],
+                    ['NOTES', (selectedChart as any)?._noteCount ?? 0],
+                    ['PLAY', selectedChart.play_count],
+                  ].map(([label, value]) => (
+                    <div
+                      key={label}
+                      style={{
+                        padding: '8px 10px',
+                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                        background: 'rgba(8, 12, 24, 0.52)',
+                      }}
+                    >
+                      <div style={{ color: CHART_EDITOR_THEME.textMuted, fontSize: '10px', fontWeight: 800 }}>{label}</div>
+                      <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px', fontWeight: 800 }}>{value}</div>
                     </div>
-                  </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsDetailExpanded((prev) => !prev)}
+                  style={{
+                    width: '100%',
+                    marginBottom: isDetailExpanded ? '14px' : 0,
+                    padding: '10px 12px',
+                    borderRadius: CHART_EDITOR_THEME.radiusSm,
+                    border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                    background: CHART_EDITOR_THEME.buttonGhostBg,
+                    color: CHART_EDITOR_THEME.textPrimary,
+                    cursor: 'pointer',
+                    fontWeight: 800,
+                  }}
+                >
+                  {isDetailExpanded ? '간단히 보기' : '자세히 보기'}
+                </button>
+
+                {isDetailExpanded && (
+                  <>
+                    {selectedChart.description && (
+                      <div
+                        className="chart-select-detail-panel__fact chart-select-detail-panel__fact--wide"
+                        style={{
+                          padding: '12px',
+                          marginBottom: '10px',
+                          borderRadius: CHART_EDITOR_THEME.radiusMd,
+                          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                          background: 'rgba(8, 12, 24, 0.46)',
+                        }}
+                      >
+                        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '10px', marginBottom: '6px', letterSpacing: '0.08em' }}>DESCRIPTION</div>
+                        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '13px', lineHeight: 1.55 }}>
+                          {selectedChart.description}
+                        </div>
+                      </div>
+                    )}
+                    {renderWipNote()}
+                    {renderDetailFacts()}
+                    {renderDetailLeaderboard()}
+                  </>
                 )}
-                {renderWipNote()}
-                {renderDetailFacts()}
-                {renderDetailLeaderboard()}
               </div>
             </aside>
           ) : null}
