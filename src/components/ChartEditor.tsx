@@ -484,7 +484,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
 
     const MAX_DELTA_MS = 100; // 백그라운드 복귀 시 큰 점프 방지 (100ms 상한)
-    const UI_COMMIT_INTERVAL_MS = 1000 / 120;
+    const UI_COMMIT_INTERVAL_MS = 1000 / 240;
     internalTimeRef.current = currentTime; // 초기값 동기화
 
     const tick = (timestamp: number) => {
