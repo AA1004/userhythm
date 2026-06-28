@@ -39,6 +39,7 @@ export function useChartYoutubePlayer({
   const lastAppliedAudioOffsetRef = useRef(audioOffsetMs);
   const playbackCommandTokenRef = useRef(0);
   const playbackRetryTimerRef = useRef<number | null>(null);
+  const skipPlaybackEffectStateRef = useRef<boolean | null>(null);
   const getPlayerTimeSeconds = useCallback(
     (timeMs: number) => Math.max(0, timeMs - audioOffsetMs) / 1000,
     [audioOffsetMs]
@@ -278,9 +279,50 @@ export function useChartYoutubePlayer({
     latestTimeRef.current = currentTime;
   }, [currentTime]);
 
+  const applyImmediatePlaybackState = useCallback(
+    (nextPlaying: boolean) => {
+      if (!youtubePlayer || !youtubePlayerReadyRef.current) return false;
+
+      const desiredTimeMs = latestTimeRef.current;
+      const desiredSeconds = getPlayerTimeSeconds(desiredTimeMs);
+      clearPlaybackRetryTimer();
+
+      try {
+        if (nextPlaying) {
+          const playerTime = typeof youtubePlayer.getCurrentTime === 'function'
+            ? youtubePlayer.getCurrentTime() ?? 0
+            : 0;
+          const timeDrift = Math.abs(playerTime - desiredSeconds);
+
+          if (!wasPlayingRef.current || timeDrift > 0.08) {
+            syncPlayerToTimeline(desiredTimeMs, true);
+          } else {
+            youtubePlayer.playVideo?.();
+          }
+          wasPlayingRef.current = true;
+        } else {
+          youtubePlayer.pauseVideo?.();
+          wasPlayingRef.current = false;
+        }
+
+        skipPlaybackEffectStateRef.current = nextPlaying;
+        return true;
+      } catch (e) {
+        console.warn('즉시 재생 제어 실패:', e);
+        return false;
+      }
+    },
+    [clearPlaybackRetryTimer, getPlayerTimeSeconds, syncPlayerToTimeline, youtubePlayer]
+  );
+
   // 재생/일시정지 제어 (YouTube 쪽만 제어, 타임라인은 별도 동기화)
   useEffect(() => {
     if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
+    if (skipPlaybackEffectStateRef.current === isPlaying) {
+      skipPlaybackEffectStateRef.current = null;
+      return;
+    }
+
     const commandToken = ++playbackCommandTokenRef.current;
     clearPlaybackRetryTimer();
 
@@ -307,9 +349,9 @@ export function useChartYoutubePlayer({
             typeof window !== 'undefined' &&
             window.YT &&
             youtubePlayer.getPlayerState?.() !== window.YT.PlayerState.PLAYING &&
-            attempt < 4
+            attempt < 2
           ) {
-            playbackRetryTimerRef.current = window.setTimeout(() => applyPlaybackState(attempt + 1), 70);
+            playbackRetryTimerRef.current = window.setTimeout(() => applyPlaybackState(attempt + 1), 35);
           }
           return;
         }
@@ -321,9 +363,9 @@ export function useChartYoutubePlayer({
           typeof window !== 'undefined' &&
           window.YT &&
           youtubePlayer.getPlayerState?.() === window.YT.PlayerState.PLAYING &&
-          attempt < 4
+          attempt < 2
         ) {
-          playbackRetryTimerRef.current = window.setTimeout(() => applyPlaybackState(attempt + 1), 70);
+          playbackRetryTimerRef.current = window.setTimeout(() => applyPlaybackState(attempt + 1), 35);
         }
       } catch (e) {
         console.warn('재생 제어 실패:', e);
@@ -448,6 +490,7 @@ export function useChartYoutubePlayer({
     handleYouTubeUrlSubmit,
     handleYouTubeUrlPaste,
     seekTo,
+    applyImmediatePlaybackState,
     youtubePlayerRef,
   };
 }

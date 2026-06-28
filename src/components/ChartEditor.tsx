@@ -430,6 +430,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     isLoadingDuration,
     handleYouTubeUrlSubmit,
     seekTo,
+    applyImmediatePlaybackState,
     youtubePlayerRef,
   } = useChartYoutubePlayer({
     currentTime,
@@ -2256,7 +2257,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
   // 키보드 핸들러 (에디터 전용 전역 단축키)
   const handleToggleEditorPlayback = useCallback(async () => {
-    if (!isPlaying) {
+    const nextPlaying = !isPlaying;
+
+    if (nextPlaying) {
       try {
         await ensureAudioContext();
       } catch {
@@ -2264,8 +2267,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       }
     }
 
-    setIsPlaying(prev => !prev);
-  }, [ensureAudioContext, isPlaying]);
+    if (!applyImmediatePlaybackState(nextPlaying)) {
+      setIsPlaying(nextPlaying);
+      return;
+    }
+
+    setIsPlaying(nextPlaying);
+  }, [applyImmediatePlaybackState, ensureAudioContext, isPlaying]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
