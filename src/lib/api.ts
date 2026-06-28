@@ -119,6 +119,21 @@ export const api = {
     });
     return toJson(res);
   },
+  async getProfileSettings() {
+    const res = await fetch(`${API_BASE}/api/profile/settings`, {
+      credentials: 'include',
+    });
+    return toJson(res) as Promise<{ settings: unknown | null }>;
+  },
+  async updateProfileSettings(settings: unknown) {
+    const res = await fetch(`${API_BASE}/api/profile/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ settings }),
+    });
+    return toJson(res) as Promise<{ settings: unknown | null }>;
+  },
   async getCharts(params: {
     search?: string;
     sortBy?: string;

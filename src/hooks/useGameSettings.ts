@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   DEFAULT_KEY_BINDINGS,
   DISPLAY_NAME_STORAGE_KEY,
@@ -21,6 +21,21 @@ import {
 } from '../constants/gameVisualSettings';
 import { profileAPI, UserProfile } from '../lib/supabaseClient';
 
+const USER_SETTINGS_SYNC_VERSION = 1;
+const USER_SETTINGS_SYNC_DEBOUNCE_MS = 900;
+
+interface SyncedUserSettings {
+  version: typeof USER_SETTINGS_SYNC_VERSION;
+  keyBindings: string[];
+  noteSpeed: number;
+  timingOffsetMs: number;
+  isBgaEnabled: boolean;
+  judgeLineY: number;
+  gameVolume: number;
+  visualSettings: GameVisualSettings;
+  updatedAt: string;
+}
+
 const safeReadLocalStorage = (key: string) => {
   if (typeof window === 'undefined') return null;
   try {
@@ -38,6 +53,9 @@ const safeWriteLocalStorage = (key: string, value: string) => {
     // ignore
   }
 };
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
 const readStoredVisualSettings = (): GameVisualSettings => {
   const stored = safeReadLocalStorage(VISUAL_SETTINGS_STORAGE_KEY);
@@ -61,6 +79,42 @@ const readStoredVisualSettings = (): GameVisualSettings => {
     console.warn('[settings] Failed to parse visual settings. Restoring defaults.', error);
     return DEFAULT_GAME_VISUAL_SETTINGS;
   }
+};
+
+const normalizeKeyBindings = (value: unknown): string[] => {
+  if (!Array.isArray(value) || value.length !== 4) return [...DEFAULT_KEY_BINDINGS];
+  return value.map((key, index) =>
+    typeof key === 'string' && key.length > 0 ? key.toUpperCase() : DEFAULT_KEY_BINDINGS[index]
+  );
+};
+
+const normalizeSyncedUserSettings = (value: unknown): SyncedUserSettings | null => {
+  if (!isPlainObject(value)) return null;
+  return {
+    version: USER_SETTINGS_SYNC_VERSION,
+    keyBindings: normalizeKeyBindings(value.keyBindings),
+    noteSpeed:
+      typeof value.noteSpeed === 'number' && value.noteSpeed >= 0.5 && value.noteSpeed <= 10
+        ? value.noteSpeed
+        : 3.5,
+    timingOffsetMs:
+      typeof value.timingOffsetMs === 'number' && value.timingOffsetMs >= -200 && value.timingOffsetMs <= 200
+        ? Math.round(value.timingOffsetMs)
+        : 0,
+    isBgaEnabled: typeof value.isBgaEnabled === 'boolean' ? value.isBgaEnabled : true,
+    judgeLineY:
+      typeof value.judgeLineY === 'number' && value.judgeLineY >= 200 && value.judgeLineY <= 800
+        ? value.judgeLineY
+        : JUDGE_LINE_Y,
+    gameVolume:
+      typeof value.gameVolume === 'number' && value.gameVolume >= 0 && value.gameVolume <= 100
+        ? Math.round(value.gameVolume)
+        : 30,
+    visualSettings: normalizeGameVisualSettings(
+      isPlainObject(value.visualSettings) ? value.visualSettings : DEFAULT_GAME_VISUAL_SETTINGS
+    ),
+    updatedAt: typeof value.updatedAt === 'string' ? value.updatedAt : new Date(0).toISOString(),
+  };
 };
 
 export interface UseGameSettingsOptions {
@@ -110,15 +164,7 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
     const stored = safeReadLocalStorage(KEY_BINDINGS_STORAGE_KEY);
     if (stored) {
       try {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length === 4) {
-          return parsed.map((key: string, index: number) => {
-            if (typeof key !== 'string' || key.length === 0) {
-              return DEFAULT_KEY_BINDINGS[index];
-            }
-            return key.toUpperCase();
-          });
-        }
+        return normalizeKeyBindings(JSON.parse(stored));
       } catch {
         // ignore
       }
@@ -147,7 +193,7 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
   });
   const [isBgaEnabled, setIsBgaEnabled] = useState<boolean>(() => {
     const stored = safeReadLocalStorage(BGA_ENABLED_STORAGE_KEY);
-    return stored === 'true';
+    return stored === null ? true : stored === 'true';
   });
   const [judgeLineY, setJudgeLineY] = useState<number>(() => {
     const stored = safeReadLocalStorage(JUDGE_LINE_Y_STORAGE_KEY);
@@ -177,6 +223,45 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
     return 30; // 기본값 30%
   });
   const [nextDisplayNameChangeAt, setNextDisplayNameChangeAt] = useState<Date | null>(null);
+  const hasLoadedRemoteSettingsRef = useRef(false);
+  const isApplyingRemoteSettingsRef = useRef(false);
+  const remoteSettingsSaveTimerRef = useRef<number | null>(null);
+
+  const buildSyncedSettings = useCallback(
+    (visualOverride?: GameVisualSettings): SyncedUserSettings => ({
+      version: USER_SETTINGS_SYNC_VERSION,
+      keyBindings: normalizeKeyBindings(keyBindings),
+      noteSpeed,
+      timingOffsetMs,
+      isBgaEnabled,
+      judgeLineY,
+      gameVolume,
+      visualSettings: normalizeGameVisualSettings(visualOverride ?? draftVisualSettings, judgeLineY),
+      updatedAt: new Date().toISOString(),
+    }),
+    [draftVisualSettings, gameVolume, isBgaEnabled, judgeLineY, keyBindings, noteSpeed, timingOffsetMs]
+  );
+
+  const applySyncedSettings = useCallback(
+    (settings: SyncedUserSettings) => {
+      isApplyingRemoteSettingsRef.current = true;
+      setKeyBindings(settings.keyBindings);
+      setNoteSpeed(settings.noteSpeed);
+      setTimingOffsetMs(settings.timingOffsetMs);
+      setIsBgaEnabled(settings.isBgaEnabled);
+      setJudgeLineY(settings.judgeLineY);
+      setGameVolume(settings.gameVolume);
+      const normalizedVisual = normalizeGameVisualSettings(settings.visualSettings, settings.judgeLineY);
+      setDraftVisualSettingsState(normalizedVisual);
+      setCommittedVisualSettings(normalizedVisual);
+      setHasPendingVisualSettings(false);
+      safeWriteLocalStorage(VISUAL_SETTINGS_STORAGE_KEY, JSON.stringify(normalizedVisual));
+      window.setTimeout(() => {
+        isApplyingRemoteSettingsRef.current = false;
+      }, 0);
+    },
+    []
+  );
 
   // 설정 로컬 스토리지 저장
   useEffect(() => {
@@ -293,6 +378,76 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
   useEffect(() => {
     safeWriteLocalStorage(GAME_VOLUME_STORAGE_KEY, String(gameVolume));
   }, [gameVolume]);
+
+  useEffect(() => {
+    hasLoadedRemoteSettingsRef.current = false;
+    if (remoteSettingsSaveTimerRef.current !== null) {
+      window.clearTimeout(remoteSettingsSaveTimerRef.current);
+      remoteSettingsSaveTimerRef.current = null;
+    }
+  }, [authUserId]);
+
+  useEffect(() => {
+    if (!authUserId) return;
+    if (hasLoadedRemoteSettingsRef.current) return;
+
+    let cancelled = false;
+    const loadRemoteSettings = async () => {
+      try {
+        const remoteSettings =
+          normalizeSyncedUserSettings(remoteProfile?.settings) ??
+          normalizeSyncedUserSettings(await profileAPI.getSettings());
+
+        if (cancelled) return;
+        hasLoadedRemoteSettingsRef.current = true;
+
+        if (remoteSettings) {
+          applySyncedSettings(remoteSettings);
+          return;
+        }
+
+        await profileAPI.updateSettings(buildSyncedSettings());
+      } catch (error) {
+        hasLoadedRemoteSettingsRef.current = true;
+        console.warn('[settings] Failed to sync remote settings. Local settings remain active.', error);
+      }
+    };
+
+    loadRemoteSettings();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applySyncedSettings, authUserId, buildSyncedSettings, remoteProfile?.settings]);
+
+  const syncedSettingsSnapshot = useMemo(
+    () => buildSyncedSettings(normalizedDraftVisualSettings),
+    [buildSyncedSettings, normalizedDraftVisualSettings]
+  );
+
+  useEffect(() => {
+    if (!authUserId || !hasLoadedRemoteSettingsRef.current || isApplyingRemoteSettingsRef.current) {
+      return;
+    }
+
+    if (remoteSettingsSaveTimerRef.current !== null) {
+      window.clearTimeout(remoteSettingsSaveTimerRef.current);
+    }
+
+    remoteSettingsSaveTimerRef.current = window.setTimeout(() => {
+      remoteSettingsSaveTimerRef.current = null;
+      profileAPI.updateSettings(syncedSettingsSnapshot).catch((error) => {
+        console.warn('[settings] Failed to save remote settings. Local settings remain active.', error);
+      });
+    }, USER_SETTINGS_SYNC_DEBOUNCE_MS);
+
+    return () => {
+      if (remoteSettingsSaveTimerRef.current !== null) {
+        window.clearTimeout(remoteSettingsSaveTimerRef.current);
+        remoteSettingsSaveTimerRef.current = null;
+      }
+    };
+  }, [authUserId, syncedSettingsSnapshot]);
 
   // 프로필에서 displayName 동기화
   useEffect(() => {

@@ -31,6 +31,7 @@ model Profile {
   userId             String   @unique
   nickname           String?
   role               String   @default("user")
+  settings           Json?
   nicknameUpdatedAt  DateTime?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt

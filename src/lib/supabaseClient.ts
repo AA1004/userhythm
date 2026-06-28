@@ -119,6 +119,7 @@ export interface UserProfile {
   id: string;
   display_name: string | null;
   role: UserRole;
+  settings?: unknown | null;
   nickname_updated_at: string | null;
   created_at: string;
   updated_at: string;
@@ -230,6 +231,7 @@ export const profileAPI = {
       id: p.id || userId,
       display_name: p.nickname || p.display_name || res.user.email || null,
       role: p.role || res.user.role || 'user',
+      settings: p.settings ?? null,
       nickname_updated_at: p.nickname_updatedAt || p.nickname_updated_at || null,
       created_at: p.createdAt || p.created_at || '',
       updated_at: p.updatedAt || p.updated_at || '',
@@ -253,9 +255,20 @@ export const profileAPI = {
       id: p.id || userId,
       display_name: p.nickname || p.display_name || res.user.email || null,
       role: p.role || res.user.role || 'user',
+      settings: p.settings ?? null,
       nickname_updated_at: p.nickname_updatedAt || p.nickname_updated_at || null,
       created_at: p.createdAt || p.created_at || '',
       updated_at: p.updatedAt || p.updated_at || '',
     };
+  },
+
+  async getSettings(): Promise<unknown | null> {
+    const res = await api.getProfileSettings();
+    return res.settings ?? null;
+  },
+
+  async updateSettings(settings: unknown): Promise<unknown | null> {
+    const res = await api.updateProfileSettings(settings);
+    return res.settings ?? null;
   },
 };

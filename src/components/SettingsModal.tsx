@@ -63,7 +63,7 @@ interface NoteColorEditorProps {
   onCommit: () => void;
 }
 
-type SettingsTab = 'gameplay' | 'visual' | 'account';
+type SettingsTab = 'gameplay' | 'visual' | 'advanced' | 'account';
 
 const sectionCardStyle: React.CSSProperties = {
   marginBottom: '18px',
@@ -426,10 +426,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '16px' }}>
           {([
             { id: 'gameplay', label: '게임' },
             { id: 'visual', label: '비주얼' },
+            { id: 'advanced', label: '고급' },
             { id: 'account', label: '계정' },
           ] as Array<{ id: SettingsTab; label: string }>).map((tab) => (
             <button
@@ -1016,11 +1017,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 옵션으로 글로우/펄스 연출을 개별 ON/OFF 할 수 있습니다.
               </p>
             </div>
+          </>
+        )}
 
+        {activeTab === 'advanced' && (
+          <>
             <div style={sectionCardStyle}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                 <h3 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px', margin: 0 }}>
-                  비주얼 세부 설정
+                  고급 비주얼 세부 설정
                 </h3>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <button
@@ -1055,7 +1060,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
               {!isVisualDetailsExpanded ? (
                 <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', margin: 0, lineHeight: 1.5 }}>
-                  레인 폭, 노트 크기, 색상, 투명도 같은 세부 시각 설정을 펼쳐서 조정할 수 있습니다.
+                  레인 폭, 노트 크기, 색상, 투명도 같은 세부값은 여기에서만 조정합니다.
+                  일반 플레이 설정은 게임/비주얼 탭에 남겨두었습니다.
                 </p>
               ) : (
               <>
@@ -1210,6 +1216,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {activeTab === 'account' && (
           <>
+            <div style={sectionCardStyle}>
+              <h3 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px', marginTop: 0, marginBottom: '8px' }}>
+                설정 동기화
+              </h3>
+              <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', margin: 0, lineHeight: 1.6 }}>
+                {isLoggedIn
+                  ? '키 설정, 속도, 보정, 볼륨, BGA, 비주얼 설정은 이 계정에 자동 동기화됩니다.'
+                  : '로그인하지 않아도 닉네임을 제외한 모든 설정을 사용할 수 있습니다. 로그인하면 같은 계정에서 자동 동기화됩니다.'}
+              </p>
+            </div>
+
             <div style={sectionCardStyle}>
               <h3 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px', marginTop: 0, marginBottom: '8px' }}>
                 닉네임
