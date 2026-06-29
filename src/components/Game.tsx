@@ -1079,6 +1079,8 @@ export const Game: React.FC = () => {
                   pointerEvents: 'none',
                   zIndex: 0,
                   background: `rgba(8, 12, 24, ${Math.min(0.92, gameplayStageBackdropAlpha + 0.08).toFixed(3)})`,
+                  borderLeft: `1px solid rgba(238, 247, 242, ${gameplayStageBorderAlpha.toFixed(3)})`,
+                  borderRight: `1px solid rgba(238, 247, 242, ${gameplayStageBorderAlpha.toFixed(3)})`,
                   boxShadow: `inset 0 -1px 0 rgba(238, 247, 242, ${gameplayStageBorderAlpha.toFixed(3)})`,
                 }}
               >
