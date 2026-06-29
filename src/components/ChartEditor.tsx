@@ -2560,10 +2560,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
             <div
                 ref={youtubePlayerRef}
                 style={{
-                    position: 'absolute',
-                    width: '1px', 
-                    height: '1px', 
-                    opacity: 0, 
+                    position: 'fixed',
+                    left: '-10000px',
+                    top: '-10000px',
+                    width: '160px',
+                    height: '90px',
+                    overflow: 'hidden',
+                    opacity: 0,
+                    visibility: 'hidden',
                     pointerEvents: 'none', 
                     zIndex: -1 
                 }}

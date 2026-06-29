@@ -50,6 +50,21 @@ export function useChartYoutubePlayer({
       playbackRetryTimerRef.current = null;
     }
   }, []);
+  const applyEditorPlaybackQuality = useCallback((player: any) => {
+    if (!player) return;
+
+    try {
+      player.setPlaybackQuality?.('small');
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      player.setSize?.(160, 90);
+    } catch (e) {
+      // ignore
+    }
+  }, []);
   const syncPlayerToTimeline = useCallback(
     (timeMs: number, shouldAutoplay: boolean, forceReload = false) => {
       if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
@@ -243,6 +258,8 @@ export function useChartYoutubePlayer({
               } catch (e) {
                 console.warn('볼륨 설정 실패:', e);
               }
+
+              applyEditorPlaybackQuality(player);
             },
             onStateChange: (event: any) => {
               if (isCancelled) return;
@@ -272,7 +289,7 @@ export function useChartYoutubePlayer({
         youtubePlayerRef.current.innerHTML = '';
       }
     };
-  }, [youtubeVideoId, setIsPlaying, setCurrentTime, volume, clearPlaybackRetryTimer]);
+  }, [youtubeVideoId, setIsPlaying, setCurrentTime, volume, clearPlaybackRetryTimer, applyEditorPlaybackQuality]);
 
   // latest currentTime snapshot (재생 시작 시점에서 사용)
   useEffect(() => {
@@ -289,6 +306,8 @@ export function useChartYoutubePlayer({
 
       try {
         if (nextPlaying) {
+          applyEditorPlaybackQuality(youtubePlayer);
+
           const playerTime = typeof youtubePlayer.getCurrentTime === 'function'
             ? youtubePlayer.getCurrentTime() ?? 0
             : 0;
@@ -312,7 +331,7 @@ export function useChartYoutubePlayer({
         return false;
       }
     },
-    [clearPlaybackRetryTimer, getPlayerTimeSeconds, syncPlayerToTimeline, youtubePlayer]
+    [clearPlaybackRetryTimer, getPlayerTimeSeconds, syncPlayerToTimeline, youtubePlayer, applyEditorPlaybackQuality]
   );
 
   // 재생/일시정지 제어 (YouTube 쪽만 제어, 타임라인은 별도 동기화)
