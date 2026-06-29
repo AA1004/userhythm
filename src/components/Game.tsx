@@ -71,7 +71,7 @@ type ChartSelectTransitionState = {
 
 // Gameplay logic/rendering uses currentTimeRef every frame.
 // This snapshot is only for React-side overlays such as subtitles/BGA sync/slot progress.
-const GAMEPLAY_VISUAL_CLOCK_INTERVAL_MS = 240;
+const GAMEPLAY_VISUAL_CLOCK_INTERVAL_MS = 1000;
 
 export const Game: React.FC = () => {
   const renderProfileStart = isGameplayProfilerEnabled() ? performance.now() : 0;
