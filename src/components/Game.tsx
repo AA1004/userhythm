@@ -274,6 +274,24 @@ export const Game: React.FC = () => {
   }, [viewportSize.width, viewportSize.height]);
   const stageDisplayWidth = Math.round(GAME_VIEW_WIDTH * stageScale);
   const stageDisplayHeight = Math.round(GAME_VIEW_HEIGHT * stageScale);
+  const [topLaneExtensionHeightPx, setTopLaneExtensionHeightPx] = useState(0);
+
+  useEffect(() => {
+    const updateTopLaneExtensionHeight = () => {
+      if (!gameContainerRef.current) return;
+      const rect = gameContainerRef.current.getBoundingClientRect();
+      setTopLaneExtensionHeightPx(Math.max(0, Math.round(rect.top)));
+    };
+
+    updateTopLaneExtensionHeight();
+    window.addEventListener('resize', updateTopLaneExtensionHeight);
+    window.visualViewport?.addEventListener('resize', updateTopLaneExtensionHeight);
+
+    return () => {
+      window.removeEventListener('resize', updateTopLaneExtensionHeight);
+      window.visualViewport?.removeEventListener('resize', updateTopLaneExtensionHeight);
+    };
+  }, [stageDisplayWidth, stageDisplayHeight, viewMode.type, gameState.gameStarted, gameState.gameEnded]);
 
   useEffect(() => {
     if (!isGameplayProfilerEnabled()) return;
@@ -1025,8 +1043,16 @@ export const Game: React.FC = () => {
                   ? `rgba(8, 12, 24, ${gameplayStageBackdropAlpha.toFixed(3)})`
                   : CHART_EDITOR_THEME.surfaceElevated,
               position: 'relative',
-              overflow: 'hidden',
-              borderRadius: activeBgaMaskOpacity >= 1 ? 0 : CHART_EDITOR_THEME.radiusLg,
+              overflow:
+                isGameplayActive && activeLaneUiVisible && topLaneExtensionHeightPx > 0
+                  ? 'visible'
+                  : 'hidden',
+              borderRadius:
+                activeBgaMaskOpacity >= 1
+                  ? 0
+                  : isGameplayActive
+                  ? `0 0 ${CHART_EDITOR_THEME.radiusLg} ${CHART_EDITOR_THEME.radiusLg}`
+                  : CHART_EDITOR_THEME.radiusLg,
               boxShadow:
                 activeBgaMaskOpacity >= 1
                   ? 'none'
@@ -1042,6 +1068,57 @@ export const Game: React.FC = () => {
               transition: 'background-color 80ms linear, border 80ms linear, box-shadow 80ms linear, border-radius 80ms linear',
             }}
           >
+            {isGameplayActive && activeLaneUiVisible && activeBgaMaskOpacity < 1 && topLaneExtensionHeightPx > 0 && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: `${-topLaneExtensionHeightPx}px`,
+                  width: '100%',
+                  height: `${topLaneExtensionHeightPx}px`,
+                  pointerEvents: 'none',
+                  zIndex: 0,
+                  background: `rgba(8, 12, 24, ${gameplayStageBackdropAlpha.toFixed(3)})`,
+                  boxShadow: `inset 0 -1px 0 rgba(238, 247, 242, ${gameplayStageBorderAlpha.toFixed(3)})`,
+                }}
+              >
+                {visualSettings.bgaBlurEnabled && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      backdropFilter: 'blur(5px) saturate(0.94)',
+                      WebkitBackdropFilter: 'blur(5px) saturate(0.94)',
+                      background: 'rgba(8, 12, 24, 0.05)',
+                    }}
+                  />
+                )}
+                <div
+                  style={{
+                    position: 'absolute',
+                    left: `${playfieldGeometry.laneGroupLeft * stageScale}px`,
+                    top: 0,
+                    width: `${playfieldGeometry.laneGroupWidth * stageScale}px`,
+                    height: '100%',
+                    backgroundColor: `rgba(15, 23, 42, ${0.6 * playfieldGeometry.laneOpacity})`,
+                  }}
+                />
+                {playfieldGeometry.laneEdges.map((x) => (
+                  <div
+                    key={`top-extension-edge-${x}`}
+                    style={{
+                      position: 'absolute',
+                      left: `${x * stageScale}px`,
+                      top: 0,
+                      width: Math.max(1, Math.round(2 * stageScale)),
+                      height: '100%',
+                      backgroundColor: `rgba(255,255,255,${0.1 * playfieldGeometry.laneOpacity})`,
+                      transform: 'translateX(-50%)',
+                    }}
+                  />
+                ))}
+              </div>
+            )}
             {isGameplayActive && activeLaneUiVisible && activeBgaMaskOpacity < 1 && visualSettings.bgaBlurEnabled && (
               <div
                 style={{
