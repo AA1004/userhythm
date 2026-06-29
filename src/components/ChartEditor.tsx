@@ -2200,9 +2200,31 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setUploadStatus('');
   }, []);
 
+  const applyTimelineScrollPosition = useCallback((targetScrollTopRaw: number) => {
+    const container = timelineScrollRef.current;
+    if (!container) return;
+
+    const clampedTarget = Math.max(0, targetScrollTopRaw);
+    const snappedScrollTop = Math.round(clampedTarget);
+    const fractionalOffset = clampedTarget - snappedScrollTop;
+
+    if (Math.abs(container.scrollTop - snappedScrollTop) >= 1) {
+      container.scrollTop = snappedScrollTop;
+    }
+
+    if (timelineContentRef.current) {
+      timelineContentRef.current.style.transform = `translateX(-50%) translateY(${-fractionalOffset}px)`;
+    }
+  }, []);
+
   // 자동 스크롤은 재생선과 동일한 runtime time source를 읽어 떨림을 줄인다.
   useEffect(() => {
-    if (!isPlaying || !isAutoScrollEnabled || isDraggingPlayheadRef.current) return;
+    if (!isPlaying || !isAutoScrollEnabled || isDraggingPlayheadRef.current) {
+      if (timelineContentRef.current) {
+        timelineContentRef.current.style.transform = 'translateX(-50%) translateY(0px)';
+      }
+      return;
+    }
     if (!timelineScrollRef.current) return;
 
     const container = timelineScrollRef.current;
@@ -2216,11 +2238,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
       const centerOffset = container.clientHeight / 2;
       const runtimePlayheadY = timeToY(internalTimeRef.current);
-      const targetScrollTop = Math.max(0, Math.round(runtimePlayheadY - centerOffset));
-
-      if (Math.abs(container.scrollTop - targetScrollTop) >= 1) {
-        container.scrollTop = targetScrollTop;
-      }
+      applyTimelineScrollPosition(runtimePlayheadY - centerOffset);
 
       frameId = requestAnimationFrame(syncScroll);
     };
@@ -2231,8 +2249,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       if (frameId !== null) {
         cancelAnimationFrame(frameId);
       }
+      if (timelineContentRef.current) {
+        timelineContentRef.current.style.transform = 'translateX(-50%) translateY(0px)';
+      }
     };
-  }, [isPlaying, isAutoScrollEnabled, timeToY]);
+  }, [isPlaying, isAutoScrollEnabled, timeToY, applyTimelineScrollPosition]);
 
   // 줌 변경 시 (자동 스크롤이 켜져 있다면) 재생선을 화면 중앙에 고정
   const didZoomMountRef = useRef(false);
@@ -2257,14 +2278,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
     const container = timelineScrollRef.current;
     const centerOffset = container.clientHeight / 2;
-    const targetScrollTop = Math.max(
-      0,
-      Math.round(timeToY(isPlaying ? internalTimeRef.current : currentTime) - centerOffset)
-    );
-    container.scrollTop = targetScrollTop;
+    applyTimelineScrollPosition(timeToY(isPlaying ? internalTimeRef.current : currentTime) - centerOffset);
 
     lastZoomRef.current = zoom;
-  }, [zoom, isAutoScrollEnabled, playheadY, timeToY, isPlaying, currentTime]);
+  }, [zoom, isAutoScrollEnabled, playheadY, timeToY, isPlaying, currentTime, applyTimelineScrollPosition]);
 
   // 재생선 드래그 중 스크롤(마우스 휠 등) 시, 재생선을 마우스 위치에 맞춰 부드럽게 따라가게 함
   useEffect(() => {
