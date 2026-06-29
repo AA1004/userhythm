@@ -11,6 +11,8 @@ interface MainMenuSidebarProps {
 
 const MAIN_MENU_RESERVED_WIDTH = 560;
 const MAIN_MENU_MIN_GAP = 36;
+const clamp = (value: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, value));
 
 const getMainMenuSidebarLayout = (viewportWidth: number) => {
   if (viewportWidth > 1920) {
@@ -22,15 +24,37 @@ const getMainMenuSidebarLayout = (viewportWidth: number) => {
   }
 
   if (viewportWidth > 1520) {
-    return { mode: 'full' as const, width: 420, edge: 28, top: 60, height: 'calc(100dvh - 120px)', padding: 24 };
+    const edge = 24;
+    const availableSideWidth = (viewportWidth - MAIN_MENU_RESERVED_WIDTH - MAIN_MENU_MIN_GAP * 2) / 2;
+    return {
+      mode: 'full' as const,
+      width: clamp(availableSideWidth - edge, 300, 420),
+      edge,
+      top: 60,
+      height: 'calc(100dvh - 120px)',
+      padding: 22,
+    };
   }
 
   if (viewportWidth >= 900) {
-    const width = viewportWidth >= 1200 ? 280 : 200;
-    return { mode: 'compact' as const, width, edge: 12, top: 72, height: 'clamp(150px, 24dvh, 220px)', padding: 14 };
+    return {
+      mode: 'compact' as const,
+      width: Math.max(260, Math.floor(viewportWidth / 2) - 28),
+      edge: 16,
+      top: null,
+      height: 'clamp(150px, 22dvh, 220px)',
+      padding: 14,
+    };
   }
 
-  return null;
+  return {
+    mode: 'dock' as const,
+    width: Math.max(280, viewportWidth - 24),
+    edge: 12,
+    top: null,
+    height: 'clamp(120px, 18dvh, 170px)',
+    padding: 12,
+  };
 };
 
 export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
@@ -49,16 +73,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
   });
 
   const sidebarLayout = useMemo(() => {
-    const layout = getMainMenuSidebarLayout(windowSize.width);
-    if (!layout) return null;
-    if (layout.mode === 'compact') return layout;
-
-    const centerHalf = MAIN_MENU_RESERVED_WIDTH / 2;
-    const availableHalf = windowSize.width / 2;
-    const sidebarRightEdge = layout.edge + layout.width;
-    const hasGapFromCenter = sidebarRightEdge + MAIN_MENU_MIN_GAP <= availableHalf - centerHalf;
-
-    return hasGapFromCenter ? layout : null;
+    return getMainMenuSidebarLayout(windowSize.width);
   }, [windowSize.width]);
 
   useEffect(() => {
@@ -71,8 +86,6 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
   }, []);
 
   useEffect(() => {
-    if (!sidebarLayout) return;
-
     if (type === 'notice') {
       setIsLoading(true);
       setError(null);
@@ -116,10 +129,6 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
 
   const isLeft = position === 'left';
 
-  if (!sidebarLayout) {
-    return null;
-  }
-
   const getSidebarWidth = () => {
     return `${sidebarLayout.width}px`;
   };
@@ -142,7 +151,6 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
 
   const sidebarStyle: React.CSSProperties = {
     position: 'fixed',
-    top: `${sidebarLayout.top}px`,
     height: getSidebarHeight(),
     width: getSidebarWidth(),
     backgroundColor: '#0b1120',
@@ -156,9 +164,25 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
     zIndex: 1000,
   };
 
-  if (isLeft) {
+  if (sidebarLayout.mode === 'compact') {
+    sidebarStyle.bottom = '18px';
+    sidebarStyle.top = 'auto';
+    if (isLeft) {
+      sidebarStyle.left = getSidebarPosition();
+    } else {
+      sidebarStyle.right = getSidebarPosition();
+    }
+  } else if (sidebarLayout.mode === 'dock') {
+    sidebarStyle.left = getSidebarPosition();
+    sidebarStyle.right = getSidebarPosition();
+    sidebarStyle.width = 'auto';
+    sidebarStyle.top = 'auto';
+    sidebarStyle.bottom = isLeft ? `calc(${sidebarLayout.height} + 24px)` : '12px';
+  } else if (isLeft) {
+    sidebarStyle.top = `${sidebarLayout.top}px`;
     sidebarStyle.left = getSidebarPosition();
   } else {
+    sidebarStyle.top = `${sidebarLayout.top}px`;
     sidebarStyle.right = getSidebarPosition();
   }
 
