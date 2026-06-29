@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import React, { startTransition, useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Note, BPMChange, ChartTestPayload, SubtitleEditorChartData, Lane, SpeedChange, BgaVisibilityInterval } from '../types/game';
 import { ChartEditorHeader } from './ChartEditor/ChartEditorHeader';
 import { ChartEditorSidebarLeft } from './ChartEditor/ChartEditorSidebarLeft';
@@ -48,6 +48,7 @@ const KEY_TO_LANE: Record<string, Lane> = {
 };
 const BGA_INTERVAL_MIN_DURATION_MS = 120;
 const EDITOR_CONTRIBUTION_DRAFT_KEY = 'userhythm:editor-contribution-draft';
+const EDITOR_UI_COMMIT_INTERVAL_MS = 1000 / 120;
 
 const keepTimelineActionButtonFromTakingFocus = (event: React.MouseEvent<HTMLButtonElement>) => {
   event.preventDefault();
@@ -484,7 +485,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
 
     const MAX_DELTA_MS = 100; // 백그라운드 복귀 시 큰 점프 방지 (100ms 상한)
-    const UI_COMMIT_INTERVAL_MS = 1000 / 240;
     internalTimeRef.current = currentTime; // 초기값 동기화
 
     const tick = (timestamp: number) => {
@@ -503,11 +503,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         internalTimeRef.current = Math.max(0, internalTimeRef.current + deltaMs);
         const shouldCommitUi =
           lastUiCommitTimestampRef.current === null ||
-          timestamp - lastUiCommitTimestampRef.current >= UI_COMMIT_INTERVAL_MS;
+          timestamp - lastUiCommitTimestampRef.current >= EDITOR_UI_COMMIT_INTERVAL_MS;
 
         if (shouldCommitUi) {
           lastUiCommitTimestampRef.current = timestamp;
-          setCurrentTime(internalTimeRef.current);
+          const nextTime = internalTimeRef.current;
+          startTransition(() => {
+            setCurrentTime(nextTime);
+          });
         }
       }
       playheadRafIdRef.current = requestAnimationFrame(tick);
@@ -524,7 +527,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       lastUiCommitTimestampRef.current = null;
       // 최종 시간 동기화
       setCurrentTime(internalTimeRef.current);
-      };
+       };
   }, [isPlaying, playbackSpeed]);
 
   useEffect(() => {
@@ -677,16 +680,21 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
     const notes = sortedNotesByTime;
     let idx = lastCheckedNoteIndexRef.current;
+    let crossedNoteCount = 0;
 
     // 현재 시간까지의 노트만 확인 (이미 지나간 인덱스부터 시작)
     while (idx < notes.length && notes[idx].time <= currentTime) {
       if (!playedNoteIdsRef.current.has(notes[idx].id)) {
         playedNoteIdsRef.current.add(notes[idx].id);
-        playHitSound();
+        crossedNoteCount++;
       }
       idx++;
     }
     lastCheckedNoteIndexRef.current = idx;
+
+    if (crossedNoteCount > 0) {
+      playHitSound();
+    }
   }, [currentTime, isPlaying, sortedNotesByTime, playHitSound]);
 
   // --- 자동 저장 ---
