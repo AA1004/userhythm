@@ -1113,9 +1113,9 @@ export const Game: React.FC = () => {
               style={{
                 position: 'absolute',
                 left: 0,
-                top: `${-topLaneExtensionHeight}px`,
+                top: 0,
                 width: `${GAME_VIEW_WIDTH}px`,
-                height: `${GAME_VIEW_HEIGHT + topLaneExtensionHeight}px`,
+                height: `${GAME_VIEW_HEIGHT}px`,
                 transform: `scale(${stageScale})`,
                 transformOrigin: 'top left',
                 zIndex: 2,
