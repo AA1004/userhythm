@@ -2216,9 +2216,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
       const centerOffset = container.clientHeight / 2;
       const runtimePlayheadY = timeToY(internalTimeRef.current);
-      const targetScrollTop = Math.max(0, runtimePlayheadY - centerOffset);
+      const targetScrollTop = Math.max(0, Math.round(runtimePlayheadY - centerOffset));
 
-      if (Math.abs(container.scrollTop - targetScrollTop) > 0.5) {
+      if (Math.abs(container.scrollTop - targetScrollTop) >= 1) {
         container.scrollTop = targetScrollTop;
       }
 
@@ -2257,7 +2257,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
     const container = timelineScrollRef.current;
     const centerOffset = container.clientHeight / 2;
-    const targetScrollTop = timeToY(isPlaying ? internalTimeRef.current : currentTime) - centerOffset;
+    const targetScrollTop = Math.max(
+      0,
+      Math.round(timeToY(isPlaying ? internalTimeRef.current : currentTime) - centerOffset)
+    );
     container.scrollTop = targetScrollTop;
 
     lastZoomRef.current = zoom;

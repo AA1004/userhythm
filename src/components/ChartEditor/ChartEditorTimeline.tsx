@@ -456,7 +456,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
       if (!timelineScrollRef.current) return;
       const centerOffset = container.clientHeight / 2;
       const alignedPlayheadY = timeToY(isPlaying && currentTimeRef ? currentTimeRef.current : currentTime);
-      const targetScrollTop = Math.max(0, alignedPlayheadY - centerOffset);
+      const targetScrollTop = Math.max(0, Math.round(alignedPlayheadY - centerOffset));
       container.scrollTop = targetScrollTop;
       // 일정 범위 이내면 초기 정렬 완료로 간주
       if (Math.abs(container.scrollTop - targetScrollTop) <= 1) {
