@@ -106,7 +106,7 @@ export const DEFAULT_GAME_VISUAL_SETTINGS: GameVisualSettings = {
     bgaOpacity: 0,
     bgaBlurEnabled: true,
     gameplayHudMode: 'new-lite',
-  topLaneExtensionEnabled: false,
+  topLaneExtensionEnabled: true,
   slotHudEnabled: false,
   lanePressTintEnabled: true,
   keyPressGlowEnabled: true,
@@ -135,7 +135,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
   bgaOpacity: 0,
   bgaBlurEnabled: true,
   gameplayHudMode: 'new-lite',
-    topLaneExtensionEnabled: false,
+    topLaneExtensionEnabled: true,
     slotHudEnabled: false,
     lanePressTintEnabled: true,
     keyPressGlowEnabled: true,
@@ -161,7 +161,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     bgaOpacity: 0,
     bgaBlurEnabled: true,
     gameplayHudMode: 'new-lite',
-    topLaneExtensionEnabled: false,
+    topLaneExtensionEnabled: true,
     slotHudEnabled: false,
     lanePressTintEnabled: true,
     keyPressGlowEnabled: true,
@@ -276,10 +276,9 @@ export const normalizeGameVisualSettings = (
       : rawGameplayHudMode === 'new-lite'
       ? 'new-lite'
       : 'legacy';
-  const topLaneExtensionEnabled = booleanOr(
-    raw.topLaneExtensionEnabled,
-    fallback.topLaneExtensionEnabled
-  );
+  // The playfield lanes are always drawn from the top of the stage.
+  // The persisted flag is kept only for old settings compatibility.
+  const topLaneExtensionEnabled = true;
   const slotHudEnabled = booleanOr(raw.slotHudEnabled, fallback.slotHudEnabled);
   const lanePressTintEnabled = booleanOr(raw.lanePressTintEnabled, fallback.lanePressTintEnabled);
   const keyPressGlowEnabled = booleanOr(raw.keyPressGlowEnabled, fallback.keyPressGlowEnabled);

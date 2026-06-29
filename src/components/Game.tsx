@@ -78,7 +78,6 @@ export const Game: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>({ type: 'menu' });
   const [chartListRefreshToken, setChartListRefreshToken] = useState<number>(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
-  const [stageViewportTop, setStageViewportTop] = useState<number>(0);
   const gameContainerRef = useRef<HTMLDivElement | null>(null);
   const processedMissNotes = useRef<Set<number>>(new Set());
   const hitNoteIdsRef = useRef<Set<number>>(new Set());
@@ -330,21 +329,6 @@ export const Game: React.FC = () => {
       prev.gameEnded ? prev : { ...prev, currentTime: currentTimeRef.current, gameEnded: true }
     ));
   }, []);
-
-  useEffect(() => {
-    const updateStageViewportTop = () => {
-      const rect = gameContainerRef.current?.getBoundingClientRect();
-      setStageViewportTop(rect ? Math.max(0, rect.top) : 0);
-    };
-
-    updateStageViewportTop();
-    window.addEventListener('resize', updateStageViewportTop);
-    window.visualViewport?.addEventListener('resize', updateStageViewportTop);
-    return () => {
-      window.removeEventListener('resize', updateStageViewportTop);
-      window.visualViewport?.removeEventListener('resize', updateStageViewportTop);
-    };
-  }, [viewportSize.width, viewportSize.height, viewMode.type, stageScale, gameState.gameStarted, gameState.gameEnded]);
 
   // YouTube 플레이어 훅
   const {
@@ -846,76 +830,6 @@ export const Game: React.FC = () => {
   const gameplayStageBackdropAlpha = 0.16;
   const gameplayStageBorderAlpha = 0.14;
   const gameplayStageShadowAlpha = 0.26;
-  const topLaneViewportExtensionHeight =
-    isGameplayActive && playfieldGeometry.topLaneExtensionEnabled && activeLaneUiVisible
-      ? Math.max(0, stageViewportTop)
-      : 0;
-  const topLaneViewportOverlay = useMemo(() => {
-    if (topLaneViewportExtensionHeight <= 0) {
-      return null;
-    }
-
-    const leftPx = playfieldGeometry.laneGroupLeft * stageScale;
-    const widthPx = playfieldGeometry.laneGroupWidth * stageScale;
-    const laneOpacity = playfieldGeometry.laneOpacity;
-    const lineSpacing = Math.max(1, Math.round((playfieldGeometry.laneWidth + playfieldGeometry.laneGap) * stageScale));
-
-    return (
-      <div
-        aria-hidden
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: `${-topLaneViewportExtensionHeight}px`,
-          width: '100%',
-          height: `${topLaneViewportExtensionHeight}px`,
-          pointerEvents: 'none',
-          zIndex: 0,
-          overflow: 'hidden',
-          contain: 'paint',
-          backgroundColor: `rgba(8, 12, 24, ${gameplayStageBackdropAlpha.toFixed(3)})`,
-          borderTopLeftRadius: CHART_EDITOR_THEME.radiusLg,
-          borderTopRightRadius: CHART_EDITOR_THEME.radiusLg,
-          borderLeft: `1px solid rgba(238, 247, 242, ${gameplayStageBorderAlpha.toFixed(3)})`,
-          borderRight: `1px solid rgba(238, 247, 242, ${gameplayStageBorderAlpha.toFixed(3)})`,
-          borderTop: `1px solid rgba(238, 247, 242, ${gameplayStageBorderAlpha.toFixed(3)})`,
-          boxShadow: `0 -10px 30px rgba(0, 0, 0, ${gameplayStageShadowAlpha.toFixed(3)})`,
-        }}
-      >
-        <div
-          style={{
-            position: 'absolute',
-            left: `${leftPx}px`,
-            top: 0,
-            width: `${widthPx}px`,
-            height: '100%',
-            backgroundColor: `rgba(15, 23, 42, ${0.6 * laneOpacity})`,
-            backgroundImage: `
-              linear-gradient(180deg,
-                rgba(255,255,255,${0.025 * laneOpacity}) 0%,
-                rgba(255,255,255,0) 42%,
-                rgba(255,255,255,0) 100%),
-              repeating-linear-gradient(
-                90deg,
-                transparent 0,
-                transparent calc(${lineSpacing}px - 2px),
-                rgba(255,255,255,${0.12 * laneOpacity}) calc(${lineSpacing}px - 2px),
-                rgba(255,255,255,${0.12 * laneOpacity}) ${lineSpacing}px
-              )`,
-            boxShadow: `inset 0 1px 0 rgba(255,255,255,${0.08 * laneOpacity})`,
-          }}
-        />
-      </div>
-    );
-  }, [
-    topLaneViewportExtensionHeight,
-    playfieldGeometry.laneGroupLeft,
-    playfieldGeometry.laneGroupWidth,
-    playfieldGeometry.laneOpacity,
-    playfieldGeometry.laneWidth,
-    playfieldGeometry.laneGap,
-    stageScale,
-  ]);
 
   // 화면 라우팅은 모든 hooks 계산 이후에 수행해야 한다.
   if (viewMode.type === 'tutorial') {
@@ -1099,7 +1013,6 @@ export const Game: React.FC = () => {
             marginTop: 0,
           }}
         >
-          {topLaneViewportOverlay}
           <div
             ref={gameContainerRef}
             style={{

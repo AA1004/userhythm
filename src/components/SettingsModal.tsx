@@ -883,28 +883,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  marginBottom: '8px',
-                  color: CHART_EDITOR_THEME.textPrimary,
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={visualSettings.topLaneExtensionEnabled}
-                  onChange={(e) =>
-                    applyToggleVisualSettings({ topLaneExtensionEnabled: e.target.checked })
-                  }
-                  style={{ accentColor: CHART_EDITOR_THEME.accent }}
-                />
-                상단 레인 연장 효과
-              </label>
-
-              <label
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
                   color: CHART_EDITOR_THEME.textPrimary,
                   fontSize: '12px',
                   cursor: 'pointer',

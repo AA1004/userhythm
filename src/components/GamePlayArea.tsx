@@ -6,7 +6,6 @@ import { NoteRenderer } from './NoteRenderer';
 import { WebglBetaNoteRenderer } from './WebglBetaNoteRenderer';
 import { ComboDisplay } from './ComboDisplay';
 import { PlayfieldGeometry } from '../constants/gameVisualSettings';
-import { GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 import { HitNoteIdsRef } from '../utils/noteRuntimeState';
 import { getLaneNoteColor } from '../utils/noteColors';
 import { KeyEffect } from '../hooks/useGameJudging';
@@ -64,8 +63,6 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
     ] as const,
     [playfieldGeometry.outerLaneNoteColor, playfieldGeometry.innerLaneNoteColor]
   );
-  const topExtensionHeight = Math.max(100, Math.min(GAME_VIEW_HEIGHT * 0.58, judgeLineY - 36));
-
   const laneBackgroundLayer = useMemo(
     () =>
       isLaneUiVisible ? (
@@ -73,11 +70,9 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
           style={{
             position: 'absolute',
             left: `${playfieldGeometry.laneGroupLeft}px`,
-            top: playfieldGeometry.topLaneExtensionEnabled ? '0' : `${topExtensionHeight}px`,
+            top: 0,
             width: `${playfieldGeometry.laneGroupWidth}px`,
-            height: playfieldGeometry.topLaneExtensionEnabled
-              ? '100%'
-              : `${Math.max(0, GAME_VIEW_HEIGHT - topExtensionHeight)}px`,
+            height: '100%',
             backgroundColor: `rgba(15, 23, 42, ${0.6 * playfieldGeometry.laneOpacity})`,
           }}
         />
@@ -87,8 +82,6 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       playfieldGeometry.laneGroupLeft,
       playfieldGeometry.laneGroupWidth,
       playfieldGeometry.laneOpacity,
-      playfieldGeometry.topLaneExtensionEnabled,
-      topExtensionHeight,
     ]
   );
 
@@ -139,11 +132,9 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
               style={{
                 position: 'absolute',
                 left: `${x}px`,
-                top: playfieldGeometry.topLaneExtensionEnabled ? '0' : `${topExtensionHeight}px`,
+                top: 0,
                 width: '2px',
-                height: playfieldGeometry.topLaneExtensionEnabled
-                  ? '100%'
-                  : `${Math.max(0, GAME_VIEW_HEIGHT - topExtensionHeight)}px`,
+                height: '100%',
                 backgroundColor: `rgba(255,255,255,${0.1 * playfieldGeometry.laneOpacity})`,
                 transform: 'translateX(-50%)',
               }}
@@ -154,79 +145,6 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       isLaneUiVisible,
       playfieldGeometry.laneEdges,
       playfieldGeometry.laneOpacity,
-      playfieldGeometry.topLaneExtensionEnabled,
-      topExtensionHeight,
-    ]
-  );
-
-  const topLaneExtensionLayer = useMemo(
-    () =>
-      isLaneUiVisible && playfieldGeometry.topLaneExtensionEnabled ? (
-        <div
-          style={{
-            position: 'absolute',
-            left: `${playfieldGeometry.laneGroupLeft}px`,
-            top: 0,
-            width: `${playfieldGeometry.laneGroupWidth}px`,
-            height: `${topExtensionHeight}px`,
-            pointerEvents: 'none',
-            zIndex: 36,
-            backgroundColor: `rgba(15, 23, 42, ${0.6 * playfieldGeometry.laneOpacity})`,
-            boxShadow: `inset 0 1px 0 rgba(255,255,255,${0.08 * playfieldGeometry.laneOpacity})`,
-            borderTop: `1px solid rgba(255,255,255,${0.1 * playfieldGeometry.laneOpacity})`,
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: `linear-gradient(180deg,
-                rgba(255,255,255,${0.025 * playfieldGeometry.laneOpacity}) 0%,
-                rgba(255,255,255,0) 42%,
-                rgba(255,255,255,0) 100%)`,
-            }}
-          />
-          {playfieldGeometry.laneEdges.map((x) => (
-            <div
-              key={`top-edge-${x}`}
-              style={{
-                position: 'absolute',
-                left: `${x - playfieldGeometry.laneGroupLeft}px`,
-                top: 0,
-                width: '2px',
-                height: '100%',
-                transform: 'translateX(-50%)',
-                background: `linear-gradient(180deg,
-                  rgba(255,255,255,${0.14 * playfieldGeometry.laneOpacity}) 0%,
-                  rgba(255,255,255,${0.08 * playfieldGeometry.laneOpacity}) 55%,
-                  rgba(255,255,255,0) 100%)`,
-                boxShadow: 'none',
-              }}
-            />
-          ))}
-          <div
-            style={{
-              position: 'absolute',
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: `${Math.min(36, topExtensionHeight * 0.22)}px`,
-              background: `linear-gradient(180deg,
-                rgba(255,255,255,0) 0%,
-                rgba(255,255,255,${0.025 * playfieldGeometry.laneOpacity}) 100%)`,
-            }}
-          />
-        </div>
-      ) : null,
-    [
-      isLaneUiVisible,
-      playfieldGeometry.topLaneExtensionEnabled,
-      playfieldGeometry.laneGroupLeft,
-      playfieldGeometry.laneGroupWidth,
-      playfieldGeometry.laneEdges,
-      playfieldGeometry.laneOpacity,
-      topExtensionHeight,
     ]
   );
 
@@ -379,7 +297,6 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       {laneBackgroundLayer}
       {lanePressTintLayer}
       {laneEdgeLayer}
-      {topLaneExtensionLayer}
       {noteFieldLayer}
       {judgeLineLayer}
       {comboLayer}
