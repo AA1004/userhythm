@@ -1078,21 +1078,10 @@ export const Game: React.FC = () => {
                   height: `${topLaneExtensionHeightPx}px`,
                   pointerEvents: 'none',
                   zIndex: 0,
-                  background: `rgba(8, 12, 24, ${gameplayStageBackdropAlpha.toFixed(3)})`,
+                  background: `rgba(8, 12, 24, ${Math.min(0.92, gameplayStageBackdropAlpha + 0.08).toFixed(3)})`,
                   boxShadow: `inset 0 -1px 0 rgba(238, 247, 242, ${gameplayStageBorderAlpha.toFixed(3)})`,
                 }}
               >
-                {visualSettings.bgaBlurEnabled && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      backdropFilter: 'blur(5px) saturate(0.94)',
-                      WebkitBackdropFilter: 'blur(5px) saturate(0.94)',
-                      background: 'rgba(8, 12, 24, 0.05)',
-                    }}
-                  />
-                )}
                 <div
                   style={{
                     position: 'absolute',
