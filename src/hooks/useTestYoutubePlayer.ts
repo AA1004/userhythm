@@ -33,7 +33,7 @@ export function useTestYoutubePlayer({
   audioSettings,
   externalPlayer,
   volume = 100,
-  performanceMode = 'balanced',
+  performanceMode: _performanceMode = 'balanced',
   onPlaybackEnded,
 }: UseTestYoutubePlayerOptions): UseTestYoutubePlayerReturn {
   const [player, setPlayer] = useState<any>(null);
@@ -337,8 +337,7 @@ export function useTestYoutubePlayer({
       }
 
       const now = Date.now();
-      const syncCheckIntervalMs =
-        performanceMode === 'performance' ? 1500 : performanceMode === 'quality' ? 850 : 1200;
+      const syncCheckIntervalMs = 1200;
       if (now - lastAudioSyncCheckAtRef.current < syncCheckIntervalMs) {
         if (shouldProfile) {
           recordGameplayMetric('audioSync', performance.now() - syncStart, 0);
@@ -360,10 +359,8 @@ export function useTestYoutubePlayer({
 
       // 임계값: 0.5초 이상 차이날 때만 리싱크
       // 쿨다운: 마지막 리싱크 후 2초 이내에는 리싱크하지 않음
-      const RESYNC_THRESHOLD =
-        performanceMode === 'performance' ? 0.8 : performanceMode === 'quality' ? 0.5 : 0.65;
-      const RESYNC_COOLDOWN =
-        performanceMode === 'performance' ? 2800 : performanceMode === 'quality' ? 2000 : 2400;
+      const RESYNC_THRESHOLD = 0.65;
+      const RESYNC_COOLDOWN = 2400;
 
       if (
         Math.abs(currentSeconds - desiredSeconds) > RESYNC_THRESHOLD &&
@@ -385,14 +382,7 @@ export function useTestYoutubePlayer({
     const scheduleNext = () => {
       if (cancelled) return;
       const currentTime = currentTimeRef.current;
-      const delayMs =
-        currentTime < 250 || !audioHasStartedRef.current
-          ? 33
-          : performanceMode === 'performance'
-          ? 1600
-          : performanceMode === 'quality'
-          ? 1000
-          : 1300;
+      const delayMs = currentTime < 250 || !audioHasStartedRef.current ? 33 : 1300;
       timerId = window.setTimeout(() => {
         syncOnce();
         scheduleNext();
@@ -407,7 +397,7 @@ export function useTestYoutubePlayer({
         window.clearTimeout(timerId);
       }
     };
-  }, [audioSessionActive, gameStarted, gameEnded, currentTimeRef, player, audioSettings, performanceMode]);
+  }, [audioSessionActive, gameStarted, gameEnded, currentTimeRef, player, audioSettings]);
 
   // 볼륨 변경 시 실시간 반영
   useEffect(() => {

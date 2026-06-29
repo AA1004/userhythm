@@ -9,7 +9,7 @@ export const KEY_LANE_HEIGHT = 100;
 export type VisualPresetId = 'classic' | 'compact' | 'wide' | 'custom';
 export type GameplayHudMode = 'legacy' | 'new-lite' | 'new-full';
 export type RenderBackend = 'canvas2d' | 'webgl';
-export type PerformanceMode = 'quality' | 'balanced' | 'performance';
+export type PerformanceMode = 'balanced';
 
 export interface NoteColorRgb {
   r: number;
@@ -112,7 +112,7 @@ export const DEFAULT_GAME_VISUAL_SETTINGS: GameVisualSettings = {
   keyPressGlowEnabled: true,
   keyPressPulseEnabled: true,
   renderBackend: 'webgl',
-  performanceMode: 'performance',
+  performanceMode: 'balanced',
 };
 
 export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, GameVisualSettings> = {
@@ -141,7 +141,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     keyPressGlowEnabled: true,
     keyPressPulseEnabled: true,
     renderBackend: 'webgl',
-    performanceMode: 'performance',
+    performanceMode: 'balanced',
   },
   wide: {
     version: VISUAL_SETTINGS_VERSION,
@@ -167,7 +167,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     keyPressGlowEnabled: true,
     keyPressPulseEnabled: true,
     renderBackend: 'webgl',
-    performanceMode: 'performance',
+    performanceMode: 'balanced',
   },
 };
 
@@ -288,10 +288,9 @@ export const normalizeGameVisualSettings = (
     rawRenderBackend === 'webgl' || rawRenderBackend === 'webgl-beta'
       ? 'webgl'
       : 'canvas2d';
-  const performanceMode: PerformanceMode =
-    raw.performanceMode === 'quality' || raw.performanceMode === 'performance'
-      ? raw.performanceMode
-      : 'balanced';
+  // Performance mode is kept in the payload only for backward compatibility.
+  // The runtime now uses a single balanced path.
+  const performanceMode: PerformanceMode = 'balanced';
 
   // judgeLineY controls the timing line and note destination.
   // keyLaneY controls only the visual key boxes and is kept below judgeLineY when possible.

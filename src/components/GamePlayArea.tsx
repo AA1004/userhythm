@@ -51,9 +51,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isLegacyHud = playfieldGeometry.gameplayHudMode === 'legacy';
-  const simpleHoldVisuals =
-    playfieldGeometry.performanceMode !== 'quality' ||
-    playfieldGeometry.gameplayHudMode === 'new-lite';
+  const simpleHoldVisuals = playfieldGeometry.gameplayHudMode === 'new-lite';
   const laneNoteColors = useMemo(
     () => [
       getLaneNoteColor(0, playfieldGeometry.outerLaneNoteColor, playfieldGeometry.innerLaneNoteColor),

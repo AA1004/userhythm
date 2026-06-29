@@ -35,7 +35,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   bgaCurrentSeconds = null,
   bgaMaskOpacity = 0,
   bgaOpacity = 1,
-  performanceMode = 'balanced',
+  performanceMode: _performanceMode = 'balanced',
   children,
 }) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -260,8 +260,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       }
       const now = performance.now();
       const shouldForceSync = lastBgaSeekRef.current === null;
-      const syncIntervalMs =
-        performanceMode === 'performance' ? 1500 : performanceMode === 'quality' ? 750 : 1100;
+      const syncIntervalMs = 1100;
       if (!shouldForceSync && now - lastBgaSyncCheckAtRef.current < syncIntervalMs) {
         if (shouldProfile) {
           recordGameplayMetric('bgaSync', performance.now() - syncStart, 0);
@@ -282,7 +281,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       const currentSeconds = backgroundPlayer.getCurrentTime?.() ?? 0;
       const diff = Math.abs(currentSeconds - bgaCurrentSeconds);
 
-      const seekThreshold = performanceMode === 'performance' ? 0.6 : performanceMode === 'quality' ? 0.3 : 0.45;
+      const seekThreshold = 0.45;
       if (diff > seekThreshold || lastBgaSeekRef.current === null) {
         backgroundPlayer.seekTo(bgaCurrentSeconds, true);
         lastBgaSeekRef.current = bgaCurrentSeconds;
@@ -293,7 +292,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     } catch {
       // ignore
     }
-  }, [bgaCurrentSeconds, backgroundPlayer, shouldPlayBga, videoId, bgaEnabled, performanceMode]);
+  }, [bgaCurrentSeconds, backgroundPlayer, shouldPlayBga, videoId, bgaEnabled]);
 
   return (
     <div

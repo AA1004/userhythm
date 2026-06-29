@@ -849,35 +849,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   WebGL
                 </button>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '12px' }}>
-                {(['quality', 'balanced', 'performance'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => applyToggleVisualSettings({ performanceMode: mode })}
-                    style={{
-                      padding: '8px 6px',
-                      borderRadius: CHART_EDITOR_THEME.radiusSm,
-                      border: `1px solid ${
-                        visualSettings.performanceMode === mode
-                          ? CHART_EDITOR_THEME.accent
-                          : CHART_EDITOR_THEME.borderSubtle
-                      }`,
-                      background:
-                        visualSettings.performanceMode === mode
-                          ? CHART_EDITOR_THEME.accentSoft
-                          : 'transparent',
-                      color: CHART_EDITOR_THEME.textPrimary,
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      textTransform: 'capitalize',
-                      fontWeight: visualSettings.performanceMode === mode ? 700 : 500,
-                    }}
-                  >
-                    {mode}
-                  </button>
-                ))}
-              </div>
-
               <label
                 style={{
                   display: 'flex',
