@@ -15,7 +15,7 @@ import {
   DEFAULT_GAME_DURATION,
   START_DELAY_MS,
 } from '../constants/gameConstants';
-import { buildInitialScore, getAudioPositionSeconds, AudioSettings } from '../utils/gameHelpers';
+import { buildInitialScore, AudioSettings } from '../utils/gameHelpers';
 import { useAuth } from '../hooks/useAuth';
 import { useGameSettings } from '../hooks/useGameSettings';
 import { useSubtitles } from '../hooks/useSubtitles';
@@ -69,10 +69,6 @@ type ChartSelectTransitionState = {
   chartStatus?: 'approved' | 'wip';
 };
 
-// Gameplay logic/rendering uses currentTimeRef every frame.
-// This snapshot is only for React-side overlays such as subtitles/BGA sync/slot progress.
-const GAMEPLAY_VISUAL_CLOCK_INTERVAL_MS = 1000;
-
 export const Game: React.FC = () => {
   const renderProfileStart = isGameplayProfilerEnabled() ? performance.now() : 0;
   const [viewMode, setViewMode] = useState<ViewMode>({ type: 'menu' });
@@ -87,7 +83,6 @@ export const Game: React.FC = () => {
   const [testYoutubeVideoId, setTestYoutubeVideoId] = useState<string | null>(null);
   const [testAudioSettings, setTestAudioSettings] = useState<AudioSettings | null>(null);
   const overlayAudioRef = useRef<HTMLAudioElement | null>(null);
-  const [gameplayClockSnapshotMs, setGameplayClockSnapshotMs] = useState(0);
   const [viewportSize, setViewportSize] = useState(() => ({
     width: typeof window !== 'undefined' ? window.innerWidth : 1920,
     height:
@@ -173,35 +168,6 @@ export const Game: React.FC = () => {
   const hasYoutubeAudioSession = !!testYoutubeVideoId && !!testAudioSettings;
 
   useEffect(() => {
-    if (!gameState.gameStarted || gameState.gameEnded) {
-      setGameplayClockSnapshotMs(gameState.currentTime);
-      return;
-    }
-
-    setGameplayClockSnapshotMs(gameState.currentTime);
-    let frameId: number | null = null;
-    let lastUpdateAt = 0;
-
-    const tick = (now: number) => {
-      if (now - lastUpdateAt >= GAMEPLAY_VISUAL_CLOCK_INTERVAL_MS) {
-        lastUpdateAt = now;
-        const nextTime = currentTimeRef.current;
-        setGameplayClockSnapshotMs((prev) =>
-          Math.abs(prev - nextTime) < 1 ? prev : nextTime
-        );
-      }
-      frameId = requestAnimationFrame(tick);
-    };
-
-    frameId = requestAnimationFrame(tick);
-    return () => {
-      if (frameId !== null) {
-        cancelAnimationFrame(frameId);
-      }
-    };
-  }, [gameState.gameStarted, gameState.gameEnded, gameState.currentTime]);
-
-  useEffect(() => {
     if (!gameState.gameStarted) {
       hasRecordedPlayRef.current = false;
       hasSubmittedScoreRef.current = false;
@@ -212,8 +178,8 @@ export const Game: React.FC = () => {
   // 테스트 시작 위치(startTimeMs)를 더해서 절대 시간으로 변환
   // 이렇게 해야 자막/BGA가 올바른 시간에 표시됨
   const currentChartTimeMs = useMemo(
-    () => Math.max(0, gameplayClockSnapshotMs + currentChartTimeOffsetMs),
-    [gameplayClockSnapshotMs, currentChartTimeOffsetMs]
+    () => Math.max(0, gameState.currentTime + currentChartTimeOffsetMs),
+    [gameState.currentTime, currentChartTimeOffsetMs]
   );
 
   // BGA 마스크 훅 - 절대 시간 사용
@@ -318,7 +284,7 @@ export const Game: React.FC = () => {
     setSubtitles,
     loadSubtitlesForChart,
     activeSubtitles,
-  } = useSubtitles(gameState, currentChartTimeMs);
+  } = useSubtitles(gameState, currentChartTimeMs, currentTimeRef, currentChartTimeOffsetMs);
 
   // 테스트 세션 훅
   const {
@@ -351,7 +317,14 @@ export const Game: React.FC = () => {
 
   const finishCurrentGame = useCallback(() => {
     setGameState((prev) => (
-      prev.gameEnded ? prev : { ...prev, currentTime: currentTimeRef.current, gameEnded: true }
+      prev.gameEnded
+        ? prev
+        : {
+            ...prev,
+            score: gameStateRef.current.score,
+            currentTime: currentTimeRef.current,
+            gameEnded: true,
+          }
     ));
   }, []);
 
@@ -651,7 +624,6 @@ export const Game: React.FC = () => {
 
   useEffect(() => {
     if (!gameState.gameStarted || gameState.gameEnded || isFromEditor) return;
-    if (gameplayClockSnapshotMs < 0) return;
     if (!activePlayableChartId || hasRecordedPlayRef.current) return;
 
     hasRecordedPlayRef.current = true;
@@ -659,7 +631,7 @@ export const Game: React.FC = () => {
       hasRecordedPlayRef.current = false;
       console.error('Failed to increment play count:', error);
     });
-  }, [gameState.gameStarted, gameState.gameEnded, isFromEditor, activePlayableChartId, gameplayClockSnapshotMs]);
+  }, [gameState.gameStarted, gameState.gameEnded, isFromEditor, activePlayableChartId]);
 
   useEffect(() => {
     if (!gameState.gameEnded || isFromEditor) return;
@@ -831,22 +803,17 @@ export const Game: React.FC = () => {
     isGameplayActive && hasYoutubeAudioSession && !testYoutubePlayerReady;
   const isGameplayClockRunning = isGameplayActive && !isWaitingForYoutubeAudio;
   const backgroundVideoId = isGameplayActive ? testYoutubeVideoId : null;
-  const bgaCurrentSeconds =
-    isGameplayActive && backgroundVideoId && isBgaEnabled
-      ? getAudioPositionSeconds(gameplayClockSnapshotMs, testAudioSettings)
-      : null;
   const shouldPlayBga =
     !!backgroundVideoId &&
     isBgaEnabled &&
     gameState.gameStarted &&
-    !gameState.gameEnded &&
-    gameplayClockSnapshotMs >= 0;
+    !gameState.gameEnded;
   const activeBgaMaskOpacity = isGameplayActive ? bgaMaskOpacity : 0;
   const activeLaneUiVisible = isGameplayActive ? isLaneUiVisible : true;
   const useSlotHud = playfieldGeometry.slotHudEnabled;
   const slotHudProgress =
     dynamicGameDuration > 0
-      ? Math.min(100, Math.max(0, (gameplayClockSnapshotMs / dynamicGameDuration) * 100))
+      ? Math.min(100, Math.max(0, (gameState.currentTime / dynamicGameDuration) * 100))
       : 0;
   const slotHudTopPx = (playfieldGeometry.keyLaneY + KEY_LANE_HEIGHT + 8) * stageScale;
   const slotHudLeftPx = playfieldGeometry.laneGroupLeft * stageScale;
@@ -1011,7 +978,8 @@ export const Game: React.FC = () => {
         videoId={backgroundVideoId}
         bgaEnabled={isBgaEnabled}
         shouldPlayBga={shouldPlayBga}
-        bgaCurrentSeconds={bgaCurrentSeconds ?? undefined}
+        bgaCurrentTimeRef={currentTimeRef}
+        bgaAudioSettings={testAudioSettings}
         bgaMaskOpacity={activeBgaMaskOpacity}
         bgaOpacity={visualSettings.bgaOpacity}
         performanceMode={visualSettings.performanceMode}
@@ -1237,6 +1205,8 @@ export const Game: React.FC = () => {
               combo={gameState.score.combo}
               accuracy={accuracy}
               progress={slotHudProgress}
+              currentTimeRef={currentTimeRef}
+              durationMs={dynamicGameDuration}
               visible={activeLaneUiVisible}
               opacity={slotHudOpacity}
             />

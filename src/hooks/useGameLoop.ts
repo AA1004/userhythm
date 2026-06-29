@@ -130,12 +130,8 @@ export function useGameLoop(
         recordGameplayMetric('missScan', performance.now() - missScanStart, scannedNotes);
       }
 
-      // currentTimeRef is the source time for gameplay; React state is a coarse UI snapshot.
-      const TIME_UPDATE_INTERVAL_MS = 1000;
-      const timeSinceLastUpdate = elapsedTime - (gameStateRef.current.currentTime || 0);
-      const shouldUpdateTime = timeSinceLastUpdate >= TIME_UPDATE_INTERVAL_MS || hasMiss;
-
-      if (!shouldUpdateTime) {
+      // currentTimeRef is the gameplay clock. React state only changes for gameplay events.
+      if (!hasMiss) {
         // state 업데이트 없이 다음 프레임으로
         lastTimeRef.current = currentTime;
         frameRef.current = requestAnimationFrame(animate);
@@ -157,12 +153,6 @@ export function useGameLoop(
         if (shouldProfile) {
           recordGameplayMetric('hitProcessing', performance.now() - hitProcessingStart, newlyMissed.length);
         }
-      } else {
-        // 매 프레임 currentTime 업데이트
-        setGameState((prev: GameState) => ({
-          ...prev,
-          currentTime: elapsedTime,
-        }));
       }
 
       if (hasMiss) {

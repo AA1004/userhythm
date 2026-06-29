@@ -24,8 +24,6 @@ function binarySearchFirstNoteAtOrAfter(notes: Note[], targetTime: number): numb
   return low;
 }
 
-const SCORE_SNAPSHOT_INTERVAL_MS = 1000;
-
 const scoresEqual = (a: GameState['score'], b: GameState['score']) =>
   a.perfect === b.perfect &&
   a.great === b.great &&
@@ -166,7 +164,6 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   const committedKeyEffectsRef = useRef<KeyEffect[]>([]);
   const effectCleanupTimerRef = useRef<NodeJS.Timeout | null>(null);
   const scoreRuntimeRef = useRef<GameState['score']>(gameState.score);
-  const scoreSnapshotTimerRef = useRef<NodeJS.Timeout | null>(null);
   const judgeLaneCursorRef = useRef<number[]>([0, 0, 0, 0]);
   const holdStartJudgeRef = useRef<Map<number, JudgeType>>(new Map());
   const freshSessionResetRef = useRef(false);
@@ -300,15 +297,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     return newScore;
   }, []);
 
-  const clearScoreSnapshotTimer = useCallback(() => {
-    if (scoreSnapshotTimerRef.current) {
-      clearTimeout(scoreSnapshotTimerRef.current);
-      scoreSnapshotTimerRef.current = null;
-    }
-  }, []);
-
   const commitScoreSnapshot = useCallback(() => {
-    clearScoreSnapshotTimer();
     const scoreSnapshot = scoreRuntimeRef.current;
     startTransition(() => {
       setGameState((prev) => {
@@ -319,15 +308,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         };
       });
     });
-  }, [clearScoreSnapshotTimer, setGameState]);
-
-  const scheduleScoreSnapshot = useCallback(() => {
-    if (scoreSnapshotTimerRef.current) return;
-    scoreSnapshotTimerRef.current = setTimeout(() => {
-      scoreSnapshotTimerRef.current = null;
-      commitScoreSnapshot();
-    }, SCORE_SNAPSHOT_INTERVAL_MS);
-  }, [commitScoreSnapshot]);
+  }, [setGameState]);
 
   const enqueueScoreJudge = useCallback(
     (judge: JudgeType) => {
@@ -342,13 +323,11 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         ...gameStateRef.current,
         score: scoreRuntimeRef.current,
       };
-      scheduleScoreSnapshot();
     },
     [
       comboSnapshotsEnabled,
       gameStateRef,
       scheduleUiCommit,
-      scheduleScoreSnapshot,
       updateScoreFromJudge,
     ]
   );
@@ -627,7 +606,6 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     if (isFreshSession && !freshSessionResetRef.current) {
       freshSessionResetRef.current = true;
       clearEffectCleanupTimer();
-      clearScoreSnapshotTimer();
       scoreRuntimeRef.current = gameState.score;
       setDisplayScore(gameState.score);
       comboRef.current = 0;
@@ -655,7 +633,6 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     gameState.currentTime,
     gameState.score,
     clearEffectCleanupTimer,
-    clearScoreSnapshotTimer,
     processedMissNotes,
     hitNoteIdsRef,
   ]);
@@ -664,7 +641,6 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     if (!gameState.gameStarted) {
       freshSessionResetRef.current = false;
       clearEffectCleanupTimer();
-      clearScoreSnapshotTimer();
       scoreRuntimeRef.current = gameState.score;
       setDisplayScore(gameState.score);
       comboRef.current = 0;
@@ -681,7 +657,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       holdStartJudgeRef.current.clear();
       judgeLaneCursorRef.current = [0, 0, 0, 0];
     }
-  }, [gameState.gameStarted, gameState.score, clearEffectCleanupTimer, clearScoreSnapshotTimer]);
+  }, [gameState.gameStarted, gameState.score, clearEffectCleanupTimer]);
 
   useEffect(() => {
     if (gameState.gameEnded) {
@@ -692,14 +668,13 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
   useEffect(() => {
     return () => {
       clearEffectCleanupTimer();
-      clearScoreSnapshotTimer();
       if (uiCommitFrameRef.current !== null) {
         cancelAnimationFrame(uiCommitFrameRef.current);
         uiCommitFrameRef.current = null;
       }
       holdStartJudgeRef.current.clear();
     };
-  }, [clearEffectCleanupTimer, clearScoreSnapshotTimer]);
+  }, [clearEffectCleanupTimer]);
 
   return {
     displayScore,

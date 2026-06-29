@@ -21,7 +21,9 @@ export function useBgaMask({
   currentTimeOffsetMs = 0,
 }: UseBgaMaskOptions): UseBgaMaskReturn {
   const [intervals, setIntervals] = useState<BgaVisibilityInterval[]>([]);
+  const [realtimeMaskOpacity, setRealtimeMaskOpacity] = useState(0);
   const [realtimeLaneUiVisible, setRealtimeLaneUiVisible] = useState(true);
+  const realtimeMaskOpacityRef = useRef(0);
   const realtimeLaneUiVisibleRef = useRef(true);
 
   const hiddenSegments = useMemo(
@@ -93,19 +95,38 @@ export function useBgaMask({
 
   useEffect(() => {
     realtimeLaneUiVisibleRef.current = derivedLaneUiVisible;
+    realtimeMaskOpacityRef.current = maskOpacity;
+    setRealtimeMaskOpacity(maskOpacity);
     setRealtimeLaneUiVisible(derivedLaneUiVisible);
-  }, [derivedLaneUiVisible]);
+  }, [derivedLaneUiVisible, maskOpacity]);
 
   useEffect(() => {
     if (!currentTimeRef) return;
+    if (hiddenSegments.length === 0) {
+      if (realtimeMaskOpacityRef.current !== 0) {
+        realtimeMaskOpacityRef.current = 0;
+        setRealtimeMaskOpacity(0);
+      }
+      if (!realtimeLaneUiVisibleRef.current) {
+        realtimeLaneUiVisibleRef.current = true;
+        setRealtimeLaneUiVisible(true);
+      }
+      return;
+    }
 
     let frameId: number | null = null;
 
     const tick = () => {
-      const next = getLaneUiVisible(currentTimeRef.current + currentTimeOffsetMs);
-      if (realtimeLaneUiVisibleRef.current !== next) {
-        realtimeLaneUiVisibleRef.current = next;
-        setRealtimeLaneUiVisible(next);
+      const chartTimeMs = currentTimeRef.current + currentTimeOffsetMs;
+      const nextOpacity = getBgaMaskOpacity(chartTimeMs);
+      const nextLaneVisible = getLaneUiVisible(chartTimeMs);
+      if (Math.abs(realtimeMaskOpacityRef.current - nextOpacity) >= 0.02) {
+        realtimeMaskOpacityRef.current = nextOpacity;
+        setRealtimeMaskOpacity(nextOpacity);
+      }
+      if (realtimeLaneUiVisibleRef.current !== nextLaneVisible) {
+        realtimeLaneUiVisibleRef.current = nextLaneVisible;
+        setRealtimeLaneUiVisible(nextLaneVisible);
       }
       frameId = requestAnimationFrame(tick);
     };
@@ -116,12 +137,12 @@ export function useBgaMask({
         cancelAnimationFrame(frameId);
       }
     };
-  }, [currentTimeRef, currentTimeOffsetMs, getLaneUiVisible]);
+  }, [currentTimeRef, currentTimeOffsetMs, getBgaMaskOpacity, getLaneUiVisible, hiddenSegments.length]);
 
   return {
     intervals,
     setIntervals,
-    maskOpacity,
+    maskOpacity: currentTimeRef ? realtimeMaskOpacity : maskOpacity,
     isLaneUiVisible: realtimeLaneUiVisible,
   };
 }

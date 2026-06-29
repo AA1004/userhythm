@@ -88,14 +88,53 @@ const lowerBoundNotEnded = (entries: SubtitleTimelineEntry[], timeMs: number): n
   return low;
 };
 
-export function useSubtitles(gameState: GameState, currentChartTimeMs: number): UseSubtitlesReturn {
+export function useSubtitles(
+  gameState: GameState,
+  currentChartTimeMs: number,
+  currentTimeRef?: MutableRefObject<number>,
+  currentTimeOffsetMs = 0
+): UseSubtitlesReturn {
   const [subtitles, setSubtitlesState] = useState<SubtitleCue[]>([]);
+  const [subtitleClockSourceMs, setSubtitleClockSourceMs] = useState(currentChartTimeMs);
   const lastSubtitleStateKeyRef = useRef('');
   const lastFontKeyRef = useRef('');
   const subtitleClockTimeMs = useMemo(
-    () => Math.floor(currentChartTimeMs / SUBTITLE_ACTIVE_BUCKET_MS) * SUBTITLE_ACTIVE_BUCKET_MS,
-    [currentChartTimeMs]
+    () => Math.floor(subtitleClockSourceMs / SUBTITLE_ACTIVE_BUCKET_MS) * SUBTITLE_ACTIVE_BUCKET_MS,
+    [subtitleClockSourceMs]
   );
+
+  useEffect(() => {
+    if (!currentTimeRef || !gameState.gameStarted || gameState.gameEnded || !subtitles.length) {
+      setSubtitleClockSourceMs(currentChartTimeMs);
+      return;
+    }
+
+    let frameId: number | null = null;
+    let lastBucket = Number.NaN;
+    const tick = () => {
+      const nextTime = Math.max(0, currentTimeRef.current + currentTimeOffsetMs);
+      const nextBucket = Math.floor(nextTime / SUBTITLE_ACTIVE_BUCKET_MS);
+      if (nextBucket !== lastBucket) {
+        lastBucket = nextBucket;
+        setSubtitleClockSourceMs(nextTime);
+      }
+      frameId = requestAnimationFrame(tick);
+    };
+
+    frameId = requestAnimationFrame(tick);
+    return () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+    };
+  }, [
+    currentTimeRef,
+    currentTimeOffsetMs,
+    currentChartTimeMs,
+    gameState.gameStarted,
+    gameState.gameEnded,
+    subtitles.length,
+  ]);
 
   const setSubtitles = useCallback<React.Dispatch<React.SetStateAction<SubtitleCue[]>>>((value) => {
     if (typeof value === 'function') {

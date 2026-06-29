@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface GameplaySlotHudProps {
   laneGroupLeft: number;
@@ -7,6 +7,8 @@ interface GameplaySlotHudProps {
   combo: number;
   accuracy: number;
   progress: number;
+  currentTimeRef?: React.MutableRefObject<number>;
+  durationMs?: number;
   visible: boolean;
   opacity?: number;
 }
@@ -20,9 +22,42 @@ const GameplaySlotHudComponent: React.FC<GameplaySlotHudProps> = ({
   combo,
   accuracy,
   progress,
+  currentTimeRef,
+  durationMs = 0,
   visible,
   opacity = 1,
 }) => {
+  const progressValueRef = useRef<HTMLSpanElement | null>(null);
+  const progressFillRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!currentTimeRef || durationMs <= 0 || !visible) return;
+
+    let timerId: number | null = null;
+    let lastRendered = -1;
+    const tick = () => {
+      const nextProgress = clampPercent((currentTimeRef.current / durationMs) * 100);
+      const rounded = Math.round(nextProgress * 10) / 10;
+      if (Math.abs(rounded - lastRendered) >= 0.1) {
+        lastRendered = rounded;
+        if (progressValueRef.current) {
+          progressValueRef.current.textContent = `${rounded.toFixed(1)}%`;
+        }
+        if (progressFillRef.current) {
+          progressFillRef.current.style.transform = `scaleX(${nextProgress / 100})`;
+        }
+      }
+    };
+
+    tick();
+    timerId = window.setInterval(tick, 100);
+    return () => {
+      if (timerId !== null) {
+        window.clearInterval(timerId);
+      }
+    };
+  }, [currentTimeRef, durationMs, visible]);
+
   if (!visible) return null;
 
   const clampedProgress = clampPercent(progress);
@@ -46,7 +81,7 @@ const GameplaySlotHudComponent: React.FC<GameplaySlotHudProps> = ({
         </div>
         <div className="slot-hud__cell">
           <span className="slot-hud__label">PROGRESS</span>
-          <span className="slot-hud__value">{clampedProgress.toFixed(1)}%</span>
+          <span ref={progressValueRef} className="slot-hud__value">{clampedProgress.toFixed(1)}%</span>
         </div>
         <div className="slot-hud__cell">
           <span className="slot-hud__label">ACCURACY</span>
@@ -55,6 +90,7 @@ const GameplaySlotHudComponent: React.FC<GameplaySlotHudProps> = ({
       </div>
       <div className="slot-hud__progress-track" aria-hidden="true">
         <div
+          ref={progressFillRef}
           className="slot-hud__progress-fill"
           style={{ transform: `scaleX(${clampedProgress / 100})` }}
         />
@@ -72,6 +108,8 @@ export const GameplaySlotHud = React.memo(
     prev.combo === next.combo &&
     Math.abs(prev.accuracy - next.accuracy) < 0.005 &&
     Math.abs(prev.progress - next.progress) < 0.05 &&
+    prev.currentTimeRef === next.currentTimeRef &&
+    prev.durationMs === next.durationMs &&
     prev.visible === next.visible &&
     prev.opacity === next.opacity
 );
