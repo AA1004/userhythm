@@ -23,6 +23,7 @@ interface GameplayHudCanvasProps {
   laneKeyLabels: string[][];
   playfieldGeometry: PlayfieldGeometry;
   gameplayHudMode: GameVisualSettings['gameplayHudMode'];
+  playfieldTopOffset: number;
   durationMs: number;
 }
 
@@ -159,7 +160,8 @@ const drawKeyEffect = (
   ctx: CanvasRenderingContext2D,
   effect: KeyEffect,
   now: number,
-  mode: NewHudMode
+  mode: NewHudMode,
+  topOffset: number
 ) => {
   const progress = getKeyEffectProgress(effect, now);
   if (progress >= 1) return;
@@ -172,7 +174,7 @@ const drawKeyEffect = (
 
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
-  ctx.translate(effect.x, effect.y);
+  ctx.translate(effect.x, effect.y + topOffset);
   ctx.rotate(rotation);
   ctx.scale(scale, scale);
 
@@ -210,7 +212,8 @@ const drawJudgeFeedback = (
   feedback: JudgeFeedback,
   now: number,
   top: number,
-  mode: NewHudMode
+  mode: NewHudMode,
+  topOffset: number
 ) => {
   const progress = getJudgeProgress(feedback, now);
   if (progress >= 1) return;
@@ -226,7 +229,7 @@ const drawJudgeFeedback = (
 
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
-  ctx.translate(GAME_VIEW_WIDTH / 2, top + 48);
+  ctx.translate(GAME_VIEW_WIDTH / 2, topOffset + top + 48);
   ctx.scale(scale, scale);
   ctx.font = 'bold 48px Arial, sans-serif';
   ctx.textAlign = 'center';
@@ -247,7 +250,8 @@ const drawLaneTimingFeedback = (
   ctx: CanvasRenderingContext2D,
   feedback: JudgeFeedback,
   now: number,
-  mode: NewHudMode
+  mode: NewHudMode,
+  topOffset: number
 ) => {
   if (!feedback.timingDirection) return;
   const progress = getJudgeProgress(feedback, now);
@@ -258,7 +262,7 @@ const drawLaneTimingFeedback = (
 
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
-  ctx.translate(feedback.x, feedback.y - 56 - rise);
+  ctx.translate(feedback.x, feedback.y + topOffset - 56 - rise);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = 'bold 18px Arial, sans-serif';
@@ -281,8 +285,10 @@ const drawKeyLane = (
   opacity: number,
   mode: NewHudMode,
   glowEnabled: boolean,
-  pulseEnabled: boolean
+  pulseEnabled: boolean,
+  topOffset: number
 ) => {
+  top += topOffset;
   const left = x - width / 2;
   const height = KEY_LANE_HEIGHT;
   const alpha = Math.max(0, Math.min(1, opacity));
@@ -389,7 +395,8 @@ const drawCombo = (
   combo: number,
   laneGroupCenterX: number,
   numberOpacity: number,
-  mode: NewHudMode
+  mode: NewHudMode,
+  topOffset: number
 ) => {
   if (combo <= 0) return;
 
@@ -401,12 +408,12 @@ const drawCombo = (
   ctx.font = '300 144px Bahnschrift, Arial Narrow, sans-serif';
   ctx.shadowColor = 'rgba(0,0,0,0.36)';
   ctx.shadowBlur = mode === 'new-full' ? 18 : 0;
-  ctx.fillText(String(combo), laneGroupCenterX, 118);
+  ctx.fillText(String(combo), laneGroupCenterX, topOffset + 118);
   ctx.globalAlpha = 1;
   ctx.shadowBlur = 0;
   ctx.fillStyle = 'rgba(238, 247, 242, 0.64)';
   ctx.font = '700 14px Bahnschrift, Arial Narrow, sans-serif';
-  ctx.fillText('COMBO', laneGroupCenterX, 190);
+  ctx.fillText('COMBO', laneGroupCenterX, topOffset + 190);
   ctx.restore();
 };
 
@@ -424,6 +431,7 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   laneKeyLabels,
   playfieldGeometry,
   gameplayHudMode,
+  playfieldTopOffset,
   durationMs: _durationMs,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -434,9 +442,10 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   const playfieldGeometryRef = useRef(playfieldGeometry);
   const gameplayHudModeRef = useRef(gameplayHudMode);
   const laneKeyLabelsRef = useRef(laneKeyLabels);
+  const playfieldTopOffsetRef = useRef(playfieldTopOffset);
   const shouldRenderHud = gameplayHudMode !== 'legacy';
   const isLiteMode = gameplayHudMode === 'new-lite';
-  const canvasHeight = GAME_VIEW_HEIGHT;
+  const canvasHeight = GAME_VIEW_HEIGHT + playfieldTopOffset;
 
   useEffect(() => {
     visibleRef.current = visible;
@@ -463,6 +472,10 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   }, [laneKeyLabels]);
 
   useEffect(() => {
+    playfieldTopOffsetRef.current = playfieldTopOffset;
+  }, [playfieldTopOffset]);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
@@ -481,6 +494,7 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
 
     const renderFrame = () => {
       const geometry = playfieldGeometryRef.current;
+      const topOffset = playfieldTopOffsetRef.current;
       const now = Date.now();
       const hudMode = gameplayHudModeRef.current === 'new-full' ? 'new-full' : 'new-lite';
       ctx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasHeight);
@@ -490,15 +504,15 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
         for (const effect of keyEffectsRef.current) {
           if (getKeyEffectProgress(effect, now) < 1) {
             hasActiveEffect = true;
-            drawKeyEffect(ctx, effect, now, hudMode);
+            drawKeyEffect(ctx, effect, now, hudMode, topOffset);
           }
         }
 
         for (const feedback of judgeFeedbacksRef.current) {
           if (getJudgeProgress(feedback, now) < 1) {
             hasActiveEffect = true;
-            drawJudgeFeedback(ctx, feedback, now, judgeFeedbackTopRef.current, hudMode);
-            drawLaneTimingFeedback(ctx, feedback, now, hudMode);
+            drawJudgeFeedback(ctx, feedback, now, judgeFeedbackTopRef.current, hudMode, topOffset);
+            drawLaneTimingFeedback(ctx, feedback, now, hudMode, topOffset);
           }
         }
 
@@ -514,7 +528,8 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
               geometry.keyLaneOpacity,
               hudMode,
               geometry.keyPressGlowEnabled,
-              geometry.keyPressPulseEnabled
+              geometry.keyPressPulseEnabled,
+              topOffset
             );
           });
           drawCombo(
@@ -522,7 +537,8 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
             scoreRuntimeRef.current.combo,
             geometry.laneGroupLeft + geometry.laneGroupWidth / 2,
             geometry.comboOpacity,
-            hudMode
+            hudMode,
+            topOffset
           );
         }
       }

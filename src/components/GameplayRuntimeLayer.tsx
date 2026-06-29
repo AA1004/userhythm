@@ -23,6 +23,7 @@ interface GameplayRuntimeLayerProps {
   timingOffsetMs: number;
   judgeLineY: number;
   playfieldGeometry: PlayfieldGeometry;
+  playfieldTopOffset: number;
   bgaMaskOpacity: number;
   isLaneUiVisible: boolean;
   isFromEditor: boolean;
@@ -44,6 +45,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
   timingOffsetMs,
   judgeLineY,
   playfieldGeometry,
+  playfieldTopOffset,
   bgaMaskOpacity,
   isLaneUiVisible,
   isFromEditor,
@@ -123,6 +125,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
         fallDuration={fallDuration}
         judgeLineY={judgeLineY}
         playfieldGeometry={playfieldGeometry}
+        playfieldTopOffset={playfieldTopOffset}
         hitNoteIdsRef={hitNoteIdsRef}
       />
 
@@ -140,6 +143,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
         laneKeyLabels={laneKeyLabels}
         playfieldGeometry={playfieldGeometry}
         gameplayHudMode={playfieldGeometry.gameplayHudMode}
+        playfieldTopOffset={playfieldTopOffset}
         durationMs={durationMs}
       />
     </>

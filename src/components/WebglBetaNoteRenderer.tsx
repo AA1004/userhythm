@@ -31,6 +31,7 @@ interface WebglBetaNoteRendererProps {
   currentTimeRef: React.MutableRefObject<number>;
   fallDuration: number;
   judgeLineY: number;
+  playfieldTopOffset?: number;
   laneCenters?: readonly number[];
   noteWidth?: number;
   noteHeight?: number;
@@ -158,6 +159,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
   currentTimeRef,
   fallDuration,
   judgeLineY,
+  playfieldTopOffset = 0,
   laneCenters = LANE_POSITIONS,
   noteWidth = 90,
   noteHeight = 42,
@@ -178,6 +180,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
   const laneCentersRef = useRef(laneCenters);
   const fallDurationRef = useRef(fallDuration);
   const judgeLineYRef = useRef(judgeLineY);
+  const playfieldTopOffsetRef = useRef(playfieldTopOffset);
   const noteWidthRef = useRef(noteWidth);
   const noteHeightRef = useRef(noteHeight);
   const laneNoteColorsRef = useRef(laneNoteColors);
@@ -204,6 +207,10 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
   useEffect(() => {
     judgeLineYRef.current = judgeLineY;
   }, [judgeLineY]);
+
+  useEffect(() => {
+    playfieldTopOffsetRef.current = playfieldTopOffset;
+  }, [playfieldTopOffset]);
 
   useEffect(() => {
     noteWidthRef.current = noteWidth;
@@ -233,7 +240,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
         await app.init({
           canvas,
           width: GAME_VIEW_WIDTH,
-          height: GAME_VIEW_HEIGHT,
+          height: GAME_VIEW_HEIGHT + playfieldTopOffsetRef.current,
           backgroundAlpha: 0,
           antialias: false,
           autoDensity: true,
@@ -286,6 +293,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
           const currentTime = currentTimeRef.current;
           const activeFallDuration = fallDurationRef.current;
           const activeJudgeLineY = judgeLineYRef.current;
+          const activePlayfieldTopOffset = playfieldTopOffsetRef.current;
           const activeLaneCenters = laneCentersRef.current;
           const activeLaneNoteColors = laneNoteColorsRef.current;
           const activeHoldingNotes = holdingNotesRef.current;
@@ -331,7 +339,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
               activeJudgeLineY,
               activeNoteHeight,
               isHolding,
-              GAME_VIEW_HEIGHT
+              GAME_VIEW_HEIGHT + activePlayfieldTopOffset
             );
             if (!segment) return false;
             const {
@@ -352,7 +360,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
               isHolding ? laneTextures.holdBodyHolding : laneTextures.holdBodyIdle
             );
             if (!bodySprite) return null;
-            bodySprite.position.set(left, bodyTop);
+            bodySprite.position.set(left, bodyTop + activePlayfieldTopOffset);
             bodySprite.width = activeNoteWidth;
             bodySprite.height = bodyHeight;
 
@@ -370,7 +378,10 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
                   isHolding ? laneTextures.holdProgressHolding : laneTextures.holdProgressIdle
                 );
                 if (!progressSprite) return null;
-                progressSprite.position.set(left + activeNoteWidth * 0.18, visibleProgressTop);
+                progressSprite.position.set(
+                  left + activeNoteWidth * 0.18,
+                  visibleProgressTop + activePlayfieldTopOffset
+                );
                 progressSprite.width = activeNoteWidth * 0.64;
                 progressSprite.height = visibleProgressBottom - visibleProgressTop;
               }
@@ -385,7 +396,10 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
                 if (highlightSprite.texture !== highlightTexture) {
                   highlightSprite.texture = highlightTexture;
                 }
-                highlightSprite.position.set(left + activeNoteWidth * 0.1, highlightTop);
+                highlightSprite.position.set(
+                  left + activeNoteWidth * 0.1,
+                  highlightTop + activePlayfieldTopOffset
+                );
                 highlightSprite.width = activeNoteWidth * 0.8;
                 highlightSprite.height = 12;
               }
@@ -399,7 +413,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
                 isHolding ? laneTextures.holdHeadHolding : laneTextures.holdHeadIdle
               );
               if (!headSprite) return null;
-              headSprite.position.set(left + 6, headTop);
+              headSprite.position.set(left + 6, headTop + activePlayfieldTopOffset);
               headSprite.width = Math.max(1, activeNoteWidth - 12);
               headSprite.height = holdHeadHeight;
             }
@@ -442,7 +456,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
               }
               const sprite = nextSprite(cursor, 'tap', laneTextures.tap);
               if (!sprite) break;
-              sprite.position.set(position.left, position.top);
+              sprite.position.set(position.left, position.top + activePlayfieldTopOffset);
               sprite.width = activeNoteWidth;
               sprite.height = activeNoteHeight;
               drawn += 1;
@@ -476,7 +490,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
         textureRef.current = {};
       }
     };
-  }, [currentTimeRef, hitNoteIdsRef, laneNoteColors]);
+  }, [currentTimeRef, hitNoteIdsRef, laneNoteColors, playfieldTopOffset]);
 
   if (fallback) {
     return (
@@ -499,6 +513,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
           currentTimeRef={currentTimeRef}
           fallDuration={fallDuration}
           judgeLineY={judgeLineY}
+          playfieldTopOffset={playfieldTopOffset}
           laneCenters={laneCenters}
           noteWidth={noteWidth}
           noteHeight={noteHeight}

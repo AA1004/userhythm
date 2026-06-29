@@ -6,6 +6,7 @@ import { NoteRenderer } from './NoteRenderer';
 import { WebglBetaNoteRenderer } from './WebglBetaNoteRenderer';
 import { ComboDisplay } from './ComboDisplay';
 import { PlayfieldGeometry } from '../constants/gameVisualSettings';
+import { GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 import { HitNoteIdsRef } from '../utils/noteRuntimeState';
 import { getLaneNoteColor } from '../utils/noteColors';
 import { KeyEffect } from '../hooks/useGameJudging';
@@ -27,6 +28,7 @@ interface GamePlayAreaProps {
   fallDuration: number;
   judgeLineY: number;
   playfieldGeometry: PlayfieldGeometry;
+  playfieldTopOffset: number;
   hitNoteIdsRef: HitNoteIdsRef;
 }
 
@@ -47,6 +49,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
   fallDuration,
   judgeLineY,
   playfieldGeometry,
+  playfieldTopOffset,
   hitNoteIdsRef,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -96,7 +99,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
                   left: `${x}px`,
                   top: 0,
                   width: `${playfieldGeometry.laneWidth}px`,
-                  height: `${playfieldGeometry.keyLaneY + 100}px`,
+                  height: `${playfieldTopOffset + playfieldGeometry.keyLaneY + 100}px`,
                   transform: 'translateX(-50%)',
                   pointerEvents: 'none',
                   zIndex: 24,
@@ -160,6 +163,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
               laneCenters={playfieldGeometry.laneCenters}
               noteWidth={playfieldGeometry.noteWidth}
               noteHeight={playfieldGeometry.noteHeight}
+              playfieldTopOffset={playfieldTopOffset}
               laneNoteColors={laneNoteColors}
               holdingNotesRef={holdingNotesRef}
               hitNoteIdsRef={hitNoteIdsRef}
@@ -186,6 +190,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
                 currentTimeRef={currentTimeRef}
                 fallDuration={fallDuration}
                 judgeLineY={judgeLineY}
+                playfieldTopOffset={playfieldTopOffset}
                 laneCenters={playfieldGeometry.laneCenters}
                 noteWidth={playfieldGeometry.noteWidth}
                 noteHeight={playfieldGeometry.noteHeight}
@@ -222,7 +227,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
         <JudgeLine
           left={playfieldGeometry.judgeLineLeft}
           width={playfieldGeometry.judgeLineWidth}
-          top={judgeLineY}
+          top={playfieldTopOffset + judgeLineY}
           opacity={1}
         />
       ) : null,
@@ -232,6 +237,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       playfieldGeometry.judgeLineLeft,
       playfieldGeometry.judgeLineWidth,
       judgeLineY,
+      playfieldTopOffset,
     ]
   );
 
@@ -243,6 +249,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
           laneGroupCenterX={playfieldGeometry.laneGroupLeft + playfieldGeometry.laneGroupWidth / 2}
           numberOpacity={playfieldGeometry.comboOpacity}
           visible={isLaneUiVisible}
+          topOffset={playfieldTopOffset}
         />
       ) : null,
     [
@@ -253,6 +260,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       playfieldGeometry.laneGroupWidth,
       playfieldGeometry.comboOpacity,
       isLaneUiVisible,
+      playfieldTopOffset,
     ]
   );
 
@@ -263,7 +271,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
             <KeyLane
               key={index}
               x={x}
-              top={playfieldGeometry.keyLaneY}
+              top={playfieldTopOffset + playfieldGeometry.keyLaneY}
               width={playfieldGeometry.laneWidth}
               keys={laneKeyLabels[index]}
               isPressed={pressedKeys.has(index as Lane)}
@@ -280,6 +288,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       isLegacyHud,
       playfieldGeometry.laneCenters,
       playfieldGeometry.keyLaneY,
+      playfieldTopOffset,
       playfieldGeometry.laneWidth,
       playfieldGeometry.keyLaneOpacity,
       playfieldGeometry.gameplayHudMode,
@@ -306,7 +315,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
           left: `${playfieldGeometry.laneGroupLeft}px`,
           top: 0,
           width: `${playfieldGeometry.laneGroupWidth}px`,
-          height: '100%',
+          height: `${GAME_VIEW_HEIGHT + playfieldTopOffset}px`,
           backgroundColor: 'rgba(8,12,24,0.94)',
           opacity: bgaMaskOpacity,
           transition: 'opacity 80ms linear',

@@ -457,6 +457,7 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
             fallDuration={fallDuration}
             judgeLineY={JUDGE_LINE_Y}
             playfieldGeometry={playfieldGeometry}
+            playfieldTopOffset={0}
             hitNoteIdsRef={hitNoteIdsRef}
           />
           <GameplayHudCanvas
@@ -473,6 +474,7 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
             laneKeyLabels={laneKeyLabels}
             playfieldGeometry={playfieldGeometry}
             gameplayHudMode={playfieldGeometry.gameplayHudMode}
+            playfieldTopOffset={0}
             durationMs={MEASURE_BEATS * BEAT_INTERVAL_MS}
           />
 

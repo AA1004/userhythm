@@ -185,6 +185,7 @@ interface NoteRendererProps {
   currentTimeRef: React.MutableRefObject<number>;
   fallDuration: number;
   judgeLineY: number;
+  playfieldTopOffset?: number;
   laneCenters?: readonly number[];
   noteWidth?: number;
   noteHeight?: number;
@@ -205,6 +206,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
   currentTimeRef,
   fallDuration,
   judgeLineY,
+  playfieldTopOffset = 0,
   laneCenters = LANE_POSITIONS,
   noteWidth = 90,
   noteHeight = 42,
@@ -218,6 +220,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
   const notesRef = useRef(notes);
   const fallDurationRef = useRef(fallDuration);
   const judgeLineYRef = useRef(judgeLineY);
+  const playfieldTopOffsetRef = useRef(playfieldTopOffset);
   const laneCentersRef = useRef(laneCenters);
   const noteWidthRef = useRef(noteWidth);
   const noteHeightRef = useRef(noteHeight);
@@ -241,6 +244,10 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
   useEffect(() => {
     judgeLineYRef.current = judgeLineY;
   }, [judgeLineY]);
+
+  useEffect(() => {
+    playfieldTopOffsetRef.current = playfieldTopOffset;
+  }, [playfieldTopOffset]);
 
   useEffect(() => {
     laneCentersRef.current = laneCenters;
@@ -304,6 +311,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
       const activeHoldingNotes = holdingNotesRef.current;
       const activeFallDuration = fallDurationRef.current;
       const activeJudgeLineY = judgeLineYRef.current;
+      const activePlayfieldTopOffset = playfieldTopOffsetRef.current;
       const activeLaneCenters = laneCentersRef.current;
       const activeLaneNoteColors = laneNoteColorsRef.current;
       const activeNoteWidth = noteWidthRef.current;
@@ -368,7 +376,13 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           const { left, top } = position;
 
           const tapSprite = getNoteSprite('tap', activeNoteWidth, activeNoteHeight, false, laneColor);
-          ctx.drawImage(tapSprite, left, top, activeNoteWidth, activeNoteHeight);
+          ctx.drawImage(
+            tapSprite,
+            left,
+            top + activePlayfieldTopOffset,
+            activeNoteWidth,
+            activeNoteHeight
+          );
           drawnNotes += 1;
         } else {
           const holdBodySpriteIdle = getNoteSprite('holdBody', activeNoteWidth, 64, false, laneColor);
@@ -417,7 +431,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           ctx.drawImage(
             isHolding ? holdBodySpriteHolding : holdBodySpriteIdle,
             left,
-            bodyTop,
+            bodyTop + activePlayfieldTopOffset,
             activeNoteWidth,
             bodyHeight
           );
@@ -432,7 +446,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
               ctx.drawImage(
                 holdHighlightSprite,
                 highlightLeft,
-                highlightTop,
+                highlightTop + activePlayfieldTopOffset,
                 highlightWidth,
                 highlightHeight
               );
@@ -452,7 +466,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
               ctx.drawImage(
                 isHolding ? holdProgressSpriteHolding : holdProgressSpriteIdle,
                 progressLeft,
-                visibleProgressTop,
+                visibleProgressTop + activePlayfieldTopOffset,
                 progressWidth,
                 visibleProgressHeight
               );
@@ -465,7 +479,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
             ctx.drawImage(
               isHolding ? holdHeadSpriteHolding : holdHeadSpriteIdle,
               headLeft,
-              headTop,
+              headTop + activePlayfieldTopOffset,
               holdHeadWidth,
               holdHeadHeight
             );
