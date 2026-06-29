@@ -990,7 +990,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
                 <>
                   <button
                     type="button"
-                    data-bga-resize="start"
+                    data-bga-resize="end"
                     data-bga-id={segment.id}
                     style={{
                       position: 'absolute',
@@ -1002,11 +1002,11 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
                       background: 'transparent',
                       cursor: 'ns-resize',
                     }}
-                    aria-label="BGA fade start resize"
+                    aria-label="BGA fade end resize"
                   />
                   <button
                     type="button"
-                    data-bga-resize="end"
+                    data-bga-resize="start"
                     data-bga-id={segment.id}
                     style={{
                       position: 'absolute',
@@ -1018,7 +1018,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
                       background: 'transparent',
                       cursor: 'ns-resize',
                     }}
-                    aria-label="BGA fade end resize"
+                    aria-label="BGA fade start resize"
                   />
                   <div
                     style={{
