@@ -35,7 +35,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   bgaCurrentSeconds = null,
   bgaMaskOpacity = 0,
   bgaOpacity = 1,
-  performanceMode: _performanceMode = 'balanced',
+  performanceMode: _performanceMode = 'quality',
   children,
 }) => {
   const rootRef = useRef<HTMLDivElement | null>(null);

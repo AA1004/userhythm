@@ -133,7 +133,7 @@ const LyricCue = React.memo<LyricCueProps>(
 export const LyricOverlay: React.FC<LyricOverlayProps> = ({
   activeSubtitles,
   subtitleArea,
-  performanceMode = 'balanced',
+  performanceMode = 'quality',
 }) => {
   if (!activeSubtitles.length) {
     return null;

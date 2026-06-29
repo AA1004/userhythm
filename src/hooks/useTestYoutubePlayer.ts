@@ -33,7 +33,7 @@ export function useTestYoutubePlayer({
   audioSettings,
   externalPlayer,
   volume = 100,
-  performanceMode: _performanceMode = 'balanced',
+  performanceMode: _performanceMode = 'quality',
   onPlaybackEnded,
 }: UseTestYoutubePlayerOptions): UseTestYoutubePlayerReturn {
   const [player, setPlayer] = useState<any>(null);
