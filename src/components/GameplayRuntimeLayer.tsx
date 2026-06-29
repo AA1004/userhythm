@@ -143,7 +143,6 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
         laneKeyLabels={laneKeyLabels}
         playfieldGeometry={playfieldGeometry}
         gameplayHudMode={playfieldGeometry.gameplayHudMode}
-        playfieldTopOffset={playfieldTopOffset}
         durationMs={durationMs}
       />
     </>

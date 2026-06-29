@@ -5,7 +5,6 @@ interface ComboDisplayProps {
   laneGroupCenterX: number;
   numberOpacity: number;
   visible: boolean;
-  topOffset?: number;
 }
 
 const ComboDisplayComponent: React.FC<ComboDisplayProps> = ({
@@ -13,7 +12,6 @@ const ComboDisplayComponent: React.FC<ComboDisplayProps> = ({
   laneGroupCenterX,
   numberOpacity,
   visible,
-  topOffset = 0,
 }) => {
   if (!visible || combo <= 0) return null;
 
@@ -23,7 +21,6 @@ const ComboDisplayComponent: React.FC<ComboDisplayProps> = ({
       style={
         {
           left: `${laneGroupCenterX}px`,
-          top: `${118 + topOffset}px`,
           '--combo-number-opacity': numberOpacity,
         } as React.CSSProperties
       }
@@ -43,6 +40,5 @@ export const ComboDisplay = React.memo(
     prev.combo === next.combo &&
     prev.laneGroupCenterX === next.laneGroupCenterX &&
     prev.numberOpacity === next.numberOpacity &&
-    prev.visible === next.visible &&
-    prev.topOffset === next.topOffset
+    prev.visible === next.visible
 );

@@ -474,7 +474,6 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
             laneKeyLabels={laneKeyLabels}
             playfieldGeometry={playfieldGeometry}
             gameplayHudMode={playfieldGeometry.gameplayHudMode}
-            playfieldTopOffset={0}
             durationMs={MEASURE_BEATS * BEAT_INTERVAL_MS}
           />
 

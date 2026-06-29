@@ -227,7 +227,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
         <JudgeLine
           left={playfieldGeometry.judgeLineLeft}
           width={playfieldGeometry.judgeLineWidth}
-          top={playfieldTopOffset + judgeLineY}
+          top={judgeLineY}
           opacity={1}
         />
       ) : null,
@@ -237,7 +237,6 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       playfieldGeometry.judgeLineLeft,
       playfieldGeometry.judgeLineWidth,
       judgeLineY,
-      playfieldTopOffset,
     ]
   );
 
@@ -249,7 +248,6 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
           laneGroupCenterX={playfieldGeometry.laneGroupLeft + playfieldGeometry.laneGroupWidth / 2}
           numberOpacity={playfieldGeometry.comboOpacity}
           visible={isLaneUiVisible}
-          topOffset={playfieldTopOffset}
         />
       ) : null,
     [
@@ -260,7 +258,6 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       playfieldGeometry.laneGroupWidth,
       playfieldGeometry.comboOpacity,
       isLaneUiVisible,
-      playfieldTopOffset,
     ]
   );
 
@@ -271,7 +268,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
             <KeyLane
               key={index}
               x={x}
-              top={playfieldTopOffset + playfieldGeometry.keyLaneY}
+              top={playfieldGeometry.keyLaneY}
               width={playfieldGeometry.laneWidth}
               keys={laneKeyLabels[index]}
               isPressed={pressedKeys.has(index as Lane)}
@@ -288,7 +285,6 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       isLegacyHud,
       playfieldGeometry.laneCenters,
       playfieldGeometry.keyLaneY,
-      playfieldTopOffset,
       playfieldGeometry.laneWidth,
       playfieldGeometry.keyLaneOpacity,
       playfieldGeometry.gameplayHudMode,
@@ -301,28 +297,40 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
 
   return (
     <>
-      {laneBackgroundLayer}
-      {lanePressTintLayer}
-      {laneEdgeLayer}
-      {noteFieldLayer}
-      {judgeLineLayer}
-      {comboLayer}
-      {keyLaneLayer}
-
       <div
         style={{
           position: 'absolute',
-          left: `${playfieldGeometry.laneGroupLeft}px`,
-          top: 0,
-          width: `${playfieldGeometry.laneGroupWidth}px`,
+          left: 0,
+          top: `${-playfieldTopOffset}px`,
+          width: '100%',
           height: `${GAME_VIEW_HEIGHT + playfieldTopOffset}px`,
-          backgroundColor: 'rgba(8,12,24,0.94)',
-          opacity: bgaMaskOpacity,
-          transition: 'opacity 80ms linear',
           pointerEvents: 'none',
-          zIndex: 1000,
         }}
-      />
+      >
+        {laneBackgroundLayer}
+        {lanePressTintLayer}
+        {laneEdgeLayer}
+        {noteFieldLayer}
+
+        <div
+          style={{
+            position: 'absolute',
+            left: `${playfieldGeometry.laneGroupLeft}px`,
+            top: 0,
+            width: `${playfieldGeometry.laneGroupWidth}px`,
+            height: `${GAME_VIEW_HEIGHT + playfieldTopOffset}px`,
+            backgroundColor: 'rgba(8,12,24,0.94)',
+            opacity: bgaMaskOpacity,
+            transition: 'opacity 80ms linear',
+            pointerEvents: 'none',
+            zIndex: 1000,
+          }}
+        />
+      </div>
+
+      {judgeLineLayer}
+      {comboLayer}
+      {keyLaneLayer}
 
     </>
   );
