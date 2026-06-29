@@ -22,7 +22,7 @@ import {
 } from '../utils/noteColors';
 
 const SPRITE_POOL_SIZE = 384;
-const WEBGL_NOTE_RENDERER_DPR_LIMIT = 1.5;
+const WEBGL_NOTE_RENDERER_DPR_LIMIT = 1;
 
 type SpriteKind = 'tap' | 'holdBody' | 'holdHead' | 'holdProgress' | 'holdHighlight';
 type PixiModule = typeof import('pixi.js');
@@ -78,7 +78,7 @@ const makeTextureCanvas = (
   noteColor: NoteColorRgb
 ) => {
   const canvas = document.createElement('canvas');
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = WEBGL_NOTE_RENDERER_DPR_LIMIT;
   canvas.width = Math.max(1, Math.round(width * dpr));
   canvas.height = Math.max(1, Math.round(height * dpr));
   const ctx = canvas.getContext('2d');

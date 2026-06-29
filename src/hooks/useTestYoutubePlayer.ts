@@ -192,6 +192,8 @@ export function useTestYoutubePlayer({
                   const cueSeconds = getAudioBaseSeconds(audioSettings);
                   player.mute?.();
                   player.pauseVideo?.();
+                  player.setPlaybackQuality?.('small');
+                  player.setSize?.(160, 90);
                   player.setVolume?.(latestVolumeRef.current);
                   player.setPlaybackRate?.(playbackSpeed);
                   player.seekTo(cueSeconds, true);
@@ -337,7 +339,7 @@ export function useTestYoutubePlayer({
       }
 
       const now = Date.now();
-      const syncCheckIntervalMs = 1200;
+      const syncCheckIntervalMs = 5000;
       if (now - lastAudioSyncCheckAtRef.current < syncCheckIntervalMs) {
         if (shouldProfile) {
           recordGameplayMetric('audioSync', performance.now() - syncStart, 0);
@@ -382,7 +384,7 @@ export function useTestYoutubePlayer({
     const scheduleNext = () => {
       if (cancelled) return;
       const currentTime = currentTimeRef.current;
-      const delayMs = currentTime < 250 || !audioHasStartedRef.current ? 33 : 1300;
+      const delayMs = currentTime < 250 || !audioHasStartedRef.current ? 33 : 5000;
       timerId = window.setTimeout(() => {
         syncOnce();
         scheduleNext();

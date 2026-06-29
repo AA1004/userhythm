@@ -34,7 +34,7 @@ const judgeColors: Record<JudgeType, { main: string; soft: string }> = {
 };
 
 const laneChromeCache = new Map<string, HTMLCanvasElement>();
-const GAMEPLAY_HUD_CANVAS_DPR_LIMIT = 1.5;
+const GAMEPLAY_HUD_CANVAS_DPR_LIMIT = 1;
 
 const easeOutExpo = (t: number) => (t >= 1 ? 1 : 1 - 2 ** (-10 * t));
 

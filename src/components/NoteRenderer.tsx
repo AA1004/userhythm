@@ -20,7 +20,7 @@ import {
 } from '../utils/noteColors';
 
 const NOTE_SPRITE_CACHE_LIMIT = 48;
-const GAMEPLAY_CANVAS_DPR_LIMIT = 1.5;
+const GAMEPLAY_CANVAS_DPR_LIMIT = 1;
 
 type NoteSpriteType = 'tap' | 'holdHead' | 'holdBody' | 'holdProgress';
 
@@ -119,7 +119,7 @@ const getNoteSprite = (
   noteColor: NoteColorRgb,
   themeVariant: 'default' = 'default'
 ) => {
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = GAMEPLAY_CANVAS_DPR_LIMIT;
   const width = Math.round(noteWidth);
   const height = Math.round(noteHeight);
   const cacheKey = `${type}:${width}:${height}:${isHolding ? 'holding' : 'idle'}:${themeVariant}:${noteColorKey(noteColor)}:${dpr}`;

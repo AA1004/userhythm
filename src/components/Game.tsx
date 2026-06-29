@@ -378,7 +378,6 @@ export const Game: React.FC = () => {
   useEffect(() => {
     if (!gameState.gameStarted || gameState.gameEnded) return;
 
-    let frameId: number | null = null;
     const tick = () => {
       const shouldEndByChartDuration =
         isFromEditor || !hasYoutubeAudioSession || !testYoutubeVideoId;
@@ -388,17 +387,13 @@ export const Game: React.FC = () => {
         if (hasYoutubeAudioSession && testYoutubePlayerReady) {
           pauseYoutubePlayer();
         }
-        return;
       }
-
-      frameId = requestAnimationFrame(tick);
     };
 
-    frameId = requestAnimationFrame(tick);
+    tick();
+    const timerId = window.setInterval(tick, 100);
     return () => {
-      if (frameId !== null) {
-        cancelAnimationFrame(frameId);
-      }
+      window.clearInterval(timerId);
     };
   }, [
     gameState.gameStarted,

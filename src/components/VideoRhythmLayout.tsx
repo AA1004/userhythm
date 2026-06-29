@@ -191,6 +191,8 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
               try {
                 player.mute?.();
                 player.pauseVideo?.();
+                player.setPlaybackQuality?.('small');
+                player.setSize?.(320, 180);
                 // 게임 시작 전에 미리 재생해서 UI를 띄워놓기
                 // 사용자 인터랙션이 필요하므로 pointerdown 이벤트에서 처리
               } catch {
