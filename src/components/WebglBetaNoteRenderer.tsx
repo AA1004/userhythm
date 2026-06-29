@@ -22,6 +22,7 @@ import {
 } from '../utils/noteColors';
 
 const SPRITE_POOL_SIZE = 384;
+const WEBGL_NOTE_RENDERER_DPR_LIMIT = 1.5;
 
 type SpriteKind = 'tap' | 'holdBody' | 'holdHead' | 'holdProgress' | 'holdHighlight';
 type PixiModule = typeof import('pixi.js');
@@ -244,7 +245,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
           backgroundAlpha: 0,
           antialias: false,
           autoDensity: true,
-          resolution: window.devicePixelRatio || 1,
+          resolution: Math.min(window.devicePixelRatio || 1, WEBGL_NOTE_RENDERER_DPR_LIMIT),
           preference: 'webgl',
         });
         if (disposed) {

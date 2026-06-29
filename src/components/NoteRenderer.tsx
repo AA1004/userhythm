@@ -20,6 +20,7 @@ import {
 } from '../utils/noteColors';
 
 const NOTE_SPRITE_CACHE_LIMIT = 48;
+const GAMEPLAY_CANVAS_DPR_LIMIT = 1.5;
 
 type NoteSpriteType = 'tap' | 'holdHead' | 'holdBody' | 'holdProgress';
 
@@ -284,7 +285,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
     if (!ctx) return;
 
     const setupCanvas = () => {
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = Math.min(window.devicePixelRatio || 1, GAMEPLAY_CANVAS_DPR_LIMIT);
       const cssWidth = canvas.clientWidth;
       const cssHeight = canvas.clientHeight;
 

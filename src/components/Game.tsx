@@ -1103,9 +1103,7 @@ export const Game: React.FC = () => {
                   inset: 0,
                   pointerEvents: 'none',
                   zIndex: 1,
-                  backdropFilter: 'blur(5px) saturate(0.94)',
-                  WebkitBackdropFilter: 'blur(5px) saturate(0.94)',
-                  background: 'rgba(8, 12, 24, 0.05)',
+                  background: 'rgba(8, 12, 24, 0.12)',
                 }}
               />
             )}

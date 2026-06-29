@@ -34,6 +34,7 @@ const judgeColors: Record<JudgeType, { main: string; soft: string }> = {
 };
 
 const laneChromeCache = new Map<string, HTMLCanvasElement>();
+const GAMEPLAY_HUD_CANVAS_DPR_LIMIT = 1.5;
 
 const easeOutExpo = (t: number) => (t >= 1 ? 1 : 1 - 2 ** (-10 * t));
 
@@ -303,7 +304,7 @@ const drawKeyLane = (
   }
 
   if (isFull) {
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, GAMEPLAY_HUD_CANVAS_DPR_LIMIT);
     const laneChrome = getFullHudLaneChrome(width, top, keys, alpha, glowEnabled, dpr);
     ctx.drawImage(laneChrome, left, 0, width, top + height);
 
@@ -466,7 +467,7 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, GAMEPLAY_HUD_CANVAS_DPR_LIMIT);
     canvas.width = Math.round(GAME_VIEW_WIDTH * dpr);
     canvas.height = Math.round(canvasHeight * dpr);
     canvas.style.width = `${GAME_VIEW_WIDTH}px`;

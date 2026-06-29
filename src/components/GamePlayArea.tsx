@@ -120,6 +120,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       playfieldGeometry.laneCenters,
       playfieldGeometry.laneWidth,
       playfieldGeometry.keyLaneY,
+      playfieldTopOffset,
       pressedKeys,
     ]
   );
@@ -215,6 +216,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       currentTimeRef,
       fallDuration,
       judgeLineY,
+      playfieldTopOffset,
       holdingNotesRef,
       hitNoteIdsRef,
       simpleHoldVisuals,
