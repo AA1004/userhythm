@@ -969,14 +969,14 @@ body {
 .game-menu-grid {
   position: absolute;
   inset: 0;
-  opacity: 0.3;
+  opacity: 0.22;
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
   background-size: 36px 36px;
   transform: perspective(420px) rotateX(60deg) translateY(120px);
   transform-origin: 50% 100%;
-  animation: menuGridDrift 5200ms linear infinite;
+  animation: menuGridDrift 12000ms linear infinite;
 }
 
 .game-menu-stage-glow {
@@ -989,9 +989,9 @@ body {
   border-left: 1px solid rgba(119, 255, 214, 0.32);
   border-right: 1px solid rgba(255, 78, 122, 0.28);
   box-shadow:
-    inset 0 0 40px rgba(119, 255, 214, 0.08),
-    0 0 48px rgba(255, 78, 122, 0.16);
-  animation: menuStageBreath 2400ms ease-in-out infinite;
+    inset 0 0 28px rgba(119, 255, 214, 0.06),
+    0 0 28px rgba(255, 78, 122, 0.1);
+  animation: menuStageBreath 5200ms ease-in-out infinite;
 }
 
 .game-menu-lanes {
@@ -1030,8 +1030,8 @@ body {
     var(--menu-note-core, rgba(0, 229, 176, 0.72))
   );
   border: 1px solid rgba(255, 255, 255, 0.28);
-  box-shadow: 0 0 12px var(--menu-note-glow, rgba(119, 255, 214, 0.28));
-  animation: menuNoteFall 1900ms cubic-bezier(0.16, 0.92, 0.24, 1) infinite;
+  box-shadow: 0 0 8px var(--menu-note-glow, rgba(119, 255, 214, 0.2));
+  animation: menuNoteFall 2600ms cubic-bezier(0.2, 0.82, 0.24, 1) infinite;
 }
 
 .game-menu-lanes span:nth-child(2)::after {
@@ -1059,7 +1059,7 @@ body {
   padding: 44px 36px;
   text-align: center;
   pointer-events: auto;
-  animation: menuPanelIn 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: menuPanelIn 320ms ease-out both;
 }
 
 .game-menu-main {
@@ -1080,13 +1080,13 @@ body {
   font-weight: 800;
   letter-spacing: 0.12em;
   background: rgba(1, 12, 10, 0.52);
-  box-shadow: 0 0 22px rgba(119, 255, 214, 0.14);
-  animation: menuKickerPulse 1100ms ease-in-out infinite;
+  box-shadow: 0 0 14px rgba(119, 255, 214, 0.1);
+  animation: menuKickerPulse 2600ms ease-in-out infinite;
 }
 
 .game-menu-hero {
   transform-origin: 50% 60%;
-  animation: menuHeroFloat 1800ms ease-in-out infinite;
+  animation: menuHeroFloat 3200ms ease-in-out infinite;
 }
 
 .game-menu-hero .ur-tagline {
@@ -1108,8 +1108,8 @@ body {
   height: 10px;
   border-radius: 8px 8px 2px 2px;
   background: linear-gradient(180deg, #ff4e7a, #77ffd6);
-  box-shadow: 0 0 12px rgba(119, 255, 214, 0.35);
-  animation: menuEqualizer 760ms ease-in-out infinite alternate;
+  box-shadow: 0 0 8px rgba(119, 255, 214, 0.24);
+  animation: menuEqualizer 1280ms ease-in-out infinite alternate;
 }
 
 .game-menu-actions {
@@ -1140,8 +1140,8 @@ body {
   box-shadow: 0 10px 22px rgba(0, 0, 0, 0.34);
   overflow: hidden;
   position: relative;
-  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
-  animation: menuActionIn 460ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+  animation: menuActionIn 260ms ease-out both;
 }
 
 .game-menu-action:nth-child(1) {
@@ -1169,8 +1169,8 @@ body {
   position: absolute;
   inset: -40% -18%;
   transform: translateX(-120%) rotate(16deg);
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
-  animation: menuButtonSweep 3200ms ease-in-out infinite;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  animation: menuButtonSweep 6400ms ease-in-out infinite;
 }
 
 .game-menu-action > span,
@@ -1192,9 +1192,9 @@ body {
 
 .game-menu-action:hover:not(:disabled),
 .game-menu-action:focus-visible:not(:disabled) {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   border-color: rgba(119, 255, 214, 0.7);
-  box-shadow: 0 20px 42px rgba(0, 0, 0, 0.52), 0 0 18px rgba(119, 255, 214, 0.16);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.42), 0 0 12px rgba(119, 255, 214, 0.12);
 }
 
 .game-menu-action:active:not(:disabled) {
@@ -1287,7 +1287,7 @@ body {
 @keyframes menuPanelIn {
   from {
     opacity: 0;
-    transform: translateY(18px) scale(0.98);
+    transform: translateY(8px) scale(0.992);
   }
   to {
     opacity: 1;
@@ -1300,18 +1300,18 @@ body {
     transform: translateY(0) scale(1);
   }
   50% {
-    transform: translateY(-4px) scale(1.005);
+    transform: translateY(-2px) scale(1.002);
   }
 }
 
 @keyframes menuStageBreath {
   0%, 100% {
-    opacity: 0.5;
+    opacity: 0.42;
     transform: translate(-50%, -50%) scaleX(1);
   }
   50% {
-    opacity: 0.78;
-    transform: translate(-50%, -50%) scaleX(1.018);
+    opacity: 0.54;
+    transform: translate(-50%, -50%) scaleX(1.008);
   }
 }
 
@@ -1321,8 +1321,8 @@ body {
     color: #77ffd6;
   }
   50% {
-    border-color: rgba(255, 207, 95, 0.7);
-    color: #ffcf5f;
+    border-color: rgba(255, 207, 95, 0.52);
+    color: #d9ffe8;
   }
 }
 
@@ -1338,34 +1338,34 @@ body {
 @keyframes menuNoteFall {
   0% {
     opacity: 0;
-    transform: translate(-50%, -96px) scaleY(0.78);
+    transform: translate(-50%, -72px) scaleY(0.86);
   }
   20% {
-    opacity: 1;
+    opacity: 0.92;
   }
   76% {
-    opacity: 1;
-    transform: translate(-50%, 650px) scaleY(1.02);
+    opacity: 0.92;
+    transform: translate(-50%, 650px) scaleY(1.01);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, 700px) scaleY(1.08);
+    transform: translate(-50%, 700px) scaleY(1.04);
   }
 }
 
 @keyframes menuEqualizer {
   from {
-    height: 8px;
+    height: 10px;
   }
   to {
-    height: 28px;
+    height: 20px;
   }
 }
 
 @keyframes menuActionIn {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
@@ -1430,23 +1430,23 @@ body {
   height: 220px;
   pointer-events: none;
   z-index: 1;
-  opacity: 0.34;
+  opacity: 0.2;
   background:
     linear-gradient(90deg, transparent, rgba(119, 255, 214, 0.24), rgba(255, 207, 95, 0.2), rgba(255, 78, 122, 0.2), transparent);
   transform: translate3d(-8%, 0, 0);
-  animation: chartSelectAmbientSweep 7600ms ease-in-out infinite alternate;
+  animation: chartSelectAmbientSweep 14000ms ease-in-out infinite alternate;
 }
 
 .chart-select-screen::after {
   inset: 12% -18% auto;
   height: 180px;
-  opacity: 0.22;
-  animation-duration: 9200ms;
+  opacity: 0.14;
+  animation-duration: 17000ms;
   animation-direction: alternate-reverse;
 }
 
 .chart-select-header {
-  animation: chartSelectPanelIn 360ms 80ms ease-out both;
+  animation: chartSelectPanelIn 220ms 40ms ease-out both;
 }
 
 .chart-select-count {
@@ -1460,9 +1460,9 @@ body {
   inset: 0 auto 0 -70%;
   width: 55%;
   pointer-events: none;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
   transform: skewX(-18deg);
-  animation: chartSelectSoftSweep 2800ms ease-in-out infinite;
+  animation: chartSelectSoftSweep 7600ms ease-in-out infinite;
 }
 
 .chart-select-toolbar-button,
@@ -1497,19 +1497,19 @@ body {
   height: 2px;
   border-radius: 999px;
   background: linear-gradient(90deg, #77ffd6, #ffcf5f, #ff4e7a);
-  box-shadow: 0 0 14px rgba(119, 255, 214, 0.42);
-  animation: chartSelectTitleScan 2200ms ease-in-out infinite;
+  box-shadow: 0 0 8px rgba(119, 255, 214, 0.22);
+  animation: chartSelectTitleScan 5200ms ease-in-out infinite;
 }
 
 .chart-select-main {
-  animation: chartSelectPanelIn 380ms 130ms ease-out both;
+  animation: chartSelectPanelIn 220ms 60ms ease-out both;
 }
 
 .chart-select-filter {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  animation: chartSelectFilterIn 360ms 150ms ease-out both;
+  animation: chartSelectFilterIn 220ms 80ms ease-out both;
 }
 
 .chart-select-filter::before {
@@ -1519,9 +1519,9 @@ body {
   width: 24%;
   pointer-events: none;
   z-index: -1;
-  background: linear-gradient(90deg, transparent, rgba(119, 255, 214, 0.16), transparent);
+  background: linear-gradient(90deg, transparent, rgba(119, 255, 214, 0.09), transparent);
   transform: skewX(-14deg);
-  animation: chartSelectFilterSweep 5200ms ease-in-out infinite;
+  animation: chartSelectFilterSweep 9600ms ease-in-out infinite;
 }
 
 .chart-select-filter > * {
@@ -1584,7 +1584,7 @@ body {
 .chart-select-card {
   position: relative;
   overflow: hidden;
-  animation: chartSelectCardIn 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: chartSelectCardIn 240ms ease-out both;
   will-change: transform, opacity;
 }
 
@@ -1598,7 +1598,7 @@ body {
     radial-gradient(circle at 18% 0%, rgba(119, 255, 214, 0.24), transparent 30%),
     linear-gradient(120deg, transparent 10%, rgba(255, 255, 255, 0.08) 46%, transparent 58%);
   transform: translateX(-18%);
-  transition: opacity 180ms ease, transform 260ms ease;
+  transition: opacity 140ms ease, transform 180ms ease;
 }
 
 .chart-select-card > * {
@@ -1607,7 +1607,7 @@ body {
 }
 
 .chart-select-card:hover {
-  transform: translateY(-3px) scale(1.01);
+  transform: translateY(-1px) scale(1.004);
 }
 
 .chart-select-card:hover::before,
@@ -1617,7 +1617,7 @@ body {
 }
 
 .chart-select-card--selected {
-  transform: translateY(-2px) scale(1.01);
+  transform: translateY(-1px) scale(1.004);
   outline: 1px solid rgba(119, 255, 214, 0.34);
   outline-offset: 3px;
 }
@@ -1640,7 +1640,7 @@ body {
   border-radius: 999px;
   color: #b9ffee;
   background: rgba(3, 9, 15, 0.72);
-  box-shadow: 0 0 18px rgba(119, 255, 214, 0.24);
+  box-shadow: 0 0 10px rgba(119, 255, 214, 0.16);
 }
 
 .chart-select-card__now span {
@@ -1657,7 +1657,7 @@ body {
   height: 8px;
   border-radius: 999px;
   background: linear-gradient(180deg, #77ffd6, #ffcf5f);
-  animation: chartSelectNowMeter 620ms ease-in-out infinite alternate;
+  animation: chartSelectNowMeter 1200ms ease-in-out infinite alternate;
 }
 
 .chart-select-card__now i:nth-child(3) {
@@ -1704,13 +1704,13 @@ body {
 }
 
 .chart-select-card__image {
-  transition: transform 520ms cubic-bezier(0.16, 1, 0.3, 1), filter 520ms ease;
+  transition: transform 220ms ease, filter 220ms ease;
 }
 
 .chart-select-card:hover .chart-select-card__image,
 .chart-select-card--selected .chart-select-card__image {
-  transform: scale(1.045);
-  filter: saturate(1.12) contrast(1.04);
+  transform: scale(1.018);
+  filter: saturate(1.05) contrast(1.02);
 }
 
 .chart-select-card__thumb--empty {
@@ -1724,14 +1724,14 @@ body {
   width: 42%;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
   transform: rotate(16deg);
-  animation: chartSelectEmptyThumbSweep 2400ms ease-in-out infinite;
+  animation: chartSelectEmptyThumbSweep 5600ms ease-in-out infinite;
 }
 
 .chart-select-detail-panel {
   isolation: isolate;
   scrollbar-width: thin;
   scrollbar-color: rgba(119, 255, 214, 0.35) rgba(255, 255, 255, 0.04);
-  animation: chartSelectDetailIn 260ms ease-out both;
+  animation: chartSelectDetailIn 180ms ease-out both;
   background:
     linear-gradient(160deg, rgba(10, 16, 28, 0.94), rgba(9, 12, 22, 0.88)),
     rgba(6, 9, 16, 0.82);
@@ -1847,7 +1847,7 @@ body {
 }
 
 .chart-select-leaderboard__row {
-  animation: chartSelectLeaderboardRowIn 220ms ease-out both;
+  animation: chartSelectLeaderboardRowIn 140ms ease-out both;
 }
 
 .chart-select-leaderboard__row:hover {
@@ -2719,22 +2719,22 @@ body {
 
 @keyframes chartSelectAmbientSweep {
   from {
-    transform: translate3d(-8%, 0, 0) scaleX(0.94);
+    transform: translate3d(-4%, 0, 0) scaleX(0.98);
   }
   to {
-    transform: translate3d(8%, 0, 0) scaleX(1.04);
+    transform: translate3d(4%, 0, 0) scaleX(1.01);
   }
 }
 
 @keyframes chartSelectTitleScan {
   0%, 100% {
-    transform: scaleX(0.42);
-    opacity: 0.62;
+    transform: scaleX(0.72);
+    opacity: 0.7;
     transform-origin: left;
   }
   50% {
     transform: scaleX(1);
-    opacity: 1;
+    opacity: 0.88;
     transform-origin: left;
   }
 }
@@ -2751,7 +2751,7 @@ body {
 @keyframes chartSelectFilterIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
@@ -2771,7 +2771,7 @@ body {
 @keyframes chartSelectPanelIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(5px);
   }
   to {
     opacity: 1;
@@ -2782,7 +2782,7 @@ body {
 @keyframes chartSelectCardIn {
   from {
     opacity: 0;
-    transform: translateY(18px) scale(0.985);
+    transform: translateY(8px) scale(0.992);
   }
   to {
     opacity: 1;
@@ -2793,7 +2793,7 @@ body {
 @keyframes chartSelectDetailIn {
   from {
     opacity: 0;
-    transform: translateX(18px);
+    transform: translateX(8px);
   }
   to {
     opacity: 1;
@@ -2804,7 +2804,7 @@ body {
 @keyframes chartSelectLeaderboardRowIn {
   from {
     opacity: 0;
-    transform: translateY(5px);
+    transform: translateY(2px);
   }
   to {
     opacity: 1;
@@ -2875,7 +2875,7 @@ body {
 @keyframes gameEndStatIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(2px);
   }
   to {
     opacity: 1;
@@ -3204,3 +3204,4 @@ body {
     transition: none;
   }
 }
+
