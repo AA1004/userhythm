@@ -37,6 +37,8 @@ interface ChartEditorTimelineProps {
   timeToY: (timeMs: number) => number;
   getNoteY: (noteTime: number) => number;
   currentTime: number;
+  currentTimeRef?: React.MutableRefObject<number>;
+  isPlaying?: boolean;
   bpm: number;
   bpmChanges: BPMChange[];
   bgaVisibilityIntervals?: BgaVisibilityInterval[];
@@ -87,6 +89,8 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   timeToY,
   getNoteY: _getNoteY,
   currentTime,
+  currentTimeRef,
+  isPlaying = false,
   pendingLongNote,
   bpm,
   bpmChanges,
@@ -118,16 +122,40 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   const measureLabelRef = useRef<HTMLDivElement>(null);
   const [isBgaResizing, setIsBgaResizing] = useState(false);
 
-  // 재생선 위치 업데이트 (리렌더링 없이 직접 DOM 조작)
+  // 재생선은 재생 중 currentTimeRef를 직접 읽어 고주사율로 갱신한다.
+  // 부모 state는 더 낮은 빈도로 커밋되어도 재생선 시각 움직임은 유지된다.
   useEffect(() => {
-    if (playheadRef.current) {
-      playheadRef.current.style.transform = `translateY(${playheadY - 10}px)`;
+    let frameId: number | null = null;
+
+    const syncPlayhead = (timeMs: number) => {
+      const nextPlayheadY = timeToY(timeMs);
+      if (playheadRef.current) {
+        playheadRef.current.style.transform = `translateY(${nextPlayheadY - 10}px)`;
+      }
+      if (measureLabelRef.current) {
+        measureLabelRef.current.style.transform = `translateY(${nextPlayheadY - 6}px)`;
+        measureLabelRef.current.textContent = `${timeToMeasure(timeMs, bpm, bpmChanges, beatsPerMeasure)}마디`;
+      }
+    };
+
+    if (!isPlaying || !currentTimeRef) {
+      syncPlayhead(currentTime);
+      return;
     }
-    if (measureLabelRef.current) {
-      measureLabelRef.current.style.transform = `translateY(${playheadY - 6}px)`;
-      measureLabelRef.current.textContent = `${timeToMeasure(currentTime, bpm, bpmChanges, beatsPerMeasure)}마디`;
-    }
-  }, [playheadY, currentTime, bpm, bpmChanges, beatsPerMeasure]);
+
+    const render = () => {
+      syncPlayhead(currentTimeRef.current);
+      frameId = requestAnimationFrame(render);
+    };
+
+    frameId = requestAnimationFrame(render);
+
+    return () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+    };
+  }, [playheadY, currentTime, currentTimeRef, isPlaying, timeToY, bpm, bpmChanges, beatsPerMeasure]);
 
   // 뷰포트 정보 (가시 영역 + 버퍼)
   const [viewTop, setViewTop] = useState(0);
