@@ -2200,19 +2200,39 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setUploadStatus('');
   }, []);
 
-  // 자동 스크롤
+  // 자동 스크롤은 재생선과 동일한 runtime time source를 읽어 떨림을 줄인다.
   useEffect(() => {
     if (!isPlaying || !isAutoScrollEnabled || isDraggingPlayheadRef.current) return;
     if (!timelineScrollRef.current) return;
 
     const container = timelineScrollRef.current;
-    const centerOffset = container.clientHeight / 2;
-    const targetScrollTop = playheadY - centerOffset;
-    
-    if (Math.abs(container.scrollTop - targetScrollTop) > 0.5) {
-      container.scrollTop = targetScrollTop;
-    }
-  }, [isPlaying, isAutoScrollEnabled, playheadY]);
+    let frameId: number | null = null;
+
+    const syncScroll = () => {
+      if (!timelineScrollRef.current || isDraggingPlayheadRef.current) {
+        frameId = requestAnimationFrame(syncScroll);
+        return;
+      }
+
+      const centerOffset = container.clientHeight / 2;
+      const runtimePlayheadY = timeToY(internalTimeRef.current);
+      const targetScrollTop = Math.max(0, runtimePlayheadY - centerOffset);
+
+      if (Math.abs(container.scrollTop - targetScrollTop) > 0.5) {
+        container.scrollTop = targetScrollTop;
+      }
+
+      frameId = requestAnimationFrame(syncScroll);
+    };
+
+    frameId = requestAnimationFrame(syncScroll);
+
+    return () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+    };
+  }, [isPlaying, isAutoScrollEnabled, timeToY]);
 
   // 줌 변경 시 (자동 스크롤이 켜져 있다면) 재생선을 화면 중앙에 고정
   const didZoomMountRef = useRef(false);
@@ -2237,11 +2257,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
     const container = timelineScrollRef.current;
     const centerOffset = container.clientHeight / 2;
-    const targetScrollTop = playheadY - centerOffset;
+    const targetScrollTop = timeToY(isPlaying ? internalTimeRef.current : currentTime) - centerOffset;
     container.scrollTop = targetScrollTop;
 
     lastZoomRef.current = zoom;
-  }, [zoom, isAutoScrollEnabled, playheadY]);
+  }, [zoom, isAutoScrollEnabled, playheadY, timeToY, isPlaying, currentTime]);
 
   // 재생선 드래그 중 스크롤(마우스 휠 등) 시, 재생선을 마우스 위치에 맞춰 부드럽게 따라가게 함
   useEffect(() => {

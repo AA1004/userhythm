@@ -455,7 +455,8 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     const alignToPlayhead = () => {
       if (!timelineScrollRef.current) return;
       const centerOffset = container.clientHeight / 2;
-      const targetScrollTop = Math.max(0, playheadY - centerOffset);
+      const alignedPlayheadY = timeToY(isPlaying && currentTimeRef ? currentTimeRef.current : currentTime);
+      const targetScrollTop = Math.max(0, alignedPlayheadY - centerOffset);
       container.scrollTop = targetScrollTop;
       // 일정 범위 이내면 초기 정렬 완료로 간주
       if (Math.abs(container.scrollTop - targetScrollTop) <= 1) {
@@ -471,7 +472,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
       if (frame1) cancelAnimationFrame(frame1);
       if (frame2) cancelAnimationFrame(frame2);
     };
-  }, [timelineContentHeight, playheadY]);
+  }, [timelineContentHeight, playheadY, timeToY, isPlaying, currentTimeRef, currentTime]);
 
   // 드래그 선택 핸들러
   const isDraggingSelectionRef = useRef(false);
