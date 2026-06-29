@@ -880,8 +880,6 @@ export const Game: React.FC = () => {
           borderRight: `1px solid rgba(238, 247, 242, ${gameplayStageBorderAlpha.toFixed(3)})`,
           borderTop: `1px solid rgba(238, 247, 242, ${gameplayStageBorderAlpha.toFixed(3)})`,
           boxShadow: `0 -10px 30px rgba(0, 0, 0, ${gameplayStageShadowAlpha.toFixed(3)})`,
-          backdropFilter: visualSettings.bgaBlurEnabled ? 'blur(5px) saturate(0.94)' : undefined,
-          WebkitBackdropFilter: visualSettings.bgaBlurEnabled ? 'blur(5px) saturate(0.94)' : undefined,
         }}
       >
         <div
@@ -917,7 +915,6 @@ export const Game: React.FC = () => {
     playfieldGeometry.laneWidth,
     playfieldGeometry.laneGap,
     stageScale,
-    visualSettings.bgaBlurEnabled,
   ]);
 
   // 화면 라우팅은 모든 hooks 계산 이후에 수행해야 한다.
