@@ -36,7 +36,6 @@ export function useGameLoop(
   // Miss 판정 기준값을 judgeConfig에서 가져옴
   const missThreshold = judgeConfig.missThreshold;
   const frameRef = useRef<number>();
-  const lastTimeRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
   const delayRef = useRef<number>(startDelayMs);
   const missTimerRef = useRef<number | null>(null);
@@ -70,7 +69,6 @@ export function useGameLoop(
     const isClockRunning = gameState.gameStarted && clockEnabled;
     if (!isClockRunning) {
       startTimeRef.current = 0;
-      lastTimeRef.current = 0;
       currentTimeRef.current = gameState.gameStarted ? -delayRef.current : 0;
       missScanIndexRef.current = 0;
       return;
@@ -78,7 +76,6 @@ export function useGameLoop(
 
     if (startTimeRef.current === 0) {
       startTimeRef.current = performance.now() + delayRef.current;
-      lastTimeRef.current = startTimeRef.current;
     }
 
     let disposed = false;
@@ -158,7 +155,6 @@ export function useGameLoop(
       // 게임 시간을 ref에 저장 (렌더링 루프에서 사용)
       currentTimeRef.current = elapsedTime;
 
-      lastTimeRef.current = currentTime;
       frameRef.current = requestAnimationFrame(animate);
     };
 
@@ -175,7 +171,7 @@ export function useGameLoop(
         missTimerRef.current = null;
       }
     };
-  }, [gameState.gameStarted, onNoteMiss, speed, fallDuration, missThreshold, hitNoteIdsRef, timingOffsetMs, clockEnabled]);
+  }, [gameState.gameStarted, onNoteMiss, missThreshold, hitNoteIdsRef, timingOffsetMs, clockEnabled]);
 
   // currentTime ref를 반환하여 렌더링 루프에서 사용
   return {
