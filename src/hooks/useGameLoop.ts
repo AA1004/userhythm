@@ -12,12 +12,6 @@ import {
 const getNoteMissDeadline = (note: Note) =>
   note.duration > 0 ? note.endTime ?? note.time + note.duration : note.time;
 
-const getNotesSignature = (notes: Note[]) => {
-  const first = notes[0];
-  const last = notes[notes.length - 1];
-  return `${notes.length}:${first?.id ?? 'none'}:${first?.time ?? 0}:${last?.id ?? 'none'}:${last?.time ?? 0}`;
-};
-
 export interface GameLoopState {
   currentTime: number; // 게임 시간 (ms)
   gameStarted: boolean;
@@ -45,7 +39,6 @@ export function useGameLoop(
   const delayRef = useRef<number>(startDelayMs);
   const missScanIndexRef = useRef<number>(0);
   const missOrderRef = useRef<number[]>([]);
-  const notesSignatureRef = useRef<string>('');
   
   // 게임 시간을 ref에 저장 (렌더링 루프에서 사용)
   const internalCurrentTimeRef = useRef<number>(0);
@@ -58,6 +51,13 @@ export function useGameLoop(
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
+
+  useEffect(() => {
+    missScanIndexRef.current = 0;
+    missOrderRef.current = gameState.notes
+      .map((_, index) => index)
+      .sort((a, b) => getNoteMissDeadline(gameState.notes[a]) - getNoteMissDeadline(gameState.notes[b]));
+  }, [gameState.notes]);
 
   useEffect(() => {
     delayRef.current = startDelayMs;
@@ -89,20 +89,11 @@ export function useGameLoop(
 
       // Miss 판정만 수행 (게임 규칙에 필요한 최소 상태 업데이트)
       const state = gameStateRef.current;
-      let missedInFrame: Note[] = [];
+      let missedInFrame: Note[] | null = null;
       let hasMiss = false;
       const shouldProfile = isGameplayProfilerEnabled();
       const missScanStart = shouldProfile ? performance.now() : 0;
       let scannedNotes = 0;
-      const notesSignature = getNotesSignature(state.notes);
-      if (notesSignatureRef.current !== notesSignature) {
-        notesSignatureRef.current = notesSignature;
-        missScanIndexRef.current = 0;
-        missOrderRef.current = state.notes
-          .map((_, index) => index)
-          .sort((a, b) => getNoteMissDeadline(state.notes[a]) - getNoteMissDeadline(state.notes[b]));
-      }
-
       const missOrder = missOrderRef.current;
       while (missScanIndexRef.current < missOrder.length) {
         const noteIndex = missOrder[missScanIndexRef.current];
@@ -120,6 +111,9 @@ export function useGameLoop(
           ? isNoteResolved(note, hitNoteIdsRef)
           : note.hit;
         if (!isResolved) {
+          if (!missedInFrame) {
+            missedInFrame = [];
+          }
           missedInFrame.push(note);
           hasMiss = true;
         }
@@ -139,7 +133,7 @@ export function useGameLoop(
       }
 
       let newlyMissed: Note[] = [];
-      if (hasMiss) {
+      if (hasMiss && missedInFrame) {
         const hitProcessingStart = shouldProfile ? performance.now() : 0;
         if (hitNoteIdsRef) {
           for (const note of missedInFrame) {
@@ -148,7 +142,7 @@ export function useGameLoop(
             }
           }
         } else {
-          newlyMissed.push(...missedInFrame);
+          newlyMissed = missedInFrame;
         }
         if (shouldProfile) {
           recordGameplayMetric('hitProcessing', performance.now() - hitProcessingStart, newlyMissed.length);
@@ -156,7 +150,7 @@ export function useGameLoop(
       }
 
       if (hasMiss) {
-        const notesToNotify = hitNoteIdsRef ? newlyMissed : missedInFrame;
+        const notesToNotify = hitNoteIdsRef ? newlyMissed : missedInFrame ?? [];
         notesToNotify.forEach((note) => {
           onNoteMiss?.(note);
         });
