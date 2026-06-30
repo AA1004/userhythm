@@ -39,9 +39,9 @@ export function useGameLoop(
   const lastTimeRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
   const delayRef = useRef<number>(startDelayMs);
+  const missTimerRef = useRef<number | null>(null);
   const missScanIndexRef = useRef<number>(0);
   const missOrderRef = useRef<number[]>([]);
-  const lastMissScanTimeRef = useRef<number>(Number.NEGATIVE_INFINITY);
   
   // 게임 시간을 ref에 저장 (렌더링 루프에서 사용)
   const internalCurrentTimeRef = useRef<number>(0);
@@ -73,7 +73,6 @@ export function useGameLoop(
       lastTimeRef.current = 0;
       currentTimeRef.current = gameState.gameStarted ? -delayRef.current : 0;
       missScanIndexRef.current = 0;
-      lastMissScanTimeRef.current = Number.NEGATIVE_INFINITY;
       return;
     }
 
@@ -82,21 +81,12 @@ export function useGameLoop(
       lastTimeRef.current = startTimeRef.current;
     }
 
-    const animate = (currentTime: number) => {
-      if (!gameStateRef.current.gameStarted || !clockEnabled) return;
+    let disposed = false;
 
-      const elapsedTime = currentTime - startTimeRef.current;
-      const adjustedJudgeTime = elapsedTime - timingOffsetMs;
-      
-      // 게임 시간을 ref에 저장 (렌더링 루프에서 사용)
-      currentTimeRef.current = elapsedTime;
+    const scanMisses = () => {
+      if (disposed || !gameStateRef.current.gameStarted || !clockEnabled) return;
 
-      if (currentTime - lastMissScanTimeRef.current < MISS_SCAN_INTERVAL_MS) {
-        lastTimeRef.current = currentTime;
-        frameRef.current = requestAnimationFrame(animate);
-        return;
-      }
-      lastMissScanTimeRef.current = currentTime;
+      const adjustedJudgeTime = currentTimeRef.current - timingOffsetMs;
 
       // Miss 판정만 수행 (게임 규칙에 필요한 최소 상태 업데이트)
       const state = gameStateRef.current;
@@ -135,16 +125,8 @@ export function useGameLoop(
         recordGameplayMetric('missScan', performance.now() - missScanStart, scannedNotes);
       }
 
-      // currentTimeRef is the gameplay clock. React state only changes for gameplay events.
-      if (!hasMiss) {
-        // state 업데이트 없이 다음 프레임으로
-        lastTimeRef.current = currentTime;
-        frameRef.current = requestAnimationFrame(animate);
-        return;
-      }
-
-      let newlyMissed: Note[] = [];
       if (hasMiss && missedInFrame) {
+        let newlyMissed: Note[] = [];
         const hitProcessingStart = shouldProfile ? performance.now() : 0;
         if (hitNoteIdsRef) {
           for (const note of missedInFrame) {
@@ -158,24 +140,39 @@ export function useGameLoop(
         if (shouldProfile) {
           recordGameplayMetric('hitProcessing', performance.now() - hitProcessingStart, newlyMissed.length);
         }
+
+        const notesToNotify = hitNoteIdsRef ? newlyMissed : missedInFrame;
+        for (const note of notesToNotify) {
+          onNoteMiss?.(note);
+        }
       }
 
-      if (hasMiss) {
-        const notesToNotify = hitNoteIdsRef ? newlyMissed : missedInFrame ?? [];
-        notesToNotify.forEach((note) => {
-          onNoteMiss?.(note);
-        });
-      }
+      missTimerRef.current = window.setTimeout(scanMisses, MISS_SCAN_INTERVAL_MS);
+    };
+
+    const animate = (currentTime: number) => {
+      if (!gameStateRef.current.gameStarted || !clockEnabled) return;
+
+      const elapsedTime = currentTime - startTimeRef.current;
+
+      // 게임 시간을 ref에 저장 (렌더링 루프에서 사용)
+      currentTimeRef.current = elapsedTime;
 
       lastTimeRef.current = currentTime;
       frameRef.current = requestAnimationFrame(animate);
     };
 
     frameRef.current = requestAnimationFrame(animate);
+    missTimerRef.current = window.setTimeout(scanMisses, 0);
 
     return () => {
+      disposed = true;
       if (frameRef.current) {
         cancelAnimationFrame(frameRef.current);
+      }
+      if (missTimerRef.current !== null) {
+        window.clearTimeout(missTimerRef.current);
+        missTimerRef.current = null;
       }
     };
   }, [gameState.gameStarted, onNoteMiss, speed, fallDuration, missThreshold, hitNoteIdsRef, timingOffsetMs, clockEnabled]);
