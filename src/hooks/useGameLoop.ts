@@ -74,6 +74,71 @@ export function useGameLoop(
     [clockEnabled, currentTimeRef]
   );
 
+  const scanMisses = useCallback(() => {
+    if (!gameStateRef.current.gameStarted || !clockEnabled) return;
+
+    const adjustedJudgeTime = currentTimeRef.current - timingOffsetMs;
+
+    // Miss 판정만 수행 (게임 규칙에 필요한 최소 상태 업데이트)
+    const state = gameStateRef.current;
+    let missedInFrame: Note[] | null = null;
+    let hasMiss = false;
+    const shouldProfile = isGameplayProfilerEnabled();
+    const missScanStart = shouldProfile ? performance.now() : 0;
+    let scannedNotes = 0;
+    const missOrder = missOrderRef.current;
+    while (missScanIndexRef.current < missOrder.length) {
+      const noteIndex = missOrder[missScanIndexRef.current];
+      const note = state.notes[noteIndex];
+      scannedNotes += 1;
+      if (!note) {
+        missScanIndexRef.current += 1;
+        continue;
+      }
+
+      const timeUntilMiss = getNoteMissDeadline(note) - adjustedJudgeTime;
+      if (timeUntilMiss >= -missThreshold) break;
+
+      const isResolved = hitNoteIdsRef
+        ? isNoteResolved(note, hitNoteIdsRef)
+        : note.hit;
+      if (!isResolved) {
+        if (!missedInFrame) {
+          missedInFrame = [];
+        }
+        missedInFrame.push(note);
+        hasMiss = true;
+      }
+      missScanIndexRef.current += 1;
+    }
+
+    if (shouldProfile) {
+      recordGameplayMetric('missScan', performance.now() - missScanStart, scannedNotes);
+    }
+
+    if (hasMiss && missedInFrame) {
+      let newlyMissed: Note[] = [];
+      const hitProcessingStart = shouldProfile ? performance.now() : 0;
+      if (hitNoteIdsRef) {
+        for (const note of missedInFrame) {
+          if (markNoteResolved(note, hitNoteIdsRef)) {
+            newlyMissed.push(note);
+          }
+        }
+      } else {
+        newlyMissed = missedInFrame;
+      }
+      if (shouldProfile) {
+        recordGameplayMetric('hitProcessing', performance.now() - hitProcessingStart, newlyMissed.length);
+      }
+
+      const notesToNotify = hitNoteIdsRef ? newlyMissed : missedInFrame;
+      for (const note of notesToNotify) {
+        onNoteMiss?.(note);
+      }
+    }
+  }, [clockEnabled, currentTimeRef, hitNoteIdsRef, missThreshold, onNoteMiss, timingOffsetMs]);
+
   useEffect(() => {
     const isClockRunning = gameState.gameStarted && clockEnabled;
     if (!isClockRunning) {
@@ -89,71 +154,10 @@ export function useGameLoop(
 
     let disposed = false;
 
-    const scanMisses = () => {
+    const runMissTimer = () => {
       if (disposed || !gameStateRef.current.gameStarted || !clockEnabled) return;
-
-      const adjustedJudgeTime = currentTimeRef.current - timingOffsetMs;
-
-      // Miss 판정만 수행 (게임 규칙에 필요한 최소 상태 업데이트)
-      const state = gameStateRef.current;
-      let missedInFrame: Note[] | null = null;
-      let hasMiss = false;
-      const shouldProfile = isGameplayProfilerEnabled();
-      const missScanStart = shouldProfile ? performance.now() : 0;
-      let scannedNotes = 0;
-      const missOrder = missOrderRef.current;
-      while (missScanIndexRef.current < missOrder.length) {
-        const noteIndex = missOrder[missScanIndexRef.current];
-        const note = state.notes[noteIndex];
-        scannedNotes += 1;
-        if (!note) {
-          missScanIndexRef.current += 1;
-          continue;
-        }
-
-        const timeUntilMiss = getNoteMissDeadline(note) - adjustedJudgeTime;
-        if (timeUntilMiss >= -missThreshold) break;
-
-        const isResolved = hitNoteIdsRef
-          ? isNoteResolved(note, hitNoteIdsRef)
-          : note.hit;
-        if (!isResolved) {
-          if (!missedInFrame) {
-            missedInFrame = [];
-          }
-          missedInFrame.push(note);
-          hasMiss = true;
-        }
-        missScanIndexRef.current += 1;
-      }
-
-      if (shouldProfile) {
-        recordGameplayMetric('missScan', performance.now() - missScanStart, scannedNotes);
-      }
-
-      if (hasMiss && missedInFrame) {
-        let newlyMissed: Note[] = [];
-        const hitProcessingStart = shouldProfile ? performance.now() : 0;
-        if (hitNoteIdsRef) {
-          for (const note of missedInFrame) {
-            if (markNoteResolved(note, hitNoteIdsRef)) {
-              newlyMissed.push(note);
-            }
-          }
-        } else {
-          newlyMissed = missedInFrame;
-        }
-        if (shouldProfile) {
-          recordGameplayMetric('hitProcessing', performance.now() - hitProcessingStart, newlyMissed.length);
-        }
-
-        const notesToNotify = hitNoteIdsRef ? newlyMissed : missedInFrame;
-        for (const note of notesToNotify) {
-          onNoteMiss?.(note);
-        }
-      }
-
-      missTimerRef.current = window.setTimeout(scanMisses, MISS_SCAN_INTERVAL_MS);
+      scanMisses();
+      missTimerRef.current = window.setTimeout(runMissTimer, MISS_SCAN_INTERVAL_MS);
     };
 
     const animate = (currentTime: number) => {
@@ -170,8 +174,8 @@ export function useGameLoop(
 
     if (!clockDrivenExternally) {
       frameRef.current = requestAnimationFrame(animate);
+      missTimerRef.current = window.setTimeout(runMissTimer, 0);
     }
-    missTimerRef.current = window.setTimeout(scanMisses, 0);
 
     return () => {
       disposed = true;
@@ -192,6 +196,7 @@ export function useGameLoop(
     clockEnabled,
     clockDrivenExternally,
     advanceClock,
+    scanMisses,
   ]);
 
   // currentTime ref를 반환하여 렌더링 루프에서 사용
@@ -199,6 +204,7 @@ export function useGameLoop(
     currentTimeRef,
     fallDuration,
     advanceClock,
+    scanMisses,
   };
 }
 

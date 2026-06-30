@@ -97,7 +97,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
     keyBindings
   );
 
-  const { fallDuration, advanceClock } = useGameLoop(
+  const { fallDuration, advanceClock, scanMisses } = useGameLoop(
     gameState,
     setGameState,
     handleNoteMiss,
@@ -142,6 +142,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
         playfieldTopOffset={playfieldTopOffset}
         hitNoteIdsRef={hitNoteIdsRef}
         advanceGameplayClock={advanceClock}
+        scanGameplayMisses={scanMisses}
         onGameplayClockDriverActiveChange={handleRendererClockDriverChange}
       />
 

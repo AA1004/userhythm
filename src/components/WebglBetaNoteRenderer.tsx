@@ -25,6 +25,7 @@ import {
 
 const SPRITE_POOL_SIZE = 384;
 const WEBGL_NOTE_RENDERER_DPR_LIMIT = 1;
+const WEBGL_MISS_SCAN_INTERVAL_MS = 1000 / 120;
 
 type SpriteKind = 'tap' | 'holdBody' | 'holdHead' | 'holdProgress' | 'holdHighlight';
 type PixiModule = typeof import('pixi.js');
@@ -44,6 +45,7 @@ interface WebglBetaNoteRendererProps {
   visible: boolean;
   simpleHoldVisuals?: boolean;
   advanceGameplayClock?: (now?: number) => void;
+  scanGameplayMisses?: () => void;
   onGameplayClockDriverActiveChange?: (active: boolean) => void;
 }
 
@@ -189,6 +191,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
   visible,
   simpleHoldVisuals = false,
   advanceGameplayClock,
+  scanGameplayMisses,
   onGameplayClockDriverActiveChange,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -313,6 +316,8 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
         onGameplayClockDriverActiveChange?.(true);
 
         const spriteCursor = { value: 0 };
+        let missScanAccumulatorMs = 0;
+        let lastTickerTimeMs = performance.now();
         const nextSprite = (kind: SpriteKind, texture: any) => {
           const pool = spritePoolRef.current;
           if (spriteCursor.value >= pool.length) return null;
@@ -328,7 +333,16 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
         };
 
         app.ticker.add(() => {
-          advanceGameplayClock?.(performance.now());
+          const nowMs = performance.now();
+          advanceGameplayClock?.(nowMs);
+          missScanAccumulatorMs += Math.min(50, Math.max(0, nowMs - lastTickerTimeMs));
+          lastTickerTimeMs = nowMs;
+          let missScanSteps = 0;
+          while (missScanAccumulatorMs >= WEBGL_MISS_SCAN_INTERVAL_MS && missScanSteps < 2) {
+            scanGameplayMisses?.();
+            missScanAccumulatorMs -= WEBGL_MISS_SCAN_INTERVAL_MS;
+            missScanSteps += 1;
+          }
 
           if (!visibleRef.current) {
             hideUnusedSprites(spritePoolRef.current, 0);
@@ -592,7 +606,13 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
         textureRef.current = {};
       }
     };
-  }, [advanceGameplayClock, currentTimeRef, hitNoteIdsRef, onGameplayClockDriverActiveChange]);
+  }, [
+    advanceGameplayClock,
+    currentTimeRef,
+    hitNoteIdsRef,
+    onGameplayClockDriverActiveChange,
+    scanGameplayMisses,
+  ]);
 
   if (fallback) {
     return (
