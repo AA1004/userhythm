@@ -364,7 +364,9 @@ export function useTestYoutubePlayer({
       const currentTime = currentTimeRef.current;
       const delayMs =
         currentTime < 0
-          ? Math.max(50, Math.min(250, -currentTime))
+          ? currentTime < -250
+            ? 100
+            : Math.max(8, Math.min(16, -currentTime))
           : currentTime < 250 || !audioHasStartedRef.current
           ? 33
           : 5000;

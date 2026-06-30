@@ -334,20 +334,9 @@ export const Game: React.FC = () => {
       return;
     }
 
-    setIsYoutubeAudioMountReady(false);
-    let timeoutId: number | null = null;
-    const frameId = window.requestAnimationFrame(() => {
-      timeoutId = window.setTimeout(() => {
-        setIsYoutubeAudioMountReady(true);
-      }, 120);
-    });
-
-    return () => {
-      window.cancelAnimationFrame(frameId);
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
-      }
-    };
+    // Audio iframe must mount during the pre-start lead time. Delaying this made
+    // YouTube begin slightly behind the chart on songs with an immediate first beat.
+    setIsYoutubeAudioMountReady(true);
   }, [gameplayActiveForAudio, hasYoutubeAudioSession, testYoutubeVideoId]);
 
   // YouTube 플레이어 훅
