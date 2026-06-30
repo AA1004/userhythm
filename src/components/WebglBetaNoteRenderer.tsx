@@ -155,6 +155,12 @@ const hideUnusedSprites = (pool: SpriteEntry[], used: number) => {
   }
 };
 
+const getTextureSignature = (
+  noteWidth: number,
+  noteHeight: number,
+  laneNoteColors: readonly NoteColorRgb[]
+) => `${noteWidth}:${noteHeight}:${laneNoteColors.map(noteColorKey).join('|')}`;
+
 export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
   notes,
   currentTimeRef,
@@ -185,6 +191,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
   const noteWidthRef = useRef(noteWidth);
   const noteHeightRef = useRef(noteHeight);
   const laneNoteColorsRef = useRef(laneNoteColors);
+  const textureSignatureRef = useRef(getTextureSignature(noteWidth, noteHeight, laneNoteColors));
   const visibleRef = useRef(visible);
   const [fallback, setFallback] = useState(false);
 
@@ -216,10 +223,12 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
   useEffect(() => {
     noteWidthRef.current = noteWidth;
     noteHeightRef.current = noteHeight;
+    textureSignatureRef.current = getTextureSignature(noteWidth, noteHeight, laneNoteColorsRef.current);
   }, [noteWidth, noteHeight]);
 
   useEffect(() => {
     laneNoteColorsRef.current = laneNoteColors;
+    textureSignatureRef.current = getTextureSignature(noteWidthRef.current, noteHeightRef.current, laneNoteColors);
   }, [laneNoteColors]);
 
   useEffect(() => {
@@ -267,19 +276,6 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
         spritePoolRef.current = spritePool;
         appRef.current = app;
 
-        const nextSprite = (cursor: { value: number }, kind: SpriteKind, texture: any) => {
-          if (cursor.value >= spritePoolRef.current.length) return null;
-          const entry = spritePoolRef.current[cursor.value];
-          cursor.value += 1;
-          if (entry.kind !== kind || entry.sprite.texture !== texture) {
-            entry.kind = kind;
-            entry.sprite.texture = texture;
-          }
-          entry.sprite.visible = true;
-          entry.sprite.alpha = 1;
-          return entry.sprite;
-        };
-
         app.ticker.add(() => {
           if (!visibleRef.current) {
             hideUnusedSprites(spritePoolRef.current, 0);
@@ -303,12 +299,24 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
           const viewportStart = getNoteViewportStart(currentTime, activeFallDuration);
           const viewportEnd = getNoteViewportEnd(currentTime, activeFallDuration);
           const startIndex = binarySearchStartIndex(renderNotes, viewportStart);
-          const cursor = { value: 0 };
+          const spritePool = spritePoolRef.current;
+          let cursor = 0;
           let drawn = 0;
 
-          const textureCacheKey = `${activeNoteWidth}:${activeNoteHeight}:${activeLaneNoteColors
-            .map(noteColorKey)
-            .join('|')}`;
+          const nextSprite = (kind: SpriteKind, texture: any) => {
+            if (cursor >= spritePool.length) return null;
+            const entry = spritePool[cursor];
+            cursor += 1;
+            if (entry.kind !== kind || entry.sprite.texture !== texture) {
+              entry.kind = kind;
+              entry.sprite.texture = texture;
+            }
+            entry.sprite.visible = true;
+            entry.sprite.alpha = 1;
+            return entry.sprite;
+          };
+
+          const textureCacheKey = textureSignatureRef.current;
           if (textureRef.current.cacheKey !== textureCacheKey) {
             const makeTexture = (kind: SpriteKind, width: number, height: number, holding: boolean, noteColor: NoteColorRgb) =>
               (pixi as any).Texture.from(makeTextureCanvas(kind, width, height, holding, noteColor));
@@ -356,7 +364,6 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
             if (bodyHeight <= 0) return false;
 
             const bodySprite = nextSprite(
-              cursor,
               'holdBody',
               isHolding ? laneTextures.holdBodyHolding : laneTextures.holdBodyIdle
             );
@@ -374,7 +381,6 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
               const visibleProgressBottom = Math.min(progressBottom, visibleBottom);
               if (visibleProgressBottom > visibleProgressTop) {
                 const progressSprite = nextSprite(
-                  cursor,
                   'holdProgress',
                   isHolding ? laneTextures.holdProgressHolding : laneTextures.holdProgressIdle
                 );
@@ -391,7 +397,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
             if (!simpleHoldVisuals) {
               const highlightTop = containerTop + 4;
               if (highlightTop + 12 >= visibleTop && highlightTop <= visibleBottom) {
-                const highlightSprite = nextSprite(cursor, 'holdHighlight', laneTextures.holdHighlight);
+                const highlightSprite = nextSprite('holdHighlight', laneTextures.holdHighlight);
                 const highlightTexture = laneTextures.holdHighlight;
                 if (!highlightSprite) return null;
                 if (highlightSprite.texture !== highlightTexture) {
@@ -409,7 +415,6 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
             const headTop = containerTop + containerHeight - holdHeadHeight;
             if (headTop + holdHeadHeight >= visibleTop && headTop <= visibleBottom) {
               const headSprite = nextSprite(
-                cursor,
                 'holdHead',
                 isHolding ? laneTextures.holdHeadHolding : laneTextures.holdHeadIdle
               );
@@ -455,7 +460,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
               if (!position) {
                 continue;
               }
-              const sprite = nextSprite(cursor, 'tap', laneTextures.tap);
+              const sprite = nextSprite('tap', laneTextures.tap);
               if (!sprite) break;
               sprite.position.set(position.left, position.top + activePlayfieldTopOffset);
               sprite.width = activeNoteWidth;
@@ -468,9 +473,9 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
             if (result === null) break;
           }
 
-          hideUnusedSprites(spritePoolRef.current, cursor.value);
+          hideUnusedSprites(spritePool, cursor);
           if (shouldProfile) {
-            recordGameplayMetric('spritePoolUpdate', performance.now() - poolStart, cursor.value);
+            recordGameplayMetric('spritePoolUpdate', performance.now() - poolStart, cursor);
             recordGameplayMetric('webglRender', performance.now() - profileStart, drawn);
           }
         });
@@ -491,7 +496,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
         textureRef.current = {};
       }
     };
-  }, [currentTimeRef, hitNoteIdsRef, laneNoteColors, playfieldTopOffset]);
+  }, [currentTimeRef, hitNoteIdsRef]);
 
   if (fallback) {
     return (
