@@ -243,56 +243,6 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     }
   }, [shouldPlayBga, bgaEnabled, videoId, backgroundPlayer]);
 
-  // 게임 시작 전 대기 시간(currentTime < 0)에는 BGA도 반드시 멈춘다.
-  // 0초 crossing은 React state가 아니므로 짧은 timeout으로 감시해 정확히 시작한다.
-  useEffect(() => {
-    if (!backgroundPlayer || !backgroundPlayerReadyRef.current) return;
-    if (!shouldPlayBga || !bgaEnabled || !videoId || !bgaCurrentTimeRef) return;
-    if (bgaCurrentTimeRef.current >= 0) return;
-
-    let timerId: number | null = null;
-    const waitForTimelineStart = () => {
-      if (!backgroundPlayerReadyRef.current || !backgroundPlayerRef.current) return;
-      if (!shouldPlayBga || !bgaEnabled || !videoId) return;
-
-      if (bgaCurrentTimeRef.current < 0) {
-        try {
-          backgroundPlayerRef.current.mute?.();
-          backgroundPlayerRef.current.pauseVideo?.();
-        } catch {
-          // ignore
-        }
-        timerId = window.setTimeout(waitForTimelineStart, 50);
-        return;
-      }
-
-      if (backgroundPlaybackEndedRef.current) return;
-      try {
-        const targetSeconds = getBgaCurrentSeconds() ?? 0;
-        backgroundPlayerRef.current.seekTo?.(targetSeconds, true);
-        backgroundPlayerRef.current.playVideo?.();
-        window.playerApi?.setBgaLayerState?.({
-          videoId,
-          visible: Boolean(videoId && bgaEnabled && bgaMaskOpacity < 1),
-          opacity: Math.max(0, Math.min(1, 1 - bgaOpacity)),
-          currentSeconds: targetSeconds,
-          shouldPlay: true,
-        });
-        lastBgaSeekRef.current = targetSeconds;
-        lastBgaSyncCheckAtRef.current = performance.now();
-      } catch {
-        // ignore
-      }
-    };
-
-    waitForTimelineStart();
-    return () => {
-      if (timerId !== null) {
-        window.clearTimeout(timerId);
-      }
-    };
-  }, [backgroundPlayer, shouldPlayBga, bgaEnabled, videoId, bgaCurrentTimeRef, bgaAudioSettings]);
-
   // 자동재생 정책 회피: 사용자 입력(pointerdown)이 들어오면 즉시 재생 시도
   useEffect(() => {
     if (!backgroundPlayer) return;

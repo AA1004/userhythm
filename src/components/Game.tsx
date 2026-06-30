@@ -795,12 +795,39 @@ export const Game: React.FC = () => {
   const isWaitingForYoutubeAudio =
     isGameplayActive && hasYoutubeAudioSession && !testYoutubePlayerReady;
   const isGameplayClockRunning = isGameplayActive && !isWaitingForYoutubeAudio;
+  const [isBgaTimelineReady, setIsBgaTimelineReady] = useState(false);
+  useEffect(() => {
+    if (!isGameplayActive || !isGameplayClockRunning) {
+      setIsBgaTimelineReady(false);
+      return;
+    }
+
+    setIsBgaTimelineReady(false);
+    let timerId: number | null = null;
+    const scheduleBgaStart = () => {
+      const remainingMs = Math.max(0, -currentTimeRef.current);
+      if (remainingMs <= 0) {
+        setIsBgaTimelineReady(true);
+        return;
+      }
+
+      timerId = window.setTimeout(scheduleBgaStart, Math.max(50, remainingMs));
+    };
+
+    scheduleBgaStart();
+    return () => {
+      if (timerId !== null) {
+        window.clearTimeout(timerId);
+      }
+    };
+  }, [isGameplayActive, isGameplayClockRunning, currentTimeRef]);
   const backgroundVideoId = isGameplayActive ? testYoutubeVideoId : null;
   const shouldPlayBga =
     !!backgroundVideoId &&
     isBgaEnabled &&
     gameState.gameStarted &&
-    !gameState.gameEnded;
+    !gameState.gameEnded &&
+    isBgaTimelineReady;
   const activeBgaMaskOpacity = isGameplayActive ? bgaMaskOpacity : 0;
   const activeLaneUiVisible = isGameplayActive ? isLaneUiVisible : true;
   const gameplayStageBackdropAlpha = 0.16;
