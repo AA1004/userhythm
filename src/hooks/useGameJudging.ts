@@ -364,11 +364,20 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       const effectX = laneCenters[lane] ?? LANE_POSITIONS[lane];
       const effectY = judgeLineY;
 
-      judgeFeedbacksRef.current = [{ id: feedbackId, judge, expiresAt: feedbackExpiresAt, x: effectX, y: effectY, lane, timingDirection }];
-      keyEffectsRef.current = [
-        ...keyEffectsRef.current.filter((effect) => effect.lane !== lane),
-        { id: effectId, lane, x: effectX, y: effectY, judge, expiresAt: effectExpiresAt },
-      ].slice(-4);
+      const feedbacks = judgeFeedbacksRef.current;
+      feedbacks.length = 0;
+      feedbacks.push({ id: feedbackId, judge, expiresAt: feedbackExpiresAt, x: effectX, y: effectY, lane, timingDirection });
+
+      const keyEffects = keyEffectsRef.current;
+      for (let i = keyEffects.length - 1; i >= 0; i -= 1) {
+        if (keyEffects[i].lane === lane) {
+          keyEffects.splice(i, 1);
+        }
+      }
+      keyEffects.push({ id: effectId, lane, x: effectX, y: effectY, judge, expiresAt: effectExpiresAt });
+      if (keyEffects.length > 4) {
+        keyEffects.splice(0, keyEffects.length - 4);
+      }
       if (effectSnapshotsEnabled) {
         uiDirtyRef.current.effects = true;
         scheduleUiCommit();
