@@ -36,6 +36,8 @@ const judgeColors: Record<JudgeType, { main: string; soft: string }> = {
 const laneChromeCache = new Map<string, HTMLCanvasElement>();
 const GAMEPLAY_HUD_CANVAS_DPR_LIMIT = 1;
 const GAMEPLAY_HUD_PAINT_EVENT = 'userhythm:gameplay-hud-paint';
+const SLOT_HUD_HEIGHT = 82;
+const SLOT_HUD_GAP = 8;
 
 const easeOutExpo = (t: number) => (t >= 1 ? 1 : 1 - 2 ** (-10 * t));
 
@@ -412,6 +414,104 @@ const drawCombo = (
   ctx.restore();
 };
 
+const getAccuracy = (score: GameState['score']) => {
+  const total = score.perfect + score.great + score.good + score.miss;
+  if (total === 0) return 100;
+  return ((score.perfect + score.great * 0.7 + score.good * 0.3) / total) * 100;
+};
+
+const drawSlotHud = (
+  ctx: CanvasRenderingContext2D,
+  geometry: PlayfieldGeometry,
+  score: GameState['score'],
+  currentTime: number,
+  durationMs: number,
+  mode: NewHudMode
+) => {
+  if (!geometry.slotHudEnabled) return;
+
+  const x = geometry.laneGroupLeft;
+  const y = geometry.keyLaneY + KEY_LANE_HEIGHT + SLOT_HUD_GAP;
+  const width = geometry.laneGroupWidth;
+  const height = SLOT_HUD_HEIGHT;
+  const opacity = Math.max(0, Math.min(1, geometry.slotHudOpacity));
+  const progress = durationMs > 0 ? Math.max(0, Math.min(1, currentTime / durationMs)) : 0;
+  const accuracy = getAccuracy(score);
+
+  ctx.save();
+  ctx.globalAlpha = opacity;
+  ctx.fillStyle = 'rgba(6, 10, 20, 0.86)';
+  ctx.strokeStyle = 'rgba(238, 247, 242, 0.18)';
+  ctx.lineWidth = 1;
+  if (mode === 'new-full') {
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.28)';
+    ctx.shadowBlur = 12;
+  }
+  drawRoundedRect(ctx, x, y, width, height, 14);
+  ctx.fill();
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  const topLineGradient = ctx.createLinearGradient(x, y, x + width, y);
+  topLineGradient.addColorStop(0, '#68f4d5');
+  topLineGradient.addColorStop(0.5, '#ffcf5f');
+  topLineGradient.addColorStop(1, '#ff6d93');
+  ctx.fillStyle = topLineGradient;
+  drawRoundedRect(ctx, x, y, width, 2, 2);
+  ctx.fill();
+
+  const cellGap = 8;
+  const cellPadding = 12;
+  const cellWidth = (width - cellPadding * 2 - cellGap * 2) / 3;
+  const cellTop = y + 10;
+  const cellHeight = 42;
+  const labels = ['COMBO', 'PROGRESS', 'ACCURACY'];
+  const values = [
+    String(score.combo),
+    `${(progress * 100).toFixed(1)}%`,
+    `${accuracy.toFixed(2)}%`,
+  ];
+
+  for (let i = 0; i < 3; i += 1) {
+    const cellLeft = x + cellPadding + i * (cellWidth + cellGap);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.24)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    drawRoundedRect(ctx, cellLeft, cellTop, cellWidth, cellHeight, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(236, 246, 255, 0.58)';
+    ctx.font = '700 10px Bahnschrift, Rajdhani, sans-serif';
+    ctx.fillText(labels[i], cellLeft + cellWidth / 2, cellTop + 13);
+    ctx.fillStyle = 'rgba(246, 251, 255, 0.96)';
+    ctx.font = '700 18px Bahnschrift, Consolas, monospace';
+    if (mode === 'new-full') {
+      ctx.shadowColor = 'rgba(119, 255, 214, 0.16)';
+      ctx.shadowBlur = 8;
+    }
+    ctx.fillText(values[i], cellLeft + cellWidth / 2, cellTop + 30);
+    ctx.shadowBlur = 0;
+  }
+
+  const trackLeft = x + 12;
+  const trackTop = y + height - 13;
+  const trackWidth = width - 24;
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+  drawRoundedRect(ctx, trackLeft, trackTop, trackWidth, 5, 999);
+  ctx.fill();
+  const fillGradient = ctx.createLinearGradient(trackLeft, trackTop, trackLeft + trackWidth, trackTop);
+  fillGradient.addColorStop(0, '#68f4d5');
+  fillGradient.addColorStop(0.35, '#d3ff78');
+  fillGradient.addColorStop(0.7, '#ffad66');
+  fillGradient.addColorStop(1, '#ff6d93');
+  ctx.fillStyle = fillGradient;
+  drawRoundedRect(ctx, trackLeft, trackTop, trackWidth * progress, 5, 999);
+  ctx.fill();
+  ctx.restore();
+};
+
 export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   active,
   visible,
@@ -426,10 +526,11 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   laneKeyLabels,
   playfieldGeometry,
   gameplayHudMode,
-  durationMs: _durationMs,
+  durationMs,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameIdRef = useRef<number | null>(null);
+  const slotHudTimerRef = useRef<number | null>(null);
   const visibleRef = useRef(visible);
   const activeRef = useRef(active);
   const judgeFeedbackTopRef = useRef(judgeFeedbackTop);
@@ -438,7 +539,12 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   const laneKeyLabelsRef = useRef(laneKeyLabels);
   const shouldRenderHud = gameplayHudMode !== 'legacy';
   const isLiteMode = gameplayHudMode === 'new-lite';
-  const canvasHeight = GAME_VIEW_HEIGHT;
+  const canvasHeight = playfieldGeometry.slotHudEnabled
+    ? Math.max(
+        GAME_VIEW_HEIGHT,
+        playfieldGeometry.keyLaneY + KEY_LANE_HEIGHT + SLOT_HUD_GAP + SLOT_HUD_HEIGHT
+      )
+    : GAME_VIEW_HEIGHT;
 
   useEffect(() => {
     visibleRef.current = visible;
@@ -526,6 +632,14 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
             geometry.comboOpacity,
             hudMode
           );
+          drawSlotHud(
+            ctx,
+            geometry,
+            scoreRuntimeRef.current,
+            currentTimeRef.current,
+            durationMs,
+            hudMode
+          );
         }
       }
 
@@ -545,6 +659,17 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
       frameIdRef.current = requestAnimationFrame(renderFrame);
     };
 
+    const scheduleSlotHudPaint = () => {
+      if (slotHudTimerRef.current !== null) return;
+      slotHudTimerRef.current = window.setTimeout(() => {
+        slotHudTimerRef.current = null;
+        if (activeRef.current && visibleRef.current && playfieldGeometryRef.current.slotHudEnabled) {
+          requestPaint();
+          scheduleSlotHudPaint();
+        }
+      }, 250);
+    };
+
     if (!visible && !shouldRenderHud) {
       ctx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasHeight);
       frameIdRef.current = null;
@@ -552,12 +677,19 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
     }
 
     requestPaint();
+    if (shouldRenderHud && playfieldGeometry.slotHudEnabled) {
+      scheduleSlotHudPaint();
+    }
     window.addEventListener(GAMEPLAY_HUD_PAINT_EVENT, requestPaint);
     return () => {
       window.removeEventListener(GAMEPLAY_HUD_PAINT_EVENT, requestPaint);
       if (frameIdRef.current !== null) {
         cancelAnimationFrame(frameIdRef.current);
         frameIdRef.current = null;
+      }
+      if (slotHudTimerRef.current !== null) {
+        window.clearTimeout(slotHudTimerRef.current);
+        slotHudTimerRef.current = null;
       }
     };
   }, [
@@ -572,6 +704,8 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
     visible,
     hudRevision,
     isLiteMode,
+    durationMs,
+    playfieldGeometry.slotHudEnabled,
   ]);
 
   return (

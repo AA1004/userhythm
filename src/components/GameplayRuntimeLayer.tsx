@@ -106,8 +106,8 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
   );
 
   const useSlotHud = playfieldGeometry.slotHudEnabled;
-  const slotHudTop = playfieldGeometry.keyLaneY + KEY_LANE_HEIGHT + 8;
-  const slotHudProgress =
+  const legacySlotHudTop = playfieldGeometry.keyLaneY + KEY_LANE_HEIGHT + 8;
+  const legacySlotHudProgress =
     durationMs > 0
       ? Math.min(100, Math.max(0, (currentTimeRef.current / durationMs) * 100))
       : 0;
@@ -155,14 +155,14 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
         durationMs={durationMs}
       />
 
-      {isGameplayActive && useSlotHud && (
+      {isGameplayActive && useSlotHud && isLegacyHud && (
         <GameplaySlotHud
           laneGroupLeft={playfieldGeometry.laneGroupLeft}
           laneGroupWidth={playfieldGeometry.laneGroupWidth}
-          top={slotHudTop}
+          top={legacySlotHudTop}
           combo={scoreRuntimeRef.current.combo}
           accuracy={100}
-          progress={slotHudProgress}
+          progress={legacySlotHudProgress}
           currentTimeRef={currentTimeRef}
           scoreRuntimeRef={scoreRuntimeRef}
           durationMs={durationMs}
