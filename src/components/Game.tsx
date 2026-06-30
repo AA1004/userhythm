@@ -821,7 +821,7 @@ export const Game: React.FC = () => {
       }
     };
   }, [isGameplayActive, isGameplayClockRunning, currentTimeRef]);
-  const backgroundVideoId = isGameplayActive ? testYoutubeVideoId : null;
+  const backgroundVideoId = isGameplayActive && isBgaTimelineReady ? testYoutubeVideoId : null;
   const shouldPlayBga =
     !!backgroundVideoId &&
     isBgaEnabled &&

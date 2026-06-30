@@ -384,7 +384,12 @@ export function useTestYoutubePlayer({
     const scheduleNext = () => {
       if (cancelled) return;
       const currentTime = currentTimeRef.current;
-      const delayMs = currentTime < 250 || !audioHasStartedRef.current ? 33 : 5000;
+      const delayMs =
+        currentTime < 0
+          ? Math.max(50, Math.min(250, -currentTime))
+          : currentTime < 250 || !audioHasStartedRef.current
+          ? 33
+          : 5000;
       timerId = window.setTimeout(() => {
         syncOnce();
         scheduleNext();
