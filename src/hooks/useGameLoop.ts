@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useRef, useMemo, type MutableRefObject } from 'react';
 import { GameState, Note } from '../types/game';
 import { judgeConfig } from '../config/judgeConfig';
 import { BASE_FALL_DURATION } from '../constants/gameConstants';
@@ -28,7 +28,8 @@ export function useGameLoop(
   externalCurrentTimeRef?: MutableRefObject<number>,
   hitNoteIdsRef?: HitNoteIdsRef,
   timingOffsetMs: number = 0,
-  clockEnabled: boolean = true
+  clockEnabled: boolean = true,
+  clockDrivenExternally: boolean = false
 ) {
   // fallDuration을 useMemo로 계산하여 speed 변경 시에만 재계산
   const fallDuration = useMemo(() => BASE_FALL_DURATION / speed, [speed]);
@@ -64,6 +65,14 @@ export function useGameLoop(
   useEffect(() => {
     delayRef.current = startDelayMs;
   }, [startDelayMs]);
+
+  const advanceClock = useCallback(
+    (now: number = performance.now()) => {
+      if (!gameStateRef.current.gameStarted || !clockEnabled || startTimeRef.current === 0) return;
+      currentTimeRef.current = now - startTimeRef.current;
+    },
+    [clockEnabled, currentTimeRef]
+  );
 
   useEffect(() => {
     const isClockRunning = gameState.gameStarted && clockEnabled;
@@ -149,16 +158,19 @@ export function useGameLoop(
 
     const animate = (currentTime: number) => {
       if (!gameStateRef.current.gameStarted || !clockEnabled) return;
+      if (clockDrivenExternally) {
+        frameRef.current = undefined;
+        return;
+      }
 
-      const elapsedTime = currentTime - startTimeRef.current;
-
-      // 게임 시간을 ref에 저장 (렌더링 루프에서 사용)
-      currentTimeRef.current = elapsedTime;
+      advanceClock(currentTime);
 
       frameRef.current = requestAnimationFrame(animate);
     };
 
-    frameRef.current = requestAnimationFrame(animate);
+    if (!clockDrivenExternally) {
+      frameRef.current = requestAnimationFrame(animate);
+    }
     missTimerRef.current = window.setTimeout(scanMisses, 0);
 
     return () => {
@@ -171,12 +183,22 @@ export function useGameLoop(
         missTimerRef.current = null;
       }
     };
-  }, [gameState.gameStarted, onNoteMiss, missThreshold, hitNoteIdsRef, timingOffsetMs, clockEnabled]);
+  }, [
+    gameState.gameStarted,
+    onNoteMiss,
+    missThreshold,
+    hitNoteIdsRef,
+    timingOffsetMs,
+    clockEnabled,
+    clockDrivenExternally,
+    advanceClock,
+  ]);
 
   // currentTime ref를 반환하여 렌더링 루프에서 사용
   return {
     currentTimeRef,
     fallDuration,
+    advanceClock,
   };
 }
 

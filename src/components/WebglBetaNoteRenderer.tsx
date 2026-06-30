@@ -43,6 +43,8 @@ interface WebglBetaNoteRendererProps {
   hitNoteIdsRef: HitNoteIdsRef;
   visible: boolean;
   simpleHoldVisuals?: boolean;
+  advanceGameplayClock?: (now?: number) => void;
+  onGameplayClockDriverActiveChange?: (active: boolean) => void;
 }
 
 interface SpriteEntry {
@@ -186,6 +188,8 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
   hitNoteIdsRef,
   visible,
   simpleHoldVisuals = false,
+  advanceGameplayClock,
+  onGameplayClockDriverActiveChange,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fallbackCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -306,6 +310,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
         }
         spritePoolRef.current = spritePool;
         appRef.current = app;
+        onGameplayClockDriverActiveChange?.(true);
 
         const spriteCursor = { value: 0 };
         const nextSprite = (kind: SpriteKind, texture: any) => {
@@ -323,6 +328,8 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
         };
 
         app.ticker.add(() => {
+          advanceGameplayClock?.(performance.now());
+
           if (!visibleRef.current) {
             hideUnusedSprites(spritePoolRef.current, 0);
             return;
@@ -566,6 +573,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
           }
         });
       } catch (error) {
+        onGameplayClockDriverActiveChange?.(false);
         console.warn('[renderer] WebGL failed; falling back to Canvas 2D.', error);
         setFallback(true);
       }
@@ -574,6 +582,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
     void mount();
     return () => {
       disposed = true;
+      onGameplayClockDriverActiveChange?.(false);
       if (appRef.current) {
         destroyTextureCache(textureRef.current);
         appRef.current.destroy(true);
@@ -583,7 +592,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
         textureRef.current = {};
       }
     };
-  }, [currentTimeRef, hitNoteIdsRef]);
+  }, [advanceGameplayClock, currentTimeRef, hitNoteIdsRef, onGameplayClockDriverActiveChange]);
 
   if (fallback) {
     return (

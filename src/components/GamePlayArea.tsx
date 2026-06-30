@@ -30,6 +30,8 @@ interface GamePlayAreaProps {
   playfieldGeometry: PlayfieldGeometry;
   playfieldTopOffset: number;
   hitNoteIdsRef: HitNoteIdsRef;
+  advanceGameplayClock?: (now?: number) => void;
+  onGameplayClockDriverActiveChange?: (active: boolean) => void;
 }
 
 const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
@@ -51,6 +53,8 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
   playfieldGeometry,
   playfieldTopOffset,
   hitNoteIdsRef,
+  advanceGameplayClock,
+  onGameplayClockDriverActiveChange,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isLegacyHud = playfieldGeometry.gameplayHudMode === 'legacy';
@@ -170,6 +174,8 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
               hitNoteIdsRef={hitNoteIdsRef}
               visible={isLaneUiVisible}
               simpleHoldVisuals={simpleHoldVisuals}
+              advanceGameplayClock={advanceGameplayClock}
+              onGameplayClockDriverActiveChange={onGameplayClockDriverActiveChange}
             />
           ) : (
             <>
@@ -220,6 +226,8 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       holdingNotesRef,
       hitNoteIdsRef,
       simpleHoldVisuals,
+      advanceGameplayClock,
+      onGameplayClockDriverActiveChange,
     ]
   );
 

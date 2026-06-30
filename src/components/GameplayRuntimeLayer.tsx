@@ -56,6 +56,10 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
   durationMs,
 }) => {
   const isLegacyHud = playfieldGeometry.gameplayHudMode === 'legacy';
+  const [rendererClockDriven, setRendererClockDriven] = React.useState(false);
+  const handleRendererClockDriverChange = React.useCallback((active: boolean) => {
+    setRendererClockDriven((prev) => (prev === active ? prev : active));
+  }, []);
   const {
     displayScore,
     combo,
@@ -93,7 +97,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
     keyBindings
   );
 
-  const { fallDuration } = useGameLoop(
+  const { fallDuration, advanceClock } = useGameLoop(
     gameState,
     setGameState,
     handleNoteMiss,
@@ -102,7 +106,8 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
     currentTimeRef,
     hitNoteIdsRef,
     timingOffsetMs,
-    clockEnabled
+    clockEnabled,
+    rendererClockDriven
   );
 
   const useSlotHud = playfieldGeometry.slotHudEnabled;
@@ -136,6 +141,8 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
         playfieldGeometry={playfieldGeometry}
         playfieldTopOffset={playfieldTopOffset}
         hitNoteIdsRef={hitNoteIdsRef}
+        advanceGameplayClock={advanceClock}
+        onGameplayClockDriverActiveChange={handleRendererClockDriverChange}
       />
 
       <GameplayHudCanvas
