@@ -139,18 +139,6 @@ const binarySearchStartIndex = (notes: Note[], targetTime: number) => {
   return low;
 };
 
-const binarySearchHoldEndIndex = (notes: Note[], holdIndicesByEnd: number[], targetTime: number) => {
-  let low = 0;
-  let high = holdIndicesByEnd.length;
-  while (low < high) {
-    const mid = (low + high) >>> 1;
-    const note = notes[holdIndicesByEnd[mid]];
-    if (getNoteRenderEndTime(note) < targetTime) low = mid + 1;
-    else high = mid;
-  }
-  return low;
-};
-
 const hideUnusedSprites = (pool: SpriteEntry[], used: number) => {
   for (let i = used; i < pool.length; i += 1) {
     pool[i].sprite.visible = false;
@@ -185,6 +173,11 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
   const spritePoolRef = useRef<SpriteEntry[]>([]);
   const textureRef = useRef<Record<string, any>>({});
   const holdIndicesByEndRef = useRef<number[]>([]);
+  const holdIndicesByStartRef = useRef<number[]>([]);
+  const activeHoldIndicesRef = useRef<Set<number>>(new Set());
+  const holdStartCursorRef = useRef(0);
+  const holdEndCursorRef = useRef(0);
+  const lastHoldScanTimeRef = useRef(Number.NEGATIVE_INFINITY);
   const notesRef = useRef(notes);
   const laneCentersRef = useRef(laneCenters);
   const fallDurationRef = useRef(fallDuration);
@@ -206,11 +199,19 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
 
   useEffect(() => {
     notesRef.current = notes;
-    holdIndicesByEndRef.current = notes
+    const holdEntries = notes
       .map((note, index) => ({ note, index }))
-      .filter(({ note }) => note.type === 'hold' && note.duration > 0)
+      .filter(({ note }) => note.type === 'hold' && note.duration > 0);
+    holdIndicesByStartRef.current = [...holdEntries]
+      .sort((a, b) => a.note.time - b.note.time)
+      .map(({ index }) => index);
+    holdIndicesByEndRef.current = [...holdEntries]
       .sort((a, b) => getNoteRenderEndTime(a.note) - getNoteRenderEndTime(b.note))
       .map(({ index }) => index);
+    activeHoldIndicesRef.current.clear();
+    holdStartCursorRef.current = 0;
+    holdEndCursorRef.current = 0;
+    lastHoldScanTimeRef.current = Number.NEGATIVE_INFINITY;
   }, [notes]);
 
   useEffect(() => {
@@ -311,6 +312,8 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
           const poolStart = shouldProfile ? performance.now() : 0;
           const renderNotes = notesRef.current;
           const holdIndicesByEnd = holdIndicesByEndRef.current;
+          const holdIndicesByStart = holdIndicesByStartRef.current;
+          const activeHoldIndices = activeHoldIndicesRef.current;
           const currentTime = currentTimeRef.current;
           const activeFallDuration = fallDurationRef.current;
           const activeJudgeLineY = judgeLineYRef.current;
@@ -439,10 +442,34 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
             return true;
           };
 
-          const firstVisibleHoldIndex = binarySearchHoldEndIndex(renderNotes, holdIndicesByEnd, viewportStart);
-          for (let holdCursor = firstVisibleHoldIndex; holdCursor < holdIndicesByEnd.length; holdCursor += 1) {
-            const note = renderNotes[holdIndicesByEnd[holdCursor]];
-            if (note.time > viewportEnd) continue;
+          if (currentTime < lastHoldScanTimeRef.current) {
+            activeHoldIndices.clear();
+            holdStartCursorRef.current = 0;
+            holdEndCursorRef.current = 0;
+          }
+          lastHoldScanTimeRef.current = currentTime;
+
+          while (holdStartCursorRef.current < holdIndicesByStart.length) {
+            const noteIndex = holdIndicesByStart[holdStartCursorRef.current];
+            const note = renderNotes[noteIndex];
+            if (!note || note.time > viewportEnd) break;
+            activeHoldIndices.add(noteIndex);
+            holdStartCursorRef.current += 1;
+          }
+
+          while (holdEndCursorRef.current < holdIndicesByEnd.length) {
+            const noteIndex = holdIndicesByEnd[holdEndCursorRef.current];
+            const note = renderNotes[noteIndex];
+            if (!note || getNoteRenderEndTime(note) >= viewportStart) break;
+            activeHoldIndices.delete(noteIndex);
+            holdEndCursorRef.current += 1;
+          }
+
+          for (const noteIndex of activeHoldIndices) {
+            const note = renderNotes[noteIndex];
+            if (!note || note.time > viewportEnd || getNoteRenderEndTime(note) < viewportStart) {
+              continue;
+            }
             if (isNoteResolved(note, hitNoteIdsRef)) continue;
             const result = drawHoldNote(note);
             if (result === null) break;
