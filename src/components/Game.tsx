@@ -1081,8 +1081,9 @@ export const Game: React.FC = () => {
                 transform: `scale(${stageScale})`,
                 transformOrigin: 'top left',
                 zIndex: 2,
-                contain: 'layout style paint',
+                contain: isGameplayActive && activeLaneUiVisible ? 'layout style' : 'layout style paint',
                 isolation: 'isolate',
+                overflow: isGameplayActive && activeLaneUiVisible ? 'visible' : 'hidden',
                 willChange: isGameplayActive ? 'transform' : undefined,
               }}
             >
