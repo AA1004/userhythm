@@ -28,6 +28,19 @@ const LANE_AREA_LEFT_RATIO = 50 / 500;   // 0.1
 const LANE_AREA_WIDTH_RATIO = 400 / 500; // 0.8
 const JUDGE_LINE_Y_RATIO = 640 / 800;    // 0.8
 
+const fitYoutubeIframeToPreview = (host: HTMLDivElement | null) => {
+  const iframe = host?.querySelector('iframe');
+  if (!iframe) return;
+
+  iframe.setAttribute('tabindex', '-1');
+  iframe.style.position = 'absolute';
+  iframe.style.inset = '0';
+  iframe.style.width = '100%';
+  iframe.style.height = '100%';
+  iframe.style.border = '0';
+  iframe.style.pointerEvents = 'none';
+};
+
 export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
   currentTimeMs,
   cues,
@@ -157,6 +170,7 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
             bgaPlayerRef.current = player;
             bgaReadyRef.current = true;
             try {
+              fitYoutubeIframeToPreview(bgaHostRef.current);
               player.mute?.();
               player.setVolume?.(0);
               player.setPlaybackQuality?.('small');
@@ -174,6 +188,8 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
           },
         },
       });
+
+      window.requestAnimationFrame(() => fitYoutubeIframeToPreview(bgaHostRef.current));
     });
 
     return () => {
