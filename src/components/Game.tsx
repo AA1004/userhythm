@@ -459,7 +459,7 @@ export const Game: React.FC = () => {
     };
 
     syncOverlayTrack();
-    const intervalId = window.setInterval(syncOverlayTrack, 120);
+    const intervalId = window.setInterval(syncOverlayTrack, 250);
 
     return () => {
       window.clearInterval(intervalId);
