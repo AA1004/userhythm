@@ -31,7 +31,7 @@ interface SubtitleTimelineIndex {
   byEnd: SubtitleTimelineEntry[];
 }
 
-const SUBTITLE_ACTIVE_BUCKET_MS = 80;
+const SUBTITLE_ACTIVE_BUCKET_MS = 120;
 
 const getSubtitleEffectiveEndTime = (cue: SubtitleCue): number => {
   const style: SubtitleStyle = cue.style || ({} as SubtitleStyle);
@@ -109,7 +109,7 @@ export function useSubtitles(
       return;
     }
 
-    let frameId: number | null = null;
+    let timerId: number | null = null;
     let lastBucket = Number.NaN;
     const tick = () => {
       const nextTime = Math.max(0, currentTimeRef.current + currentTimeOffsetMs);
@@ -118,13 +118,13 @@ export function useSubtitles(
         lastBucket = nextBucket;
         setSubtitleClockSourceMs(nextTime);
       }
-      frameId = requestAnimationFrame(tick);
+      timerId = window.setTimeout(tick, SUBTITLE_ACTIVE_BUCKET_MS);
     };
 
-    frameId = requestAnimationFrame(tick);
+    timerId = window.setTimeout(tick, 0);
     return () => {
-      if (frameId !== null) {
-        cancelAnimationFrame(frameId);
+      if (timerId !== null) {
+        window.clearTimeout(timerId);
       }
     };
   }, [

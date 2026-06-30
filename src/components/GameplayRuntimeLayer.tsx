@@ -113,7 +113,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
       : 0;
   return (
     <>
-      {isGameplayActive && bgaMaskOpacity < 1 && !useSlotHud && (
+      {isGameplayActive && bgaMaskOpacity < 1 && !useSlotHud && isLegacyHud && (
         <Score score={displayScore} />
       )}
 
