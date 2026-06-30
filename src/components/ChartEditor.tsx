@@ -48,7 +48,7 @@ const KEY_TO_LANE: Record<string, Lane> = {
 };
 const BGA_INTERVAL_MIN_DURATION_MS = 120;
 const EDITOR_CONTRIBUTION_DRAFT_KEY = 'userhythm:editor-contribution-draft';
-const EDITOR_UI_COMMIT_INTERVAL_MS = 1000 / 120;
+const EDITOR_UI_COMMIT_INTERVAL_MS = 1000 / 60;
 
 const keepTimelineActionButtonFromTakingFocus = (event: React.MouseEvent<HTMLButtonElement>) => {
   event.preventDefault();
@@ -468,6 +468,72 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setHitSoundVolumeInternal(hitSoundVolume);
   }, [hitSoundVolume, setHitSoundVolumeInternal]);
 
+  const sortedNotesByTime = useMemo(() => {
+    return [...notes].sort((a, b) => a.time - b.time);
+  }, [notes]);
+  const sortedNotesByTimeRef = useRef<Note[]>([]);
+
+  useEffect(() => {
+    sortedNotesByTimeRef.current = sortedNotesByTime;
+  }, [sortedNotesByTime]);
+
+  // --- 재생선이 지나간 노트에 키음 재생 (ref 기반 cursor) ---
+  const resetEditorHitCursor = useCallback((time: number) => {
+    const notes = sortedNotesByTimeRef.current;
+    if (notes.length === 0) {
+      lastCheckedNoteIndexRef.current = 0;
+      playedNoteIdsRef.current.clear();
+      lastHitCheckTimeRef.current = time;
+      return;
+    }
+
+    let left = 0;
+    let right = notes.length;
+    while (left < right) {
+      const mid = Math.floor((left + right) / 2);
+      if (notes[mid].time < time) {
+        left = mid + 1;
+      } else {
+        right = mid;
+      }
+    }
+
+    const rebuilt = new Set<number>();
+    for (let i = 0; i < left; i++) {
+      rebuilt.add(notes[i].id);
+    }
+    lastCheckedNoteIndexRef.current = left;
+    playedNoteIdsRef.current = rebuilt;
+    lastHitCheckTimeRef.current = time;
+  }, []);
+
+  const scanEditorHitSounds = useCallback((time: number) => {
+    const notes = sortedNotesByTimeRef.current;
+    if (notes.length === 0) return;
+
+    if (time < lastHitCheckTimeRef.current) {
+      resetEditorHitCursor(time);
+    }
+
+    let idx = lastCheckedNoteIndexRef.current;
+    let crossedNoteCount = 0;
+
+    while (idx < notes.length && notes[idx].time <= time) {
+      if (!playedNoteIdsRef.current.has(notes[idx].id)) {
+        playedNoteIdsRef.current.add(notes[idx].id);
+        crossedNoteCount++;
+      }
+      idx++;
+    }
+
+    lastCheckedNoteIndexRef.current = idx;
+    lastHitCheckTimeRef.current = time;
+
+    if (crossedNoteCount > 0) {
+      playHitSound();
+    }
+  }, [playHitSound, resetEditorHitCursor]);
+
   // --- 에디터 전용 타이머(재생선 시간 소스) ---
   // 매 프레임 상태 업데이트 (모니터 주사율에 맞춤)
   const internalTimeRef = useRef<number>(0);
@@ -501,6 +567,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
       if (deltaMs > 0) {
         internalTimeRef.current = Math.max(0, internalTimeRef.current + deltaMs);
+        scanEditorHitSounds(internalTimeRef.current);
         const shouldCommitUi =
           lastUiCommitTimestampRef.current === null ||
           timestamp - lastUiCommitTimestampRef.current >= EDITOR_UI_COMMIT_INTERVAL_MS;
@@ -528,7 +595,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       // 최종 시간 동기화
       setCurrentTime(internalTimeRef.current);
        };
-  }, [isPlaying, playbackSpeed]);
+  }, [isPlaying, playbackSpeed, scanEditorHitSounds]);
 
   useEffect(() => {
     if (!isPlaying) {
@@ -580,10 +647,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     timelineContentHeight,
   });
 
-  const sortedNotesByTime = useMemo(() => {
-    return [...notes].sort((a, b) => a.time - b.time);
-  }, [notes]);
-
   const songInfo = useMemo(() => {
     const durationSeconds = timelineDurationMs / 1000;
     const totalBeats = calculateTotalBeatsWithChanges(
@@ -620,82 +683,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     [beatDuration, gridDivision, timeSignatureOffset, clampTime]
   );
 
-  // --- 재생선이 지나간 노트에 키음 재생 (인덱스 기반 최적화) ---
-  // 이진 탐색으로 현재 시간에 해당하는 노트 인덱스를 찾는 헬퍼
-  const findNoteIndexAtTime = useCallback((time: number): number => {
-    const notes = sortedNotesByTime;
-    if (notes.length === 0) return 0;
-
-    let left = 0;
-    let right = notes.length;
-    while (left < right) {
-      const mid = Math.floor((left + right) / 2);
-      if (notes[mid].time < time) {
-        left = mid + 1;
-      } else {
-        right = mid;
-      }
-    }
-    return left;
-  }, [sortedNotesByTime]);
-
   // 재생이 멈춰 있는 동안 재생선을 옮기면 인덱스 재설정
   useEffect(() => {
     if (!isPlaying) {
-      // 현재 시간 이전의 노트는 이미 재생된 것으로 간주
-      const newIndex = findNoteIndexAtTime(currentTime);
-      lastCheckedNoteIndexRef.current = newIndex;
-
-      // Set도 재구성 (필요시)
-      const rebuilt = new Set<number>();
-      for (let i = 0; i < newIndex; i++) {
-        rebuilt.add(sortedNotesByTime[i].id);
-      }
-      playedNoteIdsRef.current = rebuilt;
-      lastHitCheckTimeRef.current = currentTime;
+      resetEditorHitCursor(currentTime);
     }
-  }, [isPlaying, currentTime, sortedNotesByTime, findNoteIndexAtTime]);
-
-  // 재생 중에 재생선이 뒤로 이동하면 인덱스 재설정
-  useEffect(() => {
-    if (!isPlaying) return;
-    const lastTime = lastHitCheckTimeRef.current;
-    if (currentTime < lastTime) {
-      // 뒤로 이동했으면 인덱스 재설정
-      const newIndex = findNoteIndexAtTime(currentTime);
-      lastCheckedNoteIndexRef.current = newIndex;
-
-      const rebuilt = new Set<number>();
-      for (let i = 0; i < newIndex; i++) {
-        rebuilt.add(sortedNotesByTime[i].id);
-      }
-      playedNoteIdsRef.current = rebuilt;
-    }
-    lastHitCheckTimeRef.current = currentTime;
-  }, [isPlaying, currentTime, sortedNotesByTime, findNoteIndexAtTime]);
-
-  // 노트가 currentTime을 지나면 재생 (인덱스 기반으로 O(1)~O(k) 최적화)
-  useEffect(() => {
-    if (!isPlaying) return;
-
-    const notes = sortedNotesByTime;
-    let idx = lastCheckedNoteIndexRef.current;
-    let crossedNoteCount = 0;
-
-    // 현재 시간까지의 노트만 확인 (이미 지나간 인덱스부터 시작)
-    while (idx < notes.length && notes[idx].time <= currentTime) {
-      if (!playedNoteIdsRef.current.has(notes[idx].id)) {
-        playedNoteIdsRef.current.add(notes[idx].id);
-        crossedNoteCount++;
-      }
-      idx++;
-    }
-    lastCheckedNoteIndexRef.current = idx;
-
-    if (crossedNoteCount > 0) {
-      playHitSound();
-    }
-  }, [currentTime, isPlaying, sortedNotesByTime, playHitSound]);
+  }, [isPlaying, currentTime, resetEditorHitCursor]);
 
   // --- 자동 저장 ---
   const autoSaveData = useMemo(
@@ -1614,8 +1607,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     const time = clampTime(yToTime(clickY));
     setIsPlaying(false);
     setCurrentTime(time);
+    resetEditorHitCursor(time);
     seekTo(time, { shouldPause: true }); // shouldPause: true로 전달하여 재생 방지
-  }, [clampTime, yToTime, seekTo]);
+  }, [clampTime, yToTime, seekTo, resetEditorHitCursor]);
 
   const handleLaneInput = useCallback((lane: Lane) => {
     // 현재 시간을 그리드에 스냅해서 노트가 가로선에 맞게 설치되도록 함
@@ -1711,9 +1705,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     if (newTime === null) return null;
 
     internalTimeRef.current = newTime;
+    resetEditorHitCursor(newTime);
     setCurrentTime(newTime);
     return newTime;
-  }, [getTimeAtTimelineClientY]);
+  }, [getTimeAtTimelineClientY, resetEditorHitCursor]);
 
   const scheduleDraggedPlayheadTimeUpdate = useCallback(() => {
     if (dragPlayheadRafIdRef.current !== null) return;
