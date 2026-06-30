@@ -27,13 +27,11 @@ import { useChartLoader } from '../hooks/useChartLoader';
 import { GameMenu } from './GameMenu';
 import { GameEndScreen } from './GameEndScreen';
 import { FpsHud } from './FpsHud';
-import { GameplaySlotHud } from './GameplaySlotHud';
 import { TutorialScreen } from './TutorialScreen';
 import { CalibrationGame } from './CalibrationGame';
 import { GameplayRuntimeLayer } from './GameplayRuntimeLayer';
 import { GAME_VIEW_WIDTH, GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 import { buildPlayfieldGeometry } from '../constants/gameVisualSettings';
-import { KEY_LANE_HEIGHT } from '../constants/gameVisualSettings';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 import { api, ApiChart } from '../lib/api';
 import { chartAPI } from '../lib/supabaseClient';
@@ -805,15 +803,6 @@ export const Game: React.FC = () => {
     !gameState.gameEnded;
   const activeBgaMaskOpacity = isGameplayActive ? bgaMaskOpacity : 0;
   const activeLaneUiVisible = isGameplayActive ? isLaneUiVisible : true;
-  const useSlotHud = playfieldGeometry.slotHudEnabled;
-  const slotHudProgress =
-    dynamicGameDuration > 0
-      ? Math.min(100, Math.max(0, (gameState.currentTime / dynamicGameDuration) * 100))
-      : 0;
-  const slotHudTopPx = (playfieldGeometry.keyLaneY + KEY_LANE_HEIGHT + 8) * stageScale;
-  const slotHudLeftPx = playfieldGeometry.laneGroupLeft * stageScale;
-  const slotHudWidthPx = playfieldGeometry.laneGroupWidth * stageScale;
-  const slotHudOpacity = playfieldGeometry.slotHudOpacity;
   const gameplayStageBackdropAlpha = 0.16;
   const gameplayStageBorderAlpha = 0.14;
   const gameplayStageShadowAlpha = 0.26;
@@ -1192,20 +1181,6 @@ export const Game: React.FC = () => {
         />
       )}
 
-          {isGameplayActive && useSlotHud && (
-            <GameplaySlotHud
-              laneGroupLeft={slotHudLeftPx}
-              laneGroupWidth={slotHudWidthPx}
-              top={slotHudTopPx}
-              combo={gameState.score.combo}
-              accuracy={accuracy}
-              progress={slotHudProgress}
-              currentTimeRef={currentTimeRef}
-              durationMs={dynamicGameDuration}
-              visible={activeLaneUiVisible}
-              opacity={slotHudOpacity}
-            />
-          )}
         </div>
       </div>
 

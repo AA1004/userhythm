@@ -82,6 +82,13 @@ const laneSetsEqual = (a: Set<Lane>, b: Set<Lane>) => {
   return true;
 };
 
+const GAMEPLAY_HUD_PAINT_EVENT = 'userhythm:gameplay-hud-paint';
+
+const requestGameplayHudPaint = () => {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event(GAMEPLAY_HUD_PAINT_EVENT));
+};
+
 export interface JudgeFeedback {
   id: number;
   judge: JudgeType;
@@ -114,6 +121,8 @@ export interface UseGameJudgingOptions {
   onTimingSample?: (sample: { diffMs: number; judge: JudgeType; source: 'tap' | 'holdRelease' }) => void;
   pressedKeySnapshotsEnabled?: boolean;
   comboSnapshotsEnabled?: boolean;
+  scoreSnapshotsEnabled?: boolean;
+  effectSnapshotsEnabled?: boolean;
 }
 
 export interface UseGameJudgingReturn {
@@ -146,6 +155,8 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     onTimingSample,
     pressedKeySnapshotsEnabled = true,
     comboSnapshotsEnabled = true,
+    scoreSnapshotsEnabled = true,
+    effectSnapshotsEnabled = true,
   } = options;
 
   const [pressedKeys, setPressedKeys] = useState<Set<Lane>>(new Set());
@@ -218,22 +229,22 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       }
 
       const shouldBumpHudRevision =
-        dirty.effects ||
+        (effectSnapshotsEnabled && dirty.effects) ||
         (!pressedKeySnapshotsEnabled && dirty.pressedKeys) ||
         (!comboSnapshotsEnabled && dirty.combo) ||
-        dirty.displayScore;
+        (scoreSnapshotsEnabled && dirty.displayScore);
 
       startTransition(() => {
-        if (nextPressedKeys) {
+        if (nextPressedKeys && pressedKeySnapshotsEnabled) {
           setPressedKeys((prev) => (laneSetsEqual(prev, nextPressedKeys) ? prev : nextPressedKeys));
         }
-        if (nextDisplayScore) {
+        if (nextDisplayScore && scoreSnapshotsEnabled) {
           setDisplayScore((prev) => (scoresEqual(prev, nextDisplayScore) ? prev : nextDisplayScore));
         }
-        if (nextCombo !== null) {
+        if (nextCombo !== null && comboSnapshotsEnabled) {
           setCombo((prev) => (prev === nextCombo ? prev : nextCombo));
         }
-        if (shouldBumpEffectsRevision) {
+        if (shouldBumpEffectsRevision && effectSnapshotsEnabled) {
           setEffectsRevision((prev) => prev + 1);
         }
         if (shouldBumpHudRevision) {
@@ -241,7 +252,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         }
       });
     });
-  }, [comboSnapshotsEnabled, pressedKeySnapshotsEnabled]);
+  }, [comboSnapshotsEnabled, effectSnapshotsEnabled, pressedKeySnapshotsEnabled, scoreSnapshotsEnabled]);
 
   const scheduleEffectCleanup = useCallback(() => {
     clearEffectCleanupTimer();
@@ -259,14 +270,16 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       const now = Date.now();
       judgeFeedbacksRef.current = judgeFeedbacksRef.current.filter((feedback) => feedback.expiresAt > now);
       keyEffectsRef.current = keyEffectsRef.current.filter((effect) => effect.expiresAt > now);
-      uiDirtyRef.current.effects = true;
-      scheduleUiCommit();
+      if (effectSnapshotsEnabled) {
+        uiDirtyRef.current.effects = true;
+        scheduleUiCommit();
+      }
       effectCleanupTimerRef.current = null;
       if (judgeFeedbacksRef.current.length > 0 || keyEffectsRef.current.length > 0) {
         scheduleEffectCleanup();
       }
     }, delayMs);
-  }, [clearEffectCleanupTimer, scheduleUiCommit]);
+  }, [clearEffectCleanupTimer, effectSnapshotsEnabled, scheduleUiCommit]);
 
   const updateScoreFromJudge = useCallback((judge: JudgeType, prevScore: GameState['score']): GameState['score'] => {
     const newScore = { ...prevScore };
@@ -317,8 +330,14 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       if (comboSnapshotsEnabled) {
         uiDirtyRef.current.combo = true;
       }
-      uiDirtyRef.current.displayScore = true;
-      scheduleUiCommit();
+      if (scoreSnapshotsEnabled) {
+        uiDirtyRef.current.displayScore = true;
+      }
+      if (comboSnapshotsEnabled || scoreSnapshotsEnabled) {
+        scheduleUiCommit();
+      } else {
+        requestGameplayHudPaint();
+      }
       gameStateRef.current = {
         ...gameStateRef.current,
         score: scoreRuntimeRef.current,
@@ -328,6 +347,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       comboSnapshotsEnabled,
       gameStateRef,
       scheduleUiCommit,
+      scoreSnapshotsEnabled,
       updateScoreFromJudge,
     ]
   );
@@ -349,11 +369,15 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         ...keyEffectsRef.current.filter((effect) => effect.lane !== lane),
         { id: effectId, lane, x: effectX, y: effectY, judge, expiresAt: effectExpiresAt },
       ].slice(-4);
-      uiDirtyRef.current.effects = true;
-      scheduleUiCommit();
+      if (effectSnapshotsEnabled) {
+        uiDirtyRef.current.effects = true;
+        scheduleUiCommit();
+      } else {
+        requestGameplayHudPaint();
+      }
       scheduleEffectCleanup();
     },
-    [gameStateRef, laneCenters, judgeLineY, scheduleUiCommit, scheduleEffectCleanup]
+    [effectSnapshotsEnabled, gameStateRef, laneCenters, judgeLineY, scheduleUiCommit, scheduleEffectCleanup]
   );
 
   const handleKeyPress = useCallback(
@@ -365,8 +389,12 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         const nextPressedKeys = new Set(pressedKeysRef.current);
         nextPressedKeys.add(lane);
         pressedKeysRef.current = nextPressedKeys;
-        uiDirtyRef.current.pressedKeys = true;
-        scheduleUiCommit();
+        if (pressedKeySnapshotsEnabled) {
+          uiDirtyRef.current.pressedKeys = true;
+          scheduleUiCommit();
+        } else {
+          requestGameplayHudPaint();
+        }
       }
 
       const currentTime = currentTimeRef.current - timingOffsetMs;
@@ -466,8 +494,12 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         const nextPressedKeys = new Set(pressedKeysRef.current);
         nextPressedKeys.delete(lane);
         pressedKeysRef.current = nextPressedKeys;
-        uiDirtyRef.current.pressedKeys = true;
-        scheduleUiCommit();
+        if (pressedKeySnapshotsEnabled) {
+          uiDirtyRef.current.pressedKeys = true;
+          scheduleUiCommit();
+        } else {
+          requestGameplayHudPaint();
+        }
       }
 
       const nextHoldingNotes = new Map(holdingNotesRef.current);

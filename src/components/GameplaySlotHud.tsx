@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { GameState } from '../types/game';
 
 interface GameplaySlotHudProps {
   laneGroupLeft: number;
@@ -8,12 +9,20 @@ interface GameplaySlotHudProps {
   accuracy: number;
   progress: number;
   currentTimeRef?: React.MutableRefObject<number>;
+  scoreRuntimeRef?: React.MutableRefObject<GameState['score']>;
   durationMs?: number;
   visible: boolean;
   opacity?: number;
 }
 
 const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
+const GAMEPLAY_HUD_PAINT_EVENT = 'userhythm:gameplay-hud-paint';
+
+const calculateAccuracy = (score: GameState['score']) => {
+  const total = score.perfect + score.great + score.good + score.miss;
+  if (total === 0) return 100;
+  return ((score.perfect + score.great * 0.7 + score.good * 0.3) / total) * 100;
+};
 
 const GameplaySlotHudComponent: React.FC<GameplaySlotHudProps> = ({
   laneGroupLeft,
@@ -23,40 +32,69 @@ const GameplaySlotHudComponent: React.FC<GameplaySlotHudProps> = ({
   accuracy,
   progress,
   currentTimeRef,
+  scoreRuntimeRef,
   durationMs = 0,
   visible,
   opacity = 1,
 }) => {
+  const comboValueRef = useRef<HTMLSpanElement | null>(null);
+  const accuracyValueRef = useRef<HTMLSpanElement | null>(null);
   const progressValueRef = useRef<HTMLSpanElement | null>(null);
   const progressFillRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (!currentTimeRef || durationMs <= 0 || !visible) return;
+    if (!visible) return;
 
     let timerId: number | null = null;
     let lastRendered = -1;
-    const tick = () => {
-      const nextProgress = clampPercent((currentTimeRef.current / durationMs) * 100);
-      const rounded = Math.round(nextProgress * 10) / 10;
-      if (Math.abs(rounded - lastRendered) >= 0.1) {
-        lastRendered = rounded;
-        if (progressValueRef.current) {
-          progressValueRef.current.textContent = `${rounded.toFixed(1)}%`;
-        }
-        if (progressFillRef.current) {
-          progressFillRef.current.style.transform = `scaleX(${nextProgress / 100})`;
+    let lastCombo = -1;
+    let lastAccuracy = -1;
+
+    const renderScore = () => {
+      if (!scoreRuntimeRef) return;
+      const score = scoreRuntimeRef.current;
+      const nextAccuracy = Math.round(calculateAccuracy(score) * 100) / 100;
+      if (score.combo !== lastCombo) {
+        lastCombo = score.combo;
+        if (comboValueRef.current) {
+          comboValueRef.current.textContent = String(score.combo);
         }
       }
+      if (Math.abs(nextAccuracy - lastAccuracy) >= 0.01) {
+        lastAccuracy = nextAccuracy;
+        if (accuracyValueRef.current) {
+          accuracyValueRef.current.textContent = `${nextAccuracy.toFixed(2)}%`;
+        }
+      }
+    };
+
+    const tick = () => {
+      if (currentTimeRef && durationMs > 0) {
+        const nextProgress = clampPercent((currentTimeRef.current / durationMs) * 100);
+        const rounded = Math.round(nextProgress * 10) / 10;
+        if (Math.abs(rounded - lastRendered) >= 0.1) {
+          lastRendered = rounded;
+          if (progressValueRef.current) {
+            progressValueRef.current.textContent = `${rounded.toFixed(1)}%`;
+          }
+          if (progressFillRef.current) {
+            progressFillRef.current.style.transform = `scaleX(${nextProgress / 100})`;
+          }
+        }
+      }
+      renderScore();
     };
 
     tick();
     timerId = window.setInterval(tick, 100);
+    window.addEventListener(GAMEPLAY_HUD_PAINT_EVENT, renderScore);
     return () => {
+      window.removeEventListener(GAMEPLAY_HUD_PAINT_EVENT, renderScore);
       if (timerId !== null) {
         window.clearInterval(timerId);
       }
     };
-  }, [currentTimeRef, durationMs, visible]);
+  }, [currentTimeRef, durationMs, scoreRuntimeRef, visible]);
 
   if (!visible) return null;
 
@@ -77,7 +115,7 @@ const GameplaySlotHudComponent: React.FC<GameplaySlotHudProps> = ({
       <div className="slot-hud__cells">
         <div className="slot-hud__cell">
           <span className="slot-hud__label">COMBO</span>
-          <span className="slot-hud__value">{combo}</span>
+          <span ref={comboValueRef} className="slot-hud__value">{combo}</span>
         </div>
         <div className="slot-hud__cell">
           <span className="slot-hud__label">PROGRESS</span>
@@ -85,7 +123,7 @@ const GameplaySlotHudComponent: React.FC<GameplaySlotHudProps> = ({
         </div>
         <div className="slot-hud__cell">
           <span className="slot-hud__label">ACCURACY</span>
-          <span className="slot-hud__value">{clampedAccuracy.toFixed(2)}%</span>
+          <span ref={accuracyValueRef} className="slot-hud__value">{clampedAccuracy.toFixed(2)}%</span>
         </div>
       </div>
       <div className="slot-hud__progress-track" aria-hidden="true">
@@ -109,6 +147,7 @@ export const GameplaySlotHud = React.memo(
     Math.abs(prev.accuracy - next.accuracy) < 0.005 &&
     Math.abs(prev.progress - next.progress) < 0.05 &&
     prev.currentTimeRef === next.currentTimeRef &&
+    prev.scoreRuntimeRef === next.scoreRuntimeRef &&
     prev.durationMs === next.durationMs &&
     prev.visible === next.visible &&
     prev.opacity === next.opacity

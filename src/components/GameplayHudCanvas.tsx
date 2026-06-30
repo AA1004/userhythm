@@ -35,6 +35,7 @@ const judgeColors: Record<JudgeType, { main: string; soft: string }> = {
 
 const laneChromeCache = new Map<string, HTMLCanvasElement>();
 const GAMEPLAY_HUD_CANVAS_DPR_LIMIT = 1;
+const GAMEPLAY_HUD_PAINT_EVENT = 'userhythm:gameplay-hud-paint';
 
 const easeOutExpo = (t: number) => (t >= 1 ? 1 : 1 - 2 ** (-10 * t));
 
@@ -539,9 +540,10 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
       }
     };
 
-    if (frameIdRef.current !== null) {
-      cancelAnimationFrame(frameIdRef.current);
-    }
+    const requestPaint = () => {
+      if (frameIdRef.current !== null) return;
+      frameIdRef.current = requestAnimationFrame(renderFrame);
+    };
 
     if (!visible && !shouldRenderHud) {
       ctx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasHeight);
@@ -549,8 +551,10 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
       return;
     }
 
-    frameIdRef.current = requestAnimationFrame(renderFrame);
+    requestPaint();
+    window.addEventListener(GAMEPLAY_HUD_PAINT_EVENT, requestPaint);
     return () => {
+      window.removeEventListener(GAMEPLAY_HUD_PAINT_EVENT, requestPaint);
       if (frameIdRef.current !== null) {
         cancelAnimationFrame(frameIdRef.current);
         frameIdRef.current = null;

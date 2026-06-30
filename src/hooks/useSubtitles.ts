@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef, type MutableRefObject } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect, type MutableRefObject } from 'react';
 import { SubtitleCue, SubtitleStyle, ensureSubtitleFontsReady } from '../types/subtitle';
 import { subtitleAPI, localSubtitleStorage } from '../lib/subtitleAPI';
 import { isSupabaseConfigured } from '../lib/supabaseClient';

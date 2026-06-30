@@ -6,9 +6,11 @@ import { useGameLoop } from '../hooks/useGameLoop';
 import { GamePlayArea } from './GamePlayArea';
 import { Score } from './Score';
 import { GameplayHudCanvas } from './GameplayHudCanvas';
+import { GameplaySlotHud } from './GameplaySlotHud';
 import { PlayfieldGeometry } from '../constants/gameVisualSettings';
 import { HitNoteIdsRef } from '../utils/noteRuntimeState';
 import { START_DELAY_MS } from '../constants/gameConstants';
+import { KEY_LANE_HEIGHT } from '../constants/gameVisualSettings';
 
 interface GameplayRuntimeLayerProps {
   gameState: GameState;
@@ -80,6 +82,8 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
     timingOffsetMs,
     pressedKeySnapshotsEnabled: isLegacyHud,
     comboSnapshotsEnabled: isLegacyHud,
+    scoreSnapshotsEnabled: isLegacyHud,
+    effectSnapshotsEnabled: isLegacyHud,
   });
 
   useKeyboard(
@@ -102,6 +106,11 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
   );
 
   const useSlotHud = playfieldGeometry.slotHudEnabled;
+  const slotHudTop = playfieldGeometry.keyLaneY + KEY_LANE_HEIGHT + 8;
+  const slotHudProgress =
+    durationMs > 0
+      ? Math.min(100, Math.max(0, (currentTimeRef.current / durationMs) * 100))
+      : 0;
   return (
     <>
       {isGameplayActive && bgaMaskOpacity < 1 && !useSlotHud && (
@@ -145,6 +154,22 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
         gameplayHudMode={playfieldGeometry.gameplayHudMode}
         durationMs={durationMs}
       />
+
+      {isGameplayActive && useSlotHud && (
+        <GameplaySlotHud
+          laneGroupLeft={playfieldGeometry.laneGroupLeft}
+          laneGroupWidth={playfieldGeometry.laneGroupWidth}
+          top={slotHudTop}
+          combo={scoreRuntimeRef.current.combo}
+          accuracy={100}
+          progress={slotHudProgress}
+          currentTimeRef={currentTimeRef}
+          scoreRuntimeRef={scoreRuntimeRef}
+          durationMs={durationMs}
+          visible={isLaneUiVisible}
+          opacity={playfieldGeometry.slotHudOpacity}
+        />
+      )}
     </>
   );
 };
