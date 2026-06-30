@@ -372,26 +372,26 @@ export const Game: React.FC = () => {
     handleRetest();
   }, [handleRetest]);
 
-  // currentTimeRef is the source time; this keeps end detection precise without top-level time renders.
+  // currentTimeRef is the source time. Use a one-shot timer instead of polling so
+  // chart-duration end checks do not add a steady gameplay interval.
   useEffect(() => {
     if (!gameState.gameStarted || gameState.gameEnded) return;
 
-    const tick = () => {
-      const shouldEndByChartDuration =
-        isFromEditor || !hasYoutubeAudioSession || !testYoutubeVideoId;
+    const shouldEndByChartDuration =
+      isFromEditor || !hasYoutubeAudioSession || !testYoutubeVideoId;
+    if (!shouldEndByChartDuration) return;
 
-      if (shouldEndByChartDuration && currentTimeRef.current >= dynamicGameDuration) {
-        finishCurrentGame();
-        if (hasYoutubeAudioSession && testYoutubePlayerReady) {
-          pauseYoutubePlayer();
-        }
+    const remainingMs = Math.max(0, dynamicGameDuration - currentTimeRef.current);
+    const timerId = window.setTimeout(() => {
+      if (!gameStateRef.current.gameStarted || gameStateRef.current.gameEnded) return;
+      finishCurrentGame();
+      if (hasYoutubeAudioSession && testYoutubePlayerReady) {
+        pauseYoutubePlayer();
       }
-    };
+    }, remainingMs + 20);
 
-    tick();
-    const timerId = window.setInterval(tick, 100);
     return () => {
-      window.clearInterval(timerId);
+      window.clearTimeout(timerId);
     };
   }, [
     gameState.gameStarted,
