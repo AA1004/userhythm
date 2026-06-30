@@ -442,8 +442,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
           const firstVisibleHoldIndex = binarySearchHoldEndIndex(renderNotes, holdIndicesByEnd, viewportStart);
           for (let holdCursor = firstVisibleHoldIndex; holdCursor < holdIndicesByEnd.length; holdCursor += 1) {
             const note = renderNotes[holdIndicesByEnd[holdCursor]];
-            if (note.time >= viewportStart) continue;
-            if (note.time > viewportEnd) break;
+            if (note.time > viewportEnd) continue;
             if (isNoteResolved(note, hitNoteIdsRef)) continue;
             const result = drawHoldNote(note);
             if (result === null) break;
@@ -459,32 +458,30 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
             const laneTextures = texturesByLane[note.lane];
             const isHoldNote = note.type === 'hold' && note.duration > 0;
 
-            if (!isHoldNote) {
-              const y = Math.max(
-                NOTE_SPAWN_Y,
-                Math.min(
-                  activeJudgeLineY,
-                  getEventY(note.time, currentTime, activeFallDuration, activeJudgeLineY)
-                )
-              );
-              const top = y - activeNoteHeight / 2;
-              if (
-                top > activeJudgeLineY + NOTE_RENDER_BUFFER ||
-                top + activeNoteHeight < -NOTE_RENDER_BUFFER
-              ) {
-                continue;
-              }
-              const sprite = nextSprite('tap', laneTextures.tap);
-              if (!sprite) break;
-              sprite.position.set(laneX - activeNoteWidth / 2, top + activePlayfieldTopOffset);
-              sprite.width = activeNoteWidth;
-              sprite.height = activeNoteHeight;
-              drawn += 1;
+            if (isHoldNote) {
               continue;
             }
 
-            const result = drawHoldNote(note);
-            if (result === null) break;
+            const y = Math.max(
+              NOTE_SPAWN_Y,
+              Math.min(
+                activeJudgeLineY,
+                getEventY(note.time, currentTime, activeFallDuration, activeJudgeLineY)
+              )
+            );
+            const top = y - activeNoteHeight / 2;
+            if (
+              top > activeJudgeLineY + NOTE_RENDER_BUFFER ||
+              top + activeNoteHeight < -NOTE_RENDER_BUFFER
+            ) {
+              continue;
+            }
+            const sprite = nextSprite('tap', laneTextures.tap);
+            if (!sprite) break;
+            sprite.position.set(laneX - activeNoteWidth / 2, top + activePlayfieldTopOffset);
+            sprite.width = activeNoteWidth;
+            sprite.height = activeNoteHeight;
+            drawn += 1;
           }
 
           hideUnusedSprites(spritePool, spriteCursor.value);
