@@ -24,6 +24,35 @@ interface ChartSelectProps {
 const DEFAULT_THUMBNAIL_ASPECT_RATIO = 16 / 9;
 const PREVIEW_VOLUME = 35;
 
+const hexToRgba = (hex: string, alpha: number) => {
+  const normalized = hex.replace('#', '');
+  const value = normalized.length === 3
+    ? normalized.split('').map((char) => char + char).join('')
+    : normalized;
+  const parsed = Number.parseInt(value, 16);
+  if (Number.isNaN(parsed)) return `rgba(97, 97, 97, ${alpha})`;
+  const red = (parsed >> 16) & 255;
+  const green = (parsed >> 8) & 255;
+  const blue = parsed & 255;
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+};
+
+const getDifficultyBadgeVisual = (difficulty?: string | null) => {
+  const color = getChartDifficultyColor(difficulty || 'Normal');
+  const glow = hexToRgba(color, 0.45);
+  const soft = hexToRgba(color, 0.2);
+  const deep = hexToRgba(color, 0.08);
+
+  return {
+    color,
+    background: `linear-gradient(135deg, ${soft}, rgba(8, 12, 24, 0.92) 54%, ${deep})`,
+    compactBackground: `linear-gradient(135deg, ${hexToRgba(color, 0.95)}, ${hexToRgba(color, 0.52)})`,
+    border: `1px solid ${hexToRgba(color, 0.72)}`,
+    shadow: `0 0 18px ${hexToRgba(color, 0.24)}, inset 0 1px 0 rgba(255,255,255,0.16)`,
+    textShadow: `0 1px 10px ${glow}`,
+  };
+};
+
 const preferHighResolutionYouTubeThumbnail = (url: string | null) => {
   if (!url) return null;
   return url.replace(
@@ -729,6 +758,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   const hasSelectedChart = Boolean(selectedChart);
   const currentDifficultyDisplay = adminDifficultyValue || ((selectedChart as any)?._displayDifficulty as string | undefined) || '미지정';
   const currentDifficultyColor = getChartDifficultyColor(currentDifficultyDisplay === '미지정' ? 'Normal' : currentDifficultyDisplay);
+  const currentDifficultyVisual = getDifficultyBadgeVisual(currentDifficultyDisplay === '미지정' ? 'Normal' : currentDifficultyDisplay);
   const leaderboardHint =
     chartStatus === 'wip'
       ? '제작 중인 채보는 테스트 플레이만 가능하며 리더보드와 플레이 횟수에 반영되지 않습니다.'
@@ -749,20 +779,34 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               onClick={() => setIsDifficultyMenuOpen((prev) => !prev)}
               style={{
                 width: '100%',
-                padding: '9px 12px',
-                borderRadius: CHART_EDITOR_THEME.radiusSm,
-                border: `1px solid ${currentDifficultyColor}`,
-                background: `${currentDifficultyColor}22`,
-                color: currentDifficultyColor,
+                padding: '10px 13px',
+                borderRadius: '14px',
+                border: currentDifficultyVisual.border,
+                background: currentDifficultyVisual.background,
+                color: '#f8fafc',
                 fontWeight: 700,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 gap: '10px',
+                boxShadow: currentDifficultyVisual.shadow,
+                textShadow: currentDifficultyVisual.textShadow,
               }}
             >
-              <span>{currentDifficultyDisplay}</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '999px',
+                    background: currentDifficultyColor,
+                    boxShadow: `0 0 12px ${currentDifficultyColor}`,
+                  }}
+                />
+                {currentDifficultyDisplay}
+              </span>
               <span style={{ fontSize: '11px', opacity: 0.9 }}>{isDifficultyMenuOpen ? '▲' : '▼'}</span>
             </button>
             {isDifficultyMenuOpen && (
@@ -801,27 +845,33 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 >
                   미지정
                 </button>
-                {ADMIN_CHART_DIFFICULTY_OPTIONS.map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => {
-                      setAdminDifficultyValue(value);
-                      setIsDifficultyMenuOpen(false);
-                    }}
-                    style={{
-                      padding: '8px 10px',
-                      borderRadius: CHART_EDITOR_THEME.radiusSm,
-                      border: `1px solid ${getChartDifficultyColor(value)}`,
-                      background: `${getChartDifficultyColor(value)}22`,
-                      color: getChartDifficultyColor(value),
-                      cursor: 'pointer',
-                      fontWeight: 700,
-                    }}
-                  >
-                    {value}
-                  </button>
-                ))}
+                {ADMIN_CHART_DIFFICULTY_OPTIONS.map((value) => {
+                  const visual = getDifficultyBadgeVisual(value);
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => {
+                        setAdminDifficultyValue(value);
+                        setIsDifficultyMenuOpen(false);
+                      }}
+                      style={{
+                        padding: '8px 10px',
+                        borderRadius: '12px',
+                        border: visual.border,
+                        background: visual.background,
+                        color: '#f8fafc',
+                        cursor: 'pointer',
+                        fontWeight: 900,
+                        letterSpacing: '0.03em',
+                        boxShadow: visual.shadow,
+                        textShadow: visual.textShadow,
+                      }}
+                    >
+                      {value}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -847,15 +897,28 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            padding: '8px 12px',
+            gap: '8px',
+            padding: '9px 13px',
             borderRadius: 999,
-            border: `1px solid ${currentDifficultyColor}`,
-            background: `${currentDifficultyColor}22`,
-            color: currentDifficultyColor,
+            border: currentDifficultyVisual.border,
+            background: currentDifficultyVisual.background,
+            color: '#f8fafc',
             fontSize: '15px',
-            fontWeight: 700,
+            fontWeight: 900,
+            boxShadow: currentDifficultyVisual.shadow,
+            textShadow: currentDifficultyVisual.textShadow,
           }}
         >
+          <span
+            aria-hidden="true"
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '999px',
+              background: currentDifficultyColor,
+              boxShadow: `0 0 12px ${currentDifficultyColor}`,
+            }}
+          />
           {currentDifficultyDisplay}
         </div>
       )}
@@ -1404,7 +1467,10 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 overflowY: 'visible',
               }}
             >
-              {charts.map((chart, index) => (
+              {charts.map((chart, index) => {
+                const displayDifficulty = (chart as any)._displayDifficulty || chart.difficulty || 'Normal';
+                const difficultyVisual = getDifficultyBadgeVisual(displayDifficulty);
+                return (
                 <div
                   key={chart.id}
                   className={`chart-select-card${selectedChart?.id === chart.id ? ' chart-select-card--selected' : ''}`}
@@ -1515,8 +1581,11 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       left: 0,
                       right: 0,
                       bottom: 0,
-                      padding: '34px 14px 13px',
-                      background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.72) 64%, rgba(0,0,0,0.9) 100%)',
+                      padding: '46px 14px 13px',
+                      background: [
+                        'linear-gradient(180deg, transparent 0%, rgba(2,6,23,0.38) 34%, rgba(2,6,23,0.84) 78%, rgba(2,6,23,0.96) 100%)',
+                        'linear-gradient(90deg, rgba(0,0,0,0.52), transparent 58%)',
+                      ].join(', '),
                       display: 'flex',
                       alignItems: 'flex-end',
                       justifyContent: 'space-between',
@@ -1531,6 +1600,14 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                         fontWeight: 900,
                         lineHeight: 1.25,
                         minWidth: 0,
+                        padding: '7px 9px',
+                        borderRadius: '12px',
+                        background: 'linear-gradient(135deg, rgba(2,6,23,0.68), rgba(15,23,42,0.34))',
+                        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+                        overflow: 'hidden',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
                       }}
                     >
                       {chart.title}
@@ -1538,19 +1615,26 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     <span
                         style={{
                           flex: '0 0 auto',
-                          padding: '5px 8px',
-                          backgroundColor: getChartDifficultyColor((chart as any)._displayDifficulty || 'Normal'),
-                          borderRadius: CHART_EDITOR_THEME.radiusSm,
+                          minWidth: '46px',
+                          padding: '7px 10px',
+                          background: difficultyVisual.compactBackground,
+                          border: difficultyVisual.border,
+                          borderRadius: '12px',
                           color: '#fff',
                           fontSize: '11px',
-                          fontWeight: 800,
+                          fontWeight: 950,
+                          letterSpacing: '0.03em',
+                          textAlign: 'center',
+                          boxShadow: difficultyVisual.shadow,
+                          textShadow: difficultyVisual.textShadow,
                         }}
                       >
-                        {(chart as any)._displayDifficulty || chart.difficulty || 'Normal'}
+                        {displayDifficulty}
                     </span>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
