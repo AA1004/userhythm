@@ -515,8 +515,8 @@ const drawSlotHud = (
 export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   active,
   visible,
-  hudRevision,
-  effectsRevision,
+  hudRevision: _hudRevision,
+  effectsRevision: _effectsRevision,
   judgeFeedbackTop,
   judgeFeedbacksRef,
   keyEffectsRef,
@@ -538,7 +538,6 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   const gameplayHudModeRef = useRef(gameplayHudMode);
   const laneKeyLabelsRef = useRef(laneKeyLabels);
   const shouldRenderHud = gameplayHudMode !== 'legacy';
-  const isLiteMode = gameplayHudMode === 'new-lite';
   const canvasHeight = playfieldGeometry.slotHudEnabled
     ? Math.max(
         GAME_VIEW_HEIGHT,
@@ -695,15 +694,12 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   }, [
     canvasHeight,
     currentTimeRef,
-    effectsRevision,
     judgeFeedbacksRef,
     keyEffectsRef,
     pressedKeysRef,
     scoreRuntimeRef,
     shouldRenderHud,
     visible,
-    hudRevision,
-    isLiteMode,
     durationMs,
     playfieldGeometry.slotHudEnabled,
   ]);

@@ -230,8 +230,8 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
 
       const shouldBumpHudRevision =
         (effectSnapshotsEnabled && dirty.effects) ||
-        (!pressedKeySnapshotsEnabled && dirty.pressedKeys) ||
-        (!comboSnapshotsEnabled && dirty.combo) ||
+        (pressedKeySnapshotsEnabled && dirty.pressedKeys) ||
+        (comboSnapshotsEnabled && dirty.combo) ||
         (scoreSnapshotsEnabled && dirty.displayScore);
 
       startTransition(() => {
