@@ -54,6 +54,14 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   const lastElectronBgaStateAtRef = useRef(0);
   const userInteractedRef = useRef(false);
 
+  const isBgaTimelineReady = () => {
+    return !bgaCurrentTimeRef || bgaCurrentTimeRef.current >= 0;
+  };
+
+  const canPlayBgaNow = () => {
+    return Boolean(shouldPlayBga && bgaEnabled && videoId && isBgaTimelineReady());
+  };
+
   const getBgaCurrentSeconds = () => {
     if (bgaCurrentTimeRef && bgaAudioSettings) {
       return getAudioPositionSeconds(bgaCurrentTimeRef.current, bgaAudioSettings);
@@ -137,7 +145,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       visible: Boolean(videoId && bgaEnabled && bgaMaskOpacity < 1),
       opacity: Math.max(0, Math.min(1, 1 - bgaOpacity)),
       currentSeconds: getBgaCurrentSeconds() ?? 0,
-      shouldPlay: Boolean(shouldPlayBga && bgaEnabled && videoId),
+      shouldPlay: canPlayBgaNow(),
     });
   }, [videoId, bgaEnabled, bgaMaskOpacity, bgaOpacity, bgaCurrentSeconds, bgaCurrentTimeRef, bgaAudioSettings, shouldPlayBga]);
 
@@ -223,7 +231,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     if (!backgroundPlayer || !backgroundPlayerReadyRef.current) return;
 
     try {
-      if (shouldPlayBga && bgaEnabled && videoId) {
+      if (canPlayBgaNow()) {
         if (backgroundPlaybackEndedRef.current) return;
         backgroundPlayer.playVideo?.();
       } else {
@@ -235,6 +243,56 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     }
   }, [shouldPlayBga, bgaEnabled, videoId, backgroundPlayer]);
 
+  // 게임 시작 전 대기 시간(currentTime < 0)에는 BGA도 반드시 멈춘다.
+  // 0초 crossing은 React state가 아니므로 짧은 timeout으로 감시해 정확히 시작한다.
+  useEffect(() => {
+    if (!backgroundPlayer || !backgroundPlayerReadyRef.current) return;
+    if (!shouldPlayBga || !bgaEnabled || !videoId || !bgaCurrentTimeRef) return;
+    if (bgaCurrentTimeRef.current >= 0) return;
+
+    let timerId: number | null = null;
+    const waitForTimelineStart = () => {
+      if (!backgroundPlayerReadyRef.current || !backgroundPlayerRef.current) return;
+      if (!shouldPlayBga || !bgaEnabled || !videoId) return;
+
+      if (bgaCurrentTimeRef.current < 0) {
+        try {
+          backgroundPlayerRef.current.mute?.();
+          backgroundPlayerRef.current.pauseVideo?.();
+        } catch {
+          // ignore
+        }
+        timerId = window.setTimeout(waitForTimelineStart, 50);
+        return;
+      }
+
+      if (backgroundPlaybackEndedRef.current) return;
+      try {
+        const targetSeconds = getBgaCurrentSeconds() ?? 0;
+        backgroundPlayerRef.current.seekTo?.(targetSeconds, true);
+        backgroundPlayerRef.current.playVideo?.();
+        window.playerApi?.setBgaLayerState?.({
+          videoId,
+          visible: Boolean(videoId && bgaEnabled && bgaMaskOpacity < 1),
+          opacity: Math.max(0, Math.min(1, 1 - bgaOpacity)),
+          currentSeconds: targetSeconds,
+          shouldPlay: true,
+        });
+        lastBgaSeekRef.current = targetSeconds;
+        lastBgaSyncCheckAtRef.current = performance.now();
+      } catch {
+        // ignore
+      }
+    };
+
+    waitForTimelineStart();
+    return () => {
+      if (timerId !== null) {
+        window.clearTimeout(timerId);
+      }
+    };
+  }, [backgroundPlayer, shouldPlayBga, bgaEnabled, videoId, bgaCurrentTimeRef, bgaAudioSettings]);
+
   // 자동재생 정책 회피: 사용자 입력(pointerdown)이 들어오면 즉시 재생 시도
   useEffect(() => {
     if (!backgroundPlayer) return;
@@ -242,7 +300,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     const handlePointerDown = () => {
       userInteractedRef.current = true;
       if (!backgroundPlayerReadyRef.current) return;
-      if (!bgaEnabled || !videoId || !shouldPlayBga) return;
+      if (!canPlayBgaNow()) return;
 
       try {
         backgroundPlayer.playVideo?.();
@@ -268,8 +326,13 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       if (typeof currentTargetSeconds !== 'number') return;
 
       try {
-      const shouldProfile = isGameplayProfilerEnabled();
-      const syncStart = shouldProfile ? performance.now() : 0;
+        if (!isBgaTimelineReady()) {
+          backgroundPlayer.mute?.();
+          backgroundPlayer.pauseVideo?.();
+          return;
+        }
+        const shouldProfile = isGameplayProfilerEnabled();
+        const syncStart = shouldProfile ? performance.now() : 0;
       if (backgroundPlaybackEndedRef.current) {
         if (shouldProfile) {
           recordGameplayMetric('bgaSync', performance.now() - syncStart, 0);
