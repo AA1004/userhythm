@@ -7,12 +7,15 @@ import {
   ensureSubtitleFontsReady,
 } from '../../types/subtitle';
 import { CHART_EDITOR_THEME } from '../ChartEditor/constants';
+import { waitForYouTubeAPI, YOUTUBE_EMBED_HOST } from '../../utils/youtube';
 
 interface SubtitlePreviewCanvasProps {
   currentTimeMs: number;
   cues: SubtitleCue[];
   selectedCueId: string | null;
   onChangeCueStyle: (id: string, nextStyle: SubtitleStyle) => void;
+  youtubeVideoId?: string | null;
+  isPlaying?: boolean;
 }
 
 // 프리뷰 비율: 16:9 (넓은 화면)
@@ -30,11 +33,27 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
   cues,
   selectedCueId,
   onChangeCueStyle,
+  youtubeVideoId = null,
+  isPlaying = false,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
+  const bgaHostRef = useRef<HTMLDivElement | null>(null);
+  const bgaPlayerRef = useRef<any>(null);
+  const bgaReadyRef = useRef(false);
+  const wasBgaPlayingRef = useRef(false);
+  const latestTimeRef = useRef(currentTimeMs);
+  const latestPlayingRef = useRef(isPlaying);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [fontsReady, setFontsReady] = useState(false);
+
+  useEffect(() => {
+    latestTimeRef.current = currentTimeMs;
+  }, [currentTimeMs]);
+
+  useEffect(() => {
+    latestPlayingRef.current = isPlaying;
+  }, [isPlaying]);
 
   // 부모 컨테이너 크기 측정
   useEffect(() => {
@@ -68,6 +87,146 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
       mounted = false;
     };
   }, [cues]);
+
+  useEffect(() => {
+    if (!youtubeVideoId) {
+      bgaReadyRef.current = false;
+      wasBgaPlayingRef.current = false;
+      if (bgaPlayerRef.current) {
+        try {
+          bgaPlayerRef.current.destroy?.();
+        } catch {
+          // ignore
+        }
+        bgaPlayerRef.current = null;
+      }
+      if (bgaHostRef.current) {
+        bgaHostRef.current.innerHTML = '';
+      }
+      return;
+    }
+
+    const host = bgaHostRef.current;
+    if (!host) return;
+
+    let cancelled = false;
+    let playerInstance: any = null;
+
+    waitForYouTubeAPI().then(() => {
+      if (cancelled || !window.YT?.Player || !bgaHostRef.current) return;
+
+      if (bgaPlayerRef.current) {
+        try {
+          bgaPlayerRef.current.destroy?.();
+        } catch {
+          // ignore
+        }
+        bgaPlayerRef.current = null;
+      }
+
+      const mountNode = document.createElement('div');
+      mountNode.id = `subtitle-bga-preview-${youtubeVideoId}-${Date.now()}`;
+      mountNode.style.position = 'absolute';
+      mountNode.style.inset = '0';
+      mountNode.style.width = '100%';
+      mountNode.style.height = '100%';
+      bgaHostRef.current.innerHTML = '';
+      bgaHostRef.current.appendChild(mountNode);
+      bgaReadyRef.current = false;
+      wasBgaPlayingRef.current = false;
+
+      playerInstance = new window.YT.Player(mountNode as any, {
+        videoId: youtubeVideoId,
+        host: YOUTUBE_EMBED_HOST,
+        playerVars: {
+          autoplay: 0,
+          controls: 0,
+          mute: 1,
+          enablejsapi: 1,
+          rel: 0,
+          playsinline: 1,
+          fs: 0,
+          disablekb: 1,
+          iv_load_policy: 3,
+          modestbranding: 1,
+        } as any,
+        events: {
+          onReady: (event: any) => {
+            if (cancelled) return;
+            const player = event.target;
+            bgaPlayerRef.current = player;
+            bgaReadyRef.current = true;
+            try {
+              player.mute?.();
+              player.setVolume?.(0);
+              player.setPlaybackQuality?.('small');
+              player.seekTo?.(latestTimeRef.current / 1000, true);
+              if (latestPlayingRef.current) {
+                player.playVideo?.();
+                wasBgaPlayingRef.current = true;
+              } else {
+                player.pauseVideo?.();
+                wasBgaPlayingRef.current = false;
+              }
+            } catch {
+              // ignore
+            }
+          },
+        },
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      bgaReadyRef.current = false;
+      wasBgaPlayingRef.current = false;
+      const player = playerInstance || bgaPlayerRef.current;
+      if (player) {
+        try {
+          player.destroy?.();
+        } catch {
+          // ignore
+        }
+      }
+      if (bgaPlayerRef.current === player) {
+        bgaPlayerRef.current = null;
+      }
+      if (bgaHostRef.current) {
+        bgaHostRef.current.innerHTML = '';
+      }
+    };
+  }, [youtubeVideoId]);
+
+  useEffect(() => {
+    const player = bgaPlayerRef.current;
+    if (!player || !bgaReadyRef.current) return;
+
+    try {
+      player.mute?.();
+      if (isPlaying) {
+        if (!wasBgaPlayingRef.current) {
+          player.seekTo?.(latestTimeRef.current / 1000, true);
+        }
+        player.playVideo?.();
+      } else {
+        player.pauseVideo?.();
+      }
+      wasBgaPlayingRef.current = isPlaying;
+    } catch {
+      // ignore
+    }
+  }, [isPlaying]);
+
+  useEffect(() => {
+    const player = bgaPlayerRef.current;
+    if (!player || !bgaReadyRef.current || isPlaying) return;
+
+    try {
+      player.seekTo?.(currentTimeMs / 1000, true);
+    } catch {
+      // ignore
+    }
+  }, [currentTimeMs, isPlaying]);
 
   const getCueOpacity = useCallback((cue: SubtitleCue, timeMs: number) => {
     const style: SubtitleStyle = cue.style || ({} as SubtitleStyle);
@@ -314,6 +473,41 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
           border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
         }}
       >
+        {youtubeVideoId && (
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              overflow: 'hidden',
+              background: 'rgba(2,6,23,0.92)',
+              pointerEvents: 'none',
+              zIndex: 0,
+            }}
+          >
+            <div
+              ref={bgaHostRef}
+              style={{
+                position: 'absolute',
+                inset: '-8%',
+                width: '116%',
+                height: '116%',
+                opacity: 0.62,
+                filter: 'saturate(0.95) contrast(1.04)',
+                pointerEvents: 'none',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background:
+                  'linear-gradient(180deg, rgba(2,6,23,0.22), rgba(2,6,23,0.42)), radial-gradient(circle at 50% 48%, transparent 0%, rgba(2,6,23,0.28) 72%)',
+              }}
+            />
+          </div>
+        )}
+
         {/* 안내 텍스트 */}
         <div
           style={{
@@ -326,7 +520,7 @@ export const SubtitlePreviewCanvas: React.FC<SubtitlePreviewCanvasProps> = ({
             zIndex: 5,
           }}
         >
-          현재 시간: {(currentTimeMs / 1000).toFixed(2)}s
+          {youtubeVideoId ? 'BGA PREVIEW · ' : ''}현재 시간: {(currentTimeMs / 1000).toFixed(2)}s
         </div>
 
         {/* 게임 화면 영역 가이드 (5:8 비율) */}

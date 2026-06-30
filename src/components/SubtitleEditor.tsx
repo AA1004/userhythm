@@ -889,6 +889,8 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
               cues={subtitles}
               selectedCueId={selectedSubtitleId}
               onChangeCueStyle={(id, nextStyle) => handleChangeCueStyle(id, nextStyle)}
+              youtubeVideoId={chartData.youtubeVideoId ?? null}
+              isPlaying={isPlaying}
             />
             </div>
 
