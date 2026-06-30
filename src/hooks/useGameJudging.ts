@@ -381,10 +381,10 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       if (effectSnapshotsEnabled) {
         uiDirtyRef.current.effects = true;
         scheduleUiCommit();
+        scheduleEffectCleanup();
       } else {
         requestGameplayHudPaint();
       }
-      scheduleEffectCleanup();
     },
     [effectSnapshotsEnabled, gameStateRef, laneCenters, judgeLineY, scheduleUiCommit, scheduleEffectCleanup]
   );
