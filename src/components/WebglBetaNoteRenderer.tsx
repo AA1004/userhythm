@@ -276,6 +276,21 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
         spritePoolRef.current = spritePool;
         appRef.current = app;
 
+        const spriteCursor = { value: 0 };
+        const nextSprite = (kind: SpriteKind, texture: any) => {
+          const pool = spritePoolRef.current;
+          if (spriteCursor.value >= pool.length) return null;
+          const entry = pool[spriteCursor.value];
+          spriteCursor.value += 1;
+          if (entry.kind !== kind || entry.sprite.texture !== texture) {
+            entry.kind = kind;
+            entry.sprite.texture = texture;
+          }
+          entry.sprite.visible = true;
+          entry.sprite.alpha = 1;
+          return entry.sprite;
+        };
+
         app.ticker.add(() => {
           if (!visibleRef.current) {
             hideUnusedSprites(spritePoolRef.current, 0);
@@ -300,21 +315,8 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
           const viewportEnd = getNoteViewportEnd(currentTime, activeFallDuration);
           const startIndex = binarySearchStartIndex(renderNotes, viewportStart);
           const spritePool = spritePoolRef.current;
-          let cursor = 0;
+          spriteCursor.value = 0;
           let drawn = 0;
-
-          const nextSprite = (kind: SpriteKind, texture: any) => {
-            if (cursor >= spritePool.length) return null;
-            const entry = spritePool[cursor];
-            cursor += 1;
-            if (entry.kind !== kind || entry.sprite.texture !== texture) {
-              entry.kind = kind;
-              entry.sprite.texture = texture;
-            }
-            entry.sprite.visible = true;
-            entry.sprite.alpha = 1;
-            return entry.sprite;
-          };
 
           const textureCacheKey = textureSignatureRef.current;
           if (textureRef.current.cacheKey !== textureCacheKey) {
@@ -473,9 +475,9 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
             if (result === null) break;
           }
 
-          hideUnusedSprites(spritePool, cursor);
+          hideUnusedSprites(spritePool, spriteCursor.value);
           if (shouldProfile) {
-            recordGameplayMetric('spritePoolUpdate', performance.now() - poolStart, cursor);
+            recordGameplayMetric('spritePoolUpdate', performance.now() - poolStart, spriteCursor.value);
             recordGameplayMetric('webglRender', performance.now() - profileStart, drawn);
           }
         });
