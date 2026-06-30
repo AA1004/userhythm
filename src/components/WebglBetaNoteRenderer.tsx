@@ -329,6 +329,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
           const spritePool = spritePoolRef.current;
           spriteCursor.value = 0;
           let drawn = 0;
+          let spritePoolExhausted = false;
 
           const textureCacheKey = textureSignatureRef.current;
           if (textureRef.current.cacheKey !== textureCacheKey) {
@@ -382,7 +383,10 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
               'holdBody',
               isHolding ? laneTextures.holdBodyHolding : laneTextures.holdBodyIdle
             );
-            if (!bodySprite) return null;
+            if (!bodySprite) {
+              spritePoolExhausted = true;
+              return null;
+            }
             bodySprite.position.set(left, bodyTop + activePlayfieldTopOffset);
             bodySprite.width = activeNoteWidth;
             bodySprite.height = bodyHeight;
@@ -399,7 +403,10 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
                   'holdProgress',
                   isHolding ? laneTextures.holdProgressHolding : laneTextures.holdProgressIdle
                 );
-                if (!progressSprite) return null;
+                if (!progressSprite) {
+                  spritePoolExhausted = true;
+                  return null;
+                }
                 progressSprite.position.set(
                   left + activeNoteWidth * 0.18,
                   visibleProgressTop + activePlayfieldTopOffset
@@ -414,7 +421,10 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
               if (highlightTop + 12 >= visibleTop && highlightTop <= visibleBottom) {
                 const highlightSprite = nextSprite('holdHighlight', laneTextures.holdHighlight);
                 const highlightTexture = laneTextures.holdHighlight;
-                if (!highlightSprite) return null;
+                if (!highlightSprite) {
+                  spritePoolExhausted = true;
+                  return null;
+                }
                 if (highlightSprite.texture !== highlightTexture) {
                   highlightSprite.texture = highlightTexture;
                 }
@@ -433,7 +443,10 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
                 'holdHead',
                 isHolding ? laneTextures.holdHeadHolding : laneTextures.holdHeadIdle
               );
-              if (!headSprite) return null;
+              if (!headSprite) {
+                spritePoolExhausted = true;
+                return null;
+              }
               headSprite.position.set(left + 6, headTop + activePlayfieldTopOffset);
               headSprite.width = Math.max(1, activeNoteWidth - 12);
               headSprite.height = holdHeadHeight;
@@ -470,12 +483,16 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
             if (!note || note.time > viewportEnd || getNoteRenderEndTime(note) < viewportStart) {
               continue;
             }
-            if (isNoteResolved(note, hitNoteIdsRef)) continue;
+            if (isNoteResolved(note, hitNoteIdsRef)) {
+              activeHoldIndices.delete(noteIndex);
+              continue;
+            }
             const result = drawHoldNote(note);
             if (result === null) break;
           }
 
           for (let i = startIndex; i < renderNotes.length; i += 1) {
+            if (spritePoolExhausted) break;
             const note = renderNotes[i];
             if (note.time > viewportEnd) break;
             if (isNoteResolved(note, hitNoteIdsRef)) continue;
@@ -504,7 +521,10 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
               continue;
             }
             const sprite = nextSprite('tap', laneTextures.tap);
-            if (!sprite) break;
+            if (!sprite) {
+              spritePoolExhausted = true;
+              break;
+            }
             sprite.position.set(laneX - activeNoteWidth / 2, top + activePlayfieldTopOffset);
             sprite.width = activeNoteWidth;
             sprite.height = activeNoteHeight;
