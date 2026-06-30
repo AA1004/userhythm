@@ -344,6 +344,9 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
             zIndex: 0,
             opacity: 1 - bgaOpacity,
             pointerEvents: 'none', // 배경은 클릭 불가, 게임 영역만 인터랙션
+            contain: 'layout style paint',
+            isolation: 'isolate',
+            transform: 'translateZ(0)',
           }}
         >
           {/* 화면에 딱 맞게 배치 */}
@@ -357,17 +360,19 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
             }}
           />
           {/* 여백과 영상 경계를 자연스럽게 블렌딩하는 그라디언트 마스크 */}
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: `
-                linear-gradient(to right, rgba(15,23,42,0.6) 0%, transparent 8%, transparent 92%, rgba(15,23,42,0.6) 100%),
-                linear-gradient(to bottom, rgba(15,23,42,0.6) 0%, transparent 8%, transparent 92%, rgba(15,23,42,0.6) 100%)
-              `,
-              pointerEvents: 'none',
-            }}
-          />
+          {!shouldPlayBga && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: `
+                  linear-gradient(to right, rgba(15,23,42,0.6) 0%, transparent 8%, transparent 92%, rgba(15,23,42,0.6) 100%),
+                  linear-gradient(to bottom, rgba(15,23,42,0.6) 0%, transparent 8%, transparent 92%, rgba(15,23,42,0.6) 100%)
+                `,
+                pointerEvents: 'none',
+              }}
+            />
+          )}
         </div>
       )}
 
@@ -380,8 +385,12 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
           inset: 0,
           zIndex: 1,
           background: videoId && bgaEnabled
-            ? 'radial-gradient(circle at top, rgba(15,23,42,0.35), rgba(15,23,42,0.92))'
+            ? shouldPlayBga
+              ? 'rgba(15, 23, 42, 0.42)'
+              : 'radial-gradient(circle at top, rgba(15,23,42,0.35), rgba(15,23,42,0.92))'
             : 'var(--ur-stage-background)',
+          contain: 'layout style paint',
+          transform: 'translateZ(0)',
         }}
       />
       )}
