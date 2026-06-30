@@ -145,6 +145,27 @@ const hideUnusedSprites = (pool: SpriteEntry[], used: number) => {
   }
 };
 
+const destroyTextureCache = (cache: Record<string, any>) => {
+  const laneTextures = cache.byLane;
+  if (!Array.isArray(laneTextures)) return;
+
+  const uniqueTextures = new Set<any>();
+  for (const textures of laneTextures) {
+    if (!textures || typeof textures !== 'object') continue;
+    for (const texture of Object.values(textures)) {
+      if (texture) uniqueTextures.add(texture);
+    }
+  }
+
+  for (const texture of uniqueTextures) {
+    try {
+      texture.destroy?.(true);
+    } catch {
+      // Pixi texture cleanup should never break gameplay fallback.
+    }
+  }
+};
+
 const getTextureSignature = (
   noteWidth: number,
   noteHeight: number,
@@ -333,6 +354,13 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
 
           const textureCacheKey = textureSignatureRef.current;
           if (textureRef.current.cacheKey !== textureCacheKey) {
+            if (textureRef.current.byLane) {
+              for (const entry of spritePool) {
+                entry.sprite.visible = false;
+                entry.sprite.texture = (pixi as any).Texture.WHITE;
+              }
+              destroyTextureCache(textureRef.current);
+            }
             const makeTexture = (kind: SpriteKind, width: number, height: number, holding: boolean, noteColor: NoteColorRgb) =>
               (pixi as any).Texture.from(makeTextureCanvas(kind, width, height, holding, noteColor));
             textureRef.current = {
@@ -547,6 +575,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
     return () => {
       disposed = true;
       if (appRef.current) {
+        destroyTextureCache(textureRef.current);
         appRef.current.destroy(true);
         appRef.current = null;
         stageRef.current = null;
