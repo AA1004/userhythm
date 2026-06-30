@@ -37,6 +37,7 @@ export function useTestYoutubePlayer({
   onPlaybackEnded,
 }: UseTestYoutubePlayerOptions): UseTestYoutubePlayerReturn {
   const [player, setPlayer] = useState<any>(null);
+  const [isReady, setIsReady] = useState(false);
   const playerRef = useRef<HTMLDivElement>(null);
   const playerReadyRef = useRef(false);
   const audioHasStartedRef = useRef(false);
@@ -68,6 +69,7 @@ export function useTestYoutubePlayer({
     if (externalPlayer && audioSessionActive && videoId) {
       setPlayer(externalPlayer);
       playerReadyRef.current = true;
+      setIsReady(true);
       isExternalPlayerRef.current = true;
       // 새 게임 시작이므로 오디오 상태 리셋
       audioHasStartedRef.current = false;
@@ -114,6 +116,7 @@ export function useTestYoutubePlayer({
       }
       setPlayer(null);
       playerReadyRef.current = false;
+      setIsReady(false);
     };
 
     // 기존 플레이어 정리
@@ -124,6 +127,7 @@ export function useTestYoutubePlayer({
       return null;
     });
     playerReadyRef.current = false;
+    setIsReady(false);
     // 새 게임 시작이므로 오디오 상태 리셋
     audioHasStartedRef.current = false;
     audioPlaybackEndedRef.current = false;
@@ -174,6 +178,7 @@ export function useTestYoutubePlayer({
 
               const player = event.target;
               playerReadyRef.current = true;
+              setIsReady(true);
               setPlayer(player);
               playerInstance = player;
 
@@ -412,6 +417,7 @@ export function useTestYoutubePlayer({
     }
     setPlayer(null);
     playerReadyRef.current = false;
+    setIsReady(false);
     isExternalPlayerRef.current = false;
     if (playerRef.current) {
       playerRef.current.innerHTML = '';
@@ -420,7 +426,7 @@ export function useTestYoutubePlayer({
 
   return {
     playerRef,
-    isReady: playerReadyRef.current,
+    isReady,
     pause,
     destroy,
   };
