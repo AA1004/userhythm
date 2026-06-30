@@ -14,15 +14,17 @@ export const FpsHud: React.FC<FpsHudProps> = ({ enabled = true }) => {
   const lastFrameTimeRef = useRef<number>(0);
   const smoothedFpsRef = useRef<number>(0);
   const frameCountRef = useRef<number>(0);
-  const samplesRef = useRef<number[]>([]);
+  const samplesRef = useRef<Float32Array>(new Float32Array(480));
+  const sampleCursorRef = useRef(0);
+  const sampleCountRef = useRef(0);
   const maxFrameMsRef = useRef<number>(0);
   const lastUpdateTimeRef = useRef<number>(0);
   const rafIdRef = useRef<number>();
 
   // EMA 스무딩 계수 (0.1 = 최근 값에 10% 가중치)
   const EMA_ALPHA = 0.1;
-  // HUD 업데이트 주기 (ms) - 4~10Hz 정도로 제한
-  const UPDATE_INTERVAL_MS = 200; // 5Hz
+  // HUD 업데이트 주기. 240Hz 플레이 중 정렬/DOM 갱신 비용을 낮추기 위해 2Hz로 제한.
+  const UPDATE_INTERVAL_MS = 500;
 
   useEffect(() => {
     if (!enabled) {
@@ -49,10 +51,9 @@ export const FpsHud: React.FC<FpsHudProps> = ({ enabled = true }) => {
         // instant FPS 계산
         const instantFps = 1000 / deltaTime;
         maxFrameMsRef.current = Math.max(maxFrameMsRef.current, deltaTime);
-        samplesRef.current.push(instantFps);
-        if (samplesRef.current.length > 300) {
-          samplesRef.current.shift();
-        }
+        samplesRef.current[sampleCursorRef.current] = instantFps;
+        sampleCursorRef.current = (sampleCursorRef.current + 1) % samplesRef.current.length;
+        sampleCountRef.current = Math.min(sampleCountRef.current + 1, samplesRef.current.length);
         
         // EMA로 스무딩
         smoothedFpsRef.current = smoothedFpsRef.current === 0
@@ -65,9 +66,10 @@ export const FpsHud: React.FC<FpsHudProps> = ({ enabled = true }) => {
       // 주기적으로만 setState로 업데이트 (과도한 리렌더 방지)
       const timeSinceLastUpdate = timestamp - lastUpdateTimeRef.current;
       if (timeSinceLastUpdate >= UPDATE_INTERVAL_MS) {
-        const samples = [...samplesRef.current].sort((a, b) => a - b);
-        if (samples.length > 0) {
-          const lowIndex = Math.max(0, Math.floor(samples.length * 0.01));
+        const sampleCount = sampleCountRef.current;
+        if (sampleCount > 0) {
+          const samples = Array.from(samplesRef.current.subarray(0, sampleCount)).sort((a, b) => a - b);
+          const lowIndex = Math.max(0, Math.floor(sampleCount * 0.01));
           const fps = Math.round(smoothedFpsRef.current);
           const minFps = Math.round(samples[0]);
           const lowFps = Math.round(samples[lowIndex]);
@@ -94,7 +96,9 @@ export const FpsHud: React.FC<FpsHudProps> = ({ enabled = true }) => {
       lastFrameTimeRef.current = 0;
       smoothedFpsRef.current = 0;
       frameCountRef.current = 0;
-      samplesRef.current = [];
+      samplesRef.current = new Float32Array(480);
+      sampleCursorRef.current = 0;
+      sampleCountRef.current = 0;
       maxFrameMsRef.current = 0;
     };
   }, [enabled]);
