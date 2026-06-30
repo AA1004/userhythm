@@ -326,6 +326,30 @@ export const Game: React.FC = () => {
     ));
   }, []);
 
+  const gameplayActiveForAudio = gameState.gameStarted && !gameState.gameEnded;
+  const [isYoutubeAudioMountReady, setIsYoutubeAudioMountReady] = useState(false);
+  useEffect(() => {
+    if (!gameplayActiveForAudio || !hasYoutubeAudioSession) {
+      setIsYoutubeAudioMountReady(false);
+      return;
+    }
+
+    setIsYoutubeAudioMountReady(false);
+    let timeoutId: number | null = null;
+    const frameId = window.requestAnimationFrame(() => {
+      timeoutId = window.setTimeout(() => {
+        setIsYoutubeAudioMountReady(true);
+      }, 120);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [gameplayActiveForAudio, hasYoutubeAudioSession, testYoutubeVideoId]);
+
   // YouTube 플레이어 훅
   const {
     playerRef: testYoutubePlayerRef,
@@ -333,7 +357,7 @@ export const Game: React.FC = () => {
     pause: pauseYoutubePlayer,
     destroy: destroyYoutubePlayer,
   } = useTestYoutubePlayer({
-    audioSessionActive: hasYoutubeAudioSession && gameState.gameStarted && !gameState.gameEnded,
+    audioSessionActive: hasYoutubeAudioSession && gameplayActiveForAudio && isYoutubeAudioMountReady,
     gameStarted: gameState.gameStarted,
     gameEnded: gameState.gameEnded,
     currentTimeRef,
@@ -793,7 +817,7 @@ export const Game: React.FC = () => {
   const isChartSelectTransitioning = chartSelectTransition !== null;
   const isGameplayActive = gameState.gameStarted && !gameState.gameEnded;
   const isWaitingForYoutubeAudio =
-    isGameplayActive && hasYoutubeAudioSession && !testYoutubePlayerReady;
+    isGameplayActive && hasYoutubeAudioSession && (!isYoutubeAudioMountReady || !testYoutubePlayerReady);
   const isGameplayClockRunning = isGameplayActive && !isWaitingForYoutubeAudio;
   const [isBgaTimelineReady, setIsBgaTimelineReady] = useState(false);
   useEffect(() => {
@@ -1197,7 +1221,7 @@ export const Game: React.FC = () => {
               )}
 
       {/* 테스트 모드 YouTube 플레이어 (숨김 - 오디오만 재생) */}
-              {isGameplayActive && hasYoutubeAudioSession && testYoutubeVideoId && (
+              {isGameplayActive && hasYoutubeAudioSession && testYoutubeVideoId && isYoutubeAudioMountReady && (
                 <div
                   ref={testYoutubePlayerRef}
                   style={{
