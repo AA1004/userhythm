@@ -2,6 +2,8 @@ import { useState, useMemo, useCallback, useEffect, useRef, type MutableRefObjec
 import { BgaVisibilityInterval } from '../types/game';
 import { buildBgaVisibilitySegments } from '../utils/bgaVisibility';
 
+const BGA_MASK_UPDATE_INTERVAL_MS = 1000 / 60;
+
 export interface UseBgaMaskOptions {
   currentTime: number;
   currentTimeRef?: MutableRefObject<number>;
@@ -114,9 +116,11 @@ export function useBgaMask({
       return;
     }
 
-    let frameId: number | null = null;
+    let timerId: number | null = null;
+    let disposed = false;
 
     const tick = () => {
+      if (disposed) return;
       const chartTimeMs = currentTimeRef.current + currentTimeOffsetMs;
       const nextOpacity = getBgaMaskOpacity(chartTimeMs);
       const nextLaneVisible = getLaneUiVisible(chartTimeMs);
@@ -128,13 +132,14 @@ export function useBgaMask({
         realtimeLaneUiVisibleRef.current = nextLaneVisible;
         setRealtimeLaneUiVisible(nextLaneVisible);
       }
-      frameId = requestAnimationFrame(tick);
+      timerId = window.setTimeout(tick, BGA_MASK_UPDATE_INTERVAL_MS);
     };
 
-    frameId = requestAnimationFrame(tick);
+    timerId = window.setTimeout(tick, 0);
     return () => {
-      if (frameId !== null) {
-        cancelAnimationFrame(frameId);
+      disposed = true;
+      if (timerId !== null) {
+        window.clearTimeout(timerId);
       }
     };
   }, [currentTimeRef, currentTimeOffsetMs, getBgaMaskOpacity, getLaneUiVisible, hiddenSegments.length]);

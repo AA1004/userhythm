@@ -12,6 +12,8 @@ import {
 const getNoteMissDeadline = (note: Note) =>
   note.duration > 0 ? note.endTime ?? note.time + note.duration : note.time;
 
+const MISS_SCAN_INTERVAL_MS = 1000 / 120;
+
 export interface GameLoopState {
   currentTime: number; // 게임 시간 (ms)
   gameStarted: boolean;
@@ -39,6 +41,7 @@ export function useGameLoop(
   const delayRef = useRef<number>(startDelayMs);
   const missScanIndexRef = useRef<number>(0);
   const missOrderRef = useRef<number[]>([]);
+  const lastMissScanTimeRef = useRef<number>(Number.NEGATIVE_INFINITY);
   
   // 게임 시간을 ref에 저장 (렌더링 루프에서 사용)
   const internalCurrentTimeRef = useRef<number>(0);
@@ -70,6 +73,7 @@ export function useGameLoop(
       lastTimeRef.current = 0;
       currentTimeRef.current = gameState.gameStarted ? -delayRef.current : 0;
       missScanIndexRef.current = 0;
+      lastMissScanTimeRef.current = Number.NEGATIVE_INFINITY;
       return;
     }
 
@@ -86,6 +90,13 @@ export function useGameLoop(
       
       // 게임 시간을 ref에 저장 (렌더링 루프에서 사용)
       currentTimeRef.current = elapsedTime;
+
+      if (currentTime - lastMissScanTimeRef.current < MISS_SCAN_INTERVAL_MS) {
+        lastTimeRef.current = currentTime;
+        frameRef.current = requestAnimationFrame(animate);
+        return;
+      }
+      lastMissScanTimeRef.current = currentTime;
 
       // Miss 판정만 수행 (게임 규칙에 필요한 최소 상태 업데이트)
       const state = gameStateRef.current;
