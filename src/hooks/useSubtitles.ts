@@ -32,6 +32,8 @@ interface SubtitleTimelineIndex {
 }
 
 const SUBTITLE_ACTIVE_BUCKET_MS = 120;
+const SUBTITLE_IDLE_LOOKAHEAD_MS = 250;
+const SUBTITLE_MAX_IDLE_SLEEP_MS = 1000;
 
 const getSubtitleEffectiveEndTime = (cue: SubtitleCue): number => {
   const style: SubtitleStyle = cue.style || ({} as SubtitleStyle);
@@ -88,6 +90,31 @@ const lowerBoundNotEnded = (entries: SubtitleTimelineEntry[], timeMs: number): n
   return low;
 };
 
+const getNextSubtitleWakeDelay = (
+  index: SubtitleTimelineIndex,
+  timeMs: number
+): number => {
+  const { byStart, byEnd } = index;
+  const startedCount = upperBoundStarted(byStart, timeMs);
+  const firstNotEndedIndex = lowerBoundNotEnded(byEnd, timeMs);
+
+  if (startedCount > firstNotEndedIndex) {
+    return SUBTITLE_ACTIVE_BUCKET_MS;
+  }
+
+  const nextStart = byStart[startedCount]?.startTimeMs;
+  if (typeof nextStart !== 'number') {
+    return SUBTITLE_MAX_IDLE_SLEEP_MS;
+  }
+
+  const delayToNextStart = nextStart - timeMs - SUBTITLE_IDLE_LOOKAHEAD_MS;
+  if (delayToNextStart <= SUBTITLE_ACTIVE_BUCKET_MS) {
+    return SUBTITLE_ACTIVE_BUCKET_MS;
+  }
+
+  return Math.min(SUBTITLE_MAX_IDLE_SLEEP_MS, delayToNextStart);
+};
+
 export function useSubtitles(
   gameState: GameState,
   currentChartTimeMs: number,
@@ -102,6 +129,19 @@ export function useSubtitles(
     () => Math.floor(subtitleClockSourceMs / SUBTITLE_ACTIVE_BUCKET_MS) * SUBTITLE_ACTIVE_BUCKET_MS,
     [subtitleClockSourceMs]
   );
+
+  const timelineIndex = useMemo<SubtitleTimelineIndex>(() => {
+    const byStart = subtitles.map((cue, originalIndex) => ({
+      cue,
+      originalIndex,
+      startTimeMs: cue.startTimeMs,
+      effectiveEndTimeMs: getSubtitleEffectiveEndTime(cue),
+    }));
+    const byEnd = [...byStart].sort(
+      (a, b) => a.effectiveEndTimeMs - b.effectiveEndTimeMs || a.startTimeMs - b.startTimeMs
+    );
+    return { byStart, byEnd };
+  }, [subtitles]);
 
   useEffect(() => {
     if (!currentTimeRef || !gameState.gameStarted || gameState.gameEnded || !subtitles.length) {
@@ -118,7 +158,10 @@ export function useSubtitles(
         lastBucket = nextBucket;
         setSubtitleClockSourceMs(nextTime);
       }
-      timerId = window.setTimeout(tick, SUBTITLE_ACTIVE_BUCKET_MS);
+      timerId = window.setTimeout(
+        tick,
+        getNextSubtitleWakeDelay(timelineIndex, nextTime)
+      );
     };
 
     timerId = window.setTimeout(tick, 0);
@@ -134,6 +177,7 @@ export function useSubtitles(
     gameState.gameStarted,
     gameState.gameEnded,
     subtitles.length,
+    timelineIndex,
   ]);
 
   const setSubtitles = useCallback<React.Dispatch<React.SetStateAction<SubtitleCue[]>>>((value) => {
@@ -217,19 +261,6 @@ export function useSubtitles(
 
     return 0;
   }, []);
-
-  const timelineIndex = useMemo<SubtitleTimelineIndex>(() => {
-    const byStart = subtitles.map((cue, originalIndex) => ({
-      cue,
-      originalIndex,
-      startTimeMs: cue.startTimeMs,
-      effectiveEndTimeMs: getSubtitleEffectiveEndTime(cue),
-    }));
-    const byEnd = [...byStart].sort(
-      (a, b) => a.effectiveEndTimeMs - b.effectiveEndTimeMs || a.startTimeMs - b.startTimeMs
-    );
-    return { byStart, byEnd };
-  }, [subtitles]);
 
   const activeSubtitles = useMemo(() => {
     const shouldProfile = isGameplayProfilerEnabled();
