@@ -528,7 +528,8 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   gameplayHudMode,
   durationMs,
 }) => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const staticCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const effectsCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameIdRef = useRef<number | null>(null);
   const visibleRef = useRef(visible);
   const activeRef = useRef(active);
@@ -569,75 +570,83 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   }, [laneKeyLabels]);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (!canvas || !ctx) return;
+    const canvases = [staticCanvasRef.current, effectsCanvasRef.current];
     const dpr = Math.min(window.devicePixelRatio || 1, GAMEPLAY_HUD_CANVAS_DPR_LIMIT);
-    canvas.width = Math.round(GAME_VIEW_WIDTH * dpr);
-    canvas.height = Math.round(canvasHeight * dpr);
-    canvas.style.width = `${GAME_VIEW_WIDTH}px`;
-    canvas.style.height = `${canvasHeight}px`;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    for (const canvas of canvases) {
+      const ctx = canvas?.getContext('2d');
+      if (!canvas || !ctx) continue;
+      canvas.width = Math.round(GAME_VIEW_WIDTH * dpr);
+      canvas.height = Math.round(canvasHeight * dpr);
+      canvas.style.width = `${GAME_VIEW_WIDTH}px`;
+      canvas.style.height = `${canvasHeight}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
   }, [canvasHeight]);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (!canvas || !ctx) return;
+    const staticCanvas = staticCanvasRef.current;
+    const effectsCanvas = effectsCanvasRef.current;
+    const staticCtx = staticCanvas?.getContext('2d');
+    const effectsCtx = effectsCanvas?.getContext('2d');
+    if (!staticCanvas || !effectsCanvas || !staticCtx || !effectsCtx) return;
+
+    const renderStaticHud = () => {
+      staticCtx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasHeight);
+      if (!visibleRef.current || !activeRef.current || !shouldRenderHud) return;
+
+      const geometry = playfieldGeometryRef.current;
+      const hudMode = gameplayHudModeRef.current === 'new-full' ? 'new-full' : 'new-lite';
+      geometry.laneCenters.forEach((x, index) => {
+        drawKeyLane(
+          staticCtx,
+          x,
+          geometry.keyLaneY,
+          geometry.laneWidth,
+          laneKeyLabelsRef.current[index] ?? [],
+          pressedKeysRef.current.has(index as Lane),
+          geometry.keyLaneOpacity,
+          hudMode,
+          geometry.keyPressGlowEnabled,
+          geometry.keyPressPulseEnabled
+        );
+      });
+      drawCombo(
+        staticCtx,
+        scoreRuntimeRef.current.combo,
+        geometry.laneGroupLeft + geometry.laneGroupWidth / 2,
+        geometry.comboOpacity,
+        hudMode
+      );
+      drawSlotHud(
+        staticCtx,
+        geometry,
+        scoreRuntimeRef.current,
+        currentTimeRef.current,
+        durationMs,
+        hudMode
+      );
+    };
 
     const renderFrame = () => {
-      const geometry = playfieldGeometryRef.current;
       const now = Date.now();
       const hudMode = gameplayHudModeRef.current === 'new-full' ? 'new-full' : 'new-lite';
-      ctx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasHeight);
+      effectsCtx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasHeight);
 
       let hasActiveEffect = false;
       if (visibleRef.current) {
         for (const effect of keyEffectsRef.current) {
           if (getKeyEffectProgress(effect, now) < 1) {
             hasActiveEffect = true;
-            drawKeyEffect(ctx, effect, now, hudMode);
+            drawKeyEffect(effectsCtx, effect, now, hudMode);
           }
         }
 
         for (const feedback of judgeFeedbacksRef.current) {
           if (getJudgeProgress(feedback, now) < 1) {
             hasActiveEffect = true;
-            drawJudgeFeedback(ctx, feedback, now, judgeFeedbackTopRef.current, hudMode);
-            drawLaneTimingFeedback(ctx, feedback, now, hudMode);
+            drawJudgeFeedback(effectsCtx, feedback, now, judgeFeedbackTopRef.current, hudMode);
+            drawLaneTimingFeedback(effectsCtx, feedback, now, hudMode);
           }
-        }
-
-        if (visibleRef.current && activeRef.current && shouldRenderHud) {
-          geometry.laneCenters.forEach((x, index) => {
-            drawKeyLane(
-              ctx,
-              x,
-              geometry.keyLaneY,
-              geometry.laneWidth,
-              laneKeyLabelsRef.current[index] ?? [],
-              pressedKeysRef.current.has(index as Lane),
-              geometry.keyLaneOpacity,
-              hudMode,
-              geometry.keyPressGlowEnabled,
-              geometry.keyPressPulseEnabled
-            );
-          });
-          drawCombo(
-            ctx,
-            scoreRuntimeRef.current.combo,
-            geometry.laneGroupLeft + geometry.laneGroupWidth / 2,
-            geometry.comboOpacity,
-            hudMode
-          );
-          drawSlotHud(
-            ctx,
-            geometry,
-            scoreRuntimeRef.current,
-            currentTimeRef.current,
-            durationMs,
-            hudMode
-          );
         }
       }
 
@@ -653,12 +662,14 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
     };
 
     const requestPaint = () => {
+      renderStaticHud();
       if (frameIdRef.current !== null) return;
       frameIdRef.current = requestAnimationFrame(renderFrame);
     };
 
     if (!visible && !shouldRenderHud) {
-      ctx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasHeight);
+      staticCtx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasHeight);
+      effectsCtx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasHeight);
       frameIdRef.current = null;
       return;
     }
@@ -686,18 +697,33 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   ]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden="true"
-      style={{
-        position: 'absolute',
-        left: 0,
-        top: 0,
-        width: `${GAME_VIEW_WIDTH}px`,
-        height: `${canvasHeight}px`,
-        pointerEvents: 'none',
-        zIndex: 500,
-      }}
-    />
+    <>
+      <canvas
+        ref={effectsCanvasRef}
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          width: `${GAME_VIEW_WIDTH}px`,
+          height: `${canvasHeight}px`,
+          pointerEvents: 'none',
+          zIndex: 500,
+        }}
+      />
+      <canvas
+        ref={staticCanvasRef}
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          width: `${GAME_VIEW_WIDTH}px`,
+          height: `${canvasHeight}px`,
+          pointerEvents: 'none',
+          zIndex: 501,
+        }}
+      />
+    </>
   );
 };
