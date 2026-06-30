@@ -530,7 +530,6 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameIdRef = useRef<number | null>(null);
-  const slotHudTimerRef = useRef<number | null>(null);
   const visibleRef = useRef(visible);
   const activeRef = useRef(active);
   const judgeFeedbackTopRef = useRef(judgeFeedbackTop);
@@ -658,17 +657,6 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
       frameIdRef.current = requestAnimationFrame(renderFrame);
     };
 
-    const scheduleSlotHudPaint = () => {
-      if (slotHudTimerRef.current !== null) return;
-      slotHudTimerRef.current = window.setTimeout(() => {
-        slotHudTimerRef.current = null;
-        if (activeRef.current && visibleRef.current && playfieldGeometryRef.current.slotHudEnabled) {
-          requestPaint();
-          scheduleSlotHudPaint();
-        }
-      }, 250);
-    };
-
     if (!visible && !shouldRenderHud) {
       ctx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasHeight);
       frameIdRef.current = null;
@@ -676,19 +664,12 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
     }
 
     requestPaint();
-    if (shouldRenderHud && playfieldGeometry.slotHudEnabled) {
-      scheduleSlotHudPaint();
-    }
     window.addEventListener(GAMEPLAY_HUD_PAINT_EVENT, requestPaint);
     return () => {
       window.removeEventListener(GAMEPLAY_HUD_PAINT_EVENT, requestPaint);
       if (frameIdRef.current !== null) {
         cancelAnimationFrame(frameIdRef.current);
         frameIdRef.current = null;
-      }
-      if (slotHudTimerRef.current !== null) {
-        window.clearTimeout(slotHudTimerRef.current);
-        slotHudTimerRef.current = null;
       }
     };
   }, [
