@@ -6,12 +6,14 @@ import { HitNoteIdsRef, isNoteResolved } from '../utils/noteRuntimeState';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 import { NoteRenderer } from './NoteRenderer';
 import {
-  computeHoldRenderSegment,
-  computeTapRenderPosition,
+  computeHoldRenderSegmentInto,
+  getEventY,
   getNoteRenderEndTime,
   getNoteViewportEnd,
   getNoteViewportStart,
   HOLD_HEAD_HEIGHT,
+  NOTE_RENDER_BUFFER,
+  NOTE_SPAWN_Y,
 } from '../utils/noteRenderGeometry';
 import {
   darkenNoteColor,
@@ -192,6 +194,13 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
   const noteHeightRef = useRef(noteHeight);
   const laneNoteColorsRef = useRef(laneNoteColors);
   const textureSignatureRef = useRef(getTextureSignature(noteWidth, noteHeight, laneNoteColors));
+  const holdSegmentRef = useRef({
+    containerTop: 0,
+    containerHeight: 0,
+    visibleTop: 0,
+    visibleBottom: 0,
+    holdHeadHeight: 0,
+  });
   const visibleRef = useRef(visible);
   const [fallback, setFallback] = useState(false);
 
@@ -343,14 +352,15 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
             const laneTextures = texturesByLane[note.lane];
             const left = laneX - activeNoteWidth / 2;
             const isHolding = activeHoldingNotes.has(note.id);
-            const segment = computeHoldRenderSegment(
+            const segment = computeHoldRenderSegmentInto(
               note,
               currentTime,
               activeFallDuration,
               activeJudgeLineY,
               activeNoteHeight,
               isHolding,
-              GAME_VIEW_HEIGHT + activePlayfieldTopOffset
+              GAME_VIEW_HEIGHT + activePlayfieldTopOffset,
+              holdSegmentRef.current
             );
             if (!segment) return false;
             const {
@@ -450,21 +460,23 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
             const isHoldNote = note.type === 'hold' && note.duration > 0;
 
             if (!isHoldNote) {
-              const position = computeTapRenderPosition(
-                note,
-                currentTime,
-                activeFallDuration,
-                activeJudgeLineY,
-                laneX,
-                activeNoteWidth,
-                activeNoteHeight
+              const y = Math.max(
+                NOTE_SPAWN_Y,
+                Math.min(
+                  activeJudgeLineY,
+                  getEventY(note.time, currentTime, activeFallDuration, activeJudgeLineY)
+                )
               );
-              if (!position) {
+              const top = y - activeNoteHeight / 2;
+              if (
+                top > activeJudgeLineY + NOTE_RENDER_BUFFER ||
+                top + activeNoteHeight < -NOTE_RENDER_BUFFER
+              ) {
                 continue;
               }
               const sprite = nextSprite('tap', laneTextures.tap);
               if (!sprite) break;
-              sprite.position.set(position.left, position.top + activePlayfieldTopOffset);
+              sprite.position.set(laneX - activeNoteWidth / 2, top + activePlayfieldTopOffset);
               sprite.width = activeNoteWidth;
               sprite.height = activeNoteHeight;
               drawn += 1;

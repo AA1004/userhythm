@@ -72,6 +72,32 @@ export const computeHoldRenderSegment = (
   noteHeight: number,
   isHolding: boolean,
   viewportHeight: number
+): HoldRenderSegment | null => computeHoldRenderSegmentInto(
+  note,
+  currentTime,
+  fallDuration,
+  judgeLineY,
+  noteHeight,
+  isHolding,
+  viewportHeight,
+  {
+    containerTop: 0,
+    containerHeight: 0,
+    visibleTop: 0,
+    visibleBottom: 0,
+    holdHeadHeight: 0,
+  }
+);
+
+export const computeHoldRenderSegmentInto = (
+  note: Note,
+  currentTime: number,
+  fallDuration: number,
+  judgeLineY: number,
+  noteHeight: number,
+  isHolding: boolean,
+  viewportHeight: number,
+  out: HoldRenderSegment
 ): HoldRenderSegment | null => {
   const endTime = note.endTime ?? note.time + note.duration;
   const rawHeadY = getEventY(note.time, currentTime, fallDuration, judgeLineY);
@@ -98,11 +124,10 @@ export const computeHoldRenderSegment = (
 
   if (visibleBottom <= visibleTop) return null;
 
-  return {
-    containerTop,
-    containerHeight: fullHeight,
-    visibleTop,
-    visibleBottom,
-    holdHeadHeight,
-  };
+  out.containerTop = containerTop;
+  out.containerHeight = fullHeight;
+  out.visibleTop = visibleTop;
+  out.visibleBottom = visibleBottom;
+  out.holdHeadHeight = holdHeadHeight;
+  return out;
 };
