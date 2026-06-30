@@ -25,7 +25,7 @@ export interface GameLoopState {
 
 export function useGameLoop(
   gameState: GameState,
-  setGameState: (state: GameState | ((prev: GameState) => GameState)) => void,
+  _setGameState: (state: GameState | ((prev: GameState) => GameState)) => void,
   onNoteMiss: (note: Note) => 'miss' | 'good' | void,
   speed: number = 1.0, // 속도 배율 (1.0 = 기본, 높을수록 빠름)
   startDelayMs: number = 0,
@@ -160,12 +160,6 @@ export function useGameLoop(
         notesToNotify.forEach((note) => {
           onNoteMiss?.(note);
         });
-        setGameState((prev: GameState) => {
-          return {
-            ...prev,
-            currentTime: elapsedTime,
-          };
-        });
       }
 
       lastTimeRef.current = currentTime;
@@ -179,7 +173,7 @@ export function useGameLoop(
         cancelAnimationFrame(frameRef.current);
       }
     };
-  }, [gameState.gameStarted, setGameState, onNoteMiss, speed, fallDuration, missThreshold, hitNoteIdsRef, timingOffsetMs, clockEnabled]);
+  }, [gameState.gameStarted, onNoteMiss, speed, fallDuration, missThreshold, hitNoteIdsRef, timingOffsetMs, clockEnabled]);
 
   // currentTime ref를 반환하여 렌더링 루프에서 사용
   return {
