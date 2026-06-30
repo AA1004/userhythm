@@ -803,51 +803,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <h4 style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', margin: '10px 0 8px' }}>
                 렌더링 / 성능
               </h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
-                <button
-                  onClick={() => applyToggleVisualSettings({ renderBackend: 'canvas2d' })}
-                  style={{
-                    padding: '9px 8px',
-                    borderRadius: CHART_EDITOR_THEME.radiusSm,
-                    border: `1px solid ${
-                      visualSettings.renderBackend === 'canvas2d'
-                        ? CHART_EDITOR_THEME.accent
-                        : CHART_EDITOR_THEME.borderSubtle
-                    }`,
-                    background:
-                      visualSettings.renderBackend === 'canvas2d'
-                        ? CHART_EDITOR_THEME.accentSoft
-                        : 'transparent',
-                    color: CHART_EDITOR_THEME.textPrimary,
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    fontWeight: visualSettings.renderBackend === 'canvas2d' ? 700 : 500,
-                  }}
-                >
-                  Canvas 2D
-                </button>
-                <button
-                  onClick={() => applyToggleVisualSettings({ renderBackend: 'webgl' })}
-                  style={{
-                    padding: '9px 8px',
-                    borderRadius: CHART_EDITOR_THEME.radiusSm,
-                    border: `1px solid ${
-                      visualSettings.renderBackend === 'webgl'
-                        ? CHART_EDITOR_THEME.accent
-                        : CHART_EDITOR_THEME.borderSubtle
-                    }`,
-                    background:
-                      visualSettings.renderBackend === 'webgl'
-                        ? CHART_EDITOR_THEME.accentSoft
-                        : 'transparent',
-                    color: CHART_EDITOR_THEME.textPrimary,
-                    fontSize: '12px',
-                    cursor: 'pointer',
-                    fontWeight: visualSettings.renderBackend === 'webgl' ? 700 : 500,
-                  }}
-                >
-                  WebGL
-                </button>
+              <div
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                  background: 'rgba(0, 0, 0, 0.18)',
+                  color: CHART_EDITOR_THEME.textSecondary,
+                  fontSize: '12px',
+                  lineHeight: 1.5,
+                  marginBottom: '8px',
+                }}
+              >
+                노트 렌더링은 WebGL 고정이다. Canvas 2D는 WebGL 초기화 실패 시 자동 fallback으로만 사용된다.
               </div>
               <label
                 style={{

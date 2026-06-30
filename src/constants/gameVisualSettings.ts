@@ -283,11 +283,9 @@ export const normalizeGameVisualSettings = (
   const lanePressTintEnabled = booleanOr(raw.lanePressTintEnabled, fallback.lanePressTintEnabled);
   const keyPressGlowEnabled = booleanOr(raw.keyPressGlowEnabled, fallback.keyPressGlowEnabled);
   const keyPressPulseEnabled = booleanOr(raw.keyPressPulseEnabled, fallback.keyPressPulseEnabled);
-  const rawRenderBackend = (raw as { renderBackend?: unknown }).renderBackend;
-  const renderBackend: RenderBackend =
-    rawRenderBackend === 'webgl' || rawRenderBackend === 'webgl-beta'
-      ? 'webgl'
-      : 'canvas2d';
+  // Gameplay rendering is WebGL-first. Canvas 2D remains only as the renderer's
+  // automatic fallback when WebGL initialization fails.
+  const renderBackend: RenderBackend = 'webgl';
   // Performance mode is kept in the payload only for backward compatibility.
   // The runtime now uses a single quality path.
   const performanceMode: PerformanceMode = 'quality';
