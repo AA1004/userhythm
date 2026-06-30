@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
-  getSubtitleAnchorTransform,
   normalizeSubtitlePosition,
   SubtitleCue,
+  SubtitleHorizontalAlign,
   SubtitleStyle,
+  SubtitleVerticalAlign,
 } from '../types/subtitle';
 import { GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 import { PerformanceMode } from '../constants/gameVisualSettings';
@@ -26,12 +27,8 @@ type LyricOverlayProps = {
   performanceMode?: PerformanceMode;
 };
 
-type LyricCueProps = {
-  cue: SubtitleCue;
-  opacity: number;
-  subtitleArea: SubtitleArea;
-  performanceMode: PerformanceMode;
-};
+const SUBTITLE_CANVAS_DPR_LIMIT = 1;
+const LINE_HEIGHT = 1.22;
 
 const hexToRgba = (hex: string, opacity: number): string => {
   const normalized = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#000000';
@@ -41,106 +38,209 @@ const hexToRgba = (hex: string, opacity: number): string => {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
 
-const LyricCue = React.memo<LyricCueProps>(
-  ({ cue, opacity, subtitleArea, performanceMode: _performanceMode }) => {
-    const rendered = useMemo(() => {
-      const style: SubtitleStyle = cue.style || ({} as SubtitleStyle);
-      const pos = normalizeSubtitlePosition(style.position);
-      const sizeScale = Math.max(0.1, subtitleArea.height / GAME_VIEW_HEIGHT);
-      const safeMargin = Math.max(8, 16 * sizeScale);
+const drawRoundedRect = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+) => {
+  const safeRadius = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + safeRadius, y);
+  ctx.lineTo(x + width - safeRadius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
+  ctx.lineTo(x + width, y + height - safeRadius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
+  ctx.lineTo(x + safeRadius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
+  ctx.lineTo(x, y + safeRadius);
+  ctx.quadraticCurveTo(x, y, x + safeRadius, y);
+  ctx.closePath();
+};
 
-      const transformParts: string[] = [getSubtitleAnchorTransform(style.align)];
-      if (style.rotationDeg) {
-        transformParts.push(`rotate(${style.rotationDeg}deg)`);
-      }
+const getHorizontalOffset = (
+  horizontal: SubtitleHorizontalAlign,
+  width: number
+) => {
+  if (horizontal === 'left') return 0;
+  if (horizontal === 'right') return -width;
+  return -width / 2;
+};
 
-      const textAlign = style.textAlign ?? 'center';
-      const showBackground = style.showBackground !== false;
-      const bgOpacity = style.backgroundOpacity ?? 0.9;
-      const bgColor = style.backgroundColor ?? '#000000';
-      const backgroundColor = showBackground
-        ? hexToRgba(bgColor, bgOpacity)
-        : 'transparent';
+const getVerticalOffset = (
+  vertical: SubtitleVerticalAlign,
+  height: number
+) => {
+  if (vertical === 'top') return 0;
+  if (vertical === 'bottom') return -height;
+  return -height / 2;
+};
 
-      const lines = cue.text.split('\n');
+const getTextAlignOffset = (
+  textAlign: SubtitleHorizontalAlign,
+  width: number,
+  paddingX: number
+) => {
+  if (textAlign === 'left') return paddingX;
+  if (textAlign === 'right') return width - paddingX;
+  return width / 2;
+};
 
-      return {
-        lines,
-        style: {
-          position: 'absolute' as const,
-          left: `${pos.x * 100}%`,
-          top: `${pos.y * 100}%`,
-          transform: transformParts.join(' '),
-          transformOrigin: '50% 50%',
-          padding: showBackground ? `${6 * sizeScale}px ${14 * sizeScale}px` : 0,
-          borderRadius: showBackground ? 8 * sizeScale : 0,
-          backgroundColor,
-          color: style.color ?? '#ffffff',
-          fontFamily: style.fontFamily ?? 'Noto Sans KR, sans-serif',
-          fontSize: (style.fontSize ?? 24) * sizeScale,
-          fontWeight: style.fontWeight ?? 'normal',
-          fontStyle: style.fontStyle ?? 'normal',
-          textAlign,
-          lineHeight: 1.22,
-          whiteSpace: 'pre-wrap' as const,
-          overflowWrap: 'break-word' as const,
-          wordBreak: 'keep-all' as const,
-          width: 'max-content',
-          maxWidth: `calc(100% - ${safeMargin * 2}px)`,
-          boxSizing: 'border-box' as const,
-          pointerEvents: 'none' as const,
-          willChange: 'transform, opacity',
-          boxShadow: showBackground
-            ? `0 ${10 * sizeScale}px ${30 * sizeScale}px rgba(0,0,0,0.9), 0 0 ${18 * sizeScale}px rgba(15,23,42,0.9)`
-            : 'none',
-          border:
-            showBackground && style.outlineColor
-              ? `1px solid ${style.outlineColor}`
-              : 'none',
-          textShadow: !showBackground
-            ? `0 0 ${8 * sizeScale}px rgba(0,0,0,0.9), 0 ${2 * sizeScale}px ${4 * sizeScale}px rgba(0,0,0,0.8), 0 0 ${20 * sizeScale}px rgba(0,0,0,0.6)`
-            : 'none',
-        },
-      };
-    }, [cue, subtitleArea.left, subtitleArea.top, subtitleArea.width, subtitleArea.height]);
+const wrapLine = (
+  ctx: CanvasRenderingContext2D,
+  line: string,
+  maxWidth: number
+) => {
+  if (!line) return [''];
+  if (ctx.measureText(line).width <= maxWidth) return [line];
 
-    return (
-      <div
-        style={{
-          ...rendered.style,
-          opacity,
-        }}
-      >
-        {rendered.lines.map((line, idx, arr) => (
-          <React.Fragment key={idx}>
-            {line}
-            {idx < arr.length - 1 && <br />}
-          </React.Fragment>
-        ))}
-      </div>
-    );
-  },
-  (prev, next) =>
-    prev.cue === next.cue &&
-    prev.opacity === next.opacity &&
-    prev.performanceMode === next.performanceMode &&
-    prev.subtitleArea.left === next.subtitleArea.left &&
-    prev.subtitleArea.top === next.subtitleArea.top &&
-    prev.subtitleArea.width === next.subtitleArea.width &&
-    prev.subtitleArea.height === next.subtitleArea.height
-);
+  const wrapped: string[] = [];
+  let current = '';
+  for (const char of line) {
+    const next = current + char;
+    if (current && ctx.measureText(next).width > maxWidth) {
+      wrapped.push(current);
+      current = char;
+    } else {
+      current = next;
+    }
+  }
+  if (current) wrapped.push(current);
+  return wrapped;
+};
+
+const drawSubtitleCue = (
+  ctx: CanvasRenderingContext2D,
+  cue: SubtitleCue,
+  opacity: number,
+  subtitleArea: SubtitleArea,
+  performanceMode: PerformanceMode
+) => {
+  if (opacity <= 0) return;
+
+  const style: SubtitleStyle = cue.style || ({} as SubtitleStyle);
+  const pos = normalizeSubtitlePosition(style.position);
+  const sizeScale = Math.max(0.1, subtitleArea.height / GAME_VIEW_HEIGHT);
+  const fontSize = (style.fontSize ?? 24) * sizeScale;
+  const fontFamily = style.fontFamily ?? 'Noto Sans KR, sans-serif';
+  const fontWeight = style.fontWeight ?? 'normal';
+  const fontStyle = style.fontStyle ?? 'normal';
+  const textAlign = style.textAlign ?? 'center';
+  const horizontal = style.align?.horizontal ?? 'center';
+  const vertical = style.align?.vertical ?? 'middle';
+  const showBackground = style.showBackground !== false;
+  const paddingX = showBackground ? 14 * sizeScale : 0;
+  const paddingY = showBackground ? 6 * sizeScale : 0;
+  const lineHeight = fontSize * LINE_HEIGHT;
+
+  ctx.save();
+  ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
+  const safeMargin = Math.max(8, 16 * sizeScale);
+  const maxTextWidth = Math.max(1, subtitleArea.width - safeMargin * 2 - paddingX * 2);
+  const lines = cue.text
+    .split('\n')
+    .flatMap((line) => wrapLine(ctx, line, maxTextWidth));
+  const measuredWidth = Math.max(
+    1,
+    ...lines.map((line) => ctx.measureText(line || ' ').width)
+  );
+  const boxWidth = measuredWidth + paddingX * 2;
+  const boxHeight = lines.length * lineHeight + paddingY * 2;
+  const anchorX = pos.x * subtitleArea.width;
+  const anchorY = pos.y * subtitleArea.height;
+  const boxLeft = getHorizontalOffset(horizontal, boxWidth);
+  const boxTop = getVerticalOffset(vertical, boxHeight);
+  const textX = boxLeft + getTextAlignOffset(textAlign, boxWidth, paddingX);
+  const firstLineY = boxTop + paddingY + lineHeight / 2;
+
+  ctx.translate(anchorX, anchorY);
+  if (style.rotationDeg) {
+    ctx.rotate((style.rotationDeg * Math.PI) / 180);
+  }
+  ctx.globalAlpha = Math.max(0, Math.min(1, opacity));
+
+  if (showBackground) {
+    const bgOpacity = style.backgroundOpacity ?? 0.9;
+    const bgColor = style.backgroundColor ?? '#000000';
+    ctx.fillStyle = hexToRgba(bgColor, bgOpacity);
+    if (performanceMode === 'quality') {
+      ctx.shadowColor = 'rgba(0,0,0,0.42)';
+      ctx.shadowBlur = 8 * sizeScale;
+    }
+    drawRoundedRect(ctx, boxLeft, boxTop, boxWidth, boxHeight, 8 * sizeScale);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    if (style.outlineColor) {
+      ctx.strokeStyle = style.outlineColor;
+      ctx.lineWidth = Math.max(1, sizeScale);
+      ctx.stroke();
+    }
+  }
+
+  ctx.textAlign = textAlign;
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = style.color ?? '#ffffff';
+  if (!showBackground && performanceMode === 'quality') {
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 8 * sizeScale;
+    ctx.shadowOffsetY = 2 * sizeScale;
+  }
+  lines.forEach((line, index) => {
+    ctx.fillText(line, textX, firstLineY + index * lineHeight);
+  });
+  ctx.restore();
+};
 
 export const LyricOverlay: React.FC<LyricOverlayProps> = ({
   activeSubtitles,
   subtitleArea,
   performanceMode = 'quality',
 }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+
+    const width = Math.max(1, subtitleArea.width);
+    const height = Math.max(1, subtitleArea.height);
+    const dpr = Math.min(window.devicePixelRatio || 1, SUBTITLE_CANVAS_DPR_LIMIT);
+    const targetWidth = Math.round(width * dpr);
+    const targetHeight = Math.round(height * dpr);
+
+    if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+    }
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+
+    for (const { cue, opacity } of activeSubtitles) {
+      drawSubtitleCue(ctx, cue, opacity, subtitleArea, performanceMode);
+    }
+  }, [
+    activeSubtitles,
+    subtitleArea.left,
+    subtitleArea.top,
+    subtitleArea.width,
+    subtitleArea.height,
+    performanceMode,
+  ]);
+
   if (!activeSubtitles.length) {
     return null;
   }
 
   return (
-    <div
+    <canvas
+      ref={canvasRef}
+      aria-hidden="true"
       style={{
         position: 'absolute',
         left: subtitleArea.left,
@@ -152,16 +252,6 @@ export const LyricOverlay: React.FC<LyricOverlayProps> = ({
         zIndex: 300,
         contain: 'layout paint style',
       }}
-    >
-      {activeSubtitles.map(({ cue, opacity }) => (
-        <LyricCue
-          key={cue.id}
-          cue={cue}
-          opacity={opacity}
-          subtitleArea={subtitleArea}
-          performanceMode={performanceMode}
-        />
-      ))}
-    </div>
+    />
   );
 };
