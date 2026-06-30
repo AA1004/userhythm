@@ -517,14 +517,11 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         }
       }
 
-      const laneHoldNotes: Note[] = [];
-      for (const note of holdingNotesRef.current.values()) {
-        if (note.lane === lane && !isNoteResolved(note, hitNoteIdsRef)) {
-          laneHoldNotes.push(note);
+      for (const holdNote of holdingNotesRef.current.values()) {
+        if (holdNote.lane !== lane || isNoteResolved(holdNote, hitNoteIdsRef)) {
+          continue;
         }
-      }
 
-      for (const holdNote of laneHoldNotes) {
         const currentTime = currentTimeRef.current - timingOffsetMs;
         const endTime =
           typeof holdNote.endTime === 'number'
