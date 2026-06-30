@@ -492,6 +492,20 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     suppressNextTimelineClickRef.current = true;
   }, []);
 
+  const startBgaResize = useCallback((
+    event: React.MouseEvent<HTMLElement>,
+    id: string,
+    edge: 'start' | 'end'
+  ) => {
+    if (!isBgaPlacementMode) return;
+    bgaResizeRef.current = { id, edge };
+    setIsBgaResizing(true);
+    suppressTimelineClick();
+    window.getSelection()?.removeAllRanges();
+    event.preventDefault();
+    event.stopPropagation();
+  }, [isBgaPlacementMode, suppressTimelineClick]);
+
   const isScrollbarInteraction = useCallback((clientX: number, clientY: number) => {
     const scroll = timelineScrollRef.current;
     if (!scroll) return false;
@@ -992,6 +1006,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
                     type="button"
                     data-bga-resize="end"
                     data-bga-id={segment.id}
+                    onMouseDown={(e) => startBgaResize(e, segment.id, 'end')}
                     style={{
                       position: 'absolute',
                       top: -8,
@@ -1008,6 +1023,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
                     type="button"
                     data-bga-resize="start"
                     data-bga-id={segment.id}
+                    onMouseDown={(e) => startBgaResize(e, segment.id, 'start')}
                     style={{
                       position: 'absolute',
                       bottom: -8,
