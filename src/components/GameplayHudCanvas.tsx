@@ -691,6 +691,7 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
     pressedKeysRef,
     scoreRuntimeRef,
     shouldRenderHud,
+    active,
     visible,
     durationMs,
     playfieldGeometry.slotHudEnabled,

@@ -988,7 +988,10 @@ export const Game: React.FC = () => {
             height: `${stageDisplayHeight}px`,
             margin: '0 auto',
             marginTop: 0,
-            contain: 'layout style paint',
+            contain:
+              isGameplayActive && activeLaneUiVisible && topLaneExtensionHeightPx > 0
+                ? 'layout style'
+                : 'layout style paint',
             isolation: 'isolate',
             transform: 'translateZ(0)',
           }}
@@ -1005,7 +1008,10 @@ export const Game: React.FC = () => {
                   ? `rgba(8, 12, 24, ${gameplayStageBackdropAlpha.toFixed(3)})`
                   : CHART_EDITOR_THEME.surfaceElevated,
               position: 'relative',
-              contain: 'layout style paint',
+              contain:
+                isGameplayActive && activeLaneUiVisible && topLaneExtensionHeightPx > 0
+                  ? 'layout style'
+                  : 'layout style paint',
               isolation: 'isolate',
               transform: 'translateZ(0)',
               overflow:
