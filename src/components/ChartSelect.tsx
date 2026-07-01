@@ -1587,34 +1587,37 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                         'linear-gradient(180deg, transparent 0%, rgba(2,6,23,0.38) 34%, rgba(2,6,23,0.84) 78%, rgba(2,6,23,0.96) 100%)',
                         'linear-gradient(90deg, rgba(0,0,0,0.52), transparent 58%)',
                       ].join(', '),
-                      display: 'flex',
-                      alignItems: 'flex-end',
-                      justifyContent: 'space-between',
-                      gap: '12px',
+                      display: 'block',
                       textShadow: '0 2px 10px rgba(0,0,0,0.85)',
                     }}
                   >
                     <div
                       style={{
                         color: CHART_EDITOR_THEME.textPrimary,
-                        fontSize: isCardGridCompact ? '14px' : '16px',
+                        fontSize: isCardGridCompact ? '13px' : '15px',
                         fontWeight: 900,
-                        lineHeight: 1.25,
+                        lineHeight: 1.18,
                         minWidth: 0,
-                        padding: '7px 9px',
+                        maxWidth: 'calc(100% - 58px)',
+                        padding: '7px 9px 8px',
                         borderRadius: '12px',
                         background: 'linear-gradient(135deg, rgba(2,6,23,0.68), rgba(15,23,42,0.34))',
                         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
                         overflow: 'hidden',
                         display: '-webkit-box',
-                        WebkitLineClamp: 2,
+                        WebkitLineClamp: 3,
                         WebkitBoxOrient: 'vertical',
+                        wordBreak: 'keep-all',
+                        overflowWrap: 'anywhere',
                       }}
                     >
                       {chart.title}
                     </div>
                     <span
                         style={{
+                          position: 'absolute',
+                          right: 14,
+                          bottom: 13,
                           flex: '0 0 auto',
                           minWidth: '46px',
                           padding: '7px 10px',
