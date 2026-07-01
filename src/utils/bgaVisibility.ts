@@ -96,7 +96,35 @@ export function buildBgaVisibilitySegments(
   events: BgaVisibilityInterval[],
   maxTimeMs = Number.POSITIVE_INFINITY
 ): BgaVisibilitySegment[] {
-  const normalized = expandLegacyBgaVisibilityIntervals(events, Number.isFinite(maxTimeMs) ? maxTimeMs : undefined);
+  const maxTime = Number.isFinite(maxTimeMs) ? maxTimeMs : undefined;
+  const editableSegments = events
+    .filter((event) => {
+      const startTimeMs = clampMs(Number(event.startTimeMs) || 0, maxTime);
+      const rawEnd = Number(event.endTimeMs);
+      const endTimeMs = clampMs(Number.isFinite(rawEnd) ? rawEnd : startTimeMs, maxTime);
+      return event.mode !== 'visible' && endTimeMs > startTimeMs + 1;
+    })
+    .map((event): BgaVisibilitySegment => {
+      const startTimeMs = clampMs(Number(event.startTimeMs) || 0, maxTime);
+      const rawEnd = Number(event.endTimeMs);
+      const endTimeMs = clampMs(Number.isFinite(rawEnd) ? rawEnd : startTimeMs, maxTime);
+      return {
+        id: event.id,
+        startTimeMs,
+        endTimeMs,
+        fadeInMs: Math.max(0, Number(event.fadeInMs) || 0),
+        fadeOutMs: Math.max(0, Number(event.fadeOutMs) || 0),
+      };
+    });
+
+  const eventLikeIntervals = events.filter((event) => {
+    const startTimeMs = clampMs(Number(event.startTimeMs) || 0, maxTime);
+    const rawEnd = Number(event.endTimeMs);
+    const endTimeMs = clampMs(Number.isFinite(rawEnd) ? rawEnd : startTimeMs, maxTime);
+    return event.mode === 'visible' || endTimeMs <= startTimeMs + 1;
+  });
+
+  const normalized = expandLegacyBgaVisibilityIntervals(eventLikeIntervals, maxTime);
   const segments: BgaVisibilitySegment[] = [];
   let activeHide: BgaVisibilityInterval | null = null;
 
@@ -131,7 +159,7 @@ export function buildBgaVisibilitySegments(
     });
   }
 
-  return segments;
+  return [...editableSegments, ...segments].sort((a, b) => a.startTimeMs - b.startTimeMs);
 }
 
 export function convertBgaEventsToEditableIntervals(
