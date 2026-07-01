@@ -849,6 +849,10 @@ export const Game: React.FC = () => {
     isBgaTimelineReady;
   const activeBgaMaskOpacity = isGameplayActive ? bgaMaskOpacity : 0;
   const activeLaneUiVisible = isGameplayActive ? isLaneUiVisible : true;
+  const activeLaneChromeOpacity = activeLaneUiVisible
+    ? Math.max(0, Math.min(1, 1 - activeBgaMaskOpacity))
+    : 0;
+  const activeLaneChromeVisible = activeLaneChromeOpacity > 0.001;
   const gameplayStageBackdropAlpha = 0.16;
   const gameplayStageBorderAlpha = 0.14;
   const gameplayStageShadowAlpha = 0.26;
@@ -1046,48 +1050,48 @@ export const Game: React.FC = () => {
               width: '100%',
               height: '100%',
               backgroundColor:
-                activeBgaMaskOpacity >= 1
+                !activeLaneChromeVisible
                   ? 'transparent'
                   : isGameplayActive
-                  ? `rgba(8, 12, 24, ${gameplayStageBackdropAlpha.toFixed(3)})`
+                  ? `rgba(8, 12, 24, ${(gameplayStageBackdropAlpha * activeLaneChromeOpacity).toFixed(3)})`
                   : CHART_EDITOR_THEME.surfaceElevated,
               position: 'relative',
               contain:
-                isGameplayActive && activeLaneUiVisible && topLaneExtensionHeightPx > 0
+                isGameplayActive && activeLaneChromeVisible && topLaneExtensionHeightPx > 0
                   ? 'layout style'
                   : 'layout style paint',
               isolation: 'isolate',
               transform: 'translateZ(0)',
               overflow:
-                isGameplayActive && activeLaneUiVisible && topLaneExtensionHeightPx > 0
+                isGameplayActive && activeLaneChromeVisible && topLaneExtensionHeightPx > 0
                   ? 'visible'
                   : 'hidden',
               borderRadius:
-                activeBgaMaskOpacity >= 1
+                !activeLaneChromeVisible
                   ? 0
                   : isGameplayActive
                   ? `0 0 ${CHART_EDITOR_THEME.radiusLg} ${CHART_EDITOR_THEME.radiusLg}`
                   : CHART_EDITOR_THEME.radiusLg,
               boxShadow:
-                activeBgaMaskOpacity >= 1
+                !activeLaneChromeVisible
                   ? 'none'
                   : isGameplayActive
-                  ? `0 10px 30px rgba(0, 0, 0, ${gameplayStageShadowAlpha.toFixed(3)})`
+                  ? `0 10px 30px rgba(0, 0, 0, ${(gameplayStageShadowAlpha * activeLaneChromeOpacity).toFixed(3)})`
                   : CHART_EDITOR_THEME.shadowSoft,
               border:
-                activeBgaMaskOpacity >= 1
+                !activeLaneChromeVisible
                   ? 'none'
                   : isGameplayActive
-                  ? `1px solid rgba(238, 247, 242, ${gameplayStageBorderAlpha.toFixed(3)})`
+                  ? `1px solid rgba(238, 247, 242, ${(gameplayStageBorderAlpha * activeLaneChromeOpacity).toFixed(3)})`
                   : `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
               borderTop:
-                isGameplayActive && activeLaneUiVisible && topLaneExtensionHeightPx > 0
+                isGameplayActive && activeLaneChromeVisible && topLaneExtensionHeightPx > 0
                   ? 'none'
                   : undefined,
               transition: 'background-color 80ms linear, border 80ms linear, box-shadow 80ms linear, border-radius 80ms linear',
             }}
           >
-            {isGameplayActive && activeLaneUiVisible && activeBgaMaskOpacity < 1 && topLaneExtensionHeightPx > 0 && (
+            {isGameplayActive && activeLaneChromeVisible && topLaneExtensionHeightPx > 0 && (
               <div
                 style={{
                   position: 'absolute',
@@ -1097,21 +1101,21 @@ export const Game: React.FC = () => {
                   height: `${topLaneExtensionHeightPx}px`,
                   pointerEvents: 'none',
                   zIndex: 0,
-                  background: `rgba(8, 12, 24, ${Math.min(0.92, gameplayStageBackdropAlpha + 0.08).toFixed(3)})`,
-                  borderLeft: `1px solid rgba(238, 247, 242, ${gameplayStageBorderAlpha.toFixed(3)})`,
-                  borderRight: `1px solid rgba(238, 247, 242, ${gameplayStageBorderAlpha.toFixed(3)})`,
-                  borderTop: `1px solid rgba(238, 247, 242, ${gameplayStageBorderAlpha.toFixed(3)})`,
+                  background: `rgba(8, 12, 24, ${(Math.min(0.92, gameplayStageBackdropAlpha + 0.08) * activeLaneChromeOpacity).toFixed(3)})`,
+                  borderLeft: `1px solid rgba(238, 247, 242, ${(gameplayStageBorderAlpha * activeLaneChromeOpacity).toFixed(3)})`,
+                  borderRight: `1px solid rgba(238, 247, 242, ${(gameplayStageBorderAlpha * activeLaneChromeOpacity).toFixed(3)})`,
+                  borderTop: `1px solid rgba(238, 247, 242, ${(gameplayStageBorderAlpha * activeLaneChromeOpacity).toFixed(3)})`,
                 }}
               />
             )}
-            {isGameplayActive && activeLaneUiVisible && activeBgaMaskOpacity < 1 && visualSettings.bgaBlurEnabled && (
+            {isGameplayActive && activeLaneChromeVisible && visualSettings.bgaBlurEnabled && (
               <div
                 style={{
                   position: 'absolute',
                   inset: 0,
                   pointerEvents: 'none',
                   zIndex: 1,
-                  background: 'rgba(8, 12, 24, 0.12)',
+                  background: `rgba(8, 12, 24, ${(0.12 * activeLaneChromeOpacity).toFixed(3)})`,
                 }}
               />
             )}
@@ -1125,9 +1129,9 @@ export const Game: React.FC = () => {
                 transform: `scale(${stageScale})`,
                 transformOrigin: 'top left',
                 zIndex: 2,
-                contain: isGameplayActive && activeLaneUiVisible ? 'layout style' : 'layout style paint',
+                contain: isGameplayActive && activeLaneChromeVisible ? 'layout style' : 'layout style paint',
                 isolation: 'isolate',
-                overflow: isGameplayActive && activeLaneUiVisible ? 'visible' : 'hidden',
+                overflow: isGameplayActive && activeLaneChromeVisible ? 'visible' : 'hidden',
                 willChange: isGameplayActive ? 'transform' : undefined,
               }}
             >

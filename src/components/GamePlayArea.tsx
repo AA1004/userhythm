@@ -61,6 +61,8 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isLegacyHud = playfieldGeometry.gameplayHudMode === 'legacy';
   const simpleHoldVisuals = playfieldGeometry.gameplayHudMode === 'new-lite';
+  const laneUiOpacity = isLaneUiVisible ? Math.max(0, Math.min(1, 1 - bgaMaskOpacity)) : 0;
+  const shouldRenderLaneUi = laneUiOpacity > 0.001;
   const laneNoteColors = useMemo(
     () => [
       getLaneNoteColor(0, playfieldGeometry.outerLaneNoteColor, playfieldGeometry.innerLaneNoteColor),
@@ -72,7 +74,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
   );
   const laneBackgroundLayer = useMemo(
     () =>
-      isLaneUiVisible ? (
+      shouldRenderLaneUi ? (
         <div
           style={{
             position: 'absolute',
@@ -85,7 +87,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
         />
       ) : null,
     [
-      isLaneUiVisible,
+      shouldRenderLaneUi,
       playfieldGeometry.laneGroupLeft,
       playfieldGeometry.laneGroupWidth,
       playfieldGeometry.laneOpacity,
@@ -94,7 +96,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
 
   const lanePressTintLayer = useMemo(
     () =>
-      isLegacyHud && isLaneUiVisible && playfieldGeometry.lanePressTintEnabled
+      isLegacyHud && shouldRenderLaneUi && playfieldGeometry.lanePressTintEnabled
         ? playfieldGeometry.laneCenters.map((x, index) => {
             const isPressed = pressedKeys.has(index as Lane);
             return (
@@ -120,7 +122,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
           })
         : null,
     [
-      isLaneUiVisible,
+      shouldRenderLaneUi,
       isLegacyHud,
       playfieldGeometry.lanePressTintEnabled,
       playfieldGeometry.laneCenters,
@@ -133,7 +135,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
 
   const laneEdgeLayer = useMemo(
     () =>
-      isLaneUiVisible
+      shouldRenderLaneUi
         ? playfieldGeometry.laneEdges.map((x) => (
             <div
               key={x}
@@ -150,7 +152,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
           ))
         : null,
     [
-      isLaneUiVisible,
+      shouldRenderLaneUi,
       playfieldGeometry.laneEdges,
       playfieldGeometry.laneOpacity,
     ]
@@ -158,7 +160,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
 
   const noteFieldLayer = useMemo(
     () =>
-      isLaneUiVisible ? (
+      shouldRenderLaneUi ? (
         <>
           {playfieldGeometry.renderBackend === 'webgl' ? (
             <WebglBetaNoteRenderer
@@ -174,7 +176,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
               laneNoteColors={laneNoteColors}
               holdingNotesRef={holdingNotesRef}
               hitNoteIdsRef={hitNoteIdsRef}
-              visible={isLaneUiVisible}
+              visible={shouldRenderLaneUi}
               simpleHoldVisuals={simpleHoldVisuals}
               advanceGameplayClock={advanceGameplayClock}
               scanGameplayMisses={scanGameplayMisses}
@@ -207,7 +209,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
                 laneNoteColors={laneNoteColors}
                 holdingNotesRef={holdingNotesRef}
                 hitNoteIdsRef={hitNoteIdsRef}
-                visible={isLaneUiVisible}
+                visible={shouldRenderLaneUi}
                 simpleHoldVisuals={simpleHoldVisuals}
               />
             </>
@@ -215,7 +217,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
         </>
       ) : null,
     [
-      isLaneUiVisible,
+      shouldRenderLaneUi,
       playfieldGeometry.renderBackend,
       playfieldGeometry.noteWidth,
       playfieldGeometry.noteHeight,
@@ -237,17 +239,18 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
 
   const judgeLineLayer = useMemo(
     () =>
-      gameStarted && isLaneUiVisible ? (
+      gameStarted && shouldRenderLaneUi ? (
         <JudgeLine
           left={playfieldGeometry.judgeLineLeft}
           width={playfieldGeometry.judgeLineWidth}
           top={judgeLineY}
-          opacity={1}
+          opacity={laneUiOpacity}
         />
       ) : null,
     [
       gameStarted,
-      isLaneUiVisible,
+      shouldRenderLaneUi,
+      laneUiOpacity,
       playfieldGeometry.judgeLineLeft,
       playfieldGeometry.judgeLineWidth,
       judgeLineY,
@@ -261,7 +264,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
           combo={combo}
           laneGroupCenterX={playfieldGeometry.laneGroupLeft + playfieldGeometry.laneGroupWidth / 2}
           numberOpacity={playfieldGeometry.comboOpacity}
-          visible={isLaneUiVisible}
+          visible={shouldRenderLaneUi}
         />
       ) : null,
     [
@@ -271,13 +274,13 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       playfieldGeometry.laneGroupLeft,
       playfieldGeometry.laneGroupWidth,
       playfieldGeometry.comboOpacity,
-      isLaneUiVisible,
+      shouldRenderLaneUi,
     ]
   );
 
   const keyLaneLayer = useMemo(
     () =>
-      gameStarted && isLaneUiVisible && isLegacyHud
+      gameStarted && shouldRenderLaneUi && isLegacyHud
         ? playfieldGeometry.laneCenters.map((x, index) => (
             <KeyLane
               key={index}
@@ -286,7 +289,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
               width={playfieldGeometry.laneWidth}
               keys={laneKeyLabels[index]}
               isPressed={pressedKeys.has(index as Lane)}
-              opacity={playfieldGeometry.keyLaneOpacity}
+              opacity={playfieldGeometry.keyLaneOpacity * laneUiOpacity}
               styleVariant={playfieldGeometry.gameplayHudMode}
               glowEnabled={playfieldGeometry.keyPressGlowEnabled}
               pulseEnabled={playfieldGeometry.keyPressPulseEnabled}
@@ -295,7 +298,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
         : null,
     [
       gameStarted,
-      isLaneUiVisible,
+      shouldRenderLaneUi,
       isLegacyHud,
       playfieldGeometry.laneCenters,
       playfieldGeometry.keyLaneY,
@@ -306,6 +309,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       playfieldGeometry.keyPressPulseEnabled,
       laneKeyLabels,
       pressedKeys,
+      laneUiOpacity,
     ]
   );
 
@@ -321,10 +325,19 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
           pointerEvents: 'none',
         }}
       >
-        {laneBackgroundLayer}
-        {lanePressTintLayer}
-        {laneEdgeLayer}
-        {noteFieldLayer}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            opacity: laneUiOpacity,
+            pointerEvents: 'none',
+          }}
+        >
+          {laneBackgroundLayer}
+          {lanePressTintLayer}
+          {laneEdgeLayer}
+          {noteFieldLayer}
+        </div>
 
         <div
           style={{

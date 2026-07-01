@@ -112,6 +112,8 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
   );
 
   const useSlotHud = playfieldGeometry.slotHudEnabled;
+  const laneUiOpacity = isLaneUiVisible ? Math.max(0, Math.min(1, 1 - bgaMaskOpacity)) : 0;
+  const shouldRenderLaneUi = laneUiOpacity > 0.001;
   const legacySlotHudTop = playfieldGeometry.keyLaneY + KEY_LANE_HEIGHT + 8;
   const legacySlotHudProgress =
     durationMs > 0
@@ -119,8 +121,10 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
       : 0;
   return (
     <>
-      {isGameplayActive && bgaMaskOpacity < 1 && !useSlotHud && isLegacyHud && (
-        <Score score={displayScore} />
+      {isGameplayActive && shouldRenderLaneUi && !useSlotHud && isLegacyHud && (
+        <div style={{ opacity: laneUiOpacity }}>
+          <Score score={displayScore} />
+        </div>
       )}
 
       <GamePlayArea
@@ -149,7 +153,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
 
       <GameplayHudCanvas
         active={isGameplayActive}
-        visible={isLaneUiVisible}
+        visible={shouldRenderLaneUi}
         hudRevision={hudRevision}
         effectsRevision={effectsRevision}
         judgeFeedbackTop={Math.max(120, judgeLineY - 140)}
@@ -162,9 +166,10 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
         playfieldGeometry={playfieldGeometry}
         gameplayHudMode={playfieldGeometry.gameplayHudMode}
         durationMs={durationMs}
+        opacity={laneUiOpacity}
       />
 
-      {isGameplayActive && useSlotHud && isLegacyHud && (
+      {isGameplayActive && useSlotHud && isLegacyHud && shouldRenderLaneUi && (
         <GameplaySlotHud
           laneGroupLeft={playfieldGeometry.laneGroupLeft}
           laneGroupWidth={playfieldGeometry.laneGroupWidth}
@@ -175,8 +180,8 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
           currentTimeRef={currentTimeRef}
           scoreRuntimeRef={scoreRuntimeRef}
           durationMs={durationMs}
-          visible={isLaneUiVisible}
-          opacity={playfieldGeometry.slotHudOpacity}
+          visible={shouldRenderLaneUi}
+          opacity={playfieldGeometry.slotHudOpacity * laneUiOpacity}
         />
       )}
     </>

@@ -24,6 +24,7 @@ interface GameplayHudCanvasProps {
   playfieldGeometry: PlayfieldGeometry;
   gameplayHudMode: GameVisualSettings['gameplayHudMode'];
   durationMs: number;
+  opacity?: number;
 }
 
 const judgeColors: Record<JudgeType, { main: string; soft: string }> = {
@@ -527,6 +528,7 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   playfieldGeometry,
   gameplayHudMode,
   durationMs,
+  opacity = 1,
 }) => {
   const staticCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const effectsCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -710,6 +712,7 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
           height: `${canvasHeight}px`,
           pointerEvents: 'none',
           zIndex: 500,
+          opacity,
         }}
       />
       <canvas
@@ -723,6 +726,7 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
           height: `${canvasHeight}px`,
           pointerEvents: 'none',
           zIndex: 501,
+          opacity,
         }}
       />
     </>
