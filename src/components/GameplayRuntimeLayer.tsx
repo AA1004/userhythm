@@ -9,7 +9,6 @@ import { GameplayHudCanvas } from './GameplayHudCanvas';
 import { GameplaySlotHud } from './GameplaySlotHud';
 import { PlayfieldGeometry } from '../constants/gameVisualSettings';
 import { HitNoteIdsRef } from '../utils/noteRuntimeState';
-import { START_DELAY_MS } from '../constants/gameConstants';
 import { KEY_LANE_HEIGHT } from '../constants/gameVisualSettings';
 
 interface GameplayRuntimeLayerProps {
@@ -32,6 +31,7 @@ interface GameplayRuntimeLayerProps {
   isGameplayActive: boolean;
   clockEnabled?: boolean;
   durationMs: number;
+  startDelayMs: number;
 }
 
 export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
@@ -54,6 +54,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
   isGameplayActive,
   clockEnabled = true,
   durationMs,
+  startDelayMs,
 }) => {
   const isLegacyHud = playfieldGeometry.gameplayHudMode === 'legacy';
   const [rendererClockDriven, setRendererClockDriven] = React.useState(false);
@@ -102,7 +103,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
     setGameState,
     handleNoteMiss,
     noteSpeed,
-    START_DELAY_MS,
+    startDelayMs,
     currentTimeRef,
     hitNoteIdsRef,
     timingOffsetMs,

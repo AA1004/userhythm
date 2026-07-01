@@ -30,6 +30,7 @@ import { localSubtitleStorage } from '../lib/subtitleAPI';
 import { MIN_LONG_NOTE_DURATION, validateNotes, getMaxNoteId } from '../utils/noteValidation';
 import { convertBgaEventsToEditableIntervals } from '../utils/bgaVisibility';
 import { normalizeSubtitlePayload } from '../utils/subtitleNormalization';
+import { START_DELAY_MS } from '../constants/gameConstants';
 import {
   blurEditorNonTextControlAfterPointer,
   blurEditorNonTextControlOnFocus,
@@ -304,6 +305,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [timeSignatureOffset, setTimeSignatureOffset] = useState<number>(0);
   const [timelineExtraMs, setTimelineExtraMs] = useState<number>(0);
   const [audioOffsetMs, setAudioOffsetMs] = useState<number>(0);
+  const [startDelayMs, setStartDelayMs] = useState<number>(START_DELAY_MS);
   const [gridDivision, setGridDivision] = useState<number>(1);
   const [speedChanges, setSpeedChanges] = useState<SpeedChange[]>([]);
   const [bgaVisibilityIntervals, setBgaVisibilityIntervals] = useState<BgaVisibilityInterval[]>([]);
@@ -702,6 +704,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         timeSignatureOffset,
         timelineExtraMs,
         audioOffsetMs,
+        startDelayMs,
         bpmChanges,
         speedChanges,
         bgaVisibilityIntervals,
@@ -740,8 +743,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     youtubeVideoId,
     beatsPerMeasure,
     timeSignatureOffset,
-    audioOffsetMs,
-    bpmChanges,
+      audioOffsetMs,
+      startDelayMs,
+      bpmChanges,
         speedChanges,
         bgaVisibilityIntervals,
       editingChartId,
@@ -834,6 +838,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     if (data.timeSignatureOffset !== undefined) setTimeSignatureOffset(data.timeSignatureOffset);
     if (typeof data.timelineExtraMs === 'number') setTimelineExtraMs(data.timelineExtraMs);
     if (typeof data.audioOffsetMs === 'number') setAudioOffsetMs(data.audioOffsetMs);
+    setStartDelayMs(
+      typeof data.startDelayMs === 'number'
+        ? Math.max(0, Math.round(data.startDelayMs))
+        : START_DELAY_MS
+    );
     if (Array.isArray(data.bpmChanges)) setBpmChanges(data.bpmChanges);
     if (Array.isArray(data.speedChanges)) {
       setSpeedChanges(data.speedChanges);
@@ -1005,6 +1014,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setTimeSignatureOffset(0);
     setTimelineExtraMs(0);
     setAudioOffsetMs(0);
+    setStartDelayMs(START_DELAY_MS);
     setGridDivision(1);
     setSpeedChanges([]);
     setBgaVisibilityIntervals([]);
@@ -1881,6 +1891,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         timeSignatureOffset,
         timelineExtraMs,
         audioOffsetMs,
+        startDelayMs,
         bpmChanges,
         speedChanges,
         bgaVisibilityIntervals,
@@ -1943,7 +1954,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     } finally {
       setIsUploading(false);
     }
-  }, [shareTitle, shareAuthor, shareDifficulty, adminAssignedDifficulty, shareDescription, bpm, youtubeUrl, youtubeVideoId, youtubeThumbnailUrl, notes, beatsPerMeasure, timeSignatureOffset, timelineExtraMs, audioOffsetMs, bpmChanges, speedChanges, bgaVisibilityIntervals, gridDivision, isLongNoteMode, user, subtitleSessionId, sharePreviewStartMeasure, sharePreviewEndMeasure, shareIsWip, shareWipNote, wipParentChartId, editingChartId, isAdmin]);
+  }, [shareTitle, shareAuthor, shareDifficulty, adminAssignedDifficulty, shareDescription, bpm, youtubeUrl, youtubeVideoId, youtubeThumbnailUrl, notes, beatsPerMeasure, timeSignatureOffset, timelineExtraMs, audioOffsetMs, startDelayMs, bpmChanges, speedChanges, bgaVisibilityIntervals, gridDivision, isLongNoteMode, user, subtitleSessionId, sharePreviewStartMeasure, sharePreviewEndMeasure, shareIsWip, shareWipNote, wipParentChartId, editingChartId, isAdmin]);
 
   const handleExportJson = useCallback(() => {
     try {
@@ -2099,6 +2110,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       youtubeUrl,
       playbackSpeed: 1,
       audioOffsetMs,
+      startDelayMs,
       bgaVisibilityIntervals,
       chartId: subtitleSessionId,
     });
@@ -2111,6 +2123,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     youtubeVideoId,
       youtubeUrl,
       audioOffsetMs,
+      startDelayMs,
       bgaVisibilityIntervals,
       subtitleSessionId,
       resolveEditorPreviewChartTimeMs,
@@ -2480,9 +2493,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           timeSignatureOffset={timeSignatureOffset}
           timelineExtraMs={timelineExtraMs}
           audioOffsetMs={audioOffsetMs}
+          startDelayMs={startDelayMs}
           onTimeSignatureOffsetChange={setTimeSignatureOffset}
           onTimelineExtraChange={(updater) => setTimelineExtraMs((prev) => updater(prev))}
           onAudioOffsetChange={(updater) => setAudioOffsetMs((prev) => updater(prev))}
+          onStartDelayChange={(updater) => setStartDelayMs((prev) => Math.max(0, updater(prev)))}
           beatDuration={beatDuration}
         />
 

@@ -63,6 +63,11 @@ export function useChartLoader({
       // 일반 플레이는 YouTube 오디오를 쓰더라도 테스트 모드가 아니다.
       onTestModeSet(false);
 
+      const startDelayMs =
+        typeof chartData.startDelayMs === 'number' && Number.isFinite(chartData.startDelayMs)
+          ? Math.max(0, Math.round(chartData.startDelayMs))
+          : START_DELAY_MS;
+
       // YouTube 플레이어 설정 (필요시) - 먼저 설정해야 useEffect가 올바르게 작동함
       if (chartData.youtubeVideoId) {
         const audioSettings: AudioSettings = {
@@ -71,6 +76,7 @@ export function useChartLoader({
           startTimeMs: 0,
           playbackSpeed: 1,
           audioOffsetMs: typeof chartData.audioOffsetMs === 'number' ? chartData.audioOffsetMs : 0,
+          startDelayMs,
           chartId: chartData.chartId,
         };
         onYoutubeSetup(chartData.youtubeVideoId, audioSettings);
@@ -82,6 +88,7 @@ export function useChartLoader({
               startTimeMs: 0,
               playbackSpeed: 1,
               audioOffsetMs: typeof chartData.audioOffsetMs === 'number' ? chartData.audioOffsetMs : 0,
+              startDelayMs,
               chartId: chartData.chartId,
             }
           : null);
@@ -201,7 +208,7 @@ export function useChartLoader({
       setGameState({
         notes: preparedNotes,
         score: buildInitialScore(),
-        currentTime: -START_DELAY_MS,
+        currentTime: -startDelayMs,
         gameStarted: true,
         gameEnded: false,
       });

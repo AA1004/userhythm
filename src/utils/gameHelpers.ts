@@ -25,6 +25,7 @@ export interface AudioSettings {
   startTimeMs: number;
   playbackSpeed: number;
   audioOffsetMs?: number;
+  startDelayMs?: number;
   chartId?: string;
   overlayAudioTrack?: EmbeddedAudioTrack | null;
 }

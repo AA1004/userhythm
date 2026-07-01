@@ -11,6 +11,7 @@ export interface EditorTestPayload {
   youtubeUrl: string;
   playbackSpeed: number;
   audioOffsetMs?: number;
+  startDelayMs?: number;
   chartId?: string;
   bgaVisibilityIntervals?: BgaVisibilityInterval[];
   overlayAudioTrack?: EmbeddedAudioTrack | null;
@@ -33,7 +34,7 @@ export interface UseTestSessionReturn {
   isTestMode: boolean;
   isFromEditor: boolean;
   dynamicGameDuration: number;
-  startTestSession: (notes: Note[], intervals: BgaVisibilityInterval[]) => void;
+  startTestSession: (notes: Note[], intervals: BgaVisibilityInterval[], startDelayMs?: number) => void;
   handleEditorTest: (payload: EditorTestPayload) => void;
   handleRetest: () => void;
   reset: () => void;
@@ -61,10 +62,13 @@ export function useTestSession({
   const [dynamicGameDuration, setDynamicGameDuration] = useState<number>(DEFAULT_GAME_DURATION);
   const preparedNotesRef = useRef<Note[]>([]);
   const bgaIntervalsRef = useRef<BgaVisibilityInterval[]>([]);
+  const startDelayMsRef = useRef<number>(START_DELAY_MS);
 
   const startTestSession = useCallback(
-    (preparedNotes: Note[], visibilityIntervals: BgaVisibilityInterval[] = []) => {
+    (preparedNotes: Note[], visibilityIntervals: BgaVisibilityInterval[] = [], startDelayMs = START_DELAY_MS) => {
       if (!preparedNotes.length) return;
+      const safeStartDelayMs = Number.isFinite(startDelayMs) ? Math.max(0, Math.round(startDelayMs)) : START_DELAY_MS;
+      startDelayMsRef.current = safeStartDelayMs;
       
       onProcessedMissNotesClear();
       onPressedKeysReset();
@@ -88,7 +92,7 @@ export function useTestSession({
           hit: false,
         })),
         score: buildInitialScore(),
-        currentTime: -START_DELAY_MS,
+        currentTime: -safeStartDelayMs,
         gameEnded: false,
       }));
     },
@@ -142,6 +146,7 @@ export function useTestSession({
         startTimeMs: startMs,
         playbackSpeed: payload.playbackSpeed || 1,
         audioOffsetMs: payload.audioOffsetMs ?? 0,
+        startDelayMs: payload.startDelayMs ?? START_DELAY_MS,
         overlayAudioTrack: payload.overlayAudioTrack ?? null,
       });
 
@@ -159,7 +164,7 @@ export function useTestSession({
       // YouTube 플레이어 초기화를 위해 videoId 설정
       onYoutubeVideoIdSet(payload.youtubeVideoId);
       
-      startTestSession(preparedNotes, payload.bgaVisibilityIntervals || []);
+      startTestSession(preparedNotes, payload.bgaVisibilityIntervals || [], payload.startDelayMs ?? START_DELAY_MS);
     },
     [startTestSession, onSubtitlesLoad, onSubtitlesClear, onYoutubeVideoIdSet, onAudioSettingsSet, onEditorClose]
   );
@@ -168,7 +173,7 @@ export function useTestSession({
     if (!preparedNotesRef.current.length) return;
     setIsTestMode(true);
     const clonedNotes = preparedNotesRef.current.map((note) => ({ ...note }));
-    startTestSession(clonedNotes, bgaIntervalsRef.current);
+    startTestSession(clonedNotes, bgaIntervalsRef.current, startDelayMsRef.current);
   }, [startTestSession]);
 
   const reset = useCallback(() => {

@@ -739,6 +739,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
         subtitleTracks: chartData.subtitleTracks || [],
         timelineExtraMs: typeof chartData.timelineExtraMs === 'number' ? chartData.timelineExtraMs : 0,
         audioOffsetMs: typeof chartData.audioOffsetMs === 'number' ? chartData.audioOffsetMs : 0,
+        startDelayMs: typeof chartData.startDelayMs === 'number' ? Math.max(0, Math.round(chartData.startDelayMs)) : undefined,
         beatsPerMeasure: typeof chartData.beatsPerMeasure === 'number' ? chartData.beatsPerMeasure : 4,
         youtubeVideoId,
         youtubeUrl,

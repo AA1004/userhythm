@@ -162,6 +162,7 @@ export const Game: React.FC = () => {
   }, [gameState]);
 
   const currentChartTimeOffsetMs = testAudioSettings?.startTimeMs ?? 0;
+  const currentStartDelayMs = testAudioSettings?.startDelayMs ?? START_DELAY_MS;
   const activePlayableChartId = testAudioSettings?.chartId ?? null;
   const hasYoutubeAudioSession = !!testYoutubeVideoId && !!testAudioSettings;
 
@@ -364,6 +365,10 @@ export const Game: React.FC = () => {
 
   const handleEditorTestWithRuntimeReset = useCallback(
       (payload: Parameters<typeof handleEditorTest>[0]) => {
+        const startDelayMs =
+          typeof payload.startDelayMs === 'number' && Number.isFinite(payload.startDelayMs)
+            ? Math.max(0, Math.round(payload.startDelayMs))
+            : START_DELAY_MS;
         if (hasPendingVisualSettings) {
           applyPendingVisualSettings();
         }
@@ -372,7 +377,7 @@ export const Game: React.FC = () => {
         setTestAudioSettings(null);
         setTestYoutubeVideoId(null);
         destroyYoutubePlayer();
-      currentTimeRef.current = -START_DELAY_MS;
+      currentTimeRef.current = -startDelayMs;
       window.setTimeout(() => {
         handleEditorTest(payload);
       }, 0);
@@ -381,9 +386,9 @@ export const Game: React.FC = () => {
     );
 
   const handleRetestWithRuntimeReset = useCallback(() => {
-    currentTimeRef.current = -START_DELAY_MS;
+    currentTimeRef.current = -currentStartDelayMs;
     handleRetest();
-  }, [handleRetest]);
+  }, [currentStartDelayMs, handleRetest]);
 
   // currentTimeRef is the source time. Use a one-shot timer instead of polling so
   // chart-duration end checks do not add a steady gameplay interval.
@@ -741,6 +746,7 @@ export const Game: React.FC = () => {
         youtubeUrl: chartData.youtubeUrl || '',
         playbackSpeed: 1,
         audioOffsetMs: typeof chartData.audioOffsetMs === 'number' ? chartData.audioOffsetMs : 0,
+        startDelayMs: typeof chartData.startDelayMs === 'number' ? Math.max(0, Math.round(chartData.startDelayMs)) : START_DELAY_MS,
       });
       }, 0);
     }, [handleEditorTestWithRuntimeReset]);
@@ -1146,6 +1152,7 @@ export const Game: React.FC = () => {
                     isGameplayActive={isGameplayActive}
                     clockEnabled={isGameplayClockRunning}
                     durationMs={dynamicGameDuration}
+                    startDelayMs={currentStartDelayMs}
                   />
                 )}
 

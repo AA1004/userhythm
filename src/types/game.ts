@@ -91,6 +91,7 @@ export interface ChartTestPayload {
   youtubeUrl: string;
   playbackSpeed: number;
   audioOffsetMs?: number;
+  startDelayMs?: number;
   bpm?: number;
   speedChanges?: SpeedChange[];
   chartId?: string;

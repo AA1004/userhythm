@@ -18,9 +18,11 @@ interface ChartEditorSidebarLeftProps {
   timeSignatureOffset: number;
   timelineExtraMs: number;
   audioOffsetMs: number;
+  startDelayMs: number;
   onTimeSignatureOffsetChange: (offset: number) => void;
   onTimelineExtraChange: (updater: (prev: number) => number) => void;
   onAudioOffsetChange: (updater: (prev: number) => number) => void;
+  onStartDelayChange: (updater: (prev: number) => number) => void;
   beatDuration: number;
 }
 
@@ -79,15 +81,21 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
   timeSignatureOffset,
   timelineExtraMs,
   audioOffsetMs,
+  startDelayMs,
   onTimeSignatureOffsetChange,
   onTimelineExtraChange,
   onAudioOffsetChange,
+  onStartDelayChange,
   beatDuration,
 }) => {
   const gridCellMs = beatDuration / Math.max(1, gridDivision);
   const offsetInCells = timeSignatureOffset / gridCellMs;
   const timelineExtraCells = timelineExtraMs / gridCellMs;
   const displayAudioOffsetSeconds = (audioOffsetMs / 1000)
+    .toFixed(3)
+    .replace(/\.0+$/, '')
+    .replace(/(\.\d*?)0+$/, '$1');
+  const displayStartDelaySeconds = (startDelayMs / 1000)
     .toFixed(3)
     .replace(/\.0+$/, '')
     .replace(/(\.\d*?)0+$/, '$1');
@@ -432,6 +440,108 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
           >
             +0.1초
           </button>
+        </div>
+      </div>
+
+      <div
+        style={{
+          marginBottom: '10px',
+          padding: '6px 8px',
+          borderRadius: CHART_EDITOR_THEME.radiusMd,
+          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
+          border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 6,
+          }}
+        >
+          <span
+            style={{
+              fontSize: '12px',
+              fontWeight: 500,
+            }}
+          >
+            게임 시작 대기
+          </span>
+          <ValueBadge>{displayStartDelaySeconds}초</ValueBadge>
+        </div>
+        <div
+          style={{
+            marginBottom: 6,
+            fontSize: 10,
+            color: CHART_EDITOR_THEME.textMuted,
+          }}
+        >
+          노트 타임라인 0초로 들어가기 전 대기 시간입니다. 시작부터 페이드가 있으면 0초로 둘 수 있습니다.
+        </div>
+        <input
+          type="number"
+          min="0"
+          step="0.1"
+          value={Number(displayStartDelaySeconds)}
+          onChange={(e) => {
+            const nextSeconds = parseFloat(e.target.value);
+            onStartDelayChange(() =>
+              Number.isFinite(nextSeconds)
+                ? Math.max(0, Math.round(nextSeconds * 1000))
+                : 0
+            );
+          }}
+          onFocus={(e) => e.currentTarget.select()}
+          onWheel={(e) => e.currentTarget.blur()}
+          style={{
+            width: '100%',
+            boxSizing: 'border-box',
+            marginBottom: 6,
+            padding: '6px 8px',
+            borderRadius: CHART_EDITOR_THEME.radiusSm,
+            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+            backgroundColor: 'rgba(2,6,23,0.72)',
+            color: CHART_EDITOR_THEME.textPrimary,
+            fontSize: '12px',
+          }}
+        />
+        <div
+          style={{
+            display: 'flex',
+            gap: 6,
+          }}
+        >
+          {[0, 2000, 4000].map((presetMs) => (
+            <button
+              key={presetMs}
+              data-editor-transient-action="true"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => {
+                e.currentTarget.blur();
+                onStartDelayChange(() => presetMs);
+              }}
+              style={{
+                flex: 1,
+                padding: '6px',
+                backgroundColor:
+                  presetMs === startDelayMs
+                    ? 'rgba(34,211,238,0.18)'
+                    : 'rgba(15,23,42,0.72)',
+                color:
+                  presetMs === startDelayMs
+                    ? CHART_EDITOR_THEME.accentStrong
+                    : CHART_EDITOR_THEME.textSecondary,
+                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                borderRadius: CHART_EDITOR_THEME.radiusSm,
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: 600,
+              }}
+            >
+              {presetMs / 1000}초
+            </button>
+          ))}
         </div>
       </div>
 
