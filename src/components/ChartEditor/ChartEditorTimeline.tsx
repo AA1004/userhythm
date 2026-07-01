@@ -971,11 +971,13 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
           const midStart = fadeInRatio;
           const midEnd = Math.max(midStart, 1 - fadeOutRatio);
           const baseColor = 'rgba(248,113,113,0.22)';
-          const gradient = `linear-gradient(to bottom,
-            rgba(0,0,0,0) 0%,
-            ${baseColor} ${midStart * 100}%,
-            ${baseColor} ${midEnd * 100}%,
-            rgba(0,0,0,0) 100%)`;
+          const gradientStops = [
+            fadeInRatio > 0 ? 'rgba(0,0,0,0) 0%' : `${baseColor} 0%`,
+            ...(fadeInRatio > 0 ? [`${baseColor} ${midStart * 100}%`] : []),
+            `${baseColor} ${midEnd * 100}%`,
+            fadeOutRatio > 0 ? 'rgba(0,0,0,0) 100%' : `${baseColor} 100%`,
+          ];
+          const gradient = `linear-gradient(to bottom, ${gradientStops.join(', ')})`;
 
           return (
             <div
