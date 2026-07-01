@@ -408,7 +408,9 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
       />
       )}
 
-      {/* 실제 게임/채보/자막 오버레이 콘텐츠 */}
+      {/* 실제 게임/채보/자막 오버레이 콘텐츠.
+          레인 페이드는 게임 내부 레이어에서 처리한다. 여기서 children 전체를 숨기면
+          자막까지 함께 사라지므로 layout wrapper는 항상 표시한다. */}
       <div
         style={{
           position: 'relative',
@@ -417,9 +419,6 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
           boxSizing: 'border-box',
           width: '100%',
           maxWidth: 1280,
-          opacity: bgaMaskOpacity >= 1 ? 0 : 1,
-          transition: 'opacity 80ms linear',
-          pointerEvents: bgaMaskOpacity >= 1 ? 'none' : 'auto',
         }}
       >
         {children}

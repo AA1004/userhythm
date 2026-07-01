@@ -1008,16 +1008,14 @@ export const Game: React.FC = () => {
         bgaOpacity={visualSettings.bgaOpacity}
         performanceMode={visualSettings.performanceMode}
       >
-      {/* 게임 + 자막 wrapper (자막이 게임 바깥으로 나갈 수 있도록) */}
+      {/* 게임 + 자막 wrapper (자막이 게임 바깥으로 나갈 수 있도록).
+          레인 페이드 중에도 자막은 보여야 하므로 wrapper 전체 opacity는 건드리지 않는다. */}
       <div
         style={{
           width: '100%',
           display: 'flex',
           justifyContent: 'center',
           fontFamily: 'Arial, sans-serif',
-          opacity: activeBgaMaskOpacity >= 1 ? 0 : 1,
-          transition: 'opacity 80ms linear',
-          pointerEvents: activeBgaMaskOpacity >= 1 ? 'none' : 'auto',
         }}
       >
         <audio ref={overlayAudioRef} preload="auto" style={{ display: 'none' }} />
