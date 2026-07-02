@@ -459,8 +459,8 @@ export function useChartYoutubePlayer({
     lastAppliedAudioOffsetRef.current = audioOffsetMs;
   }, [audioOffsetMs, isPlaying, syncPlayerToTimeline, youtubePlayer]);
 
-  // 에디터 재생 중에는 YouTube 실제 재생 시간을 주기적으로 샘플링하고,
-  // 샘플 사이만 보간한다. YouTube 시작 지연 때문에 채보가 먼저 흐르는 것을 막는다.
+  // 에디터 재생 중에는 로컬 타이머로 즉시 반응하고, YouTube가 실제 PLAYING 상태일 때만
+  // 작은 폭으로 보정한다. 시작 직후 재생선이 멈춰 보이면 편집 체감이 크게 나빠진다.
 
   const getSynchronizedTimelineTime = useCallback(
     (fallbackTimeMs: number) => {
@@ -497,11 +497,23 @@ export function useChartYoutubePlayer({
       if (!sample) {
         return fallbackTimeMs;
       }
+      if (isPlaying && !sample.isPlaying) {
+        return fallbackTimeMs;
+      }
 
       const elapsedMs = sample.isPlaying ? (now - sample.sampledAtMs) * playbackSpeed : 0;
-      return Math.max(0, sample.playerSeconds * 1000 + elapsedMs + audioOffsetMs);
+      const youtubeTimeMs = Math.max(0, sample.playerSeconds * 1000 + elapsedMs + audioOffsetMs);
+      const driftMs = youtubeTimeMs - fallbackTimeMs;
+
+      if (Math.abs(driftMs) <= 8) {
+        return fallbackTimeMs;
+      }
+
+      const maxCorrectionMs = 24;
+      const correctionMs = Math.max(-maxCorrectionMs, Math.min(maxCorrectionMs, driftMs));
+      return Math.max(0, fallbackTimeMs + correctionMs);
     },
-    [audioOffsetMs, playbackSpeed, youtubePlayer]
+    [audioOffsetMs, isPlaying, playbackSpeed, youtubePlayer]
   );
 
   // 시크 함수
