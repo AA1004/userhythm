@@ -1053,6 +1053,8 @@ export const Game: React.FC = () => {
             style={{
               width: '100%',
               height: '100%',
+              opacity: isGameplayActive ? activeLaneChromeOpacity : 1,
+              pointerEvents: isGameplayActive && !activeLaneChromeVisible ? 'none' : 'auto',
               backgroundColor:
                 !activeLaneChromeVisible
                   ? 'transparent'
@@ -1092,7 +1094,7 @@ export const Game: React.FC = () => {
                 isGameplayActive && activeLaneChromeVisible && topLaneExtensionHeightPx > 0
                   ? 'none'
                   : undefined,
-              transition: 'background-color 80ms linear, border 80ms linear, box-shadow 80ms linear, border-radius 80ms linear',
+              transition: 'opacity 40ms linear, background-color 80ms linear, border 80ms linear, box-shadow 80ms linear, border-radius 80ms linear',
             }}
           >
             {isGameplayActive && activeLaneChromeVisible && topLaneExtensionHeightPx > 0 && (
