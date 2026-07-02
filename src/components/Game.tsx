@@ -35,7 +35,7 @@ import { buildPlayfieldGeometry } from '../constants/gameVisualSettings';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 import { api, ApiChart } from '../lib/api';
 import { chartAPI } from '../lib/supabaseClient';
-import type { SubtitleTrack } from '../types/subtitle';
+import type { SubtitleCue, SubtitleTrack } from '../types/subtitle';
 
 const EDITOR_CONTRIBUTION_DRAFT_KEY = 'userhythm:editor-contribution-draft';
 
@@ -47,6 +47,7 @@ interface SubtitleEditorChartData {
   youtubeVideoId?: string | null;
   youtubeUrl?: string;
   title?: string;
+  subtitles?: SubtitleCue[];
   subtitleTracks?: SubtitleTrack[];
 }
 

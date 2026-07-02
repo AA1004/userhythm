@@ -108,5 +108,6 @@ export interface SubtitleEditorChartData {
   youtubeVideoId?: string | null;
   youtubeUrl?: string;
   title?: string;
+  subtitles?: SubtitleCue[];
   subtitleTracks?: SubtitleTrack[];
 }

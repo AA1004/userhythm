@@ -297,6 +297,25 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     };
   }, []);
 
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const custom = event as CustomEvent<any>;
+      const detail = custom.detail;
+      if (!detail || detail.chartId !== subtitleSessionId) return;
+      setCachedSubtitlePayload(
+        normalizeSubtitlePayload(
+          subtitleSessionId,
+          Array.isArray(detail.subtitles) ? detail.subtitles : [],
+          Array.isArray(detail.subtitleTracks) ? detail.subtitleTracks : []
+        )
+      );
+    };
+    window.addEventListener('subtitle-payload-updated', handler as EventListener);
+    return () => {
+      window.removeEventListener('subtitle-payload-updated', handler as EventListener);
+    };
+  }, [subtitleSessionId]);
+
   
   // --- BPM & Grid 상태 ---
   const [bpm, setBpm] = useState<number>(120);
@@ -2172,6 +2191,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         localSubtitleStorage.get(subtitleSessionId),
         localSubtitleStorage.getTracks(subtitleSessionId)
       ).subtitles,
+      subtitleTracks: localSubtitleStorage.getTracks(subtitleSessionId),
     });
   }, [
     onTest,
@@ -2478,20 +2498,23 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         onReset={handleReset}
         onSubtitleClick={
           onOpenSubtitleEditor
-            ? () =>
+            ? () => {
+                const subtitlePayload = normalizeSubtitlePayload(
+                  subtitleSessionId,
+                  localSubtitleStorage.get(subtitleSessionId),
+                  localSubtitleStorage.getTracks(subtitleSessionId)
+                );
                 onOpenSubtitleEditor({
                   chartId: subtitleSessionId,
-            notes,
-            bpm,
-            youtubeVideoId,
-            youtubeUrl,
+                  notes,
+                  bpm,
+                  youtubeVideoId,
+                  youtubeUrl,
                   title: shareTitle || 'Untitled',
-                  subtitleTracks: normalizeSubtitlePayload(
-                    subtitleSessionId,
-                    localSubtitleStorage.get(subtitleSessionId),
-                    localSubtitleStorage.getTracks(subtitleSessionId)
-                  ).subtitleTracks,
-                })
+                  subtitles: subtitlePayload.subtitles,
+                  subtitleTracks: subtitlePayload.subtitleTracks,
+                });
+              }
             : undefined
         }
         onExit={onCancel}

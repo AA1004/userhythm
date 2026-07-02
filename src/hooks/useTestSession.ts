@@ -3,7 +3,7 @@ import { GameState, Note, BgaVisibilityInterval, EmbeddedAudioTrack } from '../t
 import { buildInitialScore, calculateGameDuration } from '../utils/gameHelpers';
 import { DEFAULT_GAME_DURATION, START_DELAY_MS } from '../constants/gameConstants';
 import { normalizeBgaIntervalsForRuntime } from '../utils/bgaVisibility';
-import { SubtitleCue } from '../types/subtitle';
+import { SubtitleCue, SubtitleTrack } from '../types/subtitle';
 import { normalizeSubtitlePayload } from '../utils/subtitleNormalization';
 
 export interface EditorTestPayload {
@@ -18,6 +18,7 @@ export interface EditorTestPayload {
   bgaVisibilityIntervals?: BgaVisibilityInterval[];
   overlayAudioTrack?: EmbeddedAudioTrack | null;
   subtitles?: SubtitleCue[];
+  subtitleTracks?: SubtitleTrack[];
 }
 
 export interface UseTestSessionOptions {
@@ -161,7 +162,13 @@ export function useTestSession({
       onEditorClose();
 
       if (Array.isArray(payload.subtitles) && payload.subtitles.length > 0) {
-        onSubtitlesSet(normalizeSubtitlePayload(payload.chartId || 'editor-test', payload.subtitles, []).subtitles);
+        onSubtitlesSet(
+          normalizeSubtitlePayload(
+            payload.chartId || 'editor-test',
+            payload.subtitles,
+            Array.isArray(payload.subtitleTracks) ? payload.subtitleTracks : []
+          ).subtitles
+        );
       } else if (payload.chartId) {
         onSubtitlesLoad(payload.chartId);
       } else {

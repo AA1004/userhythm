@@ -24,6 +24,7 @@ interface SubtitleEditorProps {
     youtubeVideoId?: string | null;
     youtubeUrl?: string;
     title?: string;
+    subtitles?: SubtitleCue[];
     subtitleTracks?: SubtitleTrack[];
   };
   onClose: () => void;
@@ -51,6 +52,8 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   const supabaseSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [activeChartId, setActiveChartId] = useState(chartId);
   const [chartIdInput, setChartIdInput] = useState(chartId);
+  const hasExplicitSubtitlePayload =
+    Array.isArray(chartData.subtitles) || Array.isArray(chartData.subtitleTracks);
 
   useEffect(() => {
     setActiveChartId(chartId);
@@ -120,33 +123,47 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     syncChartIdToSession(nextId);
   }, [chartIdInput, syncChartIdToSession]);
 
-  // 로컬 저장소에서 기존 자막 복원 (게임 테스트용 임시 저장)
+  // 명시적으로 열린 chartData가 있으면 localStorage보다 우선한다.
+  // localStorage 키가 날아가도 JSON/기존 채보 payload의 자막이 사라지면 안 된다.
   useEffect(() => {
     hadLocalSubtitlesRef.current = false;
     subtitlesLoadedRef.current = false;
     setSelectedSubtitleId(null);
 
+    const explicitSubtitles = Array.isArray(chartData.subtitles) ? chartData.subtitles : null;
+    const explicitTracks = Array.isArray(chartData.subtitleTracks) ? chartData.subtitleTracks : null;
     const storedPayload = normalizeSubtitlePayload(
       activeChartId,
-      localSubtitleStorage.get(activeChartId),
-      chartData.subtitleTracks?.length
-        ? chartData.subtitleTracks
-        : localSubtitleStorage.getTracks(activeChartId),
+      explicitSubtitles ?? localSubtitleStorage.get(activeChartId),
+      explicitTracks?.length ? explicitTracks : localSubtitleStorage.getTracks(activeChartId),
       undefined
     );
     hadLocalSubtitlesRef.current = storedPayload.subtitles.length > 0;
     setTracks(storedPayload.subtitleTracks);
     setSelectedTrackId(storedPayload.selectedTrackId);
     setSubtitles(storedPayload.subtitles);
+    localSubtitleStorage.savePayload(
+      activeChartId,
+      storedPayload.subtitles,
+      storedPayload.subtitleTracks
+    );
 
     subtitlesLoadedRef.current = true;
-  }, [activeChartId, chartData.subtitleTracks]);
+  }, [activeChartId, chartData.subtitles, chartData.subtitleTracks]);
 
   useEffect(() => {
     if (!subtitlesLoadedRef.current) return;
     if (!activeChartId) return;
     const payload = normalizeSubtitlePayload(activeChartId, subtitles, tracks, selectedTrackId);
     localSubtitleStorage.savePayload(activeChartId, payload.subtitles, payload.subtitleTracks);
+    window.dispatchEvent(
+      new CustomEvent('subtitle-payload-updated', {
+        detail: {
+          ...payload,
+          explicit: false,
+        },
+      })
+    );
 
     if (isSupabaseConfigured) {
       if (supabaseSaveTimeoutRef.current) {
@@ -198,6 +215,7 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   );
 
   const handleSubtitleRestore = useCallback((data: any) => {
+    if (hasExplicitSubtitlePayload) return;
     if (data && typeof data === 'object') {
       const restoreChartId = typeof data.chartId === 'string' ? data.chartId : activeChartId;
       if (typeof data.chartId === 'string') {
@@ -228,7 +246,7 @@ export const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
         setCurrentTimeMs(Math.max(0, data.currentTimeMs));
       }
     }
-  }, [activeChartId, syncChartIdToSession]);
+  }, [activeChartId, hasExplicitSubtitlePayload, syncChartIdToSession]);
 
   // 자동 저장 훅 (로컬)
   useChartAutosave(subtitleAutosaveKey, subtitleAutosaveData, handleSubtitleRestore);
