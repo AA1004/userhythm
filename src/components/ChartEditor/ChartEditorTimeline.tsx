@@ -8,6 +8,7 @@ import {
   PIXELS_PER_SECOND,
 } from './constants';
 import { timeToMeasure } from '../../utils/bpmUtils';
+import { AudioAnalysisData, AudioAnalysisOnset } from '../../types/audioAnalysis';
 
 // 노트가 레인 경계선 안에 딱 맞게 들어가도록 레인 너비에서 약간의 여백만 남김
 const NOTE_WIDTH = LANE_WIDTH - 4;
@@ -67,7 +68,24 @@ interface ChartEditorTimelineProps {
   onAddBgaIntervalAt?: (startTimeMs: number) => void;
   onUpdateBgaInterval?: (id: string, patch: Partial<BgaVisibilityInterval>) => void;
   onDeleteBgaInterval?: (id: string) => void;
+  audioAnalysis?: AudioAnalysisData | null;
 }
+
+const getAnalysisBandColor = (band: AudioAnalysisOnset['band']) => {
+  switch (band) {
+    case 'sub':
+    case 'low':
+      return '96,165,250';
+    case 'mid':
+      return '52,211,153';
+    case 'high':
+      return '250,204,21';
+    case 'wide':
+      return '244,114,182';
+    default:
+      return '148,163,184';
+  }
+};
 
 // 성능 최적화: 재생선 위치는 useEffect에서 직접 DOM 업데이트하므로 리렌더링 최소화
 export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.memo(({
@@ -116,6 +134,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   onAddBgaIntervalAt,
   onUpdateBgaInterval,
   onDeleteBgaInterval,
+  audioAnalysis = null,
 }) => {
   // 재생선 ref (리렌더링 없이 직접 DOM 업데이트)
   const playheadRef = useRef<HTMLDivElement>(null);
@@ -431,6 +450,35 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     },
     [bgaVisibilityIntervals, timelineDurationMs, _zoom, timelineContentHeight, paddedTop, paddedBottom]
   );
+
+  const visibleAnalysisMarkers = useMemo(() => {
+    if (!audioAnalysis) {
+      return { beats: [], onsets: [] };
+    }
+
+    const zoom = _zoom;
+    const timeToYLocal = (timeMs: number): number => {
+      return timelineContentHeight - TIMELINE_BOTTOM_PADDING - (timeMs / 1000) * PIXELS_PER_SECOND * zoom;
+    };
+
+    const beats = (audioAnalysis.beats ?? [])
+      .map((beat, index) => ({
+        beat,
+        index,
+        y: timeToYLocal(Math.max(0, Number(beat.timeMs) || 0)),
+      }))
+      .filter(({ y }) => y >= paddedTop && y <= paddedBottom);
+
+    const onsets = (audioAnalysis.onsets ?? [])
+      .map((onset, index) => ({
+        onset,
+        index,
+        y: timeToYLocal(Math.max(0, Number(onset.timeMs) || 0)),
+      }))
+      .filter(({ y }) => y >= paddedTop && y <= paddedBottom);
+
+    return { beats, onsets };
+  }, [audioAnalysis, _zoom, timelineContentHeight, paddedTop, paddedBottom]);
 
   // 초기 한 번만 스크롤을 재생선 위치로 설정 (재생선이 화면 중앙에 오도록)
   const didInitScrollRef = useRef(false);
@@ -943,6 +991,53 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
             }}
           />
         ))}
+
+        {/* 로컬 오디오 분석 마커 */}
+        {visibleAnalysisMarkers.beats.map(({ beat, index, y }) => {
+          const isDownbeat = beat.beatInMeasure === 1;
+          return (
+            <div
+              key={`analysis-beat-${index}`}
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: `${y}px`,
+                width: `${CONTENT_WIDTH}px`,
+                height: isDownbeat ? 2 : 1,
+                background: isDownbeat
+                  ? 'linear-gradient(90deg, rgba(34,211,238,0), rgba(34,211,238,0.72), rgba(34,211,238,0))'
+                  : 'rgba(34,211,238,0.28)',
+                boxShadow: isDownbeat ? '0 0 10px rgba(34,211,238,0.3)' : undefined,
+                pointerEvents: 'none',
+                zIndex: 4,
+              }}
+              title={`분석 beat ${Math.round(beat.timeMs)}ms`}
+            />
+          );
+        })}
+
+        {visibleAnalysisMarkers.onsets.map(({ onset, index, y }) => {
+          const strength = Math.max(0.08, Math.min(1, Number(onset.strength) || 0.35));
+          const color = getAnalysisBandColor(onset.band);
+          return (
+            <div
+              key={`analysis-onset-${index}`}
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: `${y - 1}px`,
+                width: `${CONTENT_WIDTH}px`,
+                height: `${Math.max(2, Math.round(2 + strength * 5))}px`,
+                background: `linear-gradient(90deg, rgba(${color},0.08), rgba(${color},${0.32 + strength * 0.46}), rgba(${color},0.08))`,
+                boxShadow: `0 0 ${Math.round(4 + strength * 12)}px rgba(${color},${0.18 + strength * 0.3})`,
+                opacity: 0.72,
+                pointerEvents: 'none',
+                zIndex: 5,
+              }}
+              title={`분석 onset ${Math.round(onset.timeMs)}ms · ${onset.band ?? 'unknown'} · ${strength.toFixed(2)}`}
+            />
+          );
+        })}
 
         {/* 변속 마커 (SpeedChange) */}
         {visibleSpeedChanges.map(({ sc, y }) => (

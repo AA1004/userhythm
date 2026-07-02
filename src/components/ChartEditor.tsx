@@ -31,6 +31,7 @@ import { MIN_LONG_NOTE_DURATION, validateNotes, getMaxNoteId } from '../utils/no
 import { convertBgaEventsToEditableIntervals } from '../utils/bgaVisibility';
 import { normalizeSubtitlePayload } from '../utils/subtitleNormalization';
 import { START_DELAY_MS } from '../constants/gameConstants';
+import { AudioAnalysisData } from '../types/audioAnalysis';
 import {
   blurEditorNonTextControlAfterPointer,
   blurEditorNonTextControlOnFocus,
@@ -309,6 +310,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [gridDivision, setGridDivision] = useState<number>(1);
   const [speedChanges, setSpeedChanges] = useState<SpeedChange[]>([]);
   const [bgaVisibilityIntervals, setBgaVisibilityIntervals] = useState<BgaVisibilityInterval[]>([]);
+  const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysisData | null>(null);
 
   const handleNumericInputFocus = useCallback((event: React.FocusEvent<HTMLDivElement>) => {
     const target = event.target;
@@ -408,6 +410,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [existingChartsError, setExistingChartsError] = useState<string>('');
   const [existingChartSearch, setExistingChartSearch] = useState<string>('');
   const importInputRef = useRef<HTMLInputElement>(null);
+  const analysisInputRef = useRef<HTMLInputElement>(null);
 
   const resolvedAuthor = useMemo(() => {
     const profile = user?.profile || {};
@@ -1018,6 +1021,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setGridDivision(1);
     setSpeedChanges([]);
     setBgaVisibilityIntervals([]);
+    setAudioAnalysis(null);
     setIsBpmInputOpen(false);
     setIsAutoScrollEnabled(true);
     setIsLongNoteMode(false);
@@ -1998,6 +2002,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     importInputRef.current?.click();
   }, []);
 
+  const handleImportAnalysisClick = useCallback(() => {
+    analysisInputRef.current?.click();
+  }, []);
+
   const handleImportJsonFile = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
@@ -2025,6 +2033,47 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     },
     [handleRestore]
   );
+
+  const handleImportAnalysisFile = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text) as AudioAnalysisData;
+      const beats = Array.isArray(parsed.beats)
+        ? parsed.beats
+            .filter((beat) => Number.isFinite(Number(beat.timeMs)))
+            .map((beat) => ({ ...beat, timeMs: Math.max(0, Number(beat.timeMs)) }))
+        : [];
+      const onsets = Array.isArray(parsed.onsets)
+        ? parsed.onsets
+            .filter((onset) => Number.isFinite(Number(onset.timeMs)))
+            .map((onset) => ({
+              ...onset,
+              timeMs: Math.max(0, Number(onset.timeMs)),
+              strength: Number.isFinite(Number(onset.strength))
+                ? Math.max(0, Math.min(1, Number(onset.strength)))
+                : undefined,
+            }))
+        : [];
+
+      if (beats.length === 0 && onsets.length === 0) {
+        throw new Error('beats 또는 onsets 데이터가 없습니다.');
+      }
+
+      setAudioAnalysis({
+        ...parsed,
+        beats,
+        onsets,
+      });
+    } catch (error) {
+      console.error('오디오 분석 JSON 불러오기 실패:', error);
+      alert('오디오 분석 JSON을 불러오지 못했습니다. .userhythm-analysis.json 형식을 확인해 주세요.');
+    } finally {
+      event.target.value = '';
+    }
+  }, []);
 
   // Supabase Auth 상태 구독
   useEffect(() => {
@@ -2451,6 +2500,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         onDeleteBpmChange={handleDeleteBpmChange}
         onExportJson={handleExportJson}
         onImportJson={handleImportJsonClick}
+        onImportAnalysis={handleImportAnalysisClick}
       />
 
       <div
@@ -2531,6 +2581,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
               bpm={bpm}
               bpmChanges={sortedBpmChanges}
                 bgaVisibilityIntervals={bgaVisibilityIntervals}
+                audioAnalysis={audioAnalysis}
                 isBgaPlacementMode={isBgaPlacementMode}
                  isSelectionMode={isSelectionMode}
                  selectedLane={selectedLane}
@@ -2657,6 +2708,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         ref={importInputRef}
         style={{ display: 'none' }}
         onChange={handleImportJsonFile}
+      />
+      <input
+        type="file"
+        accept="application/json,.json,.userhythm-analysis.json"
+        ref={analysisInputRef}
+        style={{ display: 'none' }}
+        onChange={handleImportAnalysisFile}
       />
     </div>
   );

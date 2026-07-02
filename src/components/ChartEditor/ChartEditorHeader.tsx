@@ -41,6 +41,7 @@ interface ChartEditorHeaderProps {
   onDeleteBpmChange: (id: number) => void;
   onExportJson?: () => void;
   onImportJson?: () => void;
+  onImportAnalysis?: () => void;
 }
 
 const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
@@ -72,6 +73,7 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
   onDeleteBpmChange: _onDeleteBpmChange,
   onExportJson,
   onImportJson,
+  onImportAnalysis,
 }) => {
   const measures = Math.max(1, Math.round(songInfo.totalBeats / beatsPerMeasure));
   const beatsRounded = Math.round(songInfo.totalBeats);
@@ -98,6 +100,7 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
   const actionButtons = [
     ...(onImportJson ? [{ label: 'JSON 불러오기', onClick: onImportJson }] : []),
     ...(onExportJson ? [{ label: 'JSON 저장', onClick: onExportJson }] : []),
+    ...(onImportAnalysis ? [{ label: '분석 불러오기', onClick: onImportAnalysis }] : []),
     ...(onReset ? [{ label: '초기화', onClick: onReset, variant: 'danger' as const }] : []),
     ...(onSubtitleClick ? [{ label: '자막', onClick: onSubtitleClick }] : []),
     { label: '종료', onClick: onExit, variant: 'danger' as const },
