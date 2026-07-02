@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { Chart } from '@prisma/client';
+import { logAdminAuthFailure, requireAdmin } from '../../../../lib/requireAdmin';
 
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 const MAX_DATA_JSON_LENGTH = 1_000_000;
 const MAX_TITLE_LENGTH = 200;
 const MAX_DESCRIPTION_LENGTH = 1000;
@@ -61,8 +61,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const token = req.headers.get('x-admin-token') || '';
-    if (!ADMIN_TOKEN || token !== ADMIN_TOKEN) {
+    const admin = await requireAdmin(req);
+    if (!admin.ok) {
+      logAdminAuthFailure('chart delete', admin);
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
 
@@ -87,8 +88,9 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const token = req.headers.get('x-admin-token') || '';
-    if (!ADMIN_TOKEN || token !== ADMIN_TOKEN) {
+    const admin = await requireAdmin(req);
+    if (!admin.ok) {
+      logAdminAuthFailure('chart update', admin);
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
 

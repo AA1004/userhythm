@@ -1,21 +1,6 @@
 // 로컬 개발: VITE_API_BASE가 비어있으면 Vite 프록시 사용 (빈 문자열 → /api/... 요청)
 // 프로덕션: 반드시 VITE_API_BASE 설정 필요 (예: https://api.userhythm.kr)
 const API_BASE = import.meta.env.VITE_API_BASE || '';
-const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_TOKEN || '';
-
-// localhost:5173에서 접속하면 자동으로 ADMIN 토큰 사용
-const isLocalhostDev = typeof window !== 'undefined' && 
-  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
-  window.location.port === '5173';
-
-// ADMIN 토큰 헤더 가져오기 (localhost:5173이면 항상 ADMIN 토큰 반환)
-const getAdminToken = () => {
-  if (isLocalhostDev) {
-    // localhost:5173이면 환경변수나 기본값 사용
-    return ADMIN_TOKEN || 'admin123';
-  }
-  return ADMIN_TOKEN;
-};
 
 export interface ApiChart {
   id: string;
@@ -176,7 +161,6 @@ export const api = {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        'x-admin-token': getAdminToken(),
       },
       credentials: 'include',
       body: JSON.stringify(payload),
@@ -187,7 +171,6 @@ export const api = {
     const qs = new URLSearchParams();
     qs.set('status', status);
     const res = await fetch(`${API_BASE}/api/charts/pending?${qs.toString()}`, {
-      headers: { 'x-admin-token': getAdminToken() },
       credentials: 'include',
     });
     return toJson(res) as Promise<{ status: string; charts: ApiChart[] }>;
@@ -197,7 +180,6 @@ export const api = {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-admin-token': getAdminToken(),
       },
       credentials: 'include',
       body: JSON.stringify({ status, comment }),
@@ -207,9 +189,6 @@ export const api = {
   async deleteChart(id: string) {
     const res = await fetch(`${API_BASE}/api/charts/${id}`, {
       method: 'DELETE',
-      headers: {
-        'x-admin-token': getAdminToken(),
-      },
       credentials: 'include',
     });
     return toJson(res) as Promise<{ success: boolean; id: string }>;

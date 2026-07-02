@@ -3,10 +3,19 @@ import { cookies } from 'next/headers';
 import { NextRequest } from 'next/server';
 
 const SESSION_COOKIE = 'ur_session';
-const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-secret-change-me';
 const SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 7; // 7 days
 const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN;
 const isProd = process.env.NODE_ENV === 'production';
+
+const getSessionSecret = () => {
+  if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
+  if (isProd) {
+    throw new Error('SESSION_SECRET must be set in production');
+  }
+  return 'dev-secret-change-me';
+};
+
+const SESSION_SECRET = getSessionSecret();
 
 interface SessionPayload {
   userId: string;
@@ -30,13 +39,14 @@ export const setSessionCookie = (token: string) => {
     maxAge: SESSION_MAX_AGE_SEC,
     domain: cookieDomain,
   });
-  
-  console.log('Session cookie set:', {
-    domain: cookieDomain,
-    sameSite: isProd ? 'none' : 'lax',
-    secure: isProd,
-    isProd,
-  });
+
+  if (!isProd) {
+    console.log('Session cookie set:', {
+      domain: cookieDomain,
+      sameSite: 'lax',
+      secure: false,
+    });
+  }
 };
 
 export const clearSessionCookie = () => {
@@ -57,21 +67,27 @@ export const clearSessionCookie = () => {
 export const getSessionFromRequest = (req: NextRequest): SessionPayload | null => {
   const cookie = req.cookies.get(SESSION_COOKIE)?.value;
   if (!cookie) {
-    console.log('getSessionFromRequest: No cookie found', {
-      cookieName: SESSION_COOKIE,
-      allCookies: req.cookies.getAll().map(c => c.name),
-    });
+    if (!isProd) {
+      console.log('getSessionFromRequest: No cookie found', {
+        cookieName: SESSION_COOKIE,
+        allCookies: req.cookies.getAll().map(c => c.name),
+      });
+    }
     return null;
   }
   try {
     const decoded = jwt.verify(cookie, SESSION_SECRET) as SessionPayload;
     return decoded;
   } catch (error: any) {
-    console.warn('getSessionFromRequest: JWT verification failed', {
-      error: error?.name || error?.message,
-      cookieLength: cookie.length,
-      cookiePrefix: cookie.substring(0, 20),
-    });
+    if (isProd) {
+      console.warn('getSessionFromRequest: JWT verification failed');
+    } else {
+      console.warn('getSessionFromRequest: JWT verification failed', {
+        error: error?.name || error?.message,
+        cookieLength: cookie.length,
+        cookiePrefix: cookie.substring(0, 20),
+      });
+    }
     return null;
   }
 };

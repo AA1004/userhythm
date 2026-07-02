@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { Chart } from '@prisma/client';
+import { logAdminAuthFailure, requireAdmin } from '../../../../lib/requireAdmin';
 
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 const MAX_DIFFICULTY_LENGTH = 50;
 
 const extractAdminDifficulty = (dataJson: string): string | null => {
@@ -36,10 +36,11 @@ const serializeChart = (chart: Chart, opts?: { authorRole?: string; authorNickna
   updated_at: (chart as any).updatedAt?.toISOString?.() ?? null,
 });
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get('x-admin-token') || '';
-    if (!ADMIN_TOKEN || token !== ADMIN_TOKEN) {
+    const admin = await requireAdmin(request);
+    if (!admin.ok) {
+      logAdminAuthFailure('pending charts', admin);
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
 

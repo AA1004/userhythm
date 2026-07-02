@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
-
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
+import { logAdminAuthFailure, requireAdmin } from '../../../../lib/requireAdmin';
 
 export async function POST(req: NextRequest) {
   try {
-    const token = req.headers.get('x-admin-token') || '';
-    if (!ADMIN_TOKEN || token !== ADMIN_TOKEN) {
+    const admin = await requireAdmin(req);
+    if (!admin.ok) {
+      logAdminAuthFailure('legacy chart approve', admin);
       return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
     }
 

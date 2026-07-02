@@ -17,16 +17,8 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
   const [listStatus, setListStatus] = useState<ChartListStatus>('approved');
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedChart, setSelectedChart] = useState<ApiChart | null>(null);
-  const [adminToken, setAdminToken] = useState<string>('');
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [reviewComment, setReviewComment] = useState<string>('');
   const [processing, setProcessing] = useState<boolean>(false);
-  const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_TOKEN || 'admin123';
-  
-  // localhost:5173에서 접속하면 자동으로 ADMIN 인증
-  const isLocalhostDev = typeof window !== 'undefined' && 
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
-    window.location.port === '5173';
 
   const loadCharts = useCallback(async () => {
     setLoading(true);
@@ -35,32 +27,15 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
       setChartList(res.charts);
     } catch (error) {
       console.error('Failed to load pending charts:', error);
-      alert('채보 목록을 불러오는데 실패했습니다.');
+      alert('관리자 세션이 필요하거나 채보 목록을 불러오지 못했습니다.');
     } finally {
       setLoading(false);
     }
   }, [listStatus]);
 
-  // localhost:5173이면 자동으로 인증
   useEffect(() => {
-    if (isLocalhostDev) {
-      setIsAuthenticated(true);
-    }
-  }, [isLocalhostDev]);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadCharts();
-    }
-  }, [isAuthenticated, loadCharts]);
-
-  const handleLogin = () => {
-    if (adminToken === ADMIN_TOKEN) {
-      setIsAuthenticated(true);
-    } else {
-      alert('잘못된 관리자 토큰입니다.');
-    }
-  };
+    loadCharts();
+  }, [loadCharts]);
 
   const handleApprove = async (chartId: string) => {
     if (!confirm('이 채보를 승인하시겠습니까?')) return;
@@ -210,91 +185,6 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
       alert('채보 JSON 내보내기에 실패했습니다.');
     }
   };
-
-  if (!isAuthenticated) {
-    return (
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: CHART_EDITOR_THEME.overlayScrim,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000,
-        }}
-      >
-        <div
-          style={{
-            backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
-            padding: '40px',
-            borderRadius: CHART_EDITOR_THEME.radiusLg,
-            maxWidth: '400px',
-            width: '90%',
-            boxShadow: CHART_EDITOR_THEME.shadowSoft,
-            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-          }}
-        >
-          <h2 style={{ color: CHART_EDITOR_THEME.textPrimary, marginBottom: '20px', textAlign: 'center' }}>
-            관리자 로그인
-          </h2>
-          <input
-            type="password"
-            value={adminToken}
-            onChange={(e) => setAdminToken(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleLogin()}
-            placeholder="관리자 토큰을 입력하세요"
-            style={{
-              width: '100%',
-              padding: '12px',
-              borderRadius: CHART_EDITOR_THEME.radiusSm,
-              border: `1px solid ${CHART_EDITOR_THEME.inputBorder}`,
-              backgroundColor: CHART_EDITOR_THEME.inputBg,
-              color: CHART_EDITOR_THEME.textPrimary,
-              fontSize: '14px',
-              marginBottom: '15px',
-            }}
-          />
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              onClick={onClose}
-              style={{
-                flex: 1,
-                padding: '12px',
-                fontSize: '14px',
-                background: CHART_EDITOR_THEME.buttonGhostBg,
-                color: CHART_EDITOR_THEME.textPrimary,
-                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                borderRadius: CHART_EDITOR_THEME.radiusSm,
-                cursor: 'pointer',
-              }}
-            >
-              취소
-            </button>
-            <button
-              onClick={handleLogin}
-              style={{
-                flex: 1,
-                padding: '12px',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                background: CHART_EDITOR_THEME.buttonPrimaryBg,
-                color: CHART_EDITOR_THEME.buttonPrimaryText,
-                border: 'none',
-                borderRadius: CHART_EDITOR_THEME.radiusSm,
-                cursor: 'pointer',
-              }}
-            >
-              로그인
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div
