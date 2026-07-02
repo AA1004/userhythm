@@ -123,6 +123,7 @@ export interface UseGameJudgingOptions {
   comboSnapshotsEnabled?: boolean;
   scoreSnapshotsEnabled?: boolean;
   effectSnapshotsEnabled?: boolean;
+  hudPaintDispatchEnabled?: boolean;
 }
 
 export interface UseGameJudgingReturn {
@@ -157,6 +158,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     comboSnapshotsEnabled = true,
     scoreSnapshotsEnabled = true,
     effectSnapshotsEnabled = true,
+    hudPaintDispatchEnabled = true,
   } = options;
 
   const [pressedKeys, setPressedKeys] = useState<Set<Lane>>(new Set());
@@ -335,7 +337,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       }
       if (comboSnapshotsEnabled || scoreSnapshotsEnabled) {
         scheduleUiCommit();
-      } else {
+      } else if (hudPaintDispatchEnabled) {
         requestGameplayHudPaint();
       }
       gameStateRef.current = {
@@ -383,7 +385,9 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         scheduleUiCommit();
         scheduleEffectCleanup();
       } else {
-        requestGameplayHudPaint();
+        if (hudPaintDispatchEnabled) {
+          requestGameplayHudPaint();
+        }
       }
     },
     [effectSnapshotsEnabled, gameStateRef, laneCenters, judgeLineY, scheduleUiCommit, scheduleEffectCleanup]
@@ -405,7 +409,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         if (pressedKeySnapshotsEnabled) {
           uiDirtyRef.current.pressedKeys = true;
           scheduleUiCommit();
-        } else {
+        } else if (hudPaintDispatchEnabled) {
           requestGameplayHudPaint();
         }
       }
@@ -512,7 +516,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         if (pressedKeySnapshotsEnabled) {
           uiDirtyRef.current.pressedKeys = true;
           scheduleUiCommit();
-        } else {
+        } else if (hudPaintDispatchEnabled) {
           requestGameplayHudPaint();
         }
       }

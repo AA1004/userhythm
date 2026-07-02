@@ -37,9 +37,9 @@ const judgeColors: Record<JudgeType, { main: string; soft: string }> = {
 
 const laneChromeCache = new Map<string, HTMLCanvasElement>();
 const GAMEPLAY_HUD_CANVAS_DPR_LIMIT = 1;
-const GAMEPLAY_HUD_PAINT_EVENT = 'userhythm:gameplay-hud-paint';
 const SLOT_HUD_HEIGHT = 82;
 const SLOT_HUD_GAP = 8;
+const SLOT_PROGRESS_PAINT_STEP_MS = 100;
 
 const easeOutExpo = (t: number) => (t >= 1 ? 1 : 1 - 2 ** (-10 * t));
 
@@ -423,6 +423,14 @@ const getAccuracy = (score: GameState['score']) => {
   return ((score.perfect + score.great * 0.7 + score.good * 0.3) / total) * 100;
 };
 
+const getPressedLaneMask = (pressedKeys: Set<Lane>) => {
+  let mask = 0;
+  for (const lane of pressedKeys) {
+    mask |= 1 << lane;
+  }
+  return mask;
+};
+
 const drawSlotHud = (
   ctx: CanvasRenderingContext2D,
   geometry: PlayfieldGeometry,
@@ -542,6 +550,9 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   const playfieldGeometryRef = useRef(playfieldGeometry);
   const gameplayHudModeRef = useRef(gameplayHudMode);
   const laneKeyLabelsRef = useRef(laneKeyLabels);
+  const durationMsRef = useRef(durationMs);
+  const lastStaticSignatureRef = useRef('');
+  const lastEffectsActiveRef = useRef(false);
   const shouldRenderHud = gameplayHudMode !== 'legacy';
   const canvasHeight = playfieldGeometry.slotHudEnabled
     ? Math.max(
@@ -576,6 +587,10 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   }, [laneKeyLabels]);
 
   useEffect(() => {
+    durationMsRef.current = durationMs;
+  }, [durationMs]);
+
+  useEffect(() => {
     const canvases = [staticCanvasRef.current, effectsCanvasRef.current];
     const dpr = Math.min(window.devicePixelRatio || 1, GAMEPLAY_HUD_CANVAS_DPR_LIMIT);
     for (const canvas of canvases) {
@@ -595,6 +610,32 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
     const staticCtx = staticCanvas?.getContext('2d');
     const effectsCtx = effectsCanvas?.getContext('2d');
     if (!staticCanvas || !effectsCanvas || !staticCtx || !effectsCtx) return;
+
+    const makeStaticSignature = () => {
+      if (!visibleRef.current || !activeRef.current || !shouldRenderHud) return 'inactive';
+      const geometry = playfieldGeometryRef.current;
+      const score = scoreRuntimeRef.current;
+      const progressBucket =
+        geometry.slotHudEnabled && durationMsRef.current > 0
+          ? Math.floor(Math.max(0, currentTimeRef.current) / SLOT_PROGRESS_PAINT_STEP_MS)
+          : 0;
+      return [
+        gameplayHudModeRef.current,
+        getPressedLaneMask(pressedKeysRef.current),
+        score.combo,
+        score.perfect,
+        score.great,
+        score.good,
+        score.miss,
+        progressBucket,
+        geometry.slotHudEnabled ? 1 : 0,
+        Math.round(geometry.keyLaneOpacity * 1000),
+        Math.round(geometry.slotHudOpacity * 1000),
+        Math.round(geometry.comboOpacity * 1000),
+        geometry.keyPressGlowEnabled ? 1 : 0,
+        geometry.keyPressPulseEnabled ? 1 : 0,
+      ].join(':');
+    };
 
     const renderStaticHud = () => {
       staticCtx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasTotalHeight);
@@ -631,7 +672,7 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
         geometry,
         scoreRuntimeRef.current,
         currentTimeRef.current,
-        durationMs,
+        durationMsRef.current,
         hudMode
       );
       staticCtx.restore();
@@ -640,57 +681,67 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
     const renderFrame = () => {
       const now = Date.now();
       const hudMode = gameplayHudModeRef.current === 'new-full' ? 'new-full' : 'new-lite';
-      effectsCtx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasTotalHeight);
+      const staticSignature = makeStaticSignature();
+      if (staticSignature !== lastStaticSignatureRef.current) {
+        lastStaticSignatureRef.current = staticSignature;
+        renderStaticHud();
+      }
 
       let hasActiveEffect = false;
       if (visibleRef.current) {
-        effectsCtx.save();
-        effectsCtx.translate(0, playfieldTopOffset);
         for (const effect of keyEffectsRef.current) {
           if (getKeyEffectProgress(effect, now) < 1) {
             hasActiveEffect = true;
-            drawKeyEffect(effectsCtx, effect, now, hudMode);
+            break;
           }
         }
 
-        for (const feedback of judgeFeedbacksRef.current) {
-          if (getJudgeProgress(feedback, now) < 1) {
-            hasActiveEffect = true;
-            drawJudgeFeedback(effectsCtx, feedback, now, judgeFeedbackTopRef.current, hudMode);
-            drawLaneTimingFeedback(effectsCtx, feedback, now, hudMode);
+        if (!hasActiveEffect) {
+          for (const feedback of judgeFeedbacksRef.current) {
+            if (getJudgeProgress(feedback, now) < 1) {
+              hasActiveEffect = true;
+              break;
+            }
           }
         }
-        effectsCtx.restore();
       }
 
-      // New Full has expensive gradients/shadows, but the key lanes and combo are static
-      // between input/HUD revisions. Keep rAF alive only while animated effects exist.
-      const shouldKeepLooping = hasActiveEffect;
+      if (hasActiveEffect || lastEffectsActiveRef.current) {
+        effectsCtx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasTotalHeight);
+        if (visibleRef.current) {
+          effectsCtx.save();
+          effectsCtx.translate(0, playfieldTopOffset);
+          for (const effect of keyEffectsRef.current) {
+            if (getKeyEffectProgress(effect, now) < 1) {
+              drawKeyEffect(effectsCtx, effect, now, hudMode);
+            }
+          }
 
-      if (shouldKeepLooping) {
-        frameIdRef.current = requestAnimationFrame(renderFrame);
-      } else {
-        frameIdRef.current = null;
+          for (const feedback of judgeFeedbacksRef.current) {
+            if (getJudgeProgress(feedback, now) < 1) {
+              drawJudgeFeedback(effectsCtx, feedback, now, judgeFeedbackTopRef.current, hudMode);
+              drawLaneTimingFeedback(effectsCtx, feedback, now, hudMode);
+            }
+          }
+          effectsCtx.restore();
+        }
       }
-    };
+      lastEffectsActiveRef.current = hasActiveEffect;
 
-    const requestPaint = () => {
-      renderStaticHud();
-      if (frameIdRef.current !== null) return;
       frameIdRef.current = requestAnimationFrame(renderFrame);
     };
 
-    if (!visible && !shouldRenderHud) {
+    if (!visible || !shouldRenderHud) {
       staticCtx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasTotalHeight);
       effectsCtx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasTotalHeight);
       frameIdRef.current = null;
       return;
     }
 
-    requestPaint();
-    window.addEventListener(GAMEPLAY_HUD_PAINT_EVENT, requestPaint);
+    lastStaticSignatureRef.current = '';
+    lastEffectsActiveRef.current = false;
+    frameIdRef.current = requestAnimationFrame(renderFrame);
     return () => {
-      window.removeEventListener(GAMEPLAY_HUD_PAINT_EVENT, requestPaint);
       if (frameIdRef.current !== null) {
         cancelAnimationFrame(frameIdRef.current);
         frameIdRef.current = null;
@@ -708,7 +759,6 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
     shouldRenderHud,
     active,
     visible,
-    durationMs,
     playfieldGeometry.slotHudEnabled,
   ]);
 

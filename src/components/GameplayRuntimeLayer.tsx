@@ -89,6 +89,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
     comboSnapshotsEnabled: isLegacyHud,
     scoreSnapshotsEnabled: isLegacyHud,
     effectSnapshotsEnabled: isLegacyHud,
+    hudPaintDispatchEnabled: isLegacyHud,
   });
 
   useKeyboard(
