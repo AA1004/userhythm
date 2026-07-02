@@ -22,6 +22,7 @@ interface GameplayHudCanvasProps {
   scoreRuntimeRef: React.MutableRefObject<GameState['score']>;
   laneKeyLabels: string[][];
   playfieldGeometry: PlayfieldGeometry;
+  playfieldTopOffset?: number;
   gameplayHudMode: GameVisualSettings['gameplayHudMode'];
   durationMs: number;
   opacity?: number;
@@ -286,7 +287,8 @@ const drawKeyLane = (
   opacity: number,
   mode: NewHudMode,
   glowEnabled: boolean,
-  pulseEnabled: boolean
+  pulseEnabled: boolean,
+  playfieldTopOffset: number = 0
 ) => {
   const left = x - width / 2;
   const height = KEY_LANE_HEIGHT;
@@ -303,7 +305,7 @@ const drawKeyLane = (
       mode === 'new-full'
         ? 'rgba(56, 189, 248, 0.12)'
         : 'rgba(56, 189, 248, 0.08)';
-    ctx.fillRect(left, 0, width, top + height);
+    ctx.fillRect(left, -playfieldTopOffset, width, playfieldTopOffset + top + height);
     ctx.restore();
   }
 
@@ -526,6 +528,7 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
   scoreRuntimeRef,
   laneKeyLabels,
   playfieldGeometry,
+  playfieldTopOffset = 0,
   gameplayHudMode,
   durationMs,
   opacity = 1,
@@ -546,6 +549,7 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
         playfieldGeometry.keyLaneY + KEY_LANE_HEIGHT + SLOT_HUD_GAP + SLOT_HUD_HEIGHT
       )
     : GAME_VIEW_HEIGHT;
+  const canvasTotalHeight = canvasHeight + playfieldTopOffset;
 
   useEffect(() => {
     visibleRef.current = visible;
@@ -578,12 +582,12 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
       const ctx = canvas?.getContext('2d');
       if (!canvas || !ctx) continue;
       canvas.width = Math.round(GAME_VIEW_WIDTH * dpr);
-      canvas.height = Math.round(canvasHeight * dpr);
+      canvas.height = Math.round(canvasTotalHeight * dpr);
       canvas.style.width = `${GAME_VIEW_WIDTH}px`;
-      canvas.style.height = `${canvasHeight}px`;
+      canvas.style.height = `${canvasTotalHeight}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
-  }, [canvasHeight]);
+  }, [canvasHeight, canvasTotalHeight]);
 
   useEffect(() => {
     const staticCanvas = staticCanvasRef.current;
@@ -593,11 +597,13 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
     if (!staticCanvas || !effectsCanvas || !staticCtx || !effectsCtx) return;
 
     const renderStaticHud = () => {
-      staticCtx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasHeight);
+      staticCtx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasTotalHeight);
       if (!visibleRef.current || !activeRef.current || !shouldRenderHud) return;
 
       const geometry = playfieldGeometryRef.current;
       const hudMode = gameplayHudModeRef.current === 'new-full' ? 'new-full' : 'new-lite';
+      staticCtx.save();
+      staticCtx.translate(0, playfieldTopOffset);
       geometry.laneCenters.forEach((x, index) => {
         drawKeyLane(
           staticCtx,
@@ -609,7 +615,8 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
           geometry.keyLaneOpacity,
           hudMode,
           geometry.keyPressGlowEnabled,
-          geometry.keyPressPulseEnabled
+          geometry.keyPressPulseEnabled,
+          playfieldTopOffset
         );
       });
       drawCombo(
@@ -627,15 +634,18 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
         durationMs,
         hudMode
       );
+      staticCtx.restore();
     };
 
     const renderFrame = () => {
       const now = Date.now();
       const hudMode = gameplayHudModeRef.current === 'new-full' ? 'new-full' : 'new-lite';
-      effectsCtx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasHeight);
+      effectsCtx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasTotalHeight);
 
       let hasActiveEffect = false;
       if (visibleRef.current) {
+        effectsCtx.save();
+        effectsCtx.translate(0, playfieldTopOffset);
         for (const effect of keyEffectsRef.current) {
           if (getKeyEffectProgress(effect, now) < 1) {
             hasActiveEffect = true;
@@ -650,6 +660,7 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
             drawLaneTimingFeedback(effectsCtx, feedback, now, hudMode);
           }
         }
+        effectsCtx.restore();
       }
 
       // New Full has expensive gradients/shadows, but the key lanes and combo are static
@@ -670,8 +681,8 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
     };
 
     if (!visible && !shouldRenderHud) {
-      staticCtx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasHeight);
-      effectsCtx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasHeight);
+      staticCtx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasTotalHeight);
+      effectsCtx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasTotalHeight);
       frameIdRef.current = null;
       return;
     }
@@ -687,6 +698,8 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
     };
   }, [
     canvasHeight,
+    canvasTotalHeight,
+    playfieldTopOffset,
     currentTimeRef,
     judgeFeedbacksRef,
     keyEffectsRef,
@@ -707,9 +720,9 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
         style={{
           position: 'absolute',
           left: 0,
-          top: 0,
+          top: `${-playfieldTopOffset}px`,
           width: `${GAME_VIEW_WIDTH}px`,
-          height: `${canvasHeight}px`,
+          height: `${canvasTotalHeight}px`,
           pointerEvents: 'none',
           zIndex: 500,
           opacity,
@@ -721,9 +734,9 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
         style={{
           position: 'absolute',
           left: 0,
-          top: 0,
+          top: `${-playfieldTopOffset}px`,
           width: `${GAME_VIEW_WIDTH}px`,
-          height: `${canvasHeight}px`,
+          height: `${canvasTotalHeight}px`,
           pointerEvents: 'none',
           zIndex: 501,
           opacity,

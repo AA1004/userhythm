@@ -164,6 +164,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
         scoreRuntimeRef={scoreRuntimeRef}
         laneKeyLabels={laneKeyLabels}
         playfieldGeometry={playfieldGeometry}
+        playfieldTopOffset={playfieldTopOffset}
         gameplayHudMode={playfieldGeometry.gameplayHudMode}
         durationMs={durationMs}
         opacity={laneUiOpacity}
