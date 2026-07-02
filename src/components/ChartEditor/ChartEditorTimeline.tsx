@@ -139,7 +139,24 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   // 재생선 ref (리렌더링 없이 직접 DOM 업데이트)
   const playheadRef = useRef<HTMLDivElement>(null);
   const measureLabelRef = useRef<HTMLDivElement>(null);
+  const renderHelpersRef = useRef({
+    currentTime,
+    timeToY,
+    bpm,
+    bpmChanges,
+    beatsPerMeasure,
+  });
   const [isBgaResizing, setIsBgaResizing] = useState(false);
+
+  useEffect(() => {
+    renderHelpersRef.current = {
+      currentTime,
+      timeToY,
+      bpm,
+      bpmChanges,
+      beatsPerMeasure,
+    };
+  }, [currentTime, timeToY, bpm, bpmChanges, beatsPerMeasure]);
 
   // 재생선은 재생 중 currentTimeRef를 직접 읽어 고주사율로 갱신한다.
   // 부모 state는 더 낮은 빈도로 커밋되어도 재생선 시각 움직임은 유지된다.
@@ -147,18 +164,24 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     let frameId: number | null = null;
 
     const syncPlayhead = (timeMs: number) => {
-      const nextPlayheadY = timeToY(timeMs);
+      const helpers = renderHelpersRef.current;
+      const nextPlayheadY = helpers.timeToY(timeMs);
       if (playheadRef.current) {
         playheadRef.current.style.transform = `translateY(${nextPlayheadY - 10}px)`;
       }
       if (measureLabelRef.current) {
         measureLabelRef.current.style.transform = `translateY(${nextPlayheadY - 6}px)`;
-        measureLabelRef.current.textContent = `${timeToMeasure(timeMs, bpm, bpmChanges, beatsPerMeasure)}마디`;
+        measureLabelRef.current.textContent = `${timeToMeasure(
+          timeMs,
+          helpers.bpm,
+          helpers.bpmChanges,
+          helpers.beatsPerMeasure
+        )}마디`;
       }
     };
 
     if (!isPlaying || !currentTimeRef) {
-      syncPlayhead(currentTime);
+      syncPlayhead(renderHelpersRef.current.currentTime);
       return;
     }
 
@@ -174,7 +197,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         cancelAnimationFrame(frameId);
       }
     };
-  }, [playheadY, currentTime, currentTimeRef, isPlaying, timeToY, bpm, bpmChanges, beatsPerMeasure]);
+  }, [currentTimeRef, isPlaying]);
 
   // 뷰포트 정보 (가시 영역 + 버퍼)
   const [viewTop, setViewTop] = useState(0);
@@ -484,6 +507,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   const didInitScrollRef = useRef(false);
   const lastTimelineHeightRef = useRef<number | null>(null);
   useEffect(() => {
+    if (isPlaying) return;
     // 타임라인 높이가 크게 바뀌면 재초기화
     if (
       lastTimelineHeightRef.current !== null &&
