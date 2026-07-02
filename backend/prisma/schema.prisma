@@ -62,10 +62,18 @@ model Score {
   userId    String
   chartId   String
   accuracy  Float
+  perfect   Int      @default(0)
+  great     Int      @default(0)
+  good      Int      @default(0)
+  miss      Int      @default(0)
+  maxCombo  Int      @default(0)
   createdAt DateTime @default(now())
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   chart Chart @relation(fields: [chartId], references: [id], onDelete: Cascade)
+
+  @@index([chartId, accuracy])
+  @@index([userId, createdAt])
 }
 
 model Notice {

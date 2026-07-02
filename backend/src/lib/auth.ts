@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server';
 
 const SESSION_COOKIE = 'ur_session';
 const SESSION_MAX_AGE_SEC = 60 * 60 * 24 * 7; // 7 days
+const PLAY_SESSION_MAX_AGE_SEC = 60 * 60 * 6; // 6 hours
 const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN;
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -22,8 +23,49 @@ interface SessionPayload {
   role: string;
 }
 
+export interface PlaySessionPayload {
+  type: 'play-session';
+  userId: string;
+  chartId: string;
+  startedAt: number;
+}
+
 export const signSession = (payload: SessionPayload) =>
   jwt.sign(payload, SESSION_SECRET, { expiresIn: SESSION_MAX_AGE_SEC });
+
+export const signPlaySession = (payload: { userId: string; chartId: string }) =>
+  jwt.sign(
+    {
+      type: 'play-session',
+      userId: payload.userId,
+      chartId: payload.chartId,
+      startedAt: Date.now(),
+    },
+    SESSION_SECRET,
+    { expiresIn: PLAY_SESSION_MAX_AGE_SEC }
+  );
+
+export const verifyPlaySession = (token: string): PlaySessionPayload | null => {
+  try {
+    const decoded = jwt.verify(token, SESSION_SECRET) as Partial<PlaySessionPayload>;
+    if (
+      decoded.type !== 'play-session' ||
+      typeof decoded.userId !== 'string' ||
+      typeof decoded.chartId !== 'string' ||
+      typeof decoded.startedAt !== 'number'
+    ) {
+      return null;
+    }
+    return {
+      type: 'play-session',
+      userId: decoded.userId,
+      chartId: decoded.chartId,
+      startedAt: decoded.startedAt,
+    };
+  } catch {
+    return null;
+  }
+};
 
 export const setSessionCookie = (token: string) => {
   const cookieStore = cookies();

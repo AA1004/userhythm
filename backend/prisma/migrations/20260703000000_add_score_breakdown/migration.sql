@@ -1,0 +1,38 @@
+-- Preserve existing leaderboard rows while adding server-authoritative score detail.
+CREATE TABLE IF NOT EXISTS "Score" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "chartId" TEXT NOT NULL,
+    "accuracy" DOUBLE PRECISION NOT NULL,
+    "perfect" INTEGER NOT NULL DEFAULT 0,
+    "great" INTEGER NOT NULL DEFAULT 0,
+    "good" INTEGER NOT NULL DEFAULT 0,
+    "miss" INTEGER NOT NULL DEFAULT 0,
+    "maxCombo" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Score_pkey" PRIMARY KEY ("id")
+);
+
+ALTER TABLE "Score" ADD COLUMN IF NOT EXISTS "perfect" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "Score" ADD COLUMN IF NOT EXISTS "great" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "Score" ADD COLUMN IF NOT EXISTS "good" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "Score" ADD COLUMN IF NOT EXISTS "miss" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "Score" ADD COLUMN IF NOT EXISTS "maxCombo" INTEGER NOT NULL DEFAULT 0;
+
+DO $$
+BEGIN
+  ALTER TABLE "Score" ADD CONSTRAINT "Score_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER TABLE "Score" ADD CONSTRAINT "Score_chartId_fkey" FOREIGN KEY ("chartId") REFERENCES "Chart"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE INDEX IF NOT EXISTS "Score_chartId_accuracy_idx" ON "Score"("chartId", "accuracy");
+CREATE INDEX IF NOT EXISTS "Score_userId_createdAt_idx" ON "Score"("userId", "createdAt");

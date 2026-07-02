@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
-import { getSessionFromRequest } from '../../../lib/auth';
+import { getSessionFromRequest, verifyPlaySession } from '../../../lib/auth';
 
 const serializeScore = (score: any, userMap?: Map<string, any>, chartMap?: Map<string, any>) => ({
   id: score.id,
   user_id: score.userId,
   chart_id: score.chartId,
   accuracy: score.accuracy,
+  perfect: score.perfect ?? 0,
+  great: score.great ?? 0,
+  good: score.good ?? 0,
+  miss: score.miss ?? 0,
+  max_combo: score.maxCombo ?? 0,
   created_at: (score as any).createdAt?.toISOString?.() ?? null,
   user: (score.user ?? userMap?.get(score.userId))
     ? {
@@ -128,6 +133,25 @@ export async function GET(req: NextRequest) {
   }
 }
 
+const SCORE_COUNT_LIMIT = 100_000;
+
+const parseScoreCount = (value: unknown): number | null => {
+  if (typeof value !== 'number' || !Number.isInteger(value)) return null;
+  if (value < 0 || value > SCORE_COUNT_LIMIT) return null;
+  return value;
+};
+
+const calculateAccuracy = (counts: {
+  perfect: number;
+  great: number;
+  good: number;
+  miss: number;
+}) => {
+  const total = counts.perfect + counts.great + counts.good + counts.miss;
+  if (total <= 0) return null;
+  return ((counts.perfect * 100 + counts.great * 80 + counts.good * 50) / (total * 100)) * 100;
+};
+
 export async function POST(req: NextRequest) {
   try {
     const session = getSessionFromRequest(req);
@@ -139,13 +163,69 @@ export async function POST(req: NextRequest) {
     if (!body || typeof body !== 'object') {
       return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
     }
-    const { chartId, accuracy } = body as { chartId?: string; accuracy?: number };
+    const {
+      chartId,
+      perfect,
+      great,
+      good,
+      miss,
+      maxCombo,
+      playSessionToken,
+    } = body as {
+      chartId?: string;
+      perfect?: unknown;
+      great?: unknown;
+      good?: unknown;
+      miss?: unknown;
+      maxCombo?: unknown;
+      playSessionToken?: unknown;
+    };
     if (!chartId || typeof chartId !== 'string') {
       return NextResponse.json({ error: 'invalid_chart_id' }, { status: 400 });
     }
-    const accNum = Number(accuracy);
-    if (!Number.isFinite(accNum) || accNum < 0 || accNum > 100) {
-      return NextResponse.json({ error: 'invalid_accuracy' }, { status: 400 });
+
+    if (typeof playSessionToken !== 'string' || !playSessionToken) {
+      return NextResponse.json({ error: 'invalid_play_session' }, { status: 400 });
+    }
+    const playSession = verifyPlaySession(playSessionToken);
+    if (
+      !playSession ||
+      playSession.userId !== session.userId ||
+      playSession.chartId !== chartId
+    ) {
+      return NextResponse.json({ error: 'invalid_play_session' }, { status: 400 });
+    }
+
+    const counts = {
+      perfect: parseScoreCount(perfect),
+      great: parseScoreCount(great),
+      good: parseScoreCount(good),
+      miss: parseScoreCount(miss),
+    };
+    const parsedMaxCombo = parseScoreCount(maxCombo);
+    if (
+      counts.perfect === null ||
+      counts.great === null ||
+      counts.good === null ||
+      counts.miss === null ||
+      parsedMaxCombo === null
+    ) {
+      return NextResponse.json({ error: 'invalid_score_breakdown' }, { status: 400 });
+    }
+
+    const total = counts.perfect + counts.great + counts.good + counts.miss;
+    if (total <= 0 || parsedMaxCombo > total) {
+      return NextResponse.json({ error: 'invalid_score_breakdown' }, { status: 400 });
+    }
+
+    const serverAccuracy = calculateAccuracy({
+      perfect: counts.perfect,
+      great: counts.great,
+      good: counts.good,
+      miss: counts.miss,
+    });
+    if (serverAccuracy === null) {
+      return NextResponse.json({ error: 'invalid_score_breakdown' }, { status: 400 });
     }
 
     // ensure chart exists
@@ -158,7 +238,12 @@ export async function POST(req: NextRequest) {
       data: {
         chartId,
         userId: session.userId,
-        accuracy: accNum,
+        accuracy: serverAccuracy,
+        perfect: counts.perfect,
+        great: counts.great,
+        good: counts.good,
+        miss: counts.miss,
+        maxCombo: parsedMaxCombo,
       },
       include: { user: { include: { profile: true } }, chart: true },
     });

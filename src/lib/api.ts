@@ -27,6 +27,11 @@ export interface ApiScore {
   user_id: string;
   chart_id: string;
   accuracy: number;
+  perfect?: number;
+  great?: number;
+  good?: number;
+  miss?: number;
+  max_combo?: number;
   created_at?: string | null;
   user?: {
     id: string;
@@ -65,6 +70,16 @@ export interface ApiVersion {
   version: string;
   changelog: string[];
   updatedAt: string;
+}
+
+export interface SubmitScorePayload {
+  chartId: string;
+  perfect: number;
+  great: number;
+  good: number;
+  miss: number;
+  maxCombo: number;
+  playSessionToken: string;
 }
 
 const toJson = async (res: Response) => {
@@ -200,12 +215,22 @@ export const api = {
     return toJson(res) as Promise<{ perChart: ApiScore[]; global: ApiScore[]; perUser: ApiUserAggregate[] }>;
   },
 
-  async submitScore(chartId: string, accuracy: number) {
+  async createPlaySession(chartId: string) {
+    const res = await fetch(`${API_BASE}/api/play-session`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chartId }),
+    });
+    return toJson(res) as Promise<{ playSessionToken: string }>;
+  },
+
+  async submitScore(payload: SubmitScorePayload) {
     const res = await fetch(`${API_BASE}/api/leaderboard`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chartId, accuracy }),
+      body: JSON.stringify(payload),
     });
     return toJson(res) as Promise<{ score: ApiScore }>;
   },

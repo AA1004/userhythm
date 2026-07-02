@@ -158,6 +158,8 @@ export const Game: React.FC = () => {
   const currentTimeRef = useRef<number>(0);
   const hasRecordedPlayRef = useRef(false);
   const hasSubmittedScoreRef = useRef(false);
+  const playSessionRequestChartIdRef = useRef<string | null>(null);
+  const [playSessionToken, setPlaySessionToken] = useState<string | null>(null);
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
@@ -171,6 +173,8 @@ export const Game: React.FC = () => {
     if (!gameState.gameStarted) {
       hasRecordedPlayRef.current = false;
       hasSubmittedScoreRef.current = false;
+      playSessionRequestChartIdRef.current = null;
+      setPlaySessionToken(null);
     }
   }, [gameState.gameStarted]);
 
@@ -647,12 +651,52 @@ export const Game: React.FC = () => {
   }, [gameState.gameStarted, gameState.gameEnded, isFromEditor, activePlayableChartId]);
 
   useEffect(() => {
+    if (!gameState.gameStarted || gameState.gameEnded || isFromEditor) return;
+    if (!activePlayableChartId) return;
+    if (playSessionRequestChartIdRef.current === activePlayableChartId) return;
+
+    playSessionRequestChartIdRef.current = activePlayableChartId;
+    setPlaySessionToken(null);
+
+    void api
+      .createPlaySession(activePlayableChartId)
+      .then(({ playSessionToken: token }) => {
+        if (playSessionRequestChartIdRef.current === activePlayableChartId) {
+          setPlaySessionToken(token);
+        }
+      })
+      .catch((error: any) => {
+        if (playSessionRequestChartIdRef.current === activePlayableChartId) {
+          playSessionRequestChartIdRef.current = null;
+        }
+        if (error?.status === 401) {
+          console.warn('Leaderboard play session skipped: login required.');
+          return;
+        }
+        console.error('Failed to create leaderboard play session:', error);
+      });
+  }, [gameState.gameStarted, gameState.gameEnded, isFromEditor, activePlayableChartId]);
+
+  useEffect(() => {
     if (!gameState.gameEnded || isFromEditor) return;
     if (!activePlayableChartId || hasSubmittedScoreRef.current) return;
+    if (!playSessionToken) {
+      console.warn('Leaderboard score submission skipped: missing play session token.');
+      return;
+    }
 
     hasSubmittedScoreRef.current = true;
+    const score = gameState.score;
     void api
-      .submitScore(activePlayableChartId, accuracy)
+      .submitScore({
+        chartId: activePlayableChartId,
+        perfect: score.perfect,
+        great: score.great,
+        good: score.good,
+        miss: score.miss,
+        maxCombo: score.maxCombo,
+        playSessionToken,
+      })
       .then(() => {
         window.dispatchEvent(
           new CustomEvent('userhythm:leaderboard-updated', {
@@ -668,7 +712,7 @@ export const Game: React.FC = () => {
         }
         console.error('Failed to submit leaderboard score:', error);
       });
-  }, [gameState.gameEnded, isFromEditor, activePlayableChartId, accuracy]);
+  }, [gameState.gameEnded, gameState.score, isFromEditor, activePlayableChartId, playSessionToken]);
 
   // 채보 저장 핸들러 (현재 미사용)
   // const handleChartSave = useCallback((notes: Note[]) => {
