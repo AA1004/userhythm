@@ -45,6 +45,7 @@ export function useTestYoutubePlayer({
   const lastResyncTimeRef = useRef(0);
   const lastCueSeekTimeRef = useRef(0);
   const lastAudioSyncCheckAtRef = useRef(0);
+  const audioPrerollStartedRef = useRef(false);
   const isExternalPlayerRef = useRef(false);
   const latestVolumeRef = useRef(volume);
   const onPlaybackEndedRef = useRef(onPlaybackEnded);
@@ -61,6 +62,7 @@ export function useTestYoutubePlayer({
     if (audioPlaybackEndedRef.current) return;
     audioHasStartedRef.current = false;
     audioPlaybackEndedRef.current = true;
+    audioPrerollStartedRef.current = false;
     onPlaybackEndedRef.current?.();
   };
 
@@ -74,6 +76,7 @@ export function useTestYoutubePlayer({
       // 새 게임 시작이므로 오디오 상태 리셋
       audioHasStartedRef.current = false;
       audioPlaybackEndedRef.current = false;
+      audioPrerollStartedRef.current = false;
 
       // External player 설정
       if (audioSettings) {
@@ -131,6 +134,7 @@ export function useTestYoutubePlayer({
     // 새 게임 시작이므로 오디오 상태 리셋
     audioHasStartedRef.current = false;
     audioPlaybackEndedRef.current = false;
+    audioPrerollStartedRef.current = false;
     lastCueSeekTimeRef.current = 0;
     lastResyncTimeRef.current = 0;
     lastAudioSyncCheckAtRef.current = 0;
@@ -238,6 +242,7 @@ export function useTestYoutubePlayer({
       try {
         audioHasStartedRef.current = false;
         audioPlaybackEndedRef.current = false;
+        audioPrerollStartedRef.current = false;
         player.pauseVideo?.();
       } catch (e) {
         console.warn("YouTube stop on inactive session failed:", e);
@@ -262,8 +267,26 @@ export function useTestYoutubePlayer({
       const currentTime = currentTimeRef.current;
 
       if (currentTime < 0) {
-        audioHasStartedRef.current = false;
         audioPlaybackEndedRef.current = false;
+        const prerollLeadMs = 140;
+        if (
+          currentTime >= -prerollLeadMs &&
+          !audioPrerollStartedRef.current &&
+          !audioHasStartedRef.current
+        ) {
+          try {
+            const baseSeconds = getAudioBaseSeconds(audioSettings);
+            player.mute?.();
+            player.setVolume?.(latestVolumeRef.current);
+            player.seekTo(baseSeconds, true);
+            player.playVideo?.();
+            audioPrerollStartedRef.current = true;
+            audioHasStartedRef.current = true;
+            lastCueSeekTimeRef.current = Date.now();
+          } catch (e) {
+            console.warn("YouTube preroll failed:", e);
+          }
+        }
         if (shouldProfile) {
           recordGameplayMetric('audioSync', performance.now() - syncStart, 0);
         }
@@ -277,23 +300,7 @@ export function useTestYoutubePlayer({
         return;
       }
 
-      const durationSeconds = player.getDuration?.() ?? 0;
       const desiredSeconds = getAudioPositionSeconds(currentTime, audioSettings);
-      const hasKnownDuration = Number.isFinite(durationSeconds) && durationSeconds > 0.5;
-      if (hasKnownDuration && desiredSeconds >= durationSeconds - 0.12) {
-        try {
-          player.mute?.();
-          player.pauseVideo?.();
-        } catch (e) {
-          console.warn("YouTube stop at media end failed:", e);
-        }
-        audioHasStartedRef.current = false;
-        markPlaybackEnded();
-        if (shouldProfile) {
-          recordGameplayMetric('audioSync', performance.now() - syncStart, durationSeconds);
-        }
-        return;
-      }
 
       if (!audioHasStartedRef.current) {
         try {
@@ -316,8 +323,22 @@ export function useTestYoutubePlayer({
         return;
       }
 
+      if (audioPrerollStartedRef.current) {
+        try {
+          player.unMute?.();
+          player.setVolume?.(latestVolumeRef.current);
+        } catch (e) {
+          console.warn("YouTube preroll unmute failed:", e);
+        }
+        audioPrerollStartedRef.current = false;
+        if (shouldProfile) {
+          recordGameplayMetric('audioSync', performance.now() - syncStart, 1);
+        }
+        return;
+      }
+
       const now = Date.now();
-      const syncCheckIntervalMs = 5000;
+      const syncCheckIntervalMs = 15000;
       if (now - lastAudioSyncCheckAtRef.current < syncCheckIntervalMs) {
         if (shouldProfile) {
           recordGameplayMetric('audioSync', performance.now() - syncStart, 0);
@@ -339,8 +360,8 @@ export function useTestYoutubePlayer({
 
       // 임계값: 0.5초 이상 차이날 때만 리싱크
       // 쿨다운: 마지막 리싱크 후 2초 이내에는 리싱크하지 않음
-      const RESYNC_THRESHOLD = 0.65;
-      const RESYNC_COOLDOWN = 2400;
+      const RESYNC_THRESHOLD = 0.85;
+      const RESYNC_COOLDOWN = 5000;
 
       if (
         Math.abs(currentSeconds - desiredSeconds) > RESYNC_THRESHOLD &&

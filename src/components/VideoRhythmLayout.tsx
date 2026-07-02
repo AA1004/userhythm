@@ -299,16 +299,6 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
         return;
       }
       lastBgaSyncCheckAtRef.current = now;
-      const durationSeconds = backgroundPlayer.getDuration?.() ?? 0;
-      const hasKnownDuration = Number.isFinite(durationSeconds) && durationSeconds > 0.5;
-      if (hasKnownDuration && currentTargetSeconds >= durationSeconds - 0.12) {
-        backgroundPlaybackEndedRef.current = true;
-        disposeBackgroundPlayer(backgroundPlayer);
-        if (shouldProfile) {
-          recordGameplayMetric('bgaSync', performance.now() - syncStart, durationSeconds);
-        }
-        return;
-      }
       const currentSeconds = backgroundPlayer.getCurrentTime?.() ?? 0;
       const diff = Math.abs(currentSeconds - currentTargetSeconds);
 
@@ -326,7 +316,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
     };
 
     sync();
-    timerId = window.setInterval(sync, 5000);
+    timerId = window.setInterval(sync, 15000);
     return () => {
       if (timerId !== null) {
         window.clearInterval(timerId);

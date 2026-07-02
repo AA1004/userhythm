@@ -815,7 +815,7 @@ export const Game: React.FC = () => {
   const isGameplayActive = gameState.gameStarted && !gameState.gameEnded;
   const isWaitingForYoutubeAudio =
     isGameplayActive && hasYoutubeAudioSession && (!isYoutubeAudioMountReady || !testYoutubePlayerReady);
-  const isGameplayClockRunning = isGameplayActive;
+  const isGameplayClockRunning = isGameplayActive && !isWaitingForYoutubeAudio;
   const [isBgaTimelineReady, setIsBgaTimelineReady] = useState(false);
   useEffect(() => {
     if (!isGameplayActive || !isGameplayClockRunning) {
