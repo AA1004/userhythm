@@ -11,7 +11,7 @@ export interface UseChartLoaderOptions {
   onYoutubeDestroy: () => void;
   onYoutubeSetup: (videoId: string | null, settings: AudioSettings | null) => void;
   onTestModeSet: (value: boolean) => void;
-  onSubtitlesLoad: (chartId: string | undefined) => void;
+  onSubtitlesLoad: (chartId: string | string[] | undefined) => void;
   onSubtitlesSet: (subtitles: SubtitleCue[]) => void;
   onSubtitlesClear: () => void;
   onBgaIntervalsSet: (intervals: BgaVisibilityInterval[]) => void;
@@ -224,10 +224,19 @@ export function useChartLoader({
           chartData.subtitleTracks
         );
         onSubtitlesSet(subtitlePayload.subtitles);
-      } else if (chartData.chartId) {
-        onSubtitlesLoad(chartData.chartId);
       } else {
-        onSubtitlesClear();
+        const subtitleLookupIds = [
+          chartData.chartId,
+          chartData.sourceChartId,
+          chartData.subtitleSessionId,
+          chartData.chartTitle ? `local-${chartData.chartTitle}` : undefined,
+        ].filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
+
+        if (subtitleLookupIds.length) {
+          onSubtitlesLoad(subtitleLookupIds);
+        } else {
+          onSubtitlesClear();
+        }
       }
     } catch (error) {
       console.error('Failed to load chart:', error);

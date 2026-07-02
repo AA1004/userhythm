@@ -14,7 +14,7 @@ export interface ActiveSubtitle {
 export interface UseSubtitlesReturn {
   subtitles: SubtitleCue[];
   setSubtitles: React.Dispatch<React.SetStateAction<SubtitleCue[]>>;
-  loadSubtitlesForChart: (chartId: string) => Promise<void>;
+  loadSubtitlesForChart: (chartId: string | string[] | undefined) => Promise<void>;
   getSubtitleOpacity: (cue: SubtitleCue, chartTimeMs: number) => number;
   activeSubtitles: ActiveSubtitle[];
 }
@@ -205,26 +205,41 @@ export function useSubtitles(
     setSubtitlesState(next);
   }, []);
 
-  const loadSubtitlesForChart = useCallback(async (chartId: string) => {
+  const loadSubtitlesForChart = useCallback(async (chartId: string | string[] | undefined) => {
     try {
       let cues: SubtitleCue[] = [];
+      let tracks: import('../types/subtitle').SubtitleTrack[] = [];
+      const chartIds = (Array.isArray(chartId) ? chartId : [chartId])
+        .filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+        .map((id) => id.trim());
 
-      const shouldForceLocal = !chartId || chartId.startsWith('local-');
-      if (isSupabaseConfigured && !shouldForceLocal) {
-        cues = await subtitleAPI.getSubtitlesByChartId(chartId);
+      if (!chartIds.length) {
+        setSubtitles([]);
+        return;
       }
 
-      if (!cues.length || shouldForceLocal) {
-        const localCues = localSubtitleStorage.get(chartId);
-        if (localCues.length) {
-          cues = localCues;
+      for (const candidateId of chartIds) {
+        const shouldForceLocal = candidateId.startsWith('local-');
+        if (isSupabaseConfigured && !shouldForceLocal) {
+          cues = await subtitleAPI.getSubtitlesByChartId(candidateId);
+          tracks = localSubtitleStorage.getTracks(candidateId);
         }
+
+        if (!cues.length || shouldForceLocal) {
+          const localCues = localSubtitleStorage.get(candidateId);
+          if (localCues.length) {
+            cues = localCues;
+            tracks = localSubtitleStorage.getTracks(candidateId);
+          }
+        }
+
+        if (cues.length) break;
       }
 
       const normalized = normalizeSubtitlePayload(
-        chartId,
+        chartIds[0],
         cues,
-        localSubtitleStorage.getTracks(chartId)
+        tracks
       );
       await ensureSubtitleFontsReady(
         normalized.subtitles.map((cue) => cue.style?.fontFamily || 'Noto Sans KR, sans-serif')
@@ -275,7 +290,7 @@ export function useSubtitles(
       recordProfile(0);
       return [];
     }
-    if (!gameState.gameStarted) {
+    if (!gameState.gameStarted || gameState.gameEnded) {
       recordProfile(0);
       return [];
     }
@@ -311,7 +326,7 @@ export function useSubtitles(
     active.sort((a, b) => a.originalIndex - b.originalIndex);
     recordProfile(active.length);
     return active.map(({ cue, opacity }) => ({ cue, opacity }));
-  }, [subtitles.length, gameState.gameStarted, subtitleClockTimeMs, getSubtitleOpacity, timelineIndex]);
+  }, [subtitles.length, gameState.gameStarted, gameState.gameEnded, subtitleClockTimeMs, getSubtitleOpacity, timelineIndex]);
 
   return {
     subtitles,

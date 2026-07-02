@@ -301,6 +301,7 @@ export const Game: React.FC = () => {
   } = useTestSession({
     setGameState,
     onSubtitlesLoad: loadSubtitlesForChart,
+    onSubtitlesSet: setSubtitles,
     onSubtitlesClear: () => setSubtitles([]),
     onBgaIntervalsSet: setBgaVisibilityIntervals,
     onYoutubeVideoIdSet: setTestYoutubeVideoId,
@@ -943,6 +944,9 @@ export const Game: React.FC = () => {
             alignItems: 'center',
             gap: '12px',
             zIndex: 10000,
+            opacity: activeLaneChromeOpacity,
+            pointerEvents: activeLaneChromeVisible ? 'auto' : 'none',
+            transition: 'opacity 40ms linear',
           }}
         >
           {/* 볼륨 조절 */}

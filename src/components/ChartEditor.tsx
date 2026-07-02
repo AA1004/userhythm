@@ -2173,6 +2173,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       startDelayMs,
       bgaVisibilityIntervals,
       chartId: subtitleSessionId,
+      subtitles: normalizeSubtitlePayload(
+        subtitleSessionId,
+        localSubtitleStorage.get(subtitleSessionId),
+        localSubtitleStorage.getTracks(subtitleSessionId)
+      ).subtitles,
     });
   }, [
     onTest,

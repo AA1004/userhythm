@@ -3,6 +3,8 @@ import { GameState, Note, BgaVisibilityInterval, EmbeddedAudioTrack } from '../t
 import { buildInitialScore, calculateGameDuration } from '../utils/gameHelpers';
 import { DEFAULT_GAME_DURATION, START_DELAY_MS } from '../constants/gameConstants';
 import { normalizeBgaIntervalsForRuntime } from '../utils/bgaVisibility';
+import { SubtitleCue } from '../types/subtitle';
+import { normalizeSubtitlePayload } from '../utils/subtitleNormalization';
 
 export interface EditorTestPayload {
   notes: Note[];
@@ -15,11 +17,13 @@ export interface EditorTestPayload {
   chartId?: string;
   bgaVisibilityIntervals?: BgaVisibilityInterval[];
   overlayAudioTrack?: EmbeddedAudioTrack | null;
+  subtitles?: SubtitleCue[];
 }
 
 export interface UseTestSessionOptions {
   setGameState: React.Dispatch<React.SetStateAction<GameState>>;
-  onSubtitlesLoad: (chartId: string) => void;
+  onSubtitlesLoad: (chartId: string | string[] | undefined) => void;
+  onSubtitlesSet: (subtitles: SubtitleCue[]) => void;
   onSubtitlesClear: () => void;
   onBgaIntervalsSet: (intervals: BgaVisibilityInterval[]) => void;
   onYoutubeVideoIdSet: (videoId: string | null) => void;
@@ -48,6 +52,7 @@ export interface UseTestSessionReturn {
 export function useTestSession({
   setGameState,
   onSubtitlesLoad,
+  onSubtitlesSet,
   onSubtitlesClear,
   onBgaIntervalsSet,
   onYoutubeVideoIdSet,
@@ -155,7 +160,9 @@ export function useTestSession({
       setIsFromEditor(true); // 에디터에서 테스트 시작
       onEditorClose();
 
-      if (payload.chartId) {
+      if (Array.isArray(payload.subtitles) && payload.subtitles.length > 0) {
+        onSubtitlesSet(normalizeSubtitlePayload(payload.chartId || 'editor-test', payload.subtitles, []).subtitles);
+      } else if (payload.chartId) {
         onSubtitlesLoad(payload.chartId);
       } else {
         onSubtitlesClear();
@@ -166,7 +173,7 @@ export function useTestSession({
       
       startTestSession(preparedNotes, payload.bgaVisibilityIntervals || [], payload.startDelayMs ?? START_DELAY_MS);
     },
-    [startTestSession, onSubtitlesLoad, onSubtitlesClear, onYoutubeVideoIdSet, onAudioSettingsSet, onEditorClose]
+    [startTestSession, onSubtitlesLoad, onSubtitlesSet, onSubtitlesClear, onYoutubeVideoIdSet, onAudioSettingsSet, onEditorClose]
   );
 
   const handleRetest = useCallback(() => {

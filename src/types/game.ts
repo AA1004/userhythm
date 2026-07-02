@@ -1,4 +1,4 @@
-import type { SubtitleTrack } from './subtitle';
+import type { SubtitleCue, SubtitleTrack } from './subtitle';
 
 export type Lane = 0 | 1 | 2 | 3;
 
@@ -97,6 +97,8 @@ export interface ChartTestPayload {
   chartId?: string;
   bgaVisibilityIntervals?: BgaVisibilityInterval[];
   overlayAudioTrack?: EmbeddedAudioTrack | null;
+  subtitles?: SubtitleCue[];
+  subtitleTracks?: SubtitleTrack[];
 }
 
 export interface SubtitleEditorChartData {
