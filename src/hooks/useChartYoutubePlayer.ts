@@ -41,6 +41,7 @@ export function useChartYoutubePlayer({
   const playbackCommandTokenRef = useRef(0);
   const playbackRetryTimerRef = useRef<number | null>(null);
   const skipPlaybackEffectStateRef = useRef<boolean | null>(null);
+  const lastEditorFollowSeekMsRef = useRef(0);
   const playerClockSampleRef = useRef<{
     playerSeconds: number;
     sampledAtMs: number;
@@ -459,8 +460,8 @@ export function useChartYoutubePlayer({
     lastAppliedAudioOffsetRef.current = audioOffsetMs;
   }, [audioOffsetMs, isPlaying, syncPlayerToTimeline, youtubePlayer]);
 
-  // 에디터 재생 중에는 로컬 타이머로 즉시 반응하고, YouTube가 실제 PLAYING 상태일 때만
-  // 작은 폭으로 보정한다. 시작 직후 재생선이 멈춰 보이면 편집 체감이 크게 나빠진다.
+  // 에디터 재생 중 playhead는 절대 뒤로 보내지 않는다.
+  // YouTube가 늦게 따라오면 playhead가 아니라 YouTube를 현재 위치로 다시 붙인다.
 
   const getSynchronizedTimelineTime = useCallback(
     (fallbackTimeMs: number) => {
@@ -509,11 +510,28 @@ export function useChartYoutubePlayer({
         return fallbackTimeMs;
       }
 
+      if (driftMs < 0) {
+        if (isPlaying && Math.abs(driftMs) > 80 && now - lastEditorFollowSeekMsRef.current > 250) {
+          lastEditorFollowSeekMsRef.current = now;
+          try {
+            youtubePlayer.seekTo?.(getPlayerTimeSeconds(fallbackTimeMs), true);
+            youtubePlayer.playVideo?.();
+            playerClockSampleRef.current = {
+              playerSeconds: getPlayerTimeSeconds(fallbackTimeMs),
+              sampledAtMs: now,
+              isPlaying: true,
+            };
+          } catch {
+            // Keep editor responsiveness even if YouTube rejects the seek.
+          }
+        }
+        return fallbackTimeMs;
+      }
+
       const maxCorrectionMs = 24;
-      const correctionMs = Math.max(-maxCorrectionMs, Math.min(maxCorrectionMs, driftMs));
-      return Math.max(0, fallbackTimeMs + correctionMs);
+      return Math.max(0, fallbackTimeMs + Math.min(maxCorrectionMs, driftMs));
     },
-    [audioOffsetMs, isPlaying, playbackSpeed, youtubePlayer]
+    [audioOffsetMs, getPlayerTimeSeconds, isPlaying, playbackSpeed, youtubePlayer]
   );
 
   // 시크 함수
