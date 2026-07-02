@@ -28,6 +28,7 @@ export function useChartYoutubePlayer({
   const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
   const [youtubeVideoTitle, setYoutubeVideoTitle] = useState<string>('');
   const [youtubePlayer, setYoutubePlayer] = useState<any>(null);
+  const [isYoutubePlayerReady, setIsYoutubePlayerReady] = useState<boolean>(false);
   const [videoDurationSeconds, setVideoDurationSeconds] = useState<number | null>(null);
   const [isLoadingDuration, setIsLoadingDuration] = useState<boolean>(false);
 
@@ -40,6 +41,12 @@ export function useChartYoutubePlayer({
   const playbackCommandTokenRef = useRef(0);
   const playbackRetryTimerRef = useRef<number | null>(null);
   const skipPlaybackEffectStateRef = useRef<boolean | null>(null);
+  const playerClockSampleRef = useRef<{
+    playerSeconds: number;
+    sampledAtMs: number;
+    isPlaying: boolean;
+  } | null>(null);
+  const lastPlayerClockPollMsRef = useRef(0);
   const getPlayerTimeSeconds = useCallback(
     (timeMs: number) => Math.max(0, timeMs - audioOffsetMs) / 1000,
     [audioOffsetMs]
@@ -69,6 +76,11 @@ export function useChartYoutubePlayer({
     (timeMs: number, shouldAutoplay: boolean, forceReload = false) => {
       if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
       const timeSeconds = getPlayerTimeSeconds(timeMs);
+      playerClockSampleRef.current = {
+        playerSeconds: timeSeconds,
+        sampledAtMs: performance.now(),
+        isPlaying: shouldAutoplay,
+      };
 
       try {
         if (forceReload && youtubeVideoId && shouldAutoplay && typeof youtubePlayer.loadVideoById === 'function') {
@@ -180,6 +192,7 @@ export function useChartYoutubePlayer({
         }
       }
       youtubePlayerReadyRef.current = false;
+      setIsYoutubePlayerReady(false);
     };
 
     // 기존 플레이어 정리
@@ -190,6 +203,7 @@ export function useChartYoutubePlayer({
       return null;
     });
     youtubePlayerReadyRef.current = false;
+    setIsYoutubePlayerReady(false);
 
     waitForYouTubeAPI().then(() => {
       if (isCancelled) return;
@@ -240,6 +254,7 @@ export function useChartYoutubePlayer({
               if (isCancelled) return;
 
               youtubePlayerReadyRef.current = true;
+              setIsYoutubePlayerReady(true);
               setYoutubePlayer(player);
               playerInstance = player;
 
@@ -444,7 +459,50 @@ export function useChartYoutubePlayer({
     lastAppliedAudioOffsetRef.current = audioOffsetMs;
   }, [audioOffsetMs, isPlaying, syncPlayerToTimeline, youtubePlayer]);
 
-  // 현재 시간 동기화 제거: 에디터 타이머가 단일 시간 소스가 되도록 유지
+  // 에디터 재생 중에는 YouTube 실제 재생 시간을 주기적으로 샘플링하고,
+  // 샘플 사이만 보간한다. YouTube 시작 지연 때문에 채보가 먼저 흐르는 것을 막는다.
+
+  const getSynchronizedTimelineTime = useCallback(
+    (fallbackTimeMs: number) => {
+      if (!youtubePlayer || !youtubePlayerReadyRef.current) {
+        return fallbackTimeMs;
+      }
+
+      const now = performance.now();
+      const shouldPoll = now - lastPlayerClockPollMsRef.current >= 50;
+
+      if (shouldPoll) {
+        lastPlayerClockPollMsRef.current = now;
+        try {
+          const playerSeconds = Number(youtubePlayer.getCurrentTime?.());
+          const playerState = youtubePlayer.getPlayerState?.();
+          const playerIsPlaying =
+            typeof window !== 'undefined' &&
+            window.YT &&
+            playerState === window.YT.PlayerState.PLAYING;
+
+          if (Number.isFinite(playerSeconds)) {
+            playerClockSampleRef.current = {
+              playerSeconds,
+              sampledAtMs: now,
+              isPlaying: Boolean(playerIsPlaying),
+            };
+          }
+        } catch (e) {
+          return fallbackTimeMs;
+        }
+      }
+
+      const sample = playerClockSampleRef.current;
+      if (!sample) {
+        return fallbackTimeMs;
+      }
+
+      const elapsedMs = sample.isPlaying ? (now - sample.sampledAtMs) * playbackSpeed : 0;
+      return Math.max(0, sample.playerSeconds * 1000 + elapsedMs + audioOffsetMs);
+    },
+    [audioOffsetMs, playbackSpeed, youtubePlayer]
+  );
 
   // 시크 함수
   const seekTo = useCallback(
@@ -504,12 +562,14 @@ export function useChartYoutubePlayer({
     youtubeVideoId,
     youtubeVideoTitle,
     youtubePlayer,
+    isYoutubePlayerReady,
     videoDurationSeconds,
     isLoadingDuration,
     handleYouTubeUrlSubmit,
     handleYouTubeUrlPaste,
     seekTo,
     applyImmediatePlaybackState,
+    getSynchronizedTimelineTime,
     youtubePlayerRef,
   };
 }

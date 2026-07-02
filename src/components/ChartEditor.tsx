@@ -432,11 +432,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setYoutubeUrl,
     youtubeVideoId,
     youtubeVideoTitle,
+    isYoutubePlayerReady,
     videoDurationSeconds,
     isLoadingDuration,
     handleYouTubeUrlSubmit,
     seekTo,
     applyImmediatePlaybackState,
+    getSynchronizedTimelineTime,
     youtubePlayerRef,
   } = useChartYoutubePlayer({
     currentTime,
@@ -570,8 +572,17 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       const deltaMs = rawDeltaMs > MAX_DELTA_MS ? 0 : rawDeltaMs;
       lastTickTimestampRef.current = timestamp;
 
-      if (deltaMs > 0) {
-        internalTimeRef.current = Math.max(0, internalTimeRef.current + deltaMs);
+      if (youtubeVideoId && !isYoutubePlayerReady) {
+        playheadRafIdRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      const nextRuntimeTime = youtubeVideoId
+        ? getSynchronizedTimelineTime(internalTimeRef.current)
+        : Math.max(0, internalTimeRef.current + deltaMs);
+
+      if (nextRuntimeTime !== internalTimeRef.current) {
+        internalTimeRef.current = nextRuntimeTime;
         scanEditorHitSounds(internalTimeRef.current);
         const shouldCommitUi =
           lastUiCommitTimestampRef.current === null ||
@@ -600,7 +611,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       // 최종 시간 동기화
       setCurrentTime(internalTimeRef.current);
        };
-  }, [isPlaying, playbackSpeed, scanEditorHitSounds]);
+  }, [isPlaying, playbackSpeed, scanEditorHitSounds, youtubeVideoId, isYoutubePlayerReady, getSynchronizedTimelineTime]);
 
   useEffect(() => {
     if (!isPlaying) {
