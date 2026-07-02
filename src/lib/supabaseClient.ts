@@ -111,6 +111,14 @@ export interface ChartReview {
   created_at: string;
 }
 
+export interface ChartsPageResult<TChart = any> {
+  items: TChart[];
+  total: number;
+  hasMore: boolean;
+  page: number;
+  limit: number;
+}
+
 // User role type
 export type UserRole = 'user' | 'moderator' | 'admin';
 
@@ -155,10 +163,11 @@ export const chartAPI = {
     search?: string;
     sortBy?: 'created_at' | 'play_count' | 'title';
     sortOrder?: 'asc' | 'desc';
+    status?: 'approved' | 'wip';
     page?: number;
     limit?: number;
     signal?: AbortSignal;
-  }) {
+  }): Promise<ChartsPageResult> {
     const page = options?.page ?? 1;
     const limit = options?.limit ?? 12;
     const offset = Math.max(0, (page - 1) * limit);
@@ -168,6 +177,8 @@ export const chartAPI = {
       sortOrder: options?.sortOrder,
       limit,
       offset,
+      status: options?.status,
+      signal: options?.signal,
     });
     const hasMore = charts.length === limit && page * limit < (total || 0);
     return { items: charts, total, hasMore, page, limit };

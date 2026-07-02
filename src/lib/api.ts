@@ -136,11 +136,12 @@ export const api = {
   },
   async getCharts(params: {
     search?: string;
-    sortBy?: string;
+    sortBy?: 'created_at' | 'play_count' | 'title';
     sortOrder?: string;
     limit?: number;
     offset?: number;
     status?: 'approved' | 'wip';
+    signal?: AbortSignal;
   }) {
     const qs = new URLSearchParams();
     if (params.search) qs.set('search', params.search);
@@ -149,7 +150,10 @@ export const api = {
     if (params.limit) qs.set('limit', String(params.limit));
     if (params.offset) qs.set('offset', String(params.offset));
     if (params.status) qs.set('status', params.status);
-    const res = await fetch(`${API_BASE}/api/charts?${qs.toString()}`, { credentials: 'include' });
+    const res = await fetch(`${API_BASE}/api/charts?${qs.toString()}`, {
+      credentials: 'include',
+      signal: params.signal,
+    });
     return toJson(res) as Promise<{ charts: ApiChart[]; total: number }>;
   },
   async getChartById(id: string) {
