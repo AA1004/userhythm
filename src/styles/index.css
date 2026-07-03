@@ -1445,6 +1445,29 @@ body {
   animation-direction: alternate-reverse;
 }
 
+.chart-select-shell {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.chart-select-shell__backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.chart-select-shell__scrim {
+  z-index: 1;
+  pointer-events: none;
+}
+
+.chart-select-shell__content {
+  position: relative;
+  z-index: 2;
+}
+
 .chart-select-header {
   animation: chartSelectPanelIn 220ms 40ms ease-out both;
 }

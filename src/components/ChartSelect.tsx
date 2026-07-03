@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { api, ApiChart, ApiScore, ApiUserAggregate } from '../lib/api';
 import { chartAPI } from '../lib/supabaseClient';
-import { extractYouTubeVideoId, waitForYouTubeAPI, YOUTUBE_EMBED_HOST } from '../utils/youtube';
+import { extractYouTubeVideoId } from '../utils/youtube';
 import { measureToTime } from '../utils/bpmUtils';
 import { validateNotes } from '../utils/noteValidation';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
-import { PREVIEW_TRANSITION_DURATION_MS, PREVIEW_BGA_OPACITY } from '../constants/gameConstants';
+import { useChartSelectPreview, type ChartSelectPreviewSpec } from '../hooks/useChartSelectPreview';
+import { ChartSelectPreviewStage } from './chart-select/ChartSelectPreviewStage';
 import {
   ADMIN_CHART_DIFFICULTY_OPTIONS,
   getChartDifficultyColor,
@@ -23,7 +24,6 @@ interface ChartSelectProps {
 }
 
 const DEFAULT_THUMBNAIL_ASPECT_RATIO = 16 / 9;
-const PREVIEW_VOLUME = 35;
 
 const hexToRgba = (hex: string, alpha: number) => {
   const normalized = hex.replace('#', '');
@@ -111,16 +111,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
     useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
 
-  // YouTube preview player (BGA용)
-  const bgaContainerRef = useRef<HTMLDivElement | null>(null);
-  const previewPlayerHostRef = useRef<HTMLDivElement | null>(null);
-  const previewPlayerRef = useRef<any>(null);
-  const currentVideoIdRef = useRef<string | null>(null); // 현재 로드된 videoId 추적
-  const previewLoopTimerRef = useRef<number | NodeJS.Timeout | null>(null);
-  const fadeIntervalRef = useRef<number | NodeJS.Timeout | null>(null);
-  const [bgaOpacity, setBgaOpacity] = useState<number>(0);
-  const [previewBgaUrl, setPreviewBgaUrl] = useState<string | null>(null);
-
   useEffect(() => {
     // React 18 StrictMode에서 effect가 즉시 clean-up 되더라도 다시 true로 세팅
     isMountedRef.current = true;
@@ -128,26 +118,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
       isMountedRef.current = false;
       if (requestControllerRef.current) {
         requestControllerRef.current.abort();
-      }
-      // Preview player cleanup
-      if (previewLoopTimerRef.current) {
-        clearInterval(previewLoopTimerRef.current);
-        previewLoopTimerRef.current = null;
-      }
-      if (fadeIntervalRef.current) {
-        clearInterval(fadeIntervalRef.current);
-        fadeIntervalRef.current = null;
-      }
-      if (previewPlayerRef.current) {
-        try {
-          previewPlayerRef.current.pauseVideo?.();
-          previewPlayerRef.current.destroy?.();
-        } catch (e) {
-          // 무시
-        }
-      }
-      if (previewPlayerHostRef.current && previewPlayerHostRef.current.parentNode) {
-        previewPlayerHostRef.current.parentNode.removeChild(previewPlayerHostRef.current);
       }
     };
   }, []);
@@ -467,216 +437,58 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
     }
   }, [adminDifficultyValue, isAdmin, isSavingAdminDifficulty, normalizeCharts, selectedChart]);
 
-  // 플레이어로 미리듣기 시작하는 함수
-  const startPreviewPlayback = (player: any, previewStartSec: number, previewEndSec: number) => {
-    // 기존 타이머 정리
-    if (previewLoopTimerRef.current) {
-      clearInterval(previewLoopTimerRef.current);
-      previewLoopTimerRef.current = null;
-    }
-    if (fadeIntervalRef.current) {
-      clearInterval(fadeIntervalRef.current);
-      fadeIntervalRef.current = null;
-    }
-
+  const previewSpec = useMemo<ChartSelectPreviewSpec | null>(() => {
+    if (!selectedChart) return null;
     try {
-      player.setVolume?.(PREVIEW_VOLUME);
-      player.unMute?.();
-      player.seekTo(previewStartSec, true);
-      player.playVideo();
+      const chartData = JSON.parse(selectedChart.data_json || '{}');
+      const youtubeUrl: string = chartData.youtubeUrl || selectedChart.youtube_url || '';
+      const youtubeVideoId =
+        chartData.youtubeVideoId || (youtubeUrl ? extractYouTubeVideoId(youtubeUrl) : null);
+      if (!youtubeVideoId) return null;
 
-      // BGA 페이드 인
-      setBgaOpacity(PREVIEW_BGA_OPACITY);
-
-      previewLoopTimerRef.current = setInterval(() => {
-        try {
-          const currentTime = player.getCurrentTime?.();
-          if (currentTime === undefined) return;
-
-          // 루프 시점
-          if (currentTime >= previewEndSec - 0.05) {
-            player.seekTo(previewStartSec, true);
-            player.setVolume?.(PREVIEW_VOLUME);
-            player.unMute?.();
-            player.playVideo?.();
-          }
-        } catch (e) {
-          // 무시
-        }
-      }, 50);
-    } catch (e) {
-      console.warn('Preview player 설정 실패:', e);
-    }
-  };
-
-  // YouTube preview player 초기화 및 하이라이트 루프
-  useEffect(() => {
-    // 기존 타이머 정리
-    if (previewLoopTimerRef.current) {
-      clearInterval(previewLoopTimerRef.current);
-      previewLoopTimerRef.current = null;
-    }
-
-    // 기존 재생 정지
-    if (previewPlayerRef.current) {
-      try {
-        previewPlayerRef.current.pauseVideo?.();
-      } catch (e) {
-        // 무시
-      }
-    }
-
-    if (!selectedChart) {
-      // 페이드 아웃 후 정리
-      setBgaOpacity(0);
-      setPreviewBgaUrl(null);
-      return;
-    }
-
-    try {
-      const chartData = JSON.parse(selectedChart.data_json);
-      const youtubeVideoId = chartData.youtubeVideoId || (chartData.youtubeUrl ? extractYouTubeVideoId(chartData.youtubeUrl) : null);
-
-      if (!youtubeVideoId) {
-        setBgaOpacity(0);
-        setPreviewBgaUrl(null);
-        return;
-      }
-
-      // BGA 배경 이미지 설정 (YouTube 썸네일) - 영상 로딩 전 fallback
-      setPreviewBgaUrl(`https://i.ytimg.com/vi/${youtubeVideoId}/maxresdefault.jpg`);
-
-      // 하이라이트 구간 파싱
-      const beatsPerMeasure = Number(chartData.beatsPerMeasure ?? chartData.timeSignatures?.[0]?.beatsPerMeasure ?? 4);
+      const beatsPerMeasure = Number(
+        chartData.beatsPerMeasure ?? chartData.timeSignatures?.[0]?.beatsPerMeasure ?? 4
+      );
       const bpmChanges = Array.isArray(chartData.bpmChanges) ? chartData.bpmChanges : [];
       const previewStartMeasure = Math.max(1, Number(chartData.previewStartMeasure ?? 1));
-      const previewEndMeasure = Math.max(previewStartMeasure + 1, Number(chartData.previewEndMeasure ?? (previewStartMeasure + 4)));
-
-      // measure를 ms로 변환
-      const previewStartMs = measureToTime(previewStartMeasure, selectedChart.bpm, bpmChanges, beatsPerMeasure);
-      let previewEndMs = measureToTime(previewEndMeasure, selectedChart.bpm, bpmChanges, beatsPerMeasure);
+      const previewEndMeasure = Math.max(
+        previewStartMeasure + 1,
+        Number(chartData.previewEndMeasure ?? previewStartMeasure + 4)
+      );
+      const previewStartMs = measureToTime(
+        previewStartMeasure,
+        selectedChart.bpm,
+        bpmChanges,
+        beatsPerMeasure
+      );
+      let previewEndMs = measureToTime(
+        previewEndMeasure,
+        selectedChart.bpm,
+        bpmChanges,
+        beatsPerMeasure
+      );
       if (previewEndMs <= previewStartMs) {
         previewEndMs = previewStartMs + 15000;
       }
 
-      const previewStartSec = previewStartMs / 1000;
-      const previewEndSec = previewEndMs / 1000;
-
-      // 같은 videoId면 기존 플레이어 재사용
-      if (currentVideoIdRef.current === youtubeVideoId && previewPlayerRef.current) {
-        startPreviewPlayback(previewPlayerRef.current, previewStartSec, previewEndSec);
-        return;
-      }
-
-      // 다른 videoId면 기존 플레이어 destroy
-      if (previewPlayerRef.current && currentVideoIdRef.current !== youtubeVideoId) {
-        try {
-          previewPlayerRef.current.destroy?.();
-        } catch (e) {
-          // 무시
-        }
-        previewPlayerRef.current = null;
-        currentVideoIdRef.current = null;
-      }
-
-      // YouTube API 대기 후 플레이어 초기화
-      waitForYouTubeAPI().then(() => {
-        if (!window.YT || !window.YT.Player) {
-          console.error('YouTube IFrame API를 로드하지 못했습니다.');
-          return;
-        }
-
-        // BGA 컨테이너가 있으면 그 안에 플레이어 생성 (화면에 표시되도록)
-        // 없으면 fallback으로 숨김 host 생성
-        if (!bgaContainerRef.current) {
-          if (!previewPlayerHostRef.current) {
-            const hostDiv = document.createElement('div');
-            hostDiv.style.position = 'absolute';
-            hostDiv.style.left = '-10000px';
-            hostDiv.style.top = '-10000px';
-            hostDiv.style.width = '1px';
-            hostDiv.style.height = '1px';
-            hostDiv.style.overflow = 'hidden';
-            hostDiv.style.pointerEvents = 'none';
-            document.body.appendChild(hostDiv);
-            previewPlayerHostRef.current = hostDiv;
-          }
-        }
-
-        const container = bgaContainerRef.current || previewPlayerHostRef.current;
-        if (!container) return;
-
-        const mountNode = document.createElement('div');
-        mountNode.id = `preview-youtube-player-${Date.now()}`;
-        container.innerHTML = '';
-        container.appendChild(mountNode);
-
-        try {
-          new window.YT.Player(mountNode as any, {
-            videoId: youtubeVideoId,
-            host: YOUTUBE_EMBED_HOST,
-            width: '100%',
-            height: '100%',
-            playerVars: {
-              autoplay: 0,
-              controls: 0,
-              mute: 0,
-              enablejsapi: 1,
-              modestbranding: 1,
-              rel: 0,
-              showinfo: 0,
-              iv_load_policy: 3, // 주석 숨기기
-            },
-            events: {
-              onReady: (event: any) => {
-                const player = event.target;
-                previewPlayerRef.current = player;
-                currentVideoIdRef.current = youtubeVideoId;
-                try {
-                  player.setVolume?.(PREVIEW_VOLUME);
-                  player.unMute?.();
-                } catch {
-                  // ignore
-                }
-
-                // iframe 크기 100%로 설정
-                const iframe = player.getIframe?.();
-                if (iframe) {
-                  iframe.style.width = '100%';
-                  iframe.style.height = '100%';
-                }
-
-                startPreviewPlayback(player, previewStartSec, previewEndSec);
-              },
-            },
-          } as any);
-        } catch (e) {
-          console.error('Preview player 생성 실패:', e);
-        }
-      });
+      return {
+        videoId: youtubeVideoId,
+        previewStartSec: previewStartMs / 1000,
+        previewEndSec: previewEndMs / 1000,
+        fallbackUrl: `https://i.ytimg.com/vi/${youtubeVideoId}/maxresdefault.jpg`,
+      };
     } catch (error) {
-      console.error('Preview 초기화 실패:', error);
+      console.error('Preview spec parse failed:', error);
+      return null;
     }
+  }, [selectedChart?.bpm, selectedChart?.data_json, selectedChart?.id, selectedChart?.youtube_url]);
 
-    return () => {
-      // cleanup - 타이머만 정리, 플레이어는 유지 (재사용을 위해)
-      if (previewLoopTimerRef.current) {
-        clearInterval(previewLoopTimerRef.current);
-        previewLoopTimerRef.current = null;
-      }
-      if (fadeIntervalRef.current) {
-        clearInterval(fadeIntervalRef.current);
-        fadeIntervalRef.current = null;
-      }
-      if (previewPlayerRef.current) {
-        try {
-          previewPlayerRef.current.pauseVideo?.();
-        } catch (e) {
-          // 무시
-        }
-      }
-    };
-  }, [selectedChart]);
+  const {
+    mountRef: previewMountRef,
+    opacity: previewOpacity,
+    fallbackUrl: previewFallbackUrl,
+    disposePreview,
+  } = useChartSelectPreview(previewSpec);
 
   const handleLoadMore = useCallback(() => {
     if (isLoadingMore || !hasMore) return;
@@ -685,24 +497,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   }, [currentPage, fetchChartsPage, hasMore, isLoadingMore]);
 
   const handleSelectChart = (chart: ApiChart) => {
-    // Preview 플레이어 정리 - 게임에서 새 플레이어를 생성하므로 여기서 파괴
-    if (previewLoopTimerRef.current) {
-      clearInterval(previewLoopTimerRef.current);
-      previewLoopTimerRef.current = null;
-    }
-    if (fadeIntervalRef.current) {
-      clearInterval(fadeIntervalRef.current);
-      fadeIntervalRef.current = null;
-    }
-    if (previewPlayerRef.current) {
-      try {
-        previewPlayerRef.current.pauseVideo?.();
-        previewPlayerRef.current.destroy?.();
-      } catch (e) {
-        // 무시
-      }
-      previewPlayerRef.current = null;
-    }
+    disposePreview();
 
     try {
       const chartData = JSON.parse(chart.data_json);
@@ -1058,7 +853,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
 
   return (
     <div
-      className="chart-select-screen"
+      className="chart-select-screen chart-select-shell"
       style={{
         position: 'fixed',
         top: 0,
@@ -1070,52 +865,18 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
         flexDirection: 'column',
         zIndex: 10000,
         overflow: 'hidden',
+        isolation: 'isolate',
       }}
     >
-      {/* 미리듣기 BGA 배경 (YouTube 영상) */}
-      <div
-        aria-hidden
-        style={{
-          position: 'absolute',
-          inset: 0,
-          overflow: 'hidden',
-          opacity: bgaOpacity,
-          transition: `opacity ${PREVIEW_TRANSITION_DURATION_MS}ms ease-in-out`,
-          pointerEvents: 'none',
-          zIndex: 0,
-        }}
-      >
-        {/* YouTube 플레이어 컨테이너 */}
-        <div
-          ref={bgaContainerRef}
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '177.78vh', // 16:9 비율 유지
-            height: '100vh',
-            minWidth: '100%',
-            minHeight: '56.25vw',
-          }}
-        />
-        {/* 영상 로딩 전 fallback 이미지 */}
-        {previewBgaUrl && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              backgroundImage: `url(${previewBgaUrl})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              zIndex: -1,
-            }}
-          />
-        )}
-      </div>
+      <ChartSelectPreviewStage
+        mountRef={previewMountRef}
+        fallbackUrl={previewFallbackUrl}
+        opacity={previewOpacity}
+      />
 
       {/* 백그라운드 네온 패턴 */}
       <div
+        className="chart-select-shell__scrim"
         aria-hidden
         style={{
           position: 'absolute',
@@ -1127,6 +888,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
         }}
       />
       <div
+        className="chart-select-shell__scrim"
         aria-hidden
         style={{
           position: 'absolute',
@@ -1142,7 +904,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
 
       {/* 헤더 */}
       <div
-        className="chart-select-header"
+        className="chart-select-header chart-select-shell__content"
         style={{
           backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
           padding: '20px',
@@ -1257,7 +1019,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
       </div>
 
       {/* 메인 컨텐츠 */}
-      <div className="chart-select-main" style={{ flex: 1, overflow: 'hidden', position: 'relative', zIndex: 2 }}>
+      <div className="chart-select-main chart-select-shell__content" style={{ flex: 1, overflow: 'hidden', position: 'relative', zIndex: 2 }}>
         <div
           className="chart-select-list-panel"
           style={{
