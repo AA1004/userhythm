@@ -181,11 +181,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
       const bgaEventCount = Array.isArray(chartData.bgaVisibilityIntervals)
         ? chartData.bgaVisibilityIntervals.length
         : 0;
-      const isWipChart = chartData.wip?.enabled === true;
-      const displayDifficulty = getDisplayChartDifficulty(
-        chart.difficulty,
-        typeof chartData.adminDifficulty === 'string' ? chartData.adminDifficulty : chart.admin_difficulty
-      );
+      const isWipChart = chart.is_work_in_progress === true;
+      const displayDifficulty = getDisplayChartDifficulty(chart.difficulty, chart.admin_difficulty);
 
       return {
         ...chart,
@@ -204,8 +201,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
         _isWip: isWipChart,
         _wipNote: typeof chartData.wip?.note === 'string' ? chartData.wip.note : '',
         _wipParentChartId: typeof chartData.wip?.parentChartId === 'string' ? chartData.wip.parentChartId : null,
-        _adminDifficulty:
-          typeof chartData.adminDifficulty === 'string' ? chartData.adminDifficulty : chart.admin_difficulty ?? null,
+        _adminDifficulty: chart.admin_difficulty ?? null,
         _displayDifficulty: displayDifficulty,
       };
     });
@@ -407,20 +403,15 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
 
     setIsSavingAdminDifficulty(true);
     try {
-      const parsed = JSON.parse(selectedChart.data_json || '{}');
-      if (adminDifficultyValue.trim()) {
-        parsed.adminDifficulty = adminDifficultyValue.trim();
-      } else {
-        delete parsed.adminDifficulty;
-      }
-
       const result = await api.updateChart(selectedChart.id, {
         title: selectedChart.title,
         bpm: selectedChart.bpm,
-        dataJson: JSON.stringify(parsed),
+        dataJson: selectedChart.data_json,
         youtubeUrl: selectedChart.youtube_url ?? undefined,
         description: selectedChart.description ?? undefined,
         difficulty: selectedChart.difficulty ?? undefined,
+        adminDifficulty: adminDifficultyValue.trim() || null,
+        isWorkInProgress: selectedChart.is_work_in_progress === true,
         previewImage: selectedChart.preview_image ?? undefined,
       });
 
@@ -529,9 +520,9 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
         youtubeVideoId,
         youtubeUrl,
         playbackSpeed: chartData.playbackSpeed || 1,
-        chartId: chartStatus === 'approved' ? chart.id : undefined,
+        chartId: chartStatus === 'approved' && chart.is_work_in_progress !== true ? chart.id : undefined,
         sourceChartId: chart.id,
-        isWorkInProgress: chartStatus === 'wip',
+        isWorkInProgress: chart.is_work_in_progress === true || chartStatus === 'wip',
         chartTitle: chart.title,
         chartAuthor: (chart as any)._authorLabel || chart.author,
       });

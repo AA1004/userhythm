@@ -12,6 +12,7 @@ export interface ApiChart {
   bpm: number;
   difficulty?: string | null;
   admin_difficulty?: string | null;
+  is_work_in_progress?: boolean | null;
   preview_image?: string | null;
   youtube_url?: string | null;
   description?: string | null;
@@ -174,6 +175,8 @@ export const api = {
     youtubeUrl?: string | null;
     description?: string | null;
     difficulty?: string | null;
+    adminDifficulty?: string | null;
+    isWorkInProgress?: boolean;
     previewImage?: string | null;
   }) {
     const res = await fetch(`${API_BASE}/api/charts/${id}`, {

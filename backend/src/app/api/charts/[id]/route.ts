@@ -8,12 +8,37 @@ const MAX_TITLE_LENGTH = 200;
 const MAX_DESCRIPTION_LENGTH = 1000;
 const MAX_DIFFICULTY_LENGTH = 50;
 
-const extractAdminDifficulty = (dataJson: string): string | null => {
+const sanitizeChartDataJsonForUpdate = (raw: string): string => {
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && 'adminDifficulty' in parsed) {
+      delete (parsed as Record<string, unknown>).adminDifficulty;
+      return JSON.stringify(parsed);
+    }
+    return raw;
+  } catch {
+    return raw;
+  }
+};
+
+const isWipChartDataJson = (raw: string): boolean => {
+  try {
+    const parsed = JSON.parse(raw || '{}');
+    return parsed?.wip?.enabled === true;
+  } catch {
+    return false;
+  }
+};
+
+const sanitizeAdminDifficulty = (value: unknown): string | null =>
+  typeof value === 'string' && value.trim().length > 0
+    ? value.trim().slice(0, MAX_DIFFICULTY_LENGTH)
+    : null;
+
+const extractLegacyAdminDifficulty = (dataJson: string): string | null => {
   try {
     const parsed = JSON.parse(dataJson || '{}');
-    return typeof parsed.adminDifficulty === 'string' && parsed.adminDifficulty.trim().length > 0
-      ? parsed.adminDifficulty.trim().slice(0, MAX_DIFFICULTY_LENGTH)
-      : null;
+    return sanitizeAdminDifficulty(parsed?.adminDifficulty);
   } catch {
     return null;
   }
@@ -28,7 +53,8 @@ const serializeChart = (chart: Chart, opts?: { authorRole?: string; authorNickna
   author_email_prefix: opts?.authorEmail ? opts.authorEmail.split('@')[0] : null,
   bpm: chart.bpm,
   difficulty: chart.difficulty,
-  admin_difficulty: extractAdminDifficulty(chart.dataJson),
+  admin_difficulty: chart.adminDifficulty ?? null,
+  is_work_in_progress: chart.isWorkInProgress,
   preview_image: chart.previewImage ?? null,
   youtube_url: chart.youtubeUrl ?? null,
   description: chart.description ?? null,
@@ -107,6 +133,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       description,
       difficulty,
       previewImage,
+      adminDifficulty,
+      isWorkInProgress,
     }: {
       title?: string;
       bpm?: number | string;
@@ -115,6 +143,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       description?: string;
       difficulty?: string;
       previewImage?: string;
+      adminDifficulty?: string | null;
+      isWorkInProgress?: boolean;
     } = body;
 
     const trimmedTitle = (title || '').trim();
@@ -130,6 +160,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (typeof dataJson !== 'string' || dataJson.trim().length === 0 || dataJson.length > MAX_DATA_JSON_LENGTH) {
       return NextResponse.json({ error: 'invalid_dataJson' }, { status: 400 });
     }
+    const sanitizedDataJson = sanitizeChartDataJsonForUpdate(dataJson);
+    const trimmedAdminDifficulty =
+      adminDifficulty !== undefined
+        ? sanitizeAdminDifficulty(adminDifficulty)
+        : extractLegacyAdminDifficulty(dataJson);
+    const nextIsWorkInProgress =
+      typeof isWorkInProgress === 'boolean' ? isWorkInProgress : isWipChartDataJson(sanitizedDataJson);
 
     const trimmedDescription =
       typeof description === 'string' && description.trim().length > 0
@@ -150,10 +187,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         title: trimmedTitle,
         bpm: bpmNumber,
         difficulty: trimmedDifficulty,
+        adminDifficulty: trimmedAdminDifficulty,
+        isWorkInProgress: nextIsWorkInProgress,
         description: trimmedDescription,
         youtubeUrl: trimmedYoutubeUrl,
         previewImage: trimmedPreviewImage,
-        dataJson,
+        dataJson: sanitizedDataJson,
       },
       include: { user: { include: { profile: true } } },
     });

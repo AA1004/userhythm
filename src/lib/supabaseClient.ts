@@ -93,6 +93,8 @@ export interface Chart {
   bpm: number;
   preview_image?: string;
   difficulty?: string;
+  admin_difficulty?: string | null;
+  is_work_in_progress?: boolean | null;
   data_json: string; // JSON stringified chart data
   created_at?: string;
   updated_at?: string;
@@ -143,6 +145,8 @@ export const chartAPI = {
     youtubeUrl?: string | null;
     description?: string | null;
     difficulty?: string | null;
+    adminDifficulty?: string | null;
+    isWorkInProgress?: boolean;
     previewImage?: string | null;
   }) {
     const res = await fetch(`${API_BASE}/api/charts`, {
@@ -219,6 +223,8 @@ export const chartAPI = {
     youtubeUrl?: string | null;
     description?: string | null;
     difficulty?: string | null;
+    adminDifficulty?: string | null;
+    isWorkInProgress?: boolean;
     previewImage?: string | null;
   }) {
     const res = await api.updateChart(chartId, payload);

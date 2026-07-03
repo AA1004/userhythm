@@ -9,18 +9,6 @@ const MAX_DATA_JSON_LENGTH = 1_000_000; // ~1MB
 const MAX_TITLE_LENGTH = 200;
 const MAX_DESCRIPTION_LENGTH = 1000;
 const MAX_DIFFICULTY_LENGTH = 50;
-const WIP_DATA_MARKER = '"wip":{"enabled":true';
-
-const extractAdminDifficulty = (dataJson: string): string | null => {
-  try {
-    const parsed = JSON.parse(dataJson || '{}');
-    return typeof parsed.adminDifficulty === 'string' && parsed.adminDifficulty.trim().length > 0
-      ? parsed.adminDifficulty.trim().slice(0, MAX_DIFFICULTY_LENGTH)
-      : null;
-  } catch {
-    return null;
-  }
-};
 
 const sanitizeChartDataJsonForUserUpload = (raw: string): string => {
   try {
@@ -40,9 +28,14 @@ const isWipChartDataJson = (raw: string): boolean => {
     const parsed = JSON.parse(raw || '{}');
     return parsed?.wip?.enabled === true;
   } catch {
-    return raw.includes(WIP_DATA_MARKER);
+    return false;
   }
 };
+
+const sanitizeAdminDifficulty = (value: unknown): string | null =>
+  typeof value === 'string' && value.trim().length > 0
+    ? value.trim().slice(0, MAX_DIFFICULTY_LENGTH)
+    : null;
 
 const serializeChart = (chart: Chart, opts?: { authorRole?: string; authorNickname?: string; authorEmail?: string }) => ({
   id: chart.id,
@@ -53,7 +46,8 @@ const serializeChart = (chart: Chart, opts?: { authorRole?: string; authorNickna
   author_email_prefix: opts?.authorEmail ? opts.authorEmail.split('@')[0] : null,
   bpm: chart.bpm,
   difficulty: chart.difficulty,
-  admin_difficulty: extractAdminDifficulty(chart.dataJson),
+  admin_difficulty: chart.adminDifficulty ?? null,
+  is_work_in_progress: chart.isWorkInProgress,
   preview_image: chart.previewImage ?? null,
   youtube_url: chart.youtubeUrl ?? null,
   description: chart.description ?? null,
@@ -75,15 +69,12 @@ export async function GET(req: NextRequest) {
     const statusParam = (searchParams.get('status') || 'approved').trim().toLowerCase();
     const isWipList = statusParam === 'wip';
     const statusFilter = 'approved';
-    const wipFilter = isWipList
-      ? { dataJson: { contains: WIP_DATA_MARKER } }
-      : { NOT: { dataJson: { contains: WIP_DATA_MARKER } } };
+    const baseFilter = { status: statusFilter, isWorkInProgress: isWipList };
 
     const where: any = search
       ? {
           AND: [
-            { status: statusFilter },
-            wipFilter,
+            baseFilter,
             {
               OR: [
                 { title: { contains: search, mode: 'insensitive' } },
@@ -93,7 +84,7 @@ export async function GET(req: NextRequest) {
             },
           ],
         }
-      : { AND: [{ status: statusFilter }, wipFilter] };
+      : baseFilter;
 
     const orderBy =
       sortBy === 'play_count'
@@ -163,6 +154,8 @@ export async function POST(req: NextRequest) {
       description,
       difficulty,
       previewImage,
+      adminDifficulty,
+      isWorkInProgress,
     }: {
       title?: string;
       bpm?: number | string;
@@ -171,6 +164,8 @@ export async function POST(req: NextRequest) {
       description?: string;
       difficulty?: string;
       previewImage?: string;
+      adminDifficulty?: string | null;
+      isWorkInProgress?: boolean;
     } = body;
 
     const trimmedTitle = (title || '').trim();
@@ -187,7 +182,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'invalid_dataJson' }, { status: 400 });
     }
     const sanitizedDataJson = sanitizeChartDataJsonForUserUpload(dataJson);
-    const isWipUpload = isWipChartDataJson(sanitizedDataJson);
+    const isWipUpload =
+      typeof isWorkInProgress === 'boolean' ? isWorkInProgress : isWipChartDataJson(sanitizedDataJson);
 
     const trimmedDescription =
       typeof description === 'string' && description.trim().length > 0
@@ -210,6 +206,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'user_not_found' }, { status: 401 });
     }
 
+    const role = dbUser.profile?.role || dbUser.role;
+    const canSetAdminDifficulty = role === 'admin' || role === 'moderator';
+    const trimmedAdminDifficulty = canSetAdminDifficulty ? sanitizeAdminDifficulty(adminDifficulty) : null;
+
     const author =
       dbUser.profile?.nickname ||
       // display_name 호환 (있다면)
@@ -222,6 +222,8 @@ export async function POST(req: NextRequest) {
         author,
         bpm: bpmNumber,
         difficulty: trimmedDifficulty,
+        adminDifficulty: trimmedAdminDifficulty,
+        isWorkInProgress: isWipUpload,
         description: trimmedDescription,
         youtubeUrl: trimmedYoutubeUrl,
         previewImage: trimmedPreviewImage,
