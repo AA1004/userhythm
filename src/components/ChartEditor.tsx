@@ -742,7 +742,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         chartAuthor: shareAuthor,
         chartDifficulty: shareDifficulty,
         chartDescription: shareDescription,
-        adminDifficulty: adminAssignedDifficulty,
         previewStartMeasure: sharePreviewStartMeasure,
         previewEndMeasure: sharePreviewEndMeasure,
         wip: shareIsWip
@@ -780,7 +779,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       shareAuthor,
       shareDifficulty,
       shareDescription,
-      adminAssignedDifficulty,
       sharePreviewStartMeasure,
       sharePreviewEndMeasure,
       shareIsWip,
@@ -923,7 +921,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     if (typeof data.chartTitle === 'string') setShareTitle(data.chartTitle);
     if (typeof data.chartAuthor === 'string') setShareAuthor(data.chartAuthor);
     if (typeof data.chartDifficulty === 'string') setShareDifficulty(data.chartDifficulty);
-    setAdminAssignedDifficulty(typeof data.adminDifficulty === 'string' ? data.adminDifficulty : '');
+    setAdminAssignedDifficulty('');
     if (typeof data.chartDescription === 'string') setShareDescription(data.chartDescription);
     const restoredPreviewRange = derivePreviewMeasureRange(data);
     setSharePreviewStartMeasure(restoredPreviewRange.start);
@@ -2270,7 +2268,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       setShareTitle(chart.title);
       setShareAuthor(chart.author);
       setShareDifficulty(chart.difficulty || parsed.difficulty || 'Normal');
-      setAdminAssignedDifficulty(chart.admin_difficulty || parsed.adminDifficulty || '');
+      setAdminAssignedDifficulty(chart.admin_difficulty || '');
       setShareDescription(chart.description || parsed.description || '');
       setShareIsWip(parsed.wip?.enabled === true);
       setShareWipNote(typeof parsed.wip?.note === 'string' ? parsed.wip.note : '');

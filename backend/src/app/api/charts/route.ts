@@ -23,15 +23,6 @@ const sanitizeChartDataJsonForUserUpload = (raw: string): string => {
   }
 };
 
-const isWipChartDataJson = (raw: string): boolean => {
-  try {
-    const parsed = JSON.parse(raw || '{}');
-    return parsed?.wip?.enabled === true;
-  } catch {
-    return false;
-  }
-};
-
 const sanitizeAdminDifficulty = (value: unknown): string | null =>
   typeof value === 'string' && value.trim().length > 0
     ? value.trim().slice(0, MAX_DIFFICULTY_LENGTH)
@@ -182,8 +173,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'invalid_dataJson' }, { status: 400 });
     }
     const sanitizedDataJson = sanitizeChartDataJsonForUserUpload(dataJson);
-    const isWipUpload =
-      typeof isWorkInProgress === 'boolean' ? isWorkInProgress : isWipChartDataJson(sanitizedDataJson);
+    const isWipUpload = typeof isWorkInProgress === 'boolean' ? isWorkInProgress : false;
 
     const trimmedDescription =
       typeof description === 'string' && description.trim().length > 0

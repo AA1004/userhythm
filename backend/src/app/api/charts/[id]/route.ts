@@ -21,28 +21,10 @@ const sanitizeChartDataJsonForUpdate = (raw: string): string => {
   }
 };
 
-const isWipChartDataJson = (raw: string): boolean => {
-  try {
-    const parsed = JSON.parse(raw || '{}');
-    return parsed?.wip?.enabled === true;
-  } catch {
-    return false;
-  }
-};
-
 const sanitizeAdminDifficulty = (value: unknown): string | null =>
   typeof value === 'string' && value.trim().length > 0
     ? value.trim().slice(0, MAX_DIFFICULTY_LENGTH)
     : null;
-
-const extractLegacyAdminDifficulty = (dataJson: string): string | null => {
-  try {
-    const parsed = JSON.parse(dataJson || '{}');
-    return sanitizeAdminDifficulty(parsed?.adminDifficulty);
-  } catch {
-    return null;
-  }
-};
 
 const serializeChart = (chart: Chart, opts?: { authorRole?: string; authorNickname?: string; authorEmail?: string }) => ({
   id: chart.id,
@@ -164,9 +146,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const trimmedAdminDifficulty =
       adminDifficulty !== undefined
         ? sanitizeAdminDifficulty(adminDifficulty)
-        : extractLegacyAdminDifficulty(dataJson);
-    const nextIsWorkInProgress =
-      typeof isWorkInProgress === 'boolean' ? isWorkInProgress : isWipChartDataJson(sanitizedDataJson);
+        : null;
+    const nextIsWorkInProgress = typeof isWorkInProgress === 'boolean' ? isWorkInProgress : false;
 
     const trimmedDescription =
       typeof description === 'string' && description.trim().length > 0
