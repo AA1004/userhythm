@@ -28,7 +28,6 @@ Supabase를 사용하는 경우 환경 변수를 설정해야 합니다:
 3. 다음 secrets 추가:
    - `VITE_SUPABASE_URL`: Supabase 프로젝트 URL
    - `VITE_SUPABASE_ANON_KEY`: Supabase anon key
-   - `VITE_ADMIN_TOKEN`: 관리자 토큰 (선택사항)
 
 ### 3. 배포
 

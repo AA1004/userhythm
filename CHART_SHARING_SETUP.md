@@ -49,8 +49,6 @@ UserRhythm에 온라인 채보 공유 기능이 추가되었습니다. 사용자
 VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-# Admin Token (for chart approval)
-VITE_ADMIN_TOKEN=your_secure_admin_token
 ```
 
 **주의**: `.env` 파일은 `.gitignore`에 추가하여 Git에 커밋되지 않도록 하세요.
@@ -81,8 +79,8 @@ VITE_ADMIN_TOKEN=your_secure_admin_token
 
 ### 관리자 승인
 
-1. 메인 화면에서 **🔐 관리자** 버튼 클릭
-2. 관리자 토큰 입력 (`.env`에 설정한 `VITE_ADMIN_TOKEN`)
+1. 메인 화면에서 관리자 계정으로 로그인
+2. 관리자 패널 열기
 3. 대기 중인 채보 목록에서 채보 선택
 4. 채보 정보 확인 및 **🎮 채보 테스트** (선택사항)
 5. 검토 코멘트 입력 (선택사항)
@@ -139,7 +137,7 @@ VITE_ADMIN_TOKEN=your_secure_admin_token
 
 ## 보안 고려사항
 
-1. **관리자 토큰**: `.env` 파일의 `VITE_ADMIN_TOKEN`을 강력한 비밀번호로 설정하세요.
+1. **관리자 권한**: 차트 승인/삭제는 서버 세션의 `admin` 또는 `moderator` role로만 처리됩니다.
 2. **RLS 정책**: Supabase의 Row Level Security가 활성화되어 있어 승인되지 않은 채보는 공개되지 않습니다.
 3. **환경 변수**: `.env` 파일을 절대 Git에 커밋하지 마세요.
 

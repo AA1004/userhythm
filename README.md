@@ -200,7 +200,6 @@ SESSION_SECRET="change-me"
 GOOGLE_CLIENT_ID="your-google-client-id"
 GOOGLE_CLIENT_SECRET="your-google-client-secret"
 GOOGLE_REDIRECT_URI="https://api.userhythm.kr/api/auth/google/callback"
-ADMIN_TOKEN="your-admin-token"
 COOKIE_DOMAIN=".userhythm.kr"
 ```
 
@@ -208,7 +207,6 @@ COOKIE_DOMAIN=".userhythm.kr"
 
 ```env
 VITE_API_BASE="https://api.userhythm.kr"
-VITE_ADMIN_TOKEN="your-admin-token"
 ```
 
 ## Electron Player
@@ -280,10 +278,10 @@ npm run player:dist
 배포 조건:
 
 - `main` 브랜치 push
-- GitHub Actions secret `VITE_API_BASE` 필요
-- 관리자 기능을 빌드에 포함하려면 `VITE_ADMIN_TOKEN` 필요
+- GitHub Actions secret `VITE_API_BASE`를 설정하면 해당 API 서버를 사용합니다.
+- secret이 없으면 프론트엔드는 기본값 `https://api.userhythm.kr`을 사용합니다.
 
-백엔드는 Railway에 별도로 배포합니다. Railway 쪽에는 `DATABASE_URL`, `SESSION_SECRET`, Google OAuth 관련 환경 변수, `ADMIN_TOKEN`이 필요합니다.
+백엔드는 Railway에 별도로 배포합니다. Railway 쪽에는 `DATABASE_URL`, `SESSION_SECRET`, Google OAuth 관련 환경 변수가 필요합니다.
 
 ## 운영 중 주의 사항
 

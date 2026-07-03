@@ -33,7 +33,6 @@
 - 다음 secrets 추가:
   - `VITE_SUPABASE_URL`
   - `VITE_SUPABASE_ANON_KEY`
-  - `VITE_ADMIN_TOKEN` (선택사항)
 
 #### 빌드 실패
 

@@ -47,12 +47,11 @@ jobs:
         run: |
           echo "=== Environment Variables Check ==="
           if [ -z "$VITE_API_BASE" ]; then
-            echo "❌ ERROR: VITE_API_BASE secret is not set!"
-            exit 1
+            echo "⚠️ VITE_API_BASE is not set. The frontend will use https://api.userhythm.kr."
           else
             echo "✅ VITE_API_BASE is set: $VITE_API_BASE"
           fi
-          echo "✅ All required secrets are configured"
+          echo "✅ Environment check passed"
         env:
           VITE_API_BASE: ${{ secrets.VITE_API_BASE }}
 
@@ -78,7 +77,6 @@ jobs:
           echo "✅ Build verification passed"
         env:
           VITE_API_BASE: ${{ secrets.VITE_API_BASE }}
-          VITE_ADMIN_TOKEN: ${{ secrets.VITE_ADMIN_TOKEN }}
 
       - name: Create .nojekyll file
         run: |
