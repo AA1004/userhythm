@@ -24,6 +24,7 @@ import { useGameViewSize } from '../hooks/useGameViewSize';
 import { useTestYoutubePlayer } from '../hooks/useTestYoutubePlayer';
 import { useTestSession } from '../hooks/useTestSession';
 import { useChartLoader } from '../hooks/useChartLoader';
+import { useGameSessionController } from '../hooks/useGameSessionController';
 import { GameMenu } from './GameMenu';
 import { GameEndScreen } from './GameEndScreen';
 import { FpsHud } from './FpsHud';
@@ -297,7 +298,6 @@ export const Game: React.FC = () => {
     dynamicGameDuration,
     handleEditorTest,
     handleRetest,
-    reset: resetTestSession,
     setIsTestMode,
     setIsFromEditor,
     setDynamicGameDuration,
@@ -369,27 +369,44 @@ export const Game: React.FC = () => {
     },
   });
 
+  const { resetGameSession } = useGameSessionController({
+    setGameState,
+    setIsTestMode,
+    setIsFromEditor,
+    setTestAudioSettings,
+    setTestYoutubeVideoId,
+    setSubtitles,
+    setBgaVisibilityIntervals,
+    setDynamicGameDuration,
+    setPlaySessionToken,
+    destroyYoutubePlayer,
+    currentTimeRef,
+    gameStateRef,
+    processedMissNotesRef: processedMissNotes,
+    hitNoteIdsRef,
+    preparedNotesRef: testPreparedNotesRef,
+    bgaIntervalsRef: testBgaIntervalsRef,
+    hasRecordedPlayRef,
+    hasSubmittedScoreRef,
+    playSessionRequestChartIdRef,
+  });
+
   const handleEditorTestWithRuntimeReset = useCallback(
-      (payload: Parameters<typeof handleEditorTest>[0]) => {
-        const startDelayMs =
-          typeof payload.startDelayMs === 'number' && Number.isFinite(payload.startDelayMs)
-            ? Math.max(0, Math.round(payload.startDelayMs))
-            : START_DELAY_MS;
-        if (hasPendingVisualSettings) {
-          applyPendingVisualSettings();
-        }
-        setIsTestMode(false);
-        setIsFromEditor(false);
-        setTestAudioSettings(null);
-        setTestYoutubeVideoId(null);
-        destroyYoutubePlayer();
-      currentTimeRef.current = -startDelayMs;
+    (payload: Parameters<typeof handleEditorTest>[0]) => {
+      const startDelayMs =
+        typeof payload.startDelayMs === 'number' && Number.isFinite(payload.startDelayMs)
+          ? Math.max(0, Math.round(payload.startDelayMs))
+          : START_DELAY_MS;
+      if (hasPendingVisualSettings) {
+        applyPendingVisualSettings();
+      }
+      resetGameSession({ currentTime: -startDelayMs });
       window.setTimeout(() => {
         handleEditorTest(payload);
       }, 0);
     },
-      [handleEditorTest, destroyYoutubePlayer, hasPendingVisualSettings, applyPendingVisualSettings]
-    );
+    [handleEditorTest, resetGameSession, hasPendingVisualSettings, applyPendingVisualSettings]
+  );
 
   const handleRetestWithRuntimeReset = useCallback(() => {
     currentTimeRef.current = -currentStartDelayMs;
@@ -492,35 +509,13 @@ export const Game: React.FC = () => {
   }, [testAudioSettings, gameState.gameStarted, gameState.gameEnded]);
 
   const resetGame = useCallback(() => {
-    resetTestSession();
-    processedMissNotes.current.clear();
-    hitNoteIdsRef.current.clear();
-    setGameState((prev) => ({
-      ...prev,
-      notes: generateNotes(DEFAULT_GAME_DURATION),
-    }));
-  }, [resetTestSession]);
+    resetGameSession({ notes: generateNotes(DEFAULT_GAME_DURATION) });
+  }, [resetGameSession]);
 
   const handleReturnToEditor = useCallback(() => {
+    resetGameSession();
     setViewMode({ type: 'editor' });
-    setIsTestMode(false);
-    setIsFromEditor(false);
-    setTestAudioSettings(null);
-    setTestYoutubeVideoId(null);
-    setSubtitles([]);
-    setBgaVisibilityIntervals([]);
-    testBgaIntervalsRef.current = [];
-    currentTimeRef.current = 0;
-    destroyYoutubePlayer();
-    processedMissNotes.current.clear();
-    hitNoteIdsRef.current.clear();
-    setGameState((prev) => ({
-      ...prev,
-      gameStarted: false,
-      gameEnded: false,
-      currentTime: 0,
-    }));
-  }, [destroyYoutubePlayer, setSubtitles, setBgaVisibilityIntervals]);
+  }, [resetGameSession]);
 
   const clearChartSelectTransitionTimers = useCallback(() => {
     chartSelectTransitionTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
@@ -586,29 +581,11 @@ export const Game: React.FC = () => {
 
   // 플레이 목록으로 돌아가기 핸들러
   const handleReturnToPlayList = useCallback(() => {
-    setIsTestMode(false);
-    setIsFromEditor(false);
-    setTestAudioSettings(null);
-    setTestYoutubeVideoId(null);
-    setSubtitles([]);
-    setBgaVisibilityIntervals([]);
-    testBgaIntervalsRef.current = [];
-    currentTimeRef.current = 0;
-    destroyYoutubePlayer();
-    processedMissNotes.current.clear();
-    hitNoteIdsRef.current.clear();
-    setGameState((prev) => ({
-      ...prev,
-      gameStarted: false,
-      gameEnded: false,
-      currentTime: 0,
-      notes: [],
-      score: buildInitialScore(),
-    }));
+    resetGameSession();
     const nextRefreshToken = chartListRefreshToken + 1;
     setChartListRefreshToken(nextRefreshToken);
     openChartSelect(nextRefreshToken);
-  }, [destroyYoutubePlayer, setSubtitles, setBgaVisibilityIntervals, chartListRefreshToken, openChartSelect]);
+  }, [resetGameSession, chartListRefreshToken, openChartSelect]);
 
   useEffect(() => {
     if (!gameState.gameStarted || gameState.gameEnded) return;
@@ -727,38 +704,18 @@ export const Game: React.FC = () => {
 
   // 에디터 닫기 핸들러
   const handleEditorCancel = useCallback(() => {
-    setIsTestMode(false);
-    setIsFromEditor(false);
-    testPreparedNotesRef.current = [];
-    setTestAudioSettings(null);
-    setTestYoutubeVideoId(null);
-    setSubtitles([]);
-    setBgaVisibilityIntervals([]);
-    testBgaIntervalsRef.current = [];
-    currentTimeRef.current = 0;
-    destroyYoutubePlayer();
-    processedMissNotes.current.clear();
-    hitNoteIdsRef.current.clear();
-    setGameState((prev) => ({
-      ...prev,
-      gameStarted: false,
-      gameEnded: false,
-      currentTime: 0,
-      notes: [],
-      score: buildInitialScore(),
-    }));
+    resetGameSession();
     setViewMode({ type: 'menu' });
-  }, [destroyYoutubePlayer, setSubtitles, setBgaVisibilityIntervals]);
+  }, [resetGameSession]);
 
   // 채보 로더 훅
   const { loadChart: handleChartSelect } = useChartLoader({
     setGameState,
-    onYoutubeDestroy: destroyYoutubePlayer,
+    onSessionReset: resetGameSession,
     onYoutubeSetup: (videoId, settings) => {
       setTestYoutubeVideoId(videoId);
       setTestAudioSettings(settings);
     },
-    onTestModeSet: setIsTestMode,
     onSubtitlesLoad: (chartId) => {
       if (chartId) {
         loadSubtitlesForChart(chartId);
@@ -771,11 +728,6 @@ export const Game: React.FC = () => {
     onBgaIntervalsSet: setBgaVisibilityIntervals,
     onBgaIntervalsRefSet: (intervals) => { testBgaIntervalsRef.current = intervals; },
     onDynamicGameDurationSet: setDynamicGameDuration,
-    onHoldingNotesReset: () => {},
-    onProcessedMissNotesReset: () => {
-      processedMissNotes.current.clear();
-      hitNoteIdsRef.current.clear();
-    },
     onChartSelectClose: () => setViewMode({ type: 'menu' }),
   });
 

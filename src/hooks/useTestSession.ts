@@ -5,6 +5,7 @@ import { DEFAULT_GAME_DURATION, START_DELAY_MS } from '../constants/gameConstant
 import { normalizeBgaIntervalsForRuntime } from '../utils/bgaVisibility';
 import { SubtitleCue, SubtitleTrack } from '../types/subtitle';
 import { normalizeSubtitlePayload } from '../utils/subtitleNormalization';
+import { resetGameSessionRuntime } from './useGameSessionController';
 
 export interface EditorTestPayload {
   notes: Note[];
@@ -191,21 +192,31 @@ export function useTestSession({
   }, [startTestSession]);
 
   const reset = useCallback(() => {
-    setIsTestMode(false);
-    setIsFromEditor(false);
-    preparedNotesRef.current = [];
-    bgaIntervalsRef.current = [];
-    setDynamicGameDuration(DEFAULT_GAME_DURATION);
-    onBgaIntervalsSet([]);
-    setGameState((prev) => ({
-      ...prev,
-      gameStarted: false,
-      gameEnded: false,
-      currentTime: 0,
-      notes: [],
-      score: buildInitialScore(),
-    }));
-  }, [setGameState, onBgaIntervalsSet]);
+    resetGameSessionRuntime({
+      setGameState,
+      setIsTestMode,
+      setIsFromEditor,
+      setTestAudioSettings: onAudioSettingsSet,
+      setTestYoutubeVideoId: onYoutubeVideoIdSet,
+      setSubtitles: onSubtitlesSet,
+      setBgaVisibilityIntervals: onBgaIntervalsSet,
+      setDynamicGameDuration,
+      preparedNotesRef,
+      bgaIntervalsRef,
+      resetPressedKeys: onPressedKeysReset,
+      resetHoldingNotes: onHoldingNotesReset,
+      resetProcessedMissNotes: onProcessedMissNotesClear,
+    });
+  }, [
+    setGameState,
+    onAudioSettingsSet,
+    onYoutubeVideoIdSet,
+    onSubtitlesSet,
+    onBgaIntervalsSet,
+    onPressedKeysReset,
+    onHoldingNotesReset,
+    onProcessedMissNotesClear,
+  ]);
 
   return {
     isTestMode,

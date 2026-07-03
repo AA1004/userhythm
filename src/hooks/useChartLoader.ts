@@ -5,20 +5,18 @@ import { START_DELAY_MS } from '../constants/gameConstants';
 import { SubtitleCue } from '../types/subtitle';
 import { normalizeSubtitlePayload } from '../utils/subtitleNormalization';
 import { normalizeBgaIntervalsForRuntime } from '../utils/bgaVisibility';
+import type { ResetGameSessionOptions } from './useGameSessionController';
 
 export interface UseChartLoaderOptions {
   setGameState: React.Dispatch<React.SetStateAction<GameState>>;
-  onYoutubeDestroy: () => void;
+  onSessionReset: (options?: ResetGameSessionOptions) => void;
   onYoutubeSetup: (videoId: string | null, settings: AudioSettings | null) => void;
-  onTestModeSet: (value: boolean) => void;
   onSubtitlesLoad: (chartId: string | string[] | undefined) => void;
   onSubtitlesSet: (subtitles: SubtitleCue[]) => void;
   onSubtitlesClear: () => void;
   onBgaIntervalsSet: (intervals: BgaVisibilityInterval[]) => void;
   onBgaIntervalsRefSet: (intervals: BgaVisibilityInterval[]) => void;
   onDynamicGameDurationSet: (duration: number) => void;
-  onHoldingNotesReset: () => void;
-  onProcessedMissNotesReset: () => void;
   onChartSelectClose: () => void;
 }
 
@@ -28,17 +26,14 @@ export interface UseChartLoaderReturn {
 
 export function useChartLoader({
   setGameState,
-  onYoutubeDestroy,
+  onSessionReset,
   onYoutubeSetup,
-  onTestModeSet,
   onSubtitlesLoad,
   onSubtitlesSet,
   onSubtitlesClear,
   onBgaIntervalsSet,
   onBgaIntervalsRefSet,
   onDynamicGameDurationSet,
-  onHoldingNotesReset,
-  onProcessedMissNotesReset,
   onChartSelectClose,
 }: UseChartLoaderOptions): UseChartLoaderReturn {
   const loadChart = useCallback((chartData: any) => {
@@ -55,18 +50,13 @@ export function useChartLoader({
         return;
       }
 
-      onChartSelectClose();
-      
-      // 기존 테스트 모드 플레이어 정리
-      onYoutubeDestroy();
-      
-      // 일반 플레이는 YouTube 오디오를 쓰더라도 테스트 모드가 아니다.
-      onTestModeSet(false);
-
       const startDelayMs =
         typeof chartData.startDelayMs === 'number' && Number.isFinite(chartData.startDelayMs)
           ? Math.max(0, Math.round(chartData.startDelayMs))
           : START_DELAY_MS;
+
+      onChartSelectClose();
+      onSessionReset({ currentTime: -startDelayMs });
 
       // YouTube 플레이어 설정 (필요시) - 먼저 설정해야 useEffect가 올바르게 작동함
       if (chartData.youtubeVideoId) {
@@ -213,9 +203,6 @@ export function useChartLoader({
         gameEnded: false,
       });
 
-      onHoldingNotesReset();
-      onProcessedMissNotesReset();
-
       // 자막 로드: 채보에 포함된 자막이 있으면 사용, 없으면 로컬 스토리지에서 로드
       if (Array.isArray(chartData.subtitles) && chartData.subtitles.length > 0) {
         const subtitlePayload = normalizeSubtitlePayload(
@@ -244,17 +231,14 @@ export function useChartLoader({
     }
   }, [
     setGameState,
-    onYoutubeDestroy,
+    onSessionReset,
     onYoutubeSetup,
-    onTestModeSet,
     onSubtitlesLoad,
     onSubtitlesSet,
     onSubtitlesClear,
     onBgaIntervalsSet,
     onBgaIntervalsRefSet,
     onDynamicGameDurationSet,
-    onHoldingNotesReset,
-    onProcessedMissNotesReset,
     onChartSelectClose,
   ]);
 
