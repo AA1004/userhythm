@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../../../../lib/prisma';
 import { signSession, setSessionCookie } from '../../../../lib/auth';
 
+const isProd = process.env.NODE_ENV === 'production';
+
 export async function POST(req: NextRequest) {
   try {
     const { email, password } = await req.json();
@@ -20,7 +22,14 @@ export async function POST(req: NextRequest) {
     // profile.role이 있으면 우선 사용, 없으면 user.role 사용
     const effectiveRole = user.profile?.role || user.role;
     const token = signSession({ userId: user.id, role: effectiveRole });
-    console.log('Session created:', { userId: user.id, userRole: user.role, profileRole: user.profile?.role, effectiveRole });
+    if (!isProd) {
+      console.log('Session created:', {
+        userId: user.id,
+        userRole: user.role,
+        profileRole: user.profile?.role,
+        effectiveRole,
+      });
+    }
     setSessionCookie(token);
     return NextResponse.json({ user: { id: user.id, email: user.email, role: user.role, profile: user.profile } });
   } catch (error: any) {
@@ -42,7 +51,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'database_connection_failed' }, { status: 503 });
     }
     
-    console.error('login error', error);
+    if (isProd) {
+      console.error('login error');
+    } else {
+      console.error('login error', error);
+    }
     return NextResponse.json({ error: 'failed to login' }, { status: 500 });
   }
 }

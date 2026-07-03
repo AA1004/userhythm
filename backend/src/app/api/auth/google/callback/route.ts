@@ -13,8 +13,11 @@ const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN;
 const isProd = process.env.NODE_ENV === 'production';
 
 const fail = (reason: string, detail?: any, status = 500) => {
-  // detail은 로그에만 남기고, 응답에는 요약만 전달
-  console.error('[google-callback]', reason, detail);
+  if (isProd) {
+    console.error('[google-callback]', reason);
+  } else {
+    console.error('[google-callback]', reason, detail);
+  }
   const response: any = { error: reason };
   if (process.env.NODE_ENV === 'development' && detail) {
     if (typeof detail === 'object' && detail.message) {
@@ -94,7 +97,11 @@ export async function GET(req: NextRequest) {
       });
     } catch (dbError: any) {
       // Railway 데이터베이스 인증 실패 처리
-      console.error('❌ Database error during OAuth callback:', dbError);
+      if (isProd) {
+        console.error('Database error during OAuth callback');
+      } else {
+        console.error('❌ Database error during OAuth callback:', dbError);
+      }
       const errorMessage = dbError?.message || String(dbError);
       const isAuthError = errorMessage.includes('Authentication failed') || 
                          errorMessage.includes('credentials for `postgres` are not valid');
@@ -118,7 +125,14 @@ export async function GET(req: NextRequest) {
     // profile.role이 있으면 우선 사용, 없으면 user.role 사용
     const effectiveRole = user.profile?.role || user.role;
     const token = signSession({ userId: user.id, role: effectiveRole });
-    console.log('Session created:', { userId: user.id, userRole: user.role, profileRole: user.profile?.role, effectiveRole });
+    if (!isProd) {
+      console.log('Session created:', {
+        userId: user.id,
+        userRole: user.role,
+        profileRole: user.profile?.role,
+        effectiveRole,
+      });
+    }
     const redirectTarget = state || '/';
     const response = NextResponse.redirect(redirectTarget, { status: 302 });
     
@@ -138,7 +152,11 @@ export async function GET(req: NextRequest) {
     // 기타 예상치 못한 에러
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
-    console.error('OAuth callback unexpected error:', { errorMessage, errorStack });
+    if (isProd) {
+      console.error('OAuth callback unexpected error');
+    } else {
+      console.error('OAuth callback unexpected error:', { errorMessage, errorStack });
+    }
     return fail('oauth_failed', { message: errorMessage, stack: errorStack }, 500);
   }
 }
