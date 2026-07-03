@@ -288,7 +288,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
     [normalizeCharts, searchQuery, sortBy, sortOrder, chartStatus, chartsPerPage]
   );
 
-  const fetchAllCharts = useCallback(
+  const refreshCharts = useCallback(
     async (showLoading: boolean = true) => {
       await fetchChartsPage(1, showLoading);
     },
@@ -319,7 +319,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
 
   // 최초 로드 및 새로고침 버튼/외부 트리거 시 호출
   useEffect(() => {
-    fetchAllCharts(true);
+    refreshCharts(true);
     if (chartStatus === 'approved') {
       fetchLeaderboards();
     } else {
@@ -329,16 +329,16 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
       setLeaderboardStatus('success');
       setLeaderboardError(null);
     }
-  }, [fetchAllCharts, fetchLeaderboards, chartStatus]);
+  }, [refreshCharts, fetchLeaderboards, chartStatus]);
 
   // 외부 트리거로 새로고침
   useEffect(() => {
     if (refreshToken === undefined) return;
-    fetchAllCharts(true);
+    refreshCharts(true);
     if (chartStatus === 'approved') {
       fetchLeaderboards(selectedChart?.id);
     }
-  }, [refreshToken, fetchAllCharts, fetchLeaderboards, selectedChart?.id, chartStatus]);
+  }, [refreshToken, refreshCharts, fetchLeaderboards, selectedChart?.id, chartStatus]);
 
   // 검색/정렬 변경 시 페이지 리셋
   useEffect(() => {
@@ -956,7 +956,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               onClick={() => {
                 setCurrentPage(1);
                 setHasMore(true);
-                fetchAllCharts(true);
+                refreshCharts(true);
               }}
               disabled={status === 'loading'}
               title="최신 데이터 불러오기"
@@ -1177,7 +1177,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               </div>
               <button
                 className="chart-select-retry-button"
-                onClick={() => fetchAllCharts(true)}
+                onClick={() => refreshCharts(true)}
                 style={{
                   padding: '10px 20px',
                   fontSize: '14px',
