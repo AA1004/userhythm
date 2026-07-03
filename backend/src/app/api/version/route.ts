@@ -62,7 +62,7 @@ export async function GET(_req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const admin = await requireAdmin(req);
+    const admin = await requireAdmin(req, { allowModerator: false });
     if (!admin.ok) {
       logAdminAuthFailure('version update', admin);
       return NextResponse.json({ error: 'unauthorized', message: '관리자 권한이 필요합니다.' }, { status: 401 });

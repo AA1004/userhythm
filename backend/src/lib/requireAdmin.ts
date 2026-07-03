@@ -11,12 +11,19 @@ export interface RequireAdminResult {
   role?: string;
 }
 
+export interface RequireAdminOptions {
+  allowModerator?: boolean;
+}
+
 const ADMIN_ROLES = new Set<AdminRole>(['admin', 'moderator']);
 
 export const isAdminRole = (role: string | null | undefined): role is AdminRole =>
   role === 'admin' || role === 'moderator';
 
-export const requireAdmin = async (req: NextRequest): Promise<RequireAdminResult> => {
+export const requireAdmin = async (
+  req: NextRequest,
+  options: RequireAdminOptions = {}
+): Promise<RequireAdminResult> => {
   const session = getSessionFromRequest(req);
   if (!session?.userId) {
     return { ok: false, reason: 'missing_session' };
@@ -32,7 +39,8 @@ export const requireAdmin = async (req: NextRequest): Promise<RequireAdminResult
   }
 
   const effectiveRole = user.profile?.role || user.role || session.role;
-  if (!ADMIN_ROLES.has(effectiveRole as AdminRole)) {
+  const allowedRoles = options.allowModerator === false ? new Set<AdminRole>(['admin']) : ADMIN_ROLES;
+  if (!allowedRoles.has(effectiveRole as AdminRole)) {
     return {
       ok: false,
       reason: 'insufficient_role',
