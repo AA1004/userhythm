@@ -143,12 +143,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       return NextResponse.json({ error: 'invalid_dataJson' }, { status: 400 });
     }
     const sanitizedDataJson = sanitizeChartDataJsonForUpdate(dataJson);
-    const trimmedAdminDifficulty =
-      adminDifficulty !== undefined
-        ? sanitizeAdminDifficulty(adminDifficulty)
-        : null;
-    const nextIsWorkInProgress = typeof isWorkInProgress === 'boolean' ? isWorkInProgress : false;
-
     const trimmedDescription =
       typeof description === 'string' && description.trim().length > 0
         ? description.trim().slice(0, MAX_DESCRIPTION_LENGTH)
@@ -162,19 +156,36 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const trimmedPreviewImage =
       typeof previewImage === 'string' && previewImage.trim().length > 0 ? previewImage.trim() : null;
 
+    const updateData: {
+      title: string;
+      bpm: number;
+      difficulty: string | null;
+      description: string | null;
+      youtubeUrl: string | null;
+      previewImage: string | null;
+      dataJson: string;
+      adminDifficulty?: string | null;
+      isWorkInProgress?: boolean;
+    } = {
+      title: trimmedTitle,
+      bpm: bpmNumber,
+      difficulty: trimmedDifficulty,
+      description: trimmedDescription,
+      youtubeUrl: trimmedYoutubeUrl,
+      previewImage: trimmedPreviewImage,
+      dataJson: sanitizedDataJson,
+    };
+
+    if (adminDifficulty !== undefined) {
+      updateData.adminDifficulty = sanitizeAdminDifficulty(adminDifficulty);
+    }
+    if (typeof isWorkInProgress === 'boolean') {
+      updateData.isWorkInProgress = isWorkInProgress;
+    }
+
     const updated = await prisma.chart.update({
       where: { id: params.id },
-      data: {
-        title: trimmedTitle,
-        bpm: bpmNumber,
-        difficulty: trimmedDifficulty,
-        adminDifficulty: trimmedAdminDifficulty,
-        isWorkInProgress: nextIsWorkInProgress,
-        description: trimmedDescription,
-        youtubeUrl: trimmedYoutubeUrl,
-        previewImage: trimmedPreviewImage,
-        dataJson: sanitizedDataJson,
-      },
+      data: updateData,
       include: { user: { include: { profile: true } } },
     });
 
