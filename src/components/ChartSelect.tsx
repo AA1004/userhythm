@@ -23,6 +23,8 @@ interface ChartSelectProps {
   onContribute?: (chart: ApiChart) => void;
 }
 
+const DEFAULT_THUMBNAIL_ASPECT_RATIO = 16 / 9;
+
 const hexToRgba = (hex: string, alpha: number) => {
   const normalized = hex.replace('#', '');
   const value = normalized.length === 3
@@ -99,6 +101,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
   const [hasMore, setHasMore] = useState<boolean>(true);
   const chartsPerPage = 12;
+  const [thumbnailAspectRatios, setThumbnailAspectRatios] = useState<Record<string, number>>({});
 
   // leaderboards
   const [perChartScores, setPerChartScores] = useState<ApiScore[]>([]);
@@ -203,6 +206,22 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
       };
     });
   }, []);
+
+  const handleThumbnailLoad = useCallback(
+    (chartId: string, event: React.SyntheticEvent<HTMLImageElement>) => {
+      const image = event.currentTarget;
+      if (image.naturalWidth <= 0 || image.naturalHeight <= 0) return;
+
+      const nextRatio = image.naturalWidth / image.naturalHeight;
+      if (!Number.isFinite(nextRatio) || nextRatio <= 0) return;
+
+      setThumbnailAspectRatios((prev) => {
+        if (Math.abs((prev[chartId] ?? 0) - nextRatio) < 0.01) return prev;
+        return { ...prev, [chartId]: nextRatio };
+      });
+    },
+    []
+  );
 
   const fetchChartsPage = useCallback(
     async (page: number, showLoading: boolean = true) => {
@@ -1274,6 +1293,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                           filter: selectedChart?.id === chart.id ? 'saturate(1.12)' : 'saturate(0.9)',
                         }}
                         loading="lazy"
+                        onLoad={(e) => handleThumbnailLoad(chart.id, e)}
                         onError={(e) => {
                           const fallbackSrc = (chart as any)._previewFallbackImage;
                           if (fallbackSrc && e.currentTarget.src !== fallbackSrc) {
@@ -1413,16 +1433,16 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               style={{
                 position: 'relative',
                 alignSelf: 'end',
-                width: isDetailExpanded ? 'min(100%, 680px)' : 'min(100%, 560px)',
+                width: 'min(100%, 760px)',
                 justifySelf: 'end',
                 height: 'auto',
-                maxHeight: isDetailExpanded ? 'calc(100% - 28px)' : 'min(56dvh, 420px)',
+                maxHeight: 'calc(100% - 28px)',
                 minHeight: 0,
                 backgroundColor: 'rgba(8, 12, 24, 0.58)',
-                border: '1px solid rgba(238,247,242,0.14)',
-                borderRadius: '24px',
+                border: '1px solid rgba(238, 247, 242, 0.14)',
+                borderRadius: '28px',
                 overflow: 'hidden',
-                boxShadow: '0 24px 72px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.06)',
+                boxShadow: '0 24px 72px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
                 zIndex: 2,
                 backdropFilter: 'blur(10px) saturate(1.08)',
               }}
@@ -1440,7 +1460,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     backgroundPosition: 'center',
                     filter: 'blur(24px)',
                     transform: 'scale(1.08)',
-                    opacity: 0.12,
+                    opacity: 0.08,
                     zIndex: 0,
                     pointerEvents: 'none',
                   }}
@@ -1451,9 +1471,9 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 style={{
                   position: 'relative',
                   zIndex: 1,
-                  padding: isDetailExpanded ? '16px 16px 20px' : '14px',
-                  overflowY: isDetailExpanded ? 'auto' : 'hidden',
-                  maxHeight: isDetailExpanded ? 'calc(100dvh - 190px)' : 'none',
+                  padding: '18px 18px 22px',
+                  overflowY: 'auto',
+                  maxHeight: 'calc(100dvh - 190px)',
                 }}
               >
                 <div
@@ -1462,7 +1482,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     gap: '10px',
-                    marginBottom: '12px',
+                    marginBottom: '14px',
                   }}
                 >
                   <div
@@ -1500,26 +1520,16 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   </button>
                 </div>
 
-                <div
-                  className="chart-select-detail-panel__hero"
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: selectedChart.preview_image ? '96px minmax(0, 1fr)' : 'minmax(0, 1fr)',
-                    gap: '14px',
-                    alignItems: 'center',
-                    marginBottom: '12px',
-                  }}
-                >
                 {selectedChart.preview_image && (
                   <div
-                    className="chart-select-detail-panel__mini-cover"
+                    className="chart-select-detail-panel__preview"
                     style={{
                       width: '100%',
-                      aspectRatio: '16 / 10',
-                      borderRadius: '14px',
+                      marginBottom: '16px',
+                      borderRadius: '18px',
                       overflow: 'hidden',
-                      backgroundColor: 'rgba(2,6,23,0.72)',
-                      boxShadow: '0 0 0 1px rgba(238,247,242,0.13), 0 12px 28px rgba(0,0,0,0.28)',
+                      backgroundColor: 'rgba(2, 6, 23, 0.54)',
+                      boxShadow: '0 0 0 1px rgba(238, 247, 242, 0.12)',
                     }}
                   >
                     <img
@@ -1527,9 +1537,12 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       alt={selectedChart.title}
                       style={{
                         width: '100%',
-                        height: '100%',
+                        aspectRatio: String(
+                          thumbnailAspectRatios[selectedChart.id] ?? DEFAULT_THUMBNAIL_ASPECT_RATIO
+                        ),
                         objectFit: 'cover',
                         display: 'block',
+                        maxHeight: '220px',
                       }}
                       loading="lazy"
                       onError={(e) => {
@@ -1539,42 +1552,14 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   </div>
                 )}
 
-                  <div style={{ minWidth: 0 }}>
-                    <h2
-                      className="chart-select-detail-panel__title"
-                      style={{
-                        color: CHART_EDITOR_THEME.textPrimary,
-                        fontSize: isDetailExpanded ? '24px' : '21px',
-                        lineHeight: 1.14,
-                        marginBottom: '10px',
-                        marginTop: 0,
-                        wordBreak: 'keep-all',
-                        overflowWrap: 'anywhere',
-                      }}
-                    >
-                      {selectedChart.title}
-                    </h2>
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: '8px',
-                        alignItems: 'center',
-                        color: CHART_EDITOR_THEME.textSecondary,
-                        fontSize: '12px',
-                      }}
-                    >
-                      <span>{(selectedChart as any)?._authorChess || '♟'} {(selectedChart as any)?._authorLabel || selectedChart.author}</span>
-                      <span style={{ opacity: 0.55 }}>•</span>
-                      <span>{currentDifficultyDisplay}</span>
-                    </div>
-                  </div>
-                </div>
+                <h2 className="chart-select-detail-panel__title" style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '28px', marginBottom: '14px', marginTop: 0 }}>
+                  {selectedChart.title}
+                </h2>
 
                 <div
                   className="chart-select-detail-panel__sticky-action"
                   style={{
-                    marginBottom: '10px',
+                    marginBottom: '12px',
                   }}
                 >
                   <button
@@ -1582,8 +1567,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     onClick={() => handleSelectChart(selectedChart)}
                     style={{
                       width: '100%',
-                      padding: '13px',
-                      fontSize: '15px',
+                      padding: '15px',
+                      fontSize: '16px',
                       fontWeight: 'bold',
                       background: CHART_EDITOR_THEME.buttonPrimaryBg,
                       color: CHART_EDITOR_THEME.buttonPrimaryText,
@@ -1622,8 +1607,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(3, 1fr)',
-                    gap: '7px',
-                    marginBottom: '10px',
+                    gap: '8px',
+                    marginBottom: '12px',
                   }}
                 >
                   {[
