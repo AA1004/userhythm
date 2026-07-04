@@ -941,8 +941,8 @@ export const Game: React.FC = () => {
             alignItems: 'center',
             gap: '12px',
             zIndex: 10000,
-            opacity: activeLaneChromeOpacity,
-            pointerEvents: activeLaneChromeVisible ? 'auto' : 'none',
+            opacity: 1,
+            pointerEvents: 'auto',
             transition: 'opacity 40ms linear',
           }}
         >
