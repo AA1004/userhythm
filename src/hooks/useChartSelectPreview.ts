@@ -39,22 +39,29 @@ export const useChartSelectPreview = (spec: ChartSelectPreviewSpec | null) => {
   }, [clearLoopTimer]);
 
   const destroyPreview = useCallback(() => {
-    pausePreview();
-    try {
-      playerRef.current?.destroy?.();
-    } catch {
-      // Ignore teardown races from YouTube iframe internals.
-    }
+    clearLoopTimer();
+    const player = playerRef.current;
+    const container = mountRef.current;
     playerRef.current = null;
     currentVideoIdRef.current = null;
-    if (mountRef.current) {
-      mountRef.current.innerHTML = '';
+    if (container) {
+      container.replaceChildren();
     }
     if (isMountedRef.current) {
       setOpacity(0);
       setFallbackUrl(null);
     }
-  }, [pausePreview]);
+
+    window.setTimeout(() => {
+      try {
+        player?.mute?.();
+        player?.pauseVideo?.();
+        player?.destroy?.();
+      } catch {
+        // Ignore teardown races from YouTube iframe internals.
+      }
+    }, 0);
+  }, [clearLoopTimer]);
 
   const startPlayback = useCallback(
     (player: any, previewStartSec: number, previewEndSec: number) => {

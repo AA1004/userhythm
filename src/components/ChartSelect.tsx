@@ -490,46 +490,50 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   const handleSelectChart = (chart: ApiChart) => {
     disposePreview();
 
-    try {
-      const chartData = JSON.parse(chart.data_json);
+    const startChart = () => {
+      try {
+        const chartData = JSON.parse(chart.data_json);
 
-      // YouTube 정보 정규화
-      const youtubeUrl: string = chartData.youtubeUrl || chart.youtube_url || '';
-      let youtubeVideoId: string | null = chartData.youtubeVideoId || null;
+        // YouTube 정보 정규화
+        const youtubeUrl: string = chartData.youtubeUrl || chart.youtube_url || '';
+        let youtubeVideoId: string | null = chartData.youtubeVideoId || null;
 
-      // 예전 채보처럼 videoId가 없고 URL만 있는 경우, URL에서 ID를 추출
-      if (!youtubeVideoId && youtubeUrl) {
-        youtubeVideoId = extractYouTubeVideoId(youtubeUrl);
+        // 예전 채보처럼 videoId가 없고 URL만 있는 경우, URL에서 ID를 추출
+        if (!youtubeVideoId && youtubeUrl) {
+          youtubeVideoId = extractYouTubeVideoId(youtubeUrl);
+        }
+
+        const playableNotes = Array.isArray(chartData.notes) ? validateNotes(chartData.notes) : [];
+
+        onSelect({
+          notes: playableNotes,
+          bpm: chart.bpm,
+          timeSignatures: chartData.timeSignatures || [{ id: 0, beatIndex: 0, beatsPerMeasure: 4 }],
+          timeSignatureOffset: chartData.timeSignatureOffset || 0,
+          speedChanges: chartData.speedChanges || [],
+          bgaVisibilityIntervals: chartData.bgaVisibilityIntervals || [],
+          subtitles: chartData.subtitles || [],
+          subtitleTracks: chartData.subtitleTracks || [],
+          timelineExtraMs: typeof chartData.timelineExtraMs === 'number' ? chartData.timelineExtraMs : 0,
+          audioOffsetMs: typeof chartData.audioOffsetMs === 'number' ? chartData.audioOffsetMs : 0,
+          startDelayMs: typeof chartData.startDelayMs === 'number' ? Math.max(0, Math.round(chartData.startDelayMs)) : undefined,
+          beatsPerMeasure: typeof chartData.beatsPerMeasure === 'number' ? chartData.beatsPerMeasure : 4,
+          youtubeVideoId,
+          youtubeUrl,
+          playbackSpeed: chartData.playbackSpeed || 1,
+          chartId: chartStatus === 'approved' && chart.is_work_in_progress !== true ? chart.id : undefined,
+          sourceChartId: chart.id,
+          isWorkInProgress: chart.is_work_in_progress === true || chartStatus === 'wip',
+          chartTitle: chart.title,
+          chartAuthor: (chart as any)._authorLabel || chart.author,
+        });
+      } catch (error) {
+        console.error('Failed to parse chart data:', error);
+        alert('채보 데이터를 불러오는데 실패했습니다.');
       }
+    };
 
-      const playableNotes = Array.isArray(chartData.notes) ? validateNotes(chartData.notes) : [];
-
-      onSelect({
-        notes: playableNotes,
-        bpm: chart.bpm,
-        timeSignatures: chartData.timeSignatures || [{ id: 0, beatIndex: 0, beatsPerMeasure: 4 }],
-        timeSignatureOffset: chartData.timeSignatureOffset || 0,
-        speedChanges: chartData.speedChanges || [],
-        bgaVisibilityIntervals: chartData.bgaVisibilityIntervals || [],
-        subtitles: chartData.subtitles || [],
-        subtitleTracks: chartData.subtitleTracks || [],
-        timelineExtraMs: typeof chartData.timelineExtraMs === 'number' ? chartData.timelineExtraMs : 0,
-        audioOffsetMs: typeof chartData.audioOffsetMs === 'number' ? chartData.audioOffsetMs : 0,
-        startDelayMs: typeof chartData.startDelayMs === 'number' ? Math.max(0, Math.round(chartData.startDelayMs)) : undefined,
-        beatsPerMeasure: typeof chartData.beatsPerMeasure === 'number' ? chartData.beatsPerMeasure : 4,
-        youtubeVideoId,
-        youtubeUrl,
-        playbackSpeed: chartData.playbackSpeed || 1,
-        chartId: chartStatus === 'approved' && chart.is_work_in_progress !== true ? chart.id : undefined,
-        sourceChartId: chart.id,
-        isWorkInProgress: chart.is_work_in_progress === true || chartStatus === 'wip',
-        chartTitle: chart.title,
-        chartAuthor: (chart as any)._authorLabel || chart.author,
-      });
-    } catch (error) {
-      console.error('Failed to parse chart data:', error);
-      alert('채보 데이터를 불러오는데 실패했습니다.');
-    }
+    window.requestAnimationFrame(startChart);
   };
 
   const hasSelectedChart = Boolean(selectedChart);
