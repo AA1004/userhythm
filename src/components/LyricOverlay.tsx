@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useLayoutEffect, useRef } from 'react';
 import {
   normalizeSubtitlePosition,
   SubtitleCue,
@@ -200,7 +200,7 @@ export const LyricOverlay: React.FC<LyricOverlayProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
@@ -233,10 +233,6 @@ export const LyricOverlay: React.FC<LyricOverlayProps> = ({
     performanceMode,
   ]);
 
-  if (!activeSubtitles.length) {
-    return null;
-  }
-
   return (
     <canvas
       ref={canvasRef}
@@ -251,6 +247,7 @@ export const LyricOverlay: React.FC<LyricOverlayProps> = ({
         pointerEvents: 'none',
         zIndex: 300,
         contain: 'layout paint style',
+        visibility: activeSubtitles.length ? 'visible' : 'hidden',
       }}
     />
   );

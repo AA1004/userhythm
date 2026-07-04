@@ -31,7 +31,7 @@ interface SubtitleTimelineIndex {
   byEnd: SubtitleTimelineEntry[];
 }
 
-const SUBTITLE_ACTIVE_BUCKET_MS = 120;
+const SUBTITLE_ACTIVE_BUCKET_MS = 33;
 const SUBTITLE_IDLE_LOOKAHEAD_MS = 250;
 const SUBTITLE_MAX_IDLE_SLEEP_MS = 1000;
 
@@ -125,10 +125,7 @@ export function useSubtitles(
   const [subtitleClockSourceMs, setSubtitleClockSourceMs] = useState(currentChartTimeMs);
   const lastSubtitleStateKeyRef = useRef('');
   const lastFontKeyRef = useRef('');
-  const subtitleClockTimeMs = useMemo(
-    () => Math.floor(subtitleClockSourceMs / SUBTITLE_ACTIVE_BUCKET_MS) * SUBTITLE_ACTIVE_BUCKET_MS,
-    [subtitleClockSourceMs]
-  );
+  const subtitleClockTimeMs = subtitleClockSourceMs;
 
   const timelineIndex = useMemo<SubtitleTimelineIndex>(() => {
     const byStart = subtitles.map((cue, originalIndex) => ({
