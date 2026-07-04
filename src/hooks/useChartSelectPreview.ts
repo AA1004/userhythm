@@ -44,6 +44,14 @@ export const useChartSelectPreview = (spec: ChartSelectPreviewSpec | null) => {
     const container = mountRef.current;
     playerRef.current = null;
     currentVideoIdRef.current = null;
+
+    try {
+      player?.mute?.();
+      player?.pauseVideo?.();
+    } catch {
+      // Ignore teardown races from YouTube iframe internals.
+    }
+
     if (container) {
       container.replaceChildren();
     }
@@ -52,15 +60,24 @@ export const useChartSelectPreview = (spec: ChartSelectPreviewSpec | null) => {
       setFallbackUrl(null);
     }
 
-    window.setTimeout(() => {
+    const destroyPlayer = () => {
       try {
-        player?.mute?.();
-        player?.pauseVideo?.();
         player?.destroy?.();
       } catch {
         // Ignore teardown races from YouTube iframe internals.
       }
-    }, 0);
+    };
+
+    const requestIdleCallback = (window as any).requestIdleCallback as
+      | ((callback: () => void, options?: { timeout?: number }) => number)
+      | undefined;
+
+    if (requestIdleCallback) {
+      requestIdleCallback(destroyPlayer, { timeout: 1800 });
+      return;
+    }
+
+    window.setTimeout(destroyPlayer, 1000);
   }, [clearLoopTimer]);
 
   const startPlayback = useCallback(
