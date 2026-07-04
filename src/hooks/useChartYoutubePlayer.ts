@@ -316,6 +316,7 @@ export function useChartYoutubePlayer({
     (nextPlaying: boolean) => {
       if (!youtubePlayer || !youtubePlayerReadyRef.current) return false;
 
+      ++playbackCommandTokenRef.current;
       const desiredTimeMs = latestTimeRef.current;
       const desiredSeconds = getPlayerTimeSeconds(desiredTimeMs);
       clearPlaybackRetryTimer();
@@ -337,6 +338,11 @@ export function useChartYoutubePlayer({
           wasPlayingRef.current = true;
         } else {
           youtubePlayer.pauseVideo?.();
+          playerClockSampleRef.current = {
+            playerSeconds: desiredSeconds,
+            sampledAtMs: performance.now(),
+            isPlaying: false,
+          };
           wasPlayingRef.current = false;
         }
 
@@ -537,20 +543,19 @@ export function useChartYoutubePlayer({
   // 시크 함수
   const seekTo = useCallback(
     (timeMs: number, options?: { shouldPause?: boolean; snapOnly?: boolean }) => {
-      if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
-
       const { shouldPause = false, snapOnly = false } = options || {};
+      setCurrentTime(timeMs);
+      lastSyncTimeRef.current = timeMs;
+      latestTimeRef.current = timeMs;
+
+      if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
 
       try {
         // snapOnly 모드: 플레이어에는 시크하지 않고 에디터 시간만 업데이트
         if (!snapOnly) {
           syncPlayerToTimeline(timeMs, !shouldPause && isPlaying);
         }
-        
-        setCurrentTime(timeMs);
-        lastSyncTimeRef.current = timeMs;
-        latestTimeRef.current = timeMs;
-        
+
         // 재생선 클릭 시 명시적으로 일시정지
       } catch (e) {
         console.warn('시크 실패:', e);

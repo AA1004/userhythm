@@ -2397,6 +2397,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const handleToggleEditorPlayback = useCallback(async () => {
     const nextPlaying = !isPlaying;
 
+    if (!nextPlaying) {
+      const pauseAtMs = Math.max(0, internalTimeRef.current);
+      seekTo(pauseAtMs, { shouldPause: true });
+      setIsPlaying(false);
+      return;
+    }
+
     if (nextPlaying) {
       try {
         await ensureAudioContext();
@@ -2411,7 +2418,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
 
     setIsPlaying(nextPlaying);
-  }, [applyImmediatePlaybackState, ensureAudioContext, isPlaying]);
+  }, [applyImmediatePlaybackState, ensureAudioContext, isPlaying, seekTo]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
