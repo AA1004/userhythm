@@ -1219,6 +1219,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               {charts.map((chart, index) => {
                 const displayDifficulty = (chart as any)._displayDifficulty || chart.difficulty || 'Normal';
                 const difficultyVisual = getDifficultyBadgeVisual(displayDifficulty);
+                const noteCount = (chart as any).notes_count ?? 0;
                 return (
                 <div
                   key={chart.id}
@@ -1241,11 +1242,11 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     boxShadow: selectedChart?.id === chart.id
                       ? CHART_EDITOR_THEME.shadowStrong
                       : '0 16px 34px rgba(0,0,0,0.24)',
-                    minHeight: '104px',
+                    minHeight: '96px',
                     overflow: 'hidden',
                     position: 'relative',
                     display: 'grid',
-                    gridTemplateColumns: '124px minmax(0, 1fr)',
+                    gridTemplateColumns: '170px minmax(0, 1fr)',
                     alignItems: 'stretch',
                   }}
                   onMouseEnter={(e) => {
@@ -1259,22 +1260,13 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     }
                   }}
                 >
-                  {selectedChart?.id === chart.id && (
-                    <div className="chart-select-card__now" aria-hidden="true">
-                      <span>PREVIEW</span>
-                      <i />
-                      <i />
-                      <i />
-                      <i />
-                    </div>
-                  )}
                   {chart.preview_image ? (
                     <div
                       className="chart-select-card__thumb"
                       style={{
                         width: '100%',
-                        height: '100%',
-                        minHeight: '104px',
+                        aspectRatio: '16 / 9',
+                        minHeight: '96px',
                         marginBottom: 0,
                         borderRadius: 0,
                         overflow: 'hidden',
@@ -1288,9 +1280,10 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                         style={{
                           width: '100%',
                           height: '100%',
-                          objectFit: 'cover',
+                          objectFit: 'contain',
                           display: 'block',
                           filter: selectedChart?.id === chart.id ? 'saturate(1.12)' : 'saturate(0.9)',
+                          backgroundColor: 'rgba(2,6,23,0.9)',
                         }}
                         loading="lazy"
                         onLoad={(e) => handleThumbnailLoad(chart.id, e)}
@@ -1309,8 +1302,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       className="chart-select-card__thumb chart-select-card__thumb--empty"
                       style={{
                         width: '100%',
-                          height: '100%',
-                          minHeight: '104px',
+                          aspectRatio: '16 / 9',
+                          minHeight: '96px',
                           marginBottom: 0,
                           borderRadius: 0,
                           background:
@@ -1356,7 +1349,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
                         overflow: 'hidden',
                         display: '-webkit-box',
-                        WebkitLineClamp: 3,
+                        WebkitLineClamp: 2,
                         WebkitBoxOrient: 'vertical',
                         wordBreak: 'keep-all',
                         overflowWrap: 'anywhere',
@@ -1364,9 +1357,16 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     >
                       {chart.title}
                     </div>
-                    <span
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        minWidth: 0,
+                      }}
+                    >
+                      <span
                         style={{
-                          justifySelf: 'start',
                           flex: '0 0 auto',
                           minWidth: '46px',
                           padding: '7px 10px',
@@ -1383,7 +1383,22 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                         }}
                       >
                         {displayDifficulty}
-                    </span>
+                      </span>
+                      <span
+                        style={{
+                          minWidth: 0,
+                          color: CHART_EDITOR_THEME.textMuted,
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          letterSpacing: '0.02em',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        BPM {chart.bpm} · NOTES {noteCount}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 );
