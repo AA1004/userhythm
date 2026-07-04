@@ -1760,25 +1760,25 @@ body {
   scrollbar-color: rgba(119, 255, 214, 0.35) rgba(255, 255, 255, 0.04);
   animation: chartSelectDetailIn 180ms ease-out both;
   background:
-    linear-gradient(160deg, rgba(10, 16, 28, 0.94), rgba(9, 12, 22, 0.88)),
-    rgba(6, 9, 16, 0.82);
+    linear-gradient(160deg, rgba(10, 16, 28, 0.7), rgba(9, 12, 22, 0.58)),
+    rgba(6, 9, 16, 0.5);
 }
 
 .chart-select-detail-panel {
-  margin-bottom: clamp(8px, 2vh, 20px);
+  margin-bottom: clamp(8px, 2vh, 18px);
 }
 
 .chart-select-detail-panel::before {
   content: '';
   position: absolute;
   inset: 0 0 auto;
-  height: 190px;
+  height: 150px;
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at 18% 12%, rgba(119, 255, 214, 0.16), transparent 38%),
-    radial-gradient(circle at 92% 10%, rgba(255, 78, 122, 0.13), transparent 34%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.055), transparent);
+    radial-gradient(circle at 18% 12%, rgba(119, 255, 214, 0.12), transparent 38%),
+    radial-gradient(circle at 92% 10%, rgba(255, 78, 122, 0.1), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent);
 }
 
 .chart-select-detail-panel__content {
@@ -1804,13 +1804,11 @@ body {
 }
 
 .chart-select-detail-panel__sticky-action {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 5;
-  padding: 10px 0 12px;
-  background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(15, 23, 42, 0.72) 72%, transparent);
-  backdrop-filter: blur(8px);
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
 }
 
 .chart-select-detail-panel__toggle:hover,
@@ -1827,6 +1825,20 @@ body {
 .chart-select-detail-panel__preview {
   position: relative;
   background: rgba(5, 8, 14, 0.72);
+}
+
+.chart-select-detail-panel__mini-cover {
+  position: relative;
+}
+
+.chart-select-detail-panel__mini-cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, transparent 40%, rgba(0, 0, 0, 0.34)),
+    linear-gradient(90deg, rgba(119, 255, 214, 0.12), transparent 34%, transparent 72%, rgba(255, 78, 122, 0.1));
 }
 
 .chart-select-detail-panel__preview::after {
