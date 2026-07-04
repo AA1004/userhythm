@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useRef, useState, useCallback } from 'react';
+import React, { useMemo, useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import { Note, SpeedChange, BPMChange, BgaVisibilityInterval, Lane } from '../../types/game';
 import {
   LANE_POSITIONS,
@@ -17,6 +17,8 @@ const NOTE_HALF = NOTE_WIDTH / 2;
 const CONTENT_WIDTH = LANE_WIDTH * 4;
 const MARQUEE_DRAG_THRESHOLD_PX = 4;
 const BGA_MIN_DURATION_MS = 120;
+const PLAYHEAD_HIT_HEIGHT = 28;
+const PLAYHEAD_Z_INDEX = 1200;
 
 interface ChartEditorTimelineProps {
   notes: Note[];
@@ -148,7 +150,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   });
   const [isBgaResizing, setIsBgaResizing] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     renderHelpersRef.current = {
       currentTime,
       timeToY,
@@ -167,10 +169,10 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
       const helpers = renderHelpersRef.current;
       const nextPlayheadY = helpers.timeToY(timeMs);
       if (playheadRef.current) {
-        playheadRef.current.style.transform = `translateY(${nextPlayheadY - 10}px)`;
+        playheadRef.current.style.transform = `translate3d(0, ${nextPlayheadY - PLAYHEAD_HIT_HEIGHT / 2}px, 0)`;
       }
       if (measureLabelRef.current) {
-        measureLabelRef.current.style.transform = `translateY(${nextPlayheadY - 6}px)`;
+        measureLabelRef.current.style.transform = `translate3d(0, ${nextPlayheadY - 6}px, 0)`;
         measureLabelRef.current.textContent = `${timeToMeasure(
           timeMs,
           helpers.bpm,
@@ -1446,11 +1448,12 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
             left: 0,
             top: 0,
             width: `${CONTENT_WIDTH}px`,
-            height: '20px', // 클릭 영역 높이 확장
+            height: `${PLAYHEAD_HIT_HEIGHT}px`, // 클릭 영역 높이 확장
             cursor: 'ns-resize',
-            zIndex: 100,
+            zIndex: PLAYHEAD_Z_INDEX,
             display: 'flex',
             alignItems: 'center', // 내부 선 중앙 정렬
+            transform: `translate3d(0, ${playheadY - PLAYHEAD_HIT_HEIGHT / 2}px, 0)`,
             willChange: 'transform',
           }}
         >
@@ -1458,9 +1461,10 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
           <div
             style={{
               width: '100%',
-              height: '2px',
-              backgroundColor: '#FF0000',
-              boxShadow: '0 0 10px rgba(255, 0, 0, 0.5)',
+              height: '3px',
+              borderRadius: 999,
+              background: 'linear-gradient(90deg, rgba(255, 68, 68, 0), #ff1f1f 8%, #ff5a5a 50%, #ff1f1f 92%, rgba(255, 68, 68, 0))',
+              boxShadow: '0 0 0 1px rgba(255, 255, 255, 0.18), 0 0 14px rgba(255, 0, 0, 0.75)',
             }}
           />
         </div>
@@ -1478,6 +1482,8 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
             textShadow: '0 0 4px rgba(255, 0, 0, 0.8)',
             pointerEvents: 'none',
             whiteSpace: 'nowrap',
+            zIndex: PLAYHEAD_Z_INDEX,
+            transform: `translate3d(0, ${playheadY - 6}px, 0)`,
             willChange: 'transform',
           }}
         />
