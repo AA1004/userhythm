@@ -2294,14 +2294,15 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
     const clampedTarget = Math.max(0, targetScrollTopRaw);
     const snappedScrollTop = Math.round(clampedTarget);
-    const fractionalOffset = clampedTarget - snappedScrollTop;
 
     if (Math.abs(container.scrollTop - snappedScrollTop) >= 1) {
       container.scrollTop = snappedScrollTop;
     }
 
     if (timelineContentRef.current) {
-      timelineContentRef.current.style.transform = `translateX(-50%) translateY(${-fractionalOffset}px)`;
+      // Keep auto-scroll on a single coordinate path. Fractional wrapper transforms
+      // make the grid and the playhead disagree at high refresh rates.
+      timelineContentRef.current.style.transform = 'translateX(-50%) translateY(0px)';
     }
   }, []);
 
