@@ -208,8 +208,8 @@ export const chartAPI = {
   },
 
   // Increment play count
-  async incrementPlayCount(chartId: string) {
-    const res = await api.incrementChartPlayCount(chartId);
+  async incrementPlayCount(chartId: string, playSessionToken: string) {
+    const res = await api.incrementChartPlayCount(chartId, playSessionToken);
     return res.chart;
   },
 

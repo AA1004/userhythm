@@ -2,26 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getSessionFromRequest } from '../../../lib/auth';
 import { Chart } from '@prisma/client';
+import {
+  MAX_DATA_JSON_LENGTH,
+  MAX_DESCRIPTION_LENGTH,
+  MAX_DIFFICULTY_LENGTH,
+  MAX_TITLE_LENGTH,
+  validateChartDataJson,
+} from '../../../lib/chartData';
 
 const DEFAULT_LIMIT = 12;
 const MAX_LIMIT = 50;
-const MAX_DATA_JSON_LENGTH = 1_000_000; // ~1MB
-const MAX_TITLE_LENGTH = 200;
-const MAX_DESCRIPTION_LENGTH = 1000;
-const MAX_DIFFICULTY_LENGTH = 50;
-
-const sanitizeChartDataJsonForUserUpload = (raw: string): string => {
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object' && 'adminDifficulty' in parsed) {
-      delete (parsed as Record<string, unknown>).adminDifficulty;
-      return JSON.stringify(parsed);
-    }
-    return raw;
-  } catch {
-    return raw;
-  }
-};
 
 const sanitizeAdminDifficulty = (value: unknown): string | null =>
   typeof value === 'string' && value.trim().length > 0
@@ -105,18 +95,17 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ charts: serialized, total });
   } catch (error: any) {
-    // 데이터베이스 연결 실패 시 로컬 환경에서는 빈 배열 반환
-    const isDbConnectionError = 
+    const isDbConnectionError =
       error?.name === 'PrismaClientInitializationError' ||
       error?.message?.includes('Authentication failed') ||
       error?.message?.includes('database server');
-    
+
     if (isDbConnectionError && process.env.NODE_ENV === 'development') {
-      console.warn('⚠️  Database connection failed in development. Returning empty charts list.');
+      console.warn('Database connection failed in development. Returning empty charts list.');
       console.warn('Error:', error?.message || String(error));
       return NextResponse.json({ charts: [], total: 0 }, { status: 200 });
     }
-    
+
     console.error('charts list error', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
@@ -172,8 +161,6 @@ export async function POST(req: NextRequest) {
     if (typeof dataJson !== 'string' || dataJson.trim().length === 0 || dataJson.length > MAX_DATA_JSON_LENGTH) {
       return NextResponse.json({ error: 'invalid_dataJson' }, { status: 400 });
     }
-    const sanitizedDataJson = sanitizeChartDataJsonForUserUpload(dataJson);
-    const isWipUpload = typeof isWorkInProgress === 'boolean' ? isWorkInProgress : false;
 
     const trimmedDescription =
       typeof description === 'string' && description.trim().length > 0
@@ -198,11 +185,23 @@ export async function POST(req: NextRequest) {
 
     const role = dbUser.profile?.role || dbUser.role;
     const canSetAdminDifficulty = role === 'admin' || role === 'moderator';
-    const trimmedAdminDifficulty = canSetAdminDifficulty ? sanitizeAdminDifficulty(adminDifficulty) : null;
+    const validatedChartData = validateChartDataJson(dataJson, {
+      allowAdminDifficulty: canSetAdminDifficulty,
+      routeBpm: bpmNumber,
+      routeYoutubeUrl: trimmedYoutubeUrl,
+    });
+    if (!validatedChartData.ok) {
+      return NextResponse.json({ error: validatedChartData.error }, { status: 400 });
+    }
+
+    const sanitizedDataJson = validatedChartData.dataJson;
+    const trimmedAdminDifficulty = canSetAdminDifficulty
+      ? sanitizeAdminDifficulty(adminDifficulty) ?? validatedChartData.adminDifficulty
+      : null;
+    const isWipUpload = typeof isWorkInProgress === 'boolean' ? isWorkInProgress : false;
 
     const author =
       dbUser.profile?.nickname ||
-      // display_name 호환 (있다면)
       (dbUser.profile as any)?.display_name ||
       (dbUser.email ? dbUser.email.split('@')[0] : 'unknown');
 
@@ -219,8 +218,6 @@ export async function POST(req: NextRequest) {
         previewImage: trimmedPreviewImage,
         dataJson: sanitizedDataJson,
         userId: dbUser.id,
-        // WIP는 협업용 공개 목록에 바로 보여야 하므로 승인 상태로 저장한다.
-        // 일반 공유 채보는 기존처럼 관리자 승인 대기 상태로 둔다.
         status: isWipUpload ? 'approved' : 'pending',
       },
     });
@@ -240,4 +237,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'failed to create chart' }, { status: 500 });
   }
 }
-

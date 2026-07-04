@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createOAuthState, isOAuthStateSecretConfigured } from '../../../../../lib/oauthState';
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const REDIRECT_URI =
@@ -8,9 +9,13 @@ export async function GET(req: NextRequest) {
   if (!CLIENT_ID) {
     return NextResponse.json({ error: 'Google OAuth is not configured' }, { status: 500 });
   }
+  if (!isOAuthStateSecretConfigured()) {
+    return NextResponse.json({ error: 'Google OAuth is not configured' }, { status: 500 });
+  }
 
   const { searchParams } = new URL(req.url);
   const redirect = searchParams.get('redirect') || null;
+  const state = createOAuthState(redirect);
 
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   url.searchParams.set('client_id', CLIENT_ID);
@@ -19,9 +24,7 @@ export async function GET(req: NextRequest) {
   url.searchParams.set('scope', 'openid email profile');
   url.searchParams.set('access_type', 'offline');
   url.searchParams.set('prompt', 'consent');
-  if (redirect) {
-    url.searchParams.set('state', redirect);
-  }
+  url.searchParams.set('state', state);
 
   return NextResponse.redirect(url.toString(), { status: 302 });
 }

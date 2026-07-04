@@ -1,6 +1,8 @@
 {
-  "name": "userhythm-server",
+  "name": "userhythm-legacy-local-server",
   "version": "1.0.0",
+  "private": true,
+  "description": "Legacy local diagnostic server; not used by production UseRhythm backend.",
   "type": "module",
   "scripts": {
     "start": "node index.js",

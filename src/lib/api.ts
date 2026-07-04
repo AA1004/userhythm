@@ -159,10 +159,12 @@ export const api = {
     const res = await fetch(`${API_BASE}/api/charts/${id}`, { credentials: 'include' });
     return toJson(res) as Promise<{ chart: ApiChart }>;
   },
-  async incrementChartPlayCount(id: string) {
+  async incrementChartPlayCount(id: string, playSessionToken: string) {
     const res = await fetch(`${API_BASE}/api/charts/${id}`, {
       method: 'POST',
       credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playSessionToken }),
     });
     return toJson(res) as Promise<{ chart: ApiChart }>;
   },

@@ -2,24 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { Chart } from '@prisma/client';
 import { logAdminAuthFailure, requireAdmin } from '../../../../lib/requireAdmin';
-
-const MAX_DATA_JSON_LENGTH = 1_000_000;
-const MAX_TITLE_LENGTH = 200;
-const MAX_DESCRIPTION_LENGTH = 1000;
-const MAX_DIFFICULTY_LENGTH = 50;
-
-const sanitizeChartDataJsonForUpdate = (raw: string): string => {
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object' && 'adminDifficulty' in parsed) {
-      delete (parsed as Record<string, unknown>).adminDifficulty;
-      return JSON.stringify(parsed);
-    }
-    return raw;
-  } catch {
-    return raw;
-  }
-};
+import {
+  MAX_DATA_JSON_LENGTH,
+  MAX_DESCRIPTION_LENGTH,
+  MAX_DIFFICULTY_LENGTH,
+  MAX_TITLE_LENGTH,
+  validateChartDataJson,
+} from '../../../../lib/chartData';
+import { markPlaySessionCounted, verifyPlaySessionToken } from '../../../../lib/playSession';
 
 const sanitizeAdminDifficulty = (value: unknown): string | null =>
   typeof value === 'string' && value.trim().length > 0
@@ -142,7 +132,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (typeof dataJson !== 'string' || dataJson.trim().length === 0 || dataJson.length > MAX_DATA_JSON_LENGTH) {
       return NextResponse.json({ error: 'invalid_dataJson' }, { status: 400 });
     }
-    const sanitizedDataJson = sanitizeChartDataJsonForUpdate(dataJson);
+
     const trimmedDescription =
       typeof description === 'string' && description.trim().length > 0
         ? description.trim().slice(0, MAX_DESCRIPTION_LENGTH)
@@ -155,6 +145,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       typeof youtubeUrl === 'string' && youtubeUrl.trim().length > 0 ? youtubeUrl.trim() : null;
     const trimmedPreviewImage =
       typeof previewImage === 'string' && previewImage.trim().length > 0 ? previewImage.trim() : null;
+
+    const validatedChartData = validateChartDataJson(dataJson, {
+      allowAdminDifficulty: true,
+      routeBpm: bpmNumber,
+      routeYoutubeUrl: trimmedYoutubeUrl,
+    });
+    if (!validatedChartData.ok) {
+      return NextResponse.json({ error: validatedChartData.error }, { status: 400 });
+    }
 
     const updateData: {
       title: string;
@@ -173,11 +172,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       description: trimmedDescription,
       youtubeUrl: trimmedYoutubeUrl,
       previewImage: trimmedPreviewImage,
-      dataJson: sanitizedDataJson,
+      dataJson: validatedChartData.dataJson,
     };
 
     if (adminDifficulty !== undefined) {
-      updateData.adminDifficulty = sanitizeAdminDifficulty(adminDifficulty);
+      updateData.adminDifficulty = sanitizeAdminDifficulty(adminDifficulty) ?? validatedChartData.adminDifficulty;
     }
     if (typeof isWorkInProgress === 'boolean') {
       updateData.isWorkInProgress = isWorkInProgress;
@@ -205,8 +204,51 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
+    }
+
+    const playSessionToken = (body as { playSessionToken?: unknown }).playSessionToken;
+    if (typeof playSessionToken !== 'string' || playSessionToken.length === 0) {
+      return NextResponse.json({ error: 'missing_play_session' }, { status: 401 });
+    }
+
+    const existingChart = await prisma.chart.findUnique({
+      where: { id: params.id },
+      include: { user: { include: { profile: true } } },
+    });
+    if (!existingChart) {
+      return NextResponse.json({ error: 'not found' }, { status: 404 });
+    }
+
+    const validatedChartData = validateChartDataJson(existingChart.dataJson, { allowAdminDifficulty: true });
+    if (!validatedChartData.ok) {
+      return NextResponse.json({ error: 'invalid_chart_data' }, { status: 422 });
+    }
+
+    const verifiedSession = verifyPlaySessionToken(playSessionToken, {
+      chartId: existingChart.id,
+      chartHash: validatedChartData.chartHash,
+      expectedJudgments: validatedChartData.expectedJudgments,
+    });
+    if (!verifiedSession.ok) {
+      return NextResponse.json({ error: verifiedSession.error }, { status: 401 });
+    }
+
+    if (!markPlaySessionCounted(verifiedSession.claims.nonce)) {
+      return NextResponse.json({
+        chart: serializeChart(existingChart, {
+          authorRole: existingChart.user?.profile?.role || existingChart.user?.role || undefined,
+          authorNickname: existingChart.user?.profile?.nickname || (existingChart.user?.profile as any)?.display_name || undefined,
+          authorEmail: existingChart.user?.email || undefined,
+        }),
+        counted: false,
+      });
+    }
+
     const chart = await prisma.chart.update({
       where: { id: params.id },
       data: {
@@ -223,6 +265,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
         authorNickname: chart.user?.profile?.nickname || (chart.user?.profile as any)?.display_name || undefined,
         authorEmail: chart.user?.email || undefined,
       }),
+      counted: true,
     });
   } catch (error: any) {
     if (error?.code === 'P2025') {
@@ -232,4 +275,3 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'failed to increment play count' }, { status: 500 });
   }
 }
-

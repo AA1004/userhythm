@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
-import { getSessionFromRequest, verifyPlaySession } from '../../../lib/auth';
+import { getSessionFromRequest } from '../../../lib/auth';
+import { validateScoreSubmission } from '../../../lib/scoreValidation';
+import { consumePlaySessionForScore, verifyPlaySessionToken } from '../../../lib/playSession';
 
 const serializeScore = (score: any, userMap?: Map<string, any>, chartMap?: Map<string, any>) => ({
   id: score.id,
@@ -103,21 +105,21 @@ export async function GET(req: NextRequest) {
 
     const perUser = Array.from(aggregateByUser.entries())
       .map(([userId, aggregate]) => {
-      const u = userMap.get(userId);
-      return {
-        user_id: userId,
-        avg_accuracy: aggregate.count > 0 ? aggregate.total / aggregate.count : null,
-        max_accuracy: aggregate.max,
-        play_count: aggregate.count,
-        user: u
-          ? {
-              id: u.id,
-              email: u.email,
-              role: u.role,
-              nickname: u.profile?.nickname || (u.profile as any)?.display_name || null,
-            }
-          : null,
-      };
+        const u = userMap.get(userId);
+        return {
+          user_id: userId,
+          avg_accuracy: aggregate.count > 0 ? aggregate.total / aggregate.count : null,
+          max_accuracy: aggregate.max,
+          play_count: aggregate.count,
+          user: u
+            ? {
+                id: u.id,
+                email: u.email,
+                role: u.role,
+                nickname: u.profile?.nickname || (u.profile as any)?.display_name || null,
+              }
+            : null,
+        };
       })
       .sort((a, b) => (b.avg_accuracy ?? 0) - (a.avg_accuracy ?? 0))
       .slice(0, 20);
@@ -133,25 +135,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-const SCORE_COUNT_LIMIT = 100_000;
-
-const parseScoreCount = (value: unknown): number | null => {
-  if (typeof value !== 'number' || !Number.isInteger(value)) return null;
-  if (value < 0 || value > SCORE_COUNT_LIMIT) return null;
-  return value;
-};
-
-const calculateAccuracy = (counts: {
-  perfect: number;
-  great: number;
-  good: number;
-  miss: number;
-}) => {
-  const total = counts.perfect + counts.great + counts.good + counts.miss;
-  if (total <= 0) return null;
-  return ((counts.perfect * 100 + counts.great * 80 + counts.good * 50) / (total * 100)) * 100;
-};
-
 export async function POST(req: NextRequest) {
   try {
     const session = getSessionFromRequest(req);
@@ -163,87 +146,47 @@ export async function POST(req: NextRequest) {
     if (!body || typeof body !== 'object') {
       return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
     }
-    const {
-      chartId,
-      perfect,
-      great,
-      good,
-      miss,
-      maxCombo,
-      playSessionToken,
-    } = body as {
-      chartId?: string;
-      perfect?: unknown;
-      great?: unknown;
-      good?: unknown;
-      miss?: unknown;
-      maxCombo?: unknown;
-      playSessionToken?: unknown;
-    };
+
+    const { chartId, playSessionToken } = body as { chartId?: string; playSessionToken?: string };
     if (!chartId || typeof chartId !== 'string') {
       return NextResponse.json({ error: 'invalid_chart_id' }, { status: 400 });
     }
-
-    if (typeof playSessionToken !== 'string' || !playSessionToken) {
-      return NextResponse.json({ error: 'invalid_play_session' }, { status: 400 });
-    }
-    const playSession = verifyPlaySession(playSessionToken);
-    if (
-      !playSession ||
-      playSession.userId !== session.userId ||
-      playSession.chartId !== chartId
-    ) {
-      return NextResponse.json({ error: 'invalid_play_session' }, { status: 400 });
+    if (!playSessionToken || typeof playSessionToken !== 'string') {
+      return NextResponse.json({ error: 'missing_play_session' }, { status: 400 });
     }
 
-    const counts = {
-      perfect: parseScoreCount(perfect),
-      great: parseScoreCount(great),
-      good: parseScoreCount(good),
-      miss: parseScoreCount(miss),
-    };
-    const parsedMaxCombo = parseScoreCount(maxCombo);
-    if (
-      counts.perfect === null ||
-      counts.great === null ||
-      counts.good === null ||
-      counts.miss === null ||
-      parsedMaxCombo === null
-    ) {
-      return NextResponse.json({ error: 'invalid_score_breakdown' }, { status: 400 });
-    }
-
-    const total = counts.perfect + counts.great + counts.good + counts.miss;
-    if (total <= 0 || parsedMaxCombo > total) {
-      return NextResponse.json({ error: 'invalid_score_breakdown' }, { status: 400 });
-    }
-
-    const serverAccuracy = calculateAccuracy({
-      perfect: counts.perfect,
-      great: counts.great,
-      good: counts.good,
-      miss: counts.miss,
-    });
-    if (serverAccuracy === null) {
-      return NextResponse.json({ error: 'invalid_score_breakdown' }, { status: 400 });
-    }
-
-    // ensure chart exists
     const chart = await prisma.chart.findUnique({ where: { id: chartId } });
-    if (!chart) {
+    if (!chart || chart.status !== 'approved') {
       return NextResponse.json({ error: 'chart_not_found' }, { status: 404 });
+    }
+
+    const validatedScore = validateScoreSubmission(body, chart.dataJson);
+    if (!validatedScore.ok) {
+      return NextResponse.json({ error: validatedScore.error }, { status: 400 });
+    }
+
+    const verifiedSession = verifyPlaySessionToken(playSessionToken, {
+      chartId,
+      chartHash: validatedScore.chart.chartHash,
+      expectedJudgments: validatedScore.chart.expectedJudgments,
+    });
+    if (!verifiedSession.ok) {
+      return NextResponse.json({ error: verifiedSession.error }, { status: 401 });
+    }
+    if (!consumePlaySessionForScore(verifiedSession.claims.nonce)) {
+      return NextResponse.json({ error: 'play_session_reused' }, { status: 409 });
     }
 
     const score = await prisma.score.create({
       data: {
         chartId,
         userId: session.userId,
-        accuracy: serverAccuracy,
-        perfect: counts.perfect,
-        great: counts.great,
-        good: counts.good,
-        miss: counts.miss,
-        maxCombo: parsedMaxCombo,
+        accuracy: validatedScore.accuracy,
+        perfect: validatedScore.counts.perfect,
+        great: validatedScore.counts.great,
+        good: validatedScore.counts.good,
+        miss: validatedScore.counts.miss,
+        maxCombo: validatedScore.counts.maxCombo,
       },
       include: { user: { include: { profile: true } }, chart: true },
     });
@@ -254,4 +197,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'failed to submit score' }, { status: 500 });
   }
 }
-

@@ -618,14 +618,14 @@ export const Game: React.FC = () => {
 
   useEffect(() => {
     if (!gameState.gameStarted || gameState.gameEnded || isFromEditor) return;
-    if (!activePlayableChartId || hasRecordedPlayRef.current) return;
+    if (!activePlayableChartId || !playSessionToken || hasRecordedPlayRef.current) return;
 
     hasRecordedPlayRef.current = true;
-    void chartAPI.incrementPlayCount(activePlayableChartId).catch((error: unknown) => {
+    void chartAPI.incrementPlayCount(activePlayableChartId, playSessionToken).catch((error: unknown) => {
       hasRecordedPlayRef.current = false;
       console.error('Failed to increment play count:', error);
     });
-  }, [gameState.gameStarted, gameState.gameEnded, isFromEditor, activePlayableChartId]);
+  }, [gameState.gameStarted, gameState.gameEnded, isFromEditor, activePlayableChartId, playSessionToken]);
 
   useEffect(() => {
     if (!gameState.gameStarted || gameState.gameEnded || isFromEditor) return;
