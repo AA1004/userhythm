@@ -5,6 +5,8 @@ import { Chart } from '@prisma/client';
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 const MAX_DIFFICULTY_LENGTH = 50;
 
+export const dynamic = 'force-dynamic';
+
 const extractAdminDifficulty = (dataJson: string): string | null => {
   try {
     const parsed = JSON.parse(dataJson || '{}');

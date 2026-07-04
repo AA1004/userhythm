@@ -4,9 +4,10 @@
   "version": "1.4.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:client\"",
     "dev:client": "vite",
-    "dev:server": "cd server && npm run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:legacy-server": "npm --prefix server run dev",
     "build": "tsc --noEmit && vite build",
     "player:dev": "npm --prefix apps/player run dev",
     "player:build": "npm --prefix apps/player run build",
@@ -14,8 +15,8 @@
     "player:dist:win": "npm --prefix apps/player run dist:win",
     "player:dist:mac": "npm --prefix apps/player run dist:mac",
     "preview": "vite preview",
-    "server:start": "cd server && npm start",
-    "server:stop": "echo Server stopped",
+    "backend:start": "npm --prefix backend run start",
+    "legacy-server:start": "npm --prefix server run start",
     "deploy": "npm run build && npm run preview"
   },
   "dependencies": {

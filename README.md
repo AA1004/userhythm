@@ -149,7 +149,7 @@ userhythm/
 
 ### 요구 사항
 
-- Node.js 18 이상
+- Node.js 20.19.0 이상
 - npm
 - 백엔드까지 실행할 경우 PostgreSQL 데이터베이스
 
@@ -210,6 +210,8 @@ COOKIE_DOMAIN=".userhythm.kr"
 VITE_API_BASE="https://api.userhythm.kr"
 VITE_ADMIN_TOKEN="your-admin-token"
 ```
+
+루트의 `npm run dev`는 Vite 프론트엔드와 `backend/`의 Next.js API를 함께 실행합니다. `server/`는 로컬 진단용 legacy 서버이며, 필요한 경우에만 `npm run dev:legacy-server`로 별도 실행합니다.
 
 ## Electron Player
 

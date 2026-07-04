@@ -1,6 +1,8 @@
-# UserRhythm 서버
+# UseRhythm legacy local server
 
-YouTube 영상 다운로드 및 BPM 분석을 위한 백엔드 서버입니다.
+이 디렉터리는 운영 백엔드가 아닙니다. 현재 운영 API는 루트 README의 `backend/` Next.js + Prisma 서버이며, 이 서버는 로컬 진단용 legacy 도구로만 남겨둡니다.
+
+YouTube 관련 기능은 본인에게 사용 권한이 있는 콘텐츠를 로컬에서 진단하는 용도로만 사용하세요. 일반 개발 흐름에서는 루트의 `npm run dev`가 이 서버를 실행하지 않습니다.
 
 ## 설치 방법
 
@@ -49,18 +51,20 @@ npm run dev
 서버 상태 확인
 
 ### POST /api/youtube/download
-YouTube 영상 오디오 다운로드
+로컬 진단용 YouTube 미디어 처리
 
 **요청:**
 ```json
 {
-  "videoId": "VIDEO_ID"
+  "videoId": "dQw4w9WgXcQ"
 }
 ```
 
 **응답:**
 - 성공: MP4 비디오 파일 스트림
 - 실패: JSON 에러 메시지
+
+`videoId`는 11자리 YouTube ID 형식만 허용합니다. CORS는 로컬 Vite 개발 주소로 제한됩니다.
 
 ## Spotify API 설정 (선택사항)
 
@@ -119,8 +123,8 @@ set SPOTIFY_CLIENT_SECRET=your_client_secret
 
 ## 주의사항
 
-- YouTube 서비스 약관을 준수하세요
+- YouTube 서비스 약관과 저작권을 준수하세요
 - 다운로드된 파일은 분석 후 자동으로 삭제됩니다
-- 서버는 개발/테스트 목적으로만 사용하세요
+- 서버는 로컬 개발/테스트 목적으로만 사용하세요
 - Spotify API는 무료 등급에서 분당 300 요청 제한이 있습니다
 

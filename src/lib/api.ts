@@ -57,6 +57,20 @@ export interface ApiScore {
   } | null;
 }
 
+export interface ScoreSubmissionCounts {
+  perfect: number;
+  great: number;
+  good: number;
+  miss: number;
+  maxCombo: number;
+}
+
+export interface PlaySessionResponse {
+  playSessionToken: string;
+  expectedJudgments: number;
+  chartHash: string;
+}
+
 export interface ApiUserAggregate {
   user_id: string;
   avg_accuracy: number | null;
@@ -141,12 +155,23 @@ export const api = {
     const res = await fetch(`${API_BASE}/api/charts/${id}`, { credentials: 'include' });
     return toJson(res) as Promise<{ chart: ApiChart }>;
   },
-  async incrementChartPlayCount(id: string) {
+  async createPlaySession(chartId: string) {
+    const res = await fetch(`${API_BASE}/api/play-session`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chartId }),
+    });
+    return toJson(res) as Promise<PlaySessionResponse>;
+  },
+  async incrementChartPlayCount(id: string, playSessionToken: string) {
     const res = await fetch(`${API_BASE}/api/charts/${id}`, {
       method: 'POST',
       credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playSessionToken }),
     });
-    return toJson(res) as Promise<{ chart: ApiChart }>;
+    return toJson(res) as Promise<{ chart: ApiChart; counted?: boolean }>;
   },
   async updateChart(id: string, payload: {
     title: string;
@@ -206,12 +231,17 @@ export const api = {
     return toJson(res) as Promise<{ perChart: ApiScore[]; global: ApiScore[]; perUser: ApiUserAggregate[] }>;
   },
 
-  async submitScore(chartId: string, accuracy: number) {
+  async submitScore(
+    chartId: string,
+    accuracy: number,
+    score: ScoreSubmissionCounts,
+    playSessionToken: string
+  ) {
     const res = await fetch(`${API_BASE}/api/leaderboard`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chartId, accuracy }),
+      body: JSON.stringify({ chartId, accuracy, score, playSessionToken }),
     });
     return toJson(res) as Promise<{ score: ApiScore }>;
   },

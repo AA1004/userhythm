@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../../lib/prisma';
 import { signSession } from '../../../../../lib/auth';
+import { verifyOAuthState } from '../../../../../lib/oauthState';
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
@@ -15,7 +16,8 @@ const isProd = process.env.NODE_ENV === 'production';
 const fail = (reason: string, detail?: any, status = 500) => {
   // detail은 로그에만 남기고, 응답에는 요약만 전달
   console.error('[google-callback]', reason, detail);
-  const response: any = { error: reason };
+  const publicReason = process.env.NODE_ENV === 'development' || status < 500 ? reason : 'oauth_failed';
+  const response: any = { error: publicReason };
   if (process.env.NODE_ENV === 'development' && detail) {
     if (typeof detail === 'object' && detail.message) {
       response.message = detail.message;
@@ -29,13 +31,17 @@ const fail = (reason: string, detail?: any, status = 500) => {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get('code');
-  const state = searchParams.get('state'); // redirect target
+  const state = searchParams.get('state');
 
   if (!CLIENT_ID || !CLIENT_SECRET) {
     return fail('Google OAuth not configured', null, 500);
   }
   if (!code) {
     return fail('Missing code', null, 400);
+  }
+  const verifiedState = verifyOAuthState(state);
+  if (!verifiedState) {
+    return fail('invalid_oauth_state', null, 400);
   }
 
   try {
@@ -119,7 +125,7 @@ export async function GET(req: NextRequest) {
     const effectiveRole = user.profile?.role || user.role;
     const token = signSession({ userId: user.id, role: effectiveRole });
     console.log('Session created:', { userId: user.id, userRole: user.role, profileRole: user.profile?.role, effectiveRole });
-    const redirectTarget = state || '/';
+    const redirectTarget = verifiedState.redirect;
     const response = NextResponse.redirect(redirectTarget, { status: 302 });
     
     // redirect 응답에 쿠키를 직접 설정

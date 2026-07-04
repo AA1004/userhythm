@@ -1,24 +1,77 @@
-// YouTube 다운로드 서버
+// Legacy local diagnostic server. This is not part of the production backend.
 import express from 'express';
 import cors from 'cors';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 
-const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3001;
+const YOUTUBE_VIDEO_ID_RE = /^[A-Za-z0-9_-]{11}$/;
+const ALLOWED_ORIGINS = new Set([
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+]);
 
-app.use(cors());
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || ALLOWED_ORIGINS.has(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error('CORS origin not allowed'));
+  },
+}));
 app.use(express.json());
 
 // yt-dlp 경로 캐시 (서버 시작 시 한 번만 찾음)
 let cachedYtdlpPath = null;
+
+function runProcess(command, args, options = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      shell: false,
+      windowsHide: true,
+      ...options,
+    });
+    let stdout = '';
+    let stderr = '';
+    let timeoutId = null;
+
+    if (options.timeout) {
+      timeoutId = setTimeout(() => {
+        child.kill('SIGTERM');
+        reject(new Error(`Process timed out: ${command}`));
+      }, options.timeout);
+    }
+
+    child.stdout?.on('data', (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr?.on('data', (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on('error', (error) => {
+      if (timeoutId) clearTimeout(timeoutId);
+      reject(error);
+    });
+    child.on('close', (code) => {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (code === 0) {
+        resolve({ stdout, stderr });
+      } else {
+        const error = new Error(`${command} exited with code ${code}`);
+        error.stdout = stdout;
+        error.stderr = stderr;
+        reject(error);
+      }
+    });
+  });
+}
 
 // yt-dlp 경로 찾기 함수
 async function findYtDlpPath() {
@@ -31,12 +84,12 @@ async function findYtDlpPath() {
   
   // 1. PATH에서 찾기 (where/which 명령어 사용)
   try {
-    const findCommand = process.platform === 'win32' ? 'where yt-dlp' : 'which yt-dlp';
-    const { stdout } = await execAsync(findCommand, { timeout: 3000 });
+    const findCommand = process.platform === 'win32' ? 'where' : 'which';
+    const { stdout } = await runProcess(findCommand, ['yt-dlp'], { timeout: 3000 });
     const foundPath = stdout.trim().split('\n')[0].trim();
     if (foundPath) {
       // 버전 확인으로 검증
-      await execAsync(`"${foundPath}" --version`, { timeout: 5000 });
+      await runProcess(foundPath, ['--version'], { timeout: 5000 });
       cachedYtdlpPath = foundPath;
       console.log(`✅ yt-dlp 경로 발견 (PATH): ${foundPath}`);
       return foundPath;
@@ -47,7 +100,7 @@ async function findYtDlpPath() {
   
   // 2. 직접 실행 시도 (PATH에 있으면 작동)
   try {
-    await execAsync('yt-dlp --version', { timeout: 5000 });
+    await runProcess('yt-dlp', ['--version'], { timeout: 5000 });
     cachedYtdlpPath = 'yt-dlp';
     console.log('✅ yt-dlp가 PATH에서 직접 실행 가능');
     return 'yt-dlp';
@@ -69,7 +122,7 @@ async function findYtDlpPath() {
     
     for (const ytdlpPath of possiblePaths) {
       try {
-        await execAsync(`"${ytdlpPath}" --version`, { timeout: 5000 });
+        await runProcess(ytdlpPath, ['--version'], { timeout: 5000 });
         cachedYtdlpPath = ytdlpPath;
         console.log(`✅ yt-dlp 경로 발견: ${ytdlpPath}`);
         return ytdlpPath;
@@ -90,6 +143,9 @@ app.post('/api/youtube/download', async (req, res) => {
     
     if (!videoId) {
       return res.status(400).json({ error: 'Video ID가 필요합니다.' });
+    }
+    if (typeof videoId !== 'string' || !YOUTUBE_VIDEO_ID_RE.test(videoId)) {
+      return res.status(400).json({ error: '유효한 YouTube videoId 형식이 아닙니다.' });
     }
 
     // yt-dlp는 %(ext)s를 사용하면 확장자를 자동으로 결정하므로 정확한 확장자 사용
@@ -112,15 +168,19 @@ app.post('/api/youtube/download', async (req, res) => {
       });
     }
     
-    // yt-dlp 명령어: 출력 파일명에 %(ext)s를 사용하여 확장자를 자동 결정
-    // 하지만 최종 파일명은 mp4로 고정
-    const command = `"${ytdlpCommand}" -f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best" -o "${outputPath}" --no-playlist "https://www.youtube.com/watch?v=${videoId}"`;
+    const ytdlpArgs = [
+      '-f',
+      'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+      '-o',
+      outputPath,
+      '--no-playlist',
+      `https://www.youtube.com/watch?v=${videoId}`,
+    ];
     
     console.log(`다운로드 시작: ${videoId}`);
-    console.log(`사용할 명령어: ${command}`);
     let stdout, stderr;
     try {
-      const result = await execAsync(command, { timeout: 300000 }); // 5분 타임아웃
+      const result = await runProcess(ytdlpCommand, ytdlpArgs, { timeout: 300000 }); // 5분 타임아웃
       stdout = result.stdout;
       stderr = result.stderr;
       console.log(`yt-dlp 출력:\n${stdout}`);
@@ -134,7 +194,6 @@ app.post('/api/youtube/download', async (req, res) => {
       const errorStderr = error.stderr || '';
       
       console.error('오류 상세:', {
-        command: command,
         errorMessage,
         errorStdout,
         errorStderr,

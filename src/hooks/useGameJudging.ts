@@ -458,6 +458,9 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       }
 
       enqueueScoreJudge(judge);
+      if (isHoldNote && judge === 'miss') {
+        enqueueScoreJudge('miss');
+      }
 
       if (isHoldNote && judge !== 'miss') {
         holdStartJudgeRef.current.set(targetNote.id, judge);
@@ -593,8 +596,12 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         holdingNotesRef.current = nextHoldingNotes;
       }
 
+      const isHoldNote = note.type === 'hold' && note.duration > 0;
       const judge: JudgeType = shouldDowngradeMissToGood ? 'good' : 'miss';
       enqueueScoreJudge(judge);
+      if (isHoldNote && !shouldDowngradeMissToGood) {
+        enqueueScoreJudge('miss');
+      }
       addJudgeFeedback(judge, note.lane, 'slow');
       return judge;
     },

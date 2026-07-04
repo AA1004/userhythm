@@ -3,6 +3,7 @@ import { prisma } from '../../../lib/prisma';
 import { getSessionFromRequest } from '../../../lib/auth';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 // 단일 버전 ID (항상 같은 레코드를 사용)
 const VERSION_ID = 'main-version';
@@ -112,7 +113,6 @@ export async function POST(req: NextRequest) {
       sessionUserId: session?.userId,
       cookieNames: cookies.map(c => c.name),
       hasUrSession: !!urSessionCookie,
-      urSessionValue: urSessionCookie ? `${urSessionCookie.value.substring(0, 20)}...` : 'none',
       requestHeaders: {
         host: req.headers.get('host'),
         origin: req.headers.get('origin'),
@@ -124,12 +124,11 @@ export async function POST(req: NextRequest) {
     if (!session) {
       console.warn('Version update unauthorized: No session', {
         cookieNames: cookies.map(c => c.name),
-        cookieValues: cookies.map(c => ({ name: c.name, value: c.value.substring(0, 20) + '...' })),
-        urSessionCookie: urSessionCookie ? urSessionCookie.value.substring(0, 20) + '...' : 'missing',
+        hasUrSession: !!urSessionCookie,
         requestHeaders: {
           host: req.headers.get('host'),
           origin: req.headers.get('origin'),
-          cookie: req.headers.get('cookie'),
+          cookie: req.headers.get('cookie') ? 'present' : 'missing',
         },
       });
       return NextResponse.json({ 

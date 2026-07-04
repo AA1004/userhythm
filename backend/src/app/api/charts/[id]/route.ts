@@ -1,23 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { Chart } from '@prisma/client';
+import {
+  extractAdminDifficulty,
+  MAX_DATA_JSON_LENGTH,
+  MAX_DESCRIPTION_LENGTH,
+  MAX_DIFFICULTY_LENGTH,
+  MAX_TITLE_LENGTH,
+  validateChartDataJson,
+} from '../../../../lib/chartData';
+import { markPlaySessionCounted, verifyPlaySessionToken } from '../../../../lib/playSession';
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
-const MAX_DATA_JSON_LENGTH = 1_000_000;
-const MAX_TITLE_LENGTH = 200;
-const MAX_DESCRIPTION_LENGTH = 1000;
-const MAX_DIFFICULTY_LENGTH = 50;
-
-const extractAdminDifficulty = (dataJson: string): string | null => {
-  try {
-    const parsed = JSON.parse(dataJson || '{}');
-    return typeof parsed.adminDifficulty === 'string' && parsed.adminDifficulty.trim().length > 0
-      ? parsed.adminDifficulty.trim().slice(0, MAX_DIFFICULTY_LENGTH)
-      : null;
-  } catch {
-    return null;
-  }
-};
 
 const serializeChart = (chart: Chart, opts?: { authorRole?: string; authorNickname?: string; authorEmail?: string }) => ({
   id: chart.id,
@@ -142,6 +136,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const trimmedPreviewImage =
       typeof previewImage === 'string' && previewImage.trim().length > 0 ? previewImage.trim() : null;
 
+    const validatedChartData = validateChartDataJson(dataJson, {
+      allowAdminDifficulty: true,
+      routeBpm: bpmNumber,
+      routeYoutubeUrl: trimmedYoutubeUrl,
+    });
+    if (!validatedChartData.ok) {
+      return NextResponse.json({ error: validatedChartData.error }, { status: 400 });
+    }
+
     const updated = await prisma.chart.update({
       where: { id: params.id },
       data: {
@@ -151,7 +154,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         description: trimmedDescription,
         youtubeUrl: trimmedYoutubeUrl,
         previewImage: trimmedPreviewImage,
-        dataJson,
+        dataJson: validatedChartData.dataJson,
       },
       include: { user: { include: { profile: true } } },
     });
@@ -172,8 +175,51 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const body = await req.json().catch(() => null);
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
+    }
+
+    const playSessionToken = (body as { playSessionToken?: unknown }).playSessionToken;
+    if (typeof playSessionToken !== 'string' || playSessionToken.length === 0) {
+      return NextResponse.json({ error: 'missing_play_session' }, { status: 401 });
+    }
+
+    const existingChart = await prisma.chart.findUnique({
+      where: { id: params.id },
+      include: { user: { include: { profile: true } } },
+    });
+    if (!existingChart) {
+      return NextResponse.json({ error: 'not found' }, { status: 404 });
+    }
+
+    const validatedChartData = validateChartDataJson(existingChart.dataJson, { allowAdminDifficulty: true });
+    if (!validatedChartData.ok) {
+      return NextResponse.json({ error: 'invalid_chart_data' }, { status: 422 });
+    }
+
+    const verifiedSession = verifyPlaySessionToken(playSessionToken, {
+      chartId: existingChart.id,
+      chartHash: validatedChartData.chartHash,
+      expectedJudgments: validatedChartData.expectedJudgments,
+    });
+    if (!verifiedSession.ok) {
+      return NextResponse.json({ error: verifiedSession.error }, { status: 401 });
+    }
+
+    if (!markPlaySessionCounted(verifiedSession.claims.nonce)) {
+      return NextResponse.json({
+        chart: serializeChart(existingChart, {
+          authorRole: existingChart.user?.profile?.role || existingChart.user?.role || undefined,
+          authorNickname: existingChart.user?.profile?.nickname || (existingChart.user?.profile as any)?.display_name || undefined,
+          authorEmail: existingChart.user?.email || undefined,
+        }),
+        counted: false,
+      });
+    }
+
     const chart = await prisma.chart.update({
       where: { id: params.id },
       data: {
@@ -190,6 +236,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
         authorNickname: chart.user?.profile?.nickname || (chart.user?.profile as any)?.display_name || undefined,
         authorEmail: chart.user?.email || undefined,
       }),
+      counted: true,
     });
   } catch (error: any) {
     if (error?.code === 'P2025') {

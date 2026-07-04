@@ -30,13 +30,6 @@ export const setSessionCookie = (token: string) => {
     maxAge: SESSION_MAX_AGE_SEC,
     domain: cookieDomain,
   });
-  
-  console.log('Session cookie set:', {
-    domain: cookieDomain,
-    sameSite: isProd ? 'none' : 'lax',
-    secure: isProd,
-    isProd,
-  });
 };
 
 export const clearSessionCookie = () => {
@@ -57,10 +50,6 @@ export const clearSessionCookie = () => {
 export const getSessionFromRequest = (req: NextRequest): SessionPayload | null => {
   const cookie = req.cookies.get(SESSION_COOKIE)?.value;
   if (!cookie) {
-    console.log('getSessionFromRequest: No cookie found', {
-      cookieName: SESSION_COOKIE,
-      allCookies: req.cookies.getAll().map(c => c.name),
-    });
     return null;
   }
   try {
@@ -69,8 +58,6 @@ export const getSessionFromRequest = (req: NextRequest): SessionPayload | null =
   } catch (error: any) {
     console.warn('getSessionFromRequest: JWT verification failed', {
       error: error?.name || error?.message,
-      cookieLength: cookie.length,
-      cookiePrefix: cookie.substring(0, 20),
     });
     return null;
   }

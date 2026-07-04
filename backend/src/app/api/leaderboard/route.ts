@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getSessionFromRequest } from '../../../lib/auth';
+import { validateScoreSubmission } from '../../../lib/scoreValidation';
+import { consumePlaySessionForScore, verifyPlaySessionToken } from '../../../lib/playSession';
 
 const serializeScore = (score: any, userMap?: Map<string, any>, chartMap?: Map<string, any>) => ({
   id: score.id,
@@ -120,13 +122,12 @@ export async function POST(req: NextRequest) {
     if (!body || typeof body !== 'object') {
       return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
     }
-    const { chartId, accuracy } = body as { chartId?: string; accuracy?: number };
+    const { chartId, playSessionToken } = body as { chartId?: string; playSessionToken?: string };
     if (!chartId || typeof chartId !== 'string') {
       return NextResponse.json({ error: 'invalid_chart_id' }, { status: 400 });
     }
-    const accNum = Number(accuracy);
-    if (!Number.isFinite(accNum) || accNum < 0 || accNum > 100) {
-      return NextResponse.json({ error: 'invalid_accuracy' }, { status: 400 });
+    if (!playSessionToken || typeof playSessionToken !== 'string') {
+      return NextResponse.json({ error: 'missing_play_session' }, { status: 400 });
     }
 
     // ensure chart exists
@@ -134,12 +135,32 @@ export async function POST(req: NextRequest) {
     if (!chart) {
       return NextResponse.json({ error: 'chart_not_found' }, { status: 404 });
     }
+    if (chart.status !== 'approved') {
+      return NextResponse.json({ error: 'chart_not_found' }, { status: 404 });
+    }
+
+    const validatedScore = validateScoreSubmission(body, chart.dataJson);
+    if (!validatedScore.ok) {
+      return NextResponse.json({ error: validatedScore.error }, { status: 400 });
+    }
+
+    const verifiedSession = verifyPlaySessionToken(playSessionToken, {
+      chartId,
+      chartHash: validatedScore.chart.chartHash,
+      expectedJudgments: validatedScore.chart.expectedJudgments,
+    });
+    if (!verifiedSession.ok) {
+      return NextResponse.json({ error: verifiedSession.error }, { status: 401 });
+    }
+    if (!consumePlaySessionForScore(verifiedSession.claims.nonce)) {
+      return NextResponse.json({ error: 'play_session_reused' }, { status: 409 });
+    }
 
     const score = await prisma.score.create({
       data: {
         chartId,
         userId: session.userId,
-        accuracy: accNum,
+        accuracy: validatedScore.accuracy,
       },
       include: { user: { include: { profile: true } }, chart: true },
     });

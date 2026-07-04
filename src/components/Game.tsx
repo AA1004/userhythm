@@ -165,6 +165,7 @@ export const Game: React.FC = () => {
   const currentTimeRef = useRef<number>(0);
   const hasRecordedPlayRef = useRef(false);
   const hasSubmittedScoreRef = useRef(false);
+  const playSessionTokenRef = useRef<string | null>(null);
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
@@ -206,6 +207,7 @@ export const Game: React.FC = () => {
     if (!gameState.gameStarted) {
       hasRecordedPlayRef.current = false;
       hasSubmittedScoreRef.current = false;
+      playSessionTokenRef.current = null;
     }
   }, [gameState.gameStarted]);
 
@@ -512,6 +514,7 @@ export const Game: React.FC = () => {
     setBgaVisibilityIntervals([]);
     testBgaIntervalsRef.current = [];
     currentTimeRef.current = 0;
+    playSessionTokenRef.current = null;
     destroyYoutubePlayer();
     processedMissNotes.current.clear();
     hitNoteIdsRef.current.clear();
@@ -595,6 +598,7 @@ export const Game: React.FC = () => {
     setBgaVisibilityIntervals([]);
     testBgaIntervalsRef.current = [];
     currentTimeRef.current = 0;
+    playSessionTokenRef.current = null;
     destroyYoutubePlayer();
     processedMissNotes.current.clear();
     hitNoteIdsRef.current.clear();
@@ -644,10 +648,14 @@ export const Game: React.FC = () => {
     if (!gameState.gameStarted || gameState.gameEnded || isFromEditor) return;
     if (gameplayClockSnapshotMs < 0) return;
     if (!activePlayableChartId || hasRecordedPlayRef.current) return;
+    const playSessionToken = playSessionTokenRef.current;
+    if (!playSessionToken) return;
 
     hasRecordedPlayRef.current = true;
-    void chartAPI.incrementPlayCount(activePlayableChartId).catch((error: unknown) => {
-      hasRecordedPlayRef.current = false;
+    void chartAPI.incrementPlayCount(activePlayableChartId, playSessionToken).catch((error: any) => {
+      if (!error?.status || error.status >= 500) {
+        hasRecordedPlayRef.current = false;
+      }
       console.error('Failed to increment play count:', error);
     });
   }, [gameState.gameStarted, gameState.gameEnded, isFromEditor, activePlayableChartId, gameplayClockSnapshotMs]);
@@ -655,10 +663,23 @@ export const Game: React.FC = () => {
   useEffect(() => {
     if (!gameState.gameEnded || isFromEditor) return;
     if (!activePlayableChartId || hasSubmittedScoreRef.current) return;
+    const playSessionToken = playSessionTokenRef.current;
+    if (!playSessionToken) return;
 
     hasSubmittedScoreRef.current = true;
     void api
-      .submitScore(activePlayableChartId, accuracy)
+      .submitScore(
+        activePlayableChartId,
+        accuracy,
+        {
+          perfect: gameState.score.perfect,
+          great: gameState.score.great,
+          good: gameState.score.good,
+          miss: gameState.score.miss,
+          maxCombo: gameState.score.maxCombo,
+        },
+        playSessionToken
+      )
       .then(() => {
         window.dispatchEvent(
           new CustomEvent('userhythm:leaderboard-updated', {
@@ -667,14 +688,26 @@ export const Game: React.FC = () => {
         );
       })
       .catch((error: any) => {
-        hasSubmittedScoreRef.current = false;
+        if (!error?.status || error.status >= 500) {
+          hasSubmittedScoreRef.current = false;
+        }
         if (error?.status === 401) {
           console.warn('Leaderboard score submission skipped: login required.');
           return;
         }
         console.error('Failed to submit leaderboard score:', error);
       });
-  }, [gameState.gameEnded, isFromEditor, activePlayableChartId, accuracy]);
+  }, [
+    gameState.gameEnded,
+    isFromEditor,
+    activePlayableChartId,
+    accuracy,
+    gameState.score.perfect,
+    gameState.score.great,
+    gameState.score.good,
+    gameState.score.miss,
+    gameState.score.maxCombo,
+  ]);
 
   // 채보 저장 핸들러 (현재 미사용)
   // const handleChartSave = useCallback((notes: Note[]) => {
@@ -698,6 +731,7 @@ export const Game: React.FC = () => {
     setBgaVisibilityIntervals([]);
     testBgaIntervalsRef.current = [];
     currentTimeRef.current = 0;
+    playSessionTokenRef.current = null;
     destroyYoutubePlayer();
     processedMissNotes.current.clear();
     hitNoteIdsRef.current.clear();
@@ -713,7 +747,7 @@ export const Game: React.FC = () => {
   }, [destroyYoutubePlayer, setSubtitles, setBgaVisibilityIntervals]);
 
   // 채보 로더 훅
-  const { loadChart: handleChartSelect } = useChartLoader({
+  const { loadChart: loadSelectedChart } = useChartLoader({
     setGameState,
     onYoutubeDestroy: destroyYoutubePlayer,
     onYoutubeSetup: (videoId, settings) => {
@@ -740,6 +774,24 @@ export const Game: React.FC = () => {
     },
     onChartSelectClose: () => setViewMode({ type: 'menu' }),
   });
+
+  const handleChartSelect = useCallback(
+    async (chartData: any) => {
+      playSessionTokenRef.current = null;
+      if (chartData?.chartId) {
+        try {
+          const playSession = await api.createPlaySession(chartData.chartId);
+          playSessionTokenRef.current = playSession.playSessionToken;
+        } catch (error) {
+          console.error('Failed to create play session:', error);
+          alert('플레이 세션을 시작하지 못했습니다. 잠시 후 다시 시도해주세요.');
+          return;
+        }
+      }
+      loadSelectedChart(chartData);
+    },
+    [loadSelectedChart]
+  );
 
   // 관리자 테스트 핸들러
   const handleAdminTest = useCallback((chartData: any) => {

@@ -2,38 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getSessionFromRequest } from '../../../lib/auth';
 import { Chart } from '@prisma/client';
+import {
+  extractAdminDifficulty,
+  MAX_DATA_JSON_LENGTH,
+  MAX_DESCRIPTION_LENGTH,
+  MAX_DIFFICULTY_LENGTH,
+  MAX_TITLE_LENGTH,
+  validateChartDataJson,
+} from '../../../lib/chartData';
 
 const DEFAULT_LIMIT = 12;
 const MAX_LIMIT = 50;
-const MAX_DATA_JSON_LENGTH = 1_000_000; // ~1MB
-const MAX_TITLE_LENGTH = 200;
-const MAX_DESCRIPTION_LENGTH = 1000;
-const MAX_DIFFICULTY_LENGTH = 50;
 const WIP_DATA_MARKER = '"wip":{"enabled":true';
-
-const extractAdminDifficulty = (dataJson: string): string | null => {
-  try {
-    const parsed = JSON.parse(dataJson || '{}');
-    return typeof parsed.adminDifficulty === 'string' && parsed.adminDifficulty.trim().length > 0
-      ? parsed.adminDifficulty.trim().slice(0, MAX_DIFFICULTY_LENGTH)
-      : null;
-  } catch {
-    return null;
-  }
-};
-
-const sanitizeChartDataJsonForUserUpload = (raw: string): string => {
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object' && 'adminDifficulty' in parsed) {
-      delete (parsed as Record<string, unknown>).adminDifficulty;
-      return JSON.stringify(parsed);
-    }
-    return raw;
-  } catch {
-    return raw;
-  }
-};
 
 const isWipChartDataJson = (raw: string): boolean => {
   try {
@@ -186,8 +166,6 @@ export async function POST(req: NextRequest) {
     if (typeof dataJson !== 'string' || dataJson.trim().length === 0 || dataJson.length > MAX_DATA_JSON_LENGTH) {
       return NextResponse.json({ error: 'invalid_dataJson' }, { status: 400 });
     }
-    const sanitizedDataJson = sanitizeChartDataJsonForUserUpload(dataJson);
-    const isWipUpload = isWipChartDataJson(sanitizedDataJson);
 
     const trimmedDescription =
       typeof description === 'string' && description.trim().length > 0
@@ -209,6 +187,20 @@ export async function POST(req: NextRequest) {
     if (!dbUser) {
       return NextResponse.json({ error: 'user_not_found' }, { status: 401 });
     }
+
+    const effectiveRole = dbUser.profile?.role || dbUser.role;
+    const canSetAdminDifficulty = effectiveRole === 'admin' || effectiveRole === 'moderator';
+    const validatedChartData = validateChartDataJson(dataJson, {
+      allowAdminDifficulty: canSetAdminDifficulty,
+      routeBpm: bpmNumber,
+      routeYoutubeUrl: trimmedYoutubeUrl,
+    });
+    if (!validatedChartData.ok) {
+      return NextResponse.json({ error: validatedChartData.error }, { status: 400 });
+    }
+
+    const sanitizedDataJson = validatedChartData.dataJson;
+    const isWipUpload = isWipChartDataJson(sanitizedDataJson);
 
     const author =
       dbUser.profile?.nickname ||

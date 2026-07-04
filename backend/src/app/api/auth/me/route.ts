@@ -3,6 +3,7 @@ import { prisma } from '../../../../lib/prisma';
 import { getSessionFromRequest } from '../../../../lib/auth';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
@@ -29,10 +30,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ user: null }, { status: 200 });
     }
     
-    console.error('me error', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorStack = error instanceof Error ? error.stack : undefined;
-    console.error('me error details:', { errorMessage, errorStack });
+    console.error('me error', {
+      message: errorMessage,
+      stack: process.env.NODE_ENV === 'development' && error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json({ error: 'failed to fetch session', details: process.env.NODE_ENV === 'development' ? errorMessage : undefined }, { status: 500 });
   }
 }
