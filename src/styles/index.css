@@ -1604,6 +1604,10 @@ body {
   perspective: 900px;
 }
 
+.chart-select-layout {
+  --chart-select-left-rail: minmax(300px, 390px);
+}
+
 .chart-select-card {
   position: relative;
   overflow: hidden;
@@ -1630,7 +1634,7 @@ body {
 }
 
 .chart-select-card:hover {
-  transform: translateY(-1px) scale(1.004);
+  transform: translateX(2px);
 }
 
 .chart-select-card:hover::before,
@@ -1640,7 +1644,7 @@ body {
 }
 
 .chart-select-card--selected {
-  transform: translateY(-1px) scale(1.004);
+  transform: translateX(2px);
   outline: 1px solid rgba(119, 255, 214, 0.34);
   outline-offset: 3px;
 }
@@ -1758,6 +1762,10 @@ body {
   background:
     linear-gradient(160deg, rgba(10, 16, 28, 0.94), rgba(9, 12, 22, 0.88)),
     rgba(6, 9, 16, 0.82);
+}
+
+.chart-select-detail-panel {
+  margin-bottom: clamp(8px, 2vh, 20px);
 }
 
 .chart-select-detail-panel::before {
@@ -1891,10 +1899,18 @@ body {
 }
 
 @media (max-width: 960px) {
+  .chart-select-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .chart-select-list-panel {
+    padding: 16px !important;
+  }
+
   .chart-select-detail-panel {
-    left: 14px !important;
-    right: 14px !important;
-    bottom: 12px !important;
+    width: 100% !important;
+    max-height: none !important;
+    margin-bottom: 0 !important;
     border-radius: 22px !important;
   }
 

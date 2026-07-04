@@ -1022,14 +1022,15 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
           }}
         >
           <div
+            className="chart-select-layout"
             style={{
               width: '100%',
-              maxWidth: '1560px',
+              maxWidth: '1680px',
               margin: '0 auto',
               height: '100%',
               display: 'grid',
-              gridTemplateColumns: hasSelectedChart ? 'minmax(0, 1fr) minmax(340px, 400px)' : 'minmax(0, 1fr)',
-              gap: hasSelectedChart ? '20px' : '0',
+              gridTemplateColumns: 'minmax(300px, 390px) minmax(0, 1fr)',
+              gap: '22px',
               minHeight: 0,
               alignItems: 'stretch',
             }}
@@ -1039,7 +1040,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               className="chart-select-filter"
               style={{
                 display: 'flex',
-                flexWrap: 'nowrap',
+                flexWrap: 'wrap',
                 gap: '10px',
                 alignItems: 'center',
                 marginBottom: '18px',
@@ -1081,7 +1082,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   placeholder="제목 또는 작성자"
                   autoFocus
                   style={{
-                    width: 'min(360px, 42vw)',
+                    width: 'min(100%, 270px)',
+                    flex: '1 1 190px',
                     padding: '12px 14px',
                     borderRadius: CHART_EDITOR_THEME.radiusSm,
                     border: `1px solid ${CHART_EDITOR_THEME.inputBorder}`,
@@ -1092,7 +1094,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   }}
                 />
               )}
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flex: '0 0 auto' }}>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flex: '1 1 210px' }}>
                 <div>
                   <select
                     className="chart-select-sort"
@@ -1141,7 +1143,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   {sortOrder === 'asc' ? '↑' : '↓'}
                 </button>
               </div>
-              <div style={{ marginLeft: 'auto', color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px' }}>
+              <div style={{ marginLeft: 'auto', color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', flex: '1 0 100%', textAlign: 'right' }}>
                 총 {(totalCount || charts.length)}개의 채보
               </div>
             </div>
@@ -1204,11 +1206,9 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
             <div
               className="chart-select-list-grid"
               style={{
-                display: 'grid',
-                gridTemplateColumns: isCardGridCompact
-                  ? 'repeat(auto-fill, minmax(220px, 1fr))'
-                  : 'repeat(auto-fill, minmax(260px, 1fr))',
-                gap: isCardGridCompact ? '12px' : '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
                 overflowY: 'visible',
               }}
             >
@@ -1237,9 +1237,12 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     boxShadow: selectedChart?.id === chart.id
                       ? CHART_EDITOR_THEME.shadowStrong
                       : '0 16px 34px rgba(0,0,0,0.24)',
-                    minHeight: 'auto',
+                    minHeight: '104px',
                     overflow: 'hidden',
                     position: 'relative',
+                    display: 'grid',
+                    gridTemplateColumns: '124px minmax(0, 1fr)',
+                    alignItems: 'stretch',
                   }}
                   onMouseEnter={(e) => {
                     if (selectedChart?.id !== chart.id) {
@@ -1266,9 +1269,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       className="chart-select-card__thumb"
                       style={{
                         width: '100%',
-                        aspectRatio: String(
-                          thumbnailAspectRatios[chart.id] ?? DEFAULT_THUMBNAIL_ASPECT_RATIO
-                        ),
+                        height: '100%',
+                        minHeight: '104px',
                         marginBottom: 0,
                         borderRadius: 0,
                         overflow: 'hidden',
@@ -1303,7 +1305,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       className="chart-select-card__thumb chart-select-card__thumb--empty"
                       style={{
                         width: '100%',
-                          height: isCardGridCompact ? '132px' : '180px',
+                          height: '100%',
+                          minHeight: '104px',
                           marginBottom: 0,
                           borderRadius: 0,
                           background:
@@ -1322,27 +1325,27 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   <div
                     className="chart-select-card__overlay"
                     style={{
-                      position: 'absolute',
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      padding: '46px 14px 13px',
+                      position: 'relative',
+                      minWidth: 0,
+                      padding: '14px 14px 12px',
                       background: [
-                        'linear-gradient(180deg, transparent 0%, rgba(2,6,23,0.38) 34%, rgba(2,6,23,0.84) 78%, rgba(2,6,23,0.96) 100%)',
-                        'linear-gradient(90deg, rgba(0,0,0,0.52), transparent 58%)',
+                        'linear-gradient(135deg, rgba(2,6,23,0.74), rgba(2,6,23,0.38) 58%, rgba(34,211,238,0.08))',
+                        'linear-gradient(90deg, rgba(0,0,0,0.38), transparent 64%)',
                       ].join(', '),
-                      display: 'block',
+                      display: 'grid',
+                      alignContent: 'space-between',
+                      gap: '10px',
                       textShadow: '0 2px 10px rgba(0,0,0,0.85)',
                     }}
                   >
                     <div
                       style={{
                         color: CHART_EDITOR_THEME.textPrimary,
-                        fontSize: isCardGridCompact ? '13px' : '15px',
+                        fontSize: '14px',
                         fontWeight: 900,
                         lineHeight: 1.18,
                         minWidth: 0,
-                        maxWidth: 'calc(100% - 58px)',
+                        maxWidth: '100%',
                         padding: '7px 9px 8px',
                         borderRadius: '12px',
                         background: 'linear-gradient(135deg, rgba(2,6,23,0.68), rgba(15,23,42,0.34))',
@@ -1359,9 +1362,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     </div>
                     <span
                         style={{
-                          position: 'absolute',
-                          right: 14,
-                          bottom: 13,
+                          justifySelf: 'start',
                           flex: '0 0 auto',
                           minWidth: '46px',
                           padding: '7px 10px',
@@ -1427,7 +1428,11 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               key={selectedChart.id}
               style={{
                 position: 'relative',
-                height: '100%',
+                alignSelf: 'end',
+                width: 'min(100%, 760px)',
+                justifySelf: 'end',
+                height: 'auto',
+                maxHeight: 'calc(100% - 28px)',
                 minHeight: 0,
                 backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
                 border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
@@ -1464,7 +1469,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   zIndex: 1,
                   padding: '18px 18px 22px',
                   overflowY: 'auto',
-                  height: '100%',
+                  maxHeight: 'calc(100dvh - 190px)',
                 }}
               >
                 <div
