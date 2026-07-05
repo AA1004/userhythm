@@ -23,8 +23,6 @@ interface ChartSelectProps {
   onContribute?: (chart: ApiChart) => void;
 }
 
-const DEFAULT_THUMBNAIL_ASPECT_RATIO = 16 / 9;
-
 const hexToRgba = (hex: string, alpha: number) => {
   const normalized = hex.replace('#', '');
   const value = normalized.length === 3
@@ -101,7 +99,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
   const [hasMore, setHasMore] = useState<boolean>(true);
   const chartsPerPage = 12;
-  const [thumbnailAspectRatios, setThumbnailAspectRatios] = useState<Record<string, number>>({});
 
   // leaderboards
   const [perChartScores, setPerChartScores] = useState<ApiScore[]>([]);
@@ -206,22 +203,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
       };
     });
   }, []);
-
-  const handleThumbnailLoad = useCallback(
-    (chartId: string, event: React.SyntheticEvent<HTMLImageElement>) => {
-      const image = event.currentTarget;
-      if (image.naturalWidth <= 0 || image.naturalHeight <= 0) return;
-
-      const nextRatio = image.naturalWidth / image.naturalHeight;
-      if (!Number.isFinite(nextRatio) || nextRatio <= 0) return;
-
-      setThumbnailAspectRatios((prev) => {
-        if (Math.abs((prev[chartId] ?? 0) - nextRatio) < 0.01) return prev;
-        return { ...prev, [chartId]: nextRatio };
-      });
-    },
-    []
-  );
 
   const fetchChartsPage = useCallback(
     async (page: number, showLoading: boolean = true) => {
@@ -1286,7 +1267,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                           backgroundColor: 'rgba(2,6,23,0.9)',
                         }}
                         loading="lazy"
-                        onLoad={(e) => handleThumbnailLoad(chart.id, e)}
                         onError={(e) => {
                           const fallbackSrc = (chart as any)._previewFallbackImage;
                           if (fallbackSrc && e.currentTarget.src !== fallbackSrc) {
@@ -1448,45 +1428,26 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               style={{
                 position: 'relative',
                 alignSelf: 'end',
-                width: 'min(100%, 760px)',
+                width: 'min(100%, 720px)',
                 justifySelf: 'end',
                 height: 'auto',
                 maxHeight: 'calc(100% - 28px)',
                 minHeight: 0,
-                backgroundColor: 'rgba(8, 12, 24, 0.58)',
-                border: '1px solid rgba(238, 247, 242, 0.14)',
-                borderRadius: '28px',
-                overflow: 'hidden',
-                boxShadow: '0 24px 72px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+                backgroundColor: 'transparent',
+                border: 'none',
+                borderRadius: 0,
+                overflow: 'visible',
+                boxShadow: 'none',
                 zIndex: 2,
-                backdropFilter: 'blur(10px) saturate(1.08)',
+                backdropFilter: 'none',
               }}
             >
-              {selectedChart.preview_image && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    backgroundImage: `url(${selectedChart.preview_image})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    filter: 'blur(24px)',
-                    transform: 'scale(1.08)',
-                    opacity: 0.08,
-                    zIndex: 0,
-                    pointerEvents: 'none',
-                  }}
-                />
-              )}
               <div
                 className="chart-select-detail-panel__content"
                 style={{
                   position: 'relative',
                   zIndex: 1,
-                  padding: '18px 18px 22px',
+                  padding: '12px 12px 16px',
                   overflowY: 'auto',
                   maxHeight: 'calc(100dvh - 190px)',
                 }}
@@ -1494,29 +1455,12 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 <div
                   style={{
                     display: 'flex',
-                    justifyContent: 'space-between',
+                    justifyContent: 'flex-end',
                     alignItems: 'center',
                     gap: '10px',
-                    marginBottom: '14px',
+                    marginBottom: '10px',
                   }}
                 >
-                  <div
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '6px 10px',
-                      borderRadius: '999px',
-                      background: 'rgba(8, 12, 24, 0.42)',
-                      border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                      color: CHART_EDITOR_THEME.accentStrong,
-                      fontSize: '10px',
-                      fontWeight: 800,
-                      letterSpacing: '0.14em',
-                    }}
-                  >
-                    LIVE PREVIEW
-                  </div>
                   <button
                     type="button"
                     onClick={() => setSelectedChart(null)}
@@ -1524,7 +1468,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       padding: '8px 12px',
                       borderRadius: '12px',
                       border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                      background: CHART_EDITOR_THEME.buttonGhostBg,
+                      background: 'rgba(8, 12, 24, 0.62)',
                       color: CHART_EDITOR_THEME.textSecondary,
                       cursor: 'pointer',
                       fontSize: '12px',
@@ -1540,11 +1484,11 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     className="chart-select-detail-panel__preview"
                     style={{
                       width: '100%',
-                      marginBottom: '16px',
-                      borderRadius: '18px',
+                      marginBottom: '12px',
+                      borderRadius: '16px',
                       overflow: 'hidden',
-                      backgroundColor: 'rgba(2, 6, 23, 0.54)',
-                      boxShadow: '0 0 0 1px rgba(238, 247, 242, 0.12)',
+                      backgroundColor: 'rgba(2, 6, 23, 0.4)',
+                      boxShadow: '0 12px 36px rgba(0, 0, 0, 0.26), 0 0 0 1px rgba(238, 247, 242, 0.12)',
                     }}
                   >
                     <img
@@ -1552,12 +1496,11 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       alt={selectedChart.title}
                       style={{
                         width: '100%',
-                        aspectRatio: String(
-                          thumbnailAspectRatios[selectedChart.id] ?? DEFAULT_THUMBNAIL_ASPECT_RATIO
-                        ),
-                        objectFit: 'cover',
+                        aspectRatio: '16 / 9',
+                        objectFit: 'contain',
                         display: 'block',
-                        maxHeight: '220px',
+                        maxHeight: '180px',
+                        background: 'rgba(2, 6, 23, 0.42)',
                       }}
                       loading="lazy"
                       onError={(e) => {
@@ -1567,22 +1510,32 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   </div>
                 )}
 
-                <h2 className="chart-select-detail-panel__title" style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '28px', marginBottom: '14px', marginTop: 0 }}>
+                <h2
+                  className="chart-select-detail-panel__title"
+                  style={{
+                    color: CHART_EDITOR_THEME.textPrimary,
+                    fontSize: 'clamp(24px, 2.2vw, 32px)',
+                    marginBottom: '10px',
+                    marginTop: 0,
+                    lineHeight: 1.12,
+                    textShadow: '0 4px 18px rgba(0, 0, 0, 0.9)',
+                  }}
+                >
                   {selectedChart.title}
                 </h2>
 
                 <div
                   className="chart-select-detail-panel__sticky-action"
                   style={{
-                    marginBottom: '12px',
+                    marginBottom: '10px',
                   }}
                 >
                   <button
                     className="chart-select-play-button"
                     onClick={() => handleSelectChart(selectedChart)}
                     style={{
-                      width: '100%',
-                      padding: '15px',
+                      width: 'min(100%, 330px)',
+                      padding: '13px 20px',
                       fontSize: '16px',
                       fontWeight: 'bold',
                       background: CHART_EDITOR_THEME.buttonPrimaryBg,
@@ -1620,10 +1573,11 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
 
                 <div
                   style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'stretch',
                     gap: '8px',
-                    marginBottom: '12px',
+                    marginBottom: '10px',
                   }}
                 >
                   {[
@@ -1634,28 +1588,50 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     <div
                       key={label}
                       style={{
-                        padding: '8px 10px',
-                        borderRadius: CHART_EDITOR_THEME.radiusSm,
+                        minWidth: 'fit-content',
+                        padding: '7px 10px',
+                        borderRadius: '12px',
                         border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                        background: 'rgba(8, 12, 24, 0.52)',
+                        background: 'rgba(8, 12, 24, 0.62)',
                       }}
                     >
                       <div style={{ color: CHART_EDITOR_THEME.textMuted, fontSize: '10px', fontWeight: 800 }}>{label}</div>
                       <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px', fontWeight: 800 }}>{value}</div>
                     </div>
                   ))}
+                  {selectedChart.description && (
+                    <div
+                      style={{
+                        flex: '1 1 260px',
+                        minWidth: 0,
+                        padding: '8px 11px',
+                        borderRadius: '12px',
+                        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                        background: 'rgba(8, 12, 24, 0.54)',
+                        color: CHART_EDITOR_THEME.textSecondary,
+                        fontSize: '12px',
+                        lineHeight: 1.5,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {selectedChart.description}
+                    </div>
+                  )}
                 </div>
 
                 <button
                   type="button"
                   onClick={() => setIsDetailExpanded((prev) => !prev)}
                   style={{
-                    width: '100%',
+                    width: 'fit-content',
                     marginBottom: isDetailExpanded ? '14px' : 0,
-                    padding: '10px 12px',
+                    padding: '9px 14px',
                     borderRadius: CHART_EDITOR_THEME.radiusSm,
                     border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                    background: CHART_EDITOR_THEME.buttonGhostBg,
+                    background: 'rgba(8, 12, 24, 0.62)',
                     color: CHART_EDITOR_THEME.textPrimary,
                     cursor: 'pointer',
                     fontWeight: 800,

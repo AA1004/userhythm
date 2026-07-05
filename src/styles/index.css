@@ -1714,9 +1714,7 @@ body {
   scrollbar-width: thin;
   scrollbar-color: rgba(119, 255, 214, 0.35) rgba(255, 255, 255, 0.04);
   animation: chartSelectDetailIn 180ms ease-out both;
-  background:
-    linear-gradient(160deg, rgba(10, 16, 28, 0.64), rgba(9, 12, 22, 0.52)),
-    rgba(6, 9, 16, 0.48);
+  background: transparent;
 }
 
 .chart-select-detail-panel {
@@ -1724,16 +1722,7 @@ body {
 }
 
 .chart-select-detail-panel::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto;
-  height: 190px;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 18% 12%, rgba(119, 255, 214, 0.11), transparent 38%),
-    radial-gradient(circle at 92% 10%, rgba(255, 78, 122, 0.09), transparent 34%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent);
+  content: none;
 }
 
 .chart-select-detail-panel__content {
@@ -1759,13 +1748,12 @@ body {
 }
 
 .chart-select-detail-panel__sticky-action {
-  position: sticky;
-  top: 0;
+  position: relative;
+  top: auto;
   z-index: 5;
-  padding: 10px 0 12px;
-  background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.72), rgba(15, 23, 42, 0.48) 72%, transparent);
-  backdrop-filter: blur(5px);
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
 }
 
 .chart-select-detail-panel__toggle:hover,
@@ -1789,9 +1777,7 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background:
-    linear-gradient(180deg, transparent 48%, rgba(0, 0, 0, 0.28)),
-    linear-gradient(90deg, rgba(119, 255, 214, 0.12), transparent 28%, transparent 72%, rgba(255, 78, 122, 0.12));
+  background: linear-gradient(180deg, transparent 62%, rgba(0, 0, 0, 0.18));
   box-shadow: inset 0 0 0 1px rgba(238, 247, 242, 0.08);
 }
 
