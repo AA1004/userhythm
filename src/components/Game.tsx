@@ -10,7 +10,6 @@ import { generateNotes } from '../utils/noteGenerator';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { VideoRhythmLayout } from './VideoRhythmLayout';
 import { LyricOverlay } from './LyricOverlay';
-import { MainMenuSidebar } from './MainMenuSidebar';
 import {
   DEFAULT_GAME_DURATION,
   START_DELAY_MS,
@@ -919,13 +918,13 @@ export const Game: React.FC = () => {
         className={`main-to-chart-transition${isChartSelectTransitioning ? ' main-to-chart-transition--active' : ''}`}
         aria-hidden={isChartSelectTransitioning ? true : undefined}
       >
-        {/* 사이드바는 VideoRhythmLayout 밖에 배치 */}
+        {/* 공지사항/버전 리포트 사이드바는 현재 레이아웃 버그가 있어 임시 비활성화한다.
         {!gameState.gameStarted && (
           <>
             <MainMenuSidebar type="version" position="left" />
             <MainMenuSidebar type="notice" position="right" />
           </>
-        )}
+        )} */}
       
       {/* Show FPS HUD only during gameplay */}
       {gameState.gameStarted && !gameState.gameEnded && <FpsHud enabled={true} />}
