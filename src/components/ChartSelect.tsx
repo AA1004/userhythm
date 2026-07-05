@@ -889,30 +889,18 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
       <div
         className="chart-select-header chart-select-shell__content"
         style={{
-          background:
-            'linear-gradient(90deg, rgba(8, 13, 27, 0.34), rgba(12, 18, 34, 0.18) 54%, rgba(8, 13, 27, 0.28))',
-          padding: '14px 20px 12px',
-          borderBottom: '1px solid rgba(238, 247, 242, 0.08)',
-          boxShadow: '0 10px 34px rgba(0, 0, 0, 0.18)',
+          background: 'transparent',
+          padding: '18px 20px 8px',
+          borderBottom: 'none',
+          boxShadow: 'none',
           position: 'relative',
-          overflow: 'hidden',
+          overflow: 'visible',
           zIndex: 2,
-          backdropFilter: 'blur(8px)',
+          backdropFilter: 'none',
         }}
       >
-        <div
-          aria-hidden
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background:
-              'linear-gradient(90deg, rgba(119,255,214,0.08), transparent 34%, rgba(255,78,122,0.06))',
-            opacity: 1,
-            pointerEvents: 'none', // 인터랙션 막지 않도록
-          }}
-        />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '14px', position: 'relative', zIndex: 1 }}>
-          <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', position: 'relative', zIndex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
             <h1
               className="chart-select-title"
               style={{
@@ -931,22 +919,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               </div>
             )}
           </div>
-          <span
-            className="chart-select-count"
-            style={{
-              justifySelf: 'center',
-              padding: '7px 13px',
-              borderRadius: 999,
-              background: 'rgba(8, 12, 24, 0.36)',
-              border: '1px solid rgba(238, 247, 242, 0.13)',
-              color: CHART_EDITOR_THEME.textSecondary,
-              fontSize: '12px',
-              boxShadow: 'none',
-            }}
-          >
-            {chartStatus === 'wip' ? 'WIP' : '승인됨'} {totalCount}곡
-          </span>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', marginLeft: '2px' }}>
             <button
               className="chart-select-toolbar-button"
               onClick={() => {
@@ -972,7 +945,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 if (status !== 'loading') e.currentTarget.style.background = CHART_EDITOR_THEME.buttonGhostBgHover;
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = CHART_EDITOR_THEME.buttonGhostBg;
+                e.currentTarget.style.background = 'rgba(8, 12, 24, 0.34)';
               }}
             >
               🔄 새로고침
@@ -995,7 +968,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 e.currentTarget.style.background = CHART_EDITOR_THEME.buttonGhostBgHover;
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = CHART_EDITOR_THEME.buttonGhostBg;
+                e.currentTarget.style.background = 'rgba(8, 12, 24, 0.34)';
               }}
             >
               닫기
@@ -1495,7 +1468,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   <div
                     className="chart-select-detail-panel__preview"
                     style={{
-                      width: '100%',
+                      width: 'min(100%, 520px)',
                       marginBottom: '12px',
                       borderRadius: '16px',
                       overflow: 'hidden',
@@ -1509,9 +1482,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       style={{
                         width: '100%',
                         aspectRatio: '16 / 9',
-                        objectFit: 'contain',
+                        objectFit: 'cover',
                         display: 'block',
-                        maxHeight: '180px',
                         background: 'rgba(2, 6, 23, 0.42)',
                       }}
                       loading="lazy"
