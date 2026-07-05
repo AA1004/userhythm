@@ -405,7 +405,7 @@ const drawCombo = (
   ctx.textBaseline = 'middle';
   ctx.globalAlpha = Math.max(0.3, Math.min(1, numberOpacity));
   ctx.fillStyle = 'rgba(245, 252, 255, 0.96)';
-  ctx.font = '300 144px Bahnschrift, Arial Narrow, sans-serif';
+  ctx.font = '300 144px KakaoSmallFont, Bahnschrift, Arial Narrow, sans-serif';
   ctx.shadowColor = 'rgba(0,0,0,0.36)';
   ctx.shadowBlur = mode === 'new-full' ? 18 : 0;
   ctx.fillText(String(combo), laneGroupCenterX, 118);
@@ -497,7 +497,10 @@ const drawSlotHud = (
     ctx.font = '700 10px Bahnschrift, Rajdhani, sans-serif';
     ctx.fillText(labels[i], cellLeft + cellWidth / 2, cellTop + 13);
     ctx.fillStyle = 'rgba(246, 251, 255, 0.96)';
-    ctx.font = '700 18px Bahnschrift, Consolas, monospace';
+    ctx.font =
+      i === 0
+        ? '700 18px KakaoSmallFont, Bahnschrift, Consolas, monospace'
+        : '700 18px Bahnschrift, Consolas, monospace';
     if (mode === 'new-full') {
       ctx.shadowColor = 'rgba(119, 255, 214, 0.16)';
       ctx.shadowBlur = 8;

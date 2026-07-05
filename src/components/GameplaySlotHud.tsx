@@ -115,7 +115,7 @@ const GameplaySlotHudComponent: React.FC<GameplaySlotHudProps> = ({
       <div className="slot-hud__cells">
         <div className="slot-hud__cell">
           <span className="slot-hud__label">COMBO</span>
-          <span ref={comboValueRef} className="slot-hud__value">{combo}</span>
+          <span ref={comboValueRef} className="slot-hud__value slot-hud__value--combo">{combo}</span>
         </div>
         <div className="slot-hud__cell">
           <span className="slot-hud__label">PROGRESS</span>
