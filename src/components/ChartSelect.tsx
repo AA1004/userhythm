@@ -882,13 +882,15 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
       <div
         className="chart-select-header chart-select-shell__content"
         style={{
-          backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
-          padding: '20px',
-          borderBottom: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-          boxShadow: CHART_EDITOR_THEME.shadowSoft,
+          background:
+            'linear-gradient(90deg, rgba(8, 13, 27, 0.34), rgba(12, 18, 34, 0.18) 54%, rgba(8, 13, 27, 0.28))',
+          padding: '14px 20px 12px',
+          borderBottom: '1px solid rgba(238, 247, 242, 0.08)',
+          boxShadow: '0 10px 34px rgba(0, 0, 0, 0.18)',
           position: 'relative',
           overflow: 'hidden',
           zIndex: 2,
+          backdropFilter: 'blur(8px)',
         }}
       >
         <div
@@ -896,20 +898,21 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'linear-gradient(135deg, rgba(56,189,248,0.2), rgba(129,140,248,0.12))',
-            opacity: 0.7,
+            background:
+              'linear-gradient(90deg, rgba(119,255,214,0.08), transparent 34%, rgba(255,78,122,0.06))',
+            opacity: 1,
             pointerEvents: 'none', // 인터랙션 막지 않도록
           }}
         />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', position: 'relative', zIndex: 1 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '14px', position: 'relative', zIndex: 1 }}>
           <div>
             <h1
               className="chart-select-title"
               style={{
                 color: CHART_EDITOR_THEME.textPrimary,
-                fontSize: '24px',
+                fontSize: '22px',
                 margin: 0,
-                letterSpacing: '0.05em',
+                letterSpacing: '-0.01em',
                 textShadow: CHART_EDITOR_THEME.titleGlow,
               }}
             >
@@ -924,18 +927,19 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
           <span
             className="chart-select-count"
             style={{
-              padding: '8px 14px',
+              justifySelf: 'center',
+              padding: '7px 13px',
               borderRadius: 999,
-              background: CHART_EDITOR_THEME.buttonGhostBgHover,
-              border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+              background: 'rgba(8, 12, 24, 0.36)',
+              border: '1px solid rgba(238, 247, 242, 0.13)',
               color: CHART_EDITOR_THEME.textSecondary,
               fontSize: '12px',
-              boxShadow: CHART_EDITOR_THEME.shadowSoft,
+              boxShadow: 'none',
             }}
           >
             {chartStatus === 'wip' ? 'WIP' : '승인됨'} {totalCount}곡
           </span>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
             <button
               className="chart-select-toolbar-button"
               onClick={() => {
@@ -946,15 +950,15 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               disabled={status === 'loading'}
               title="최신 데이터 불러오기"
               style={{
-                padding: '10px 14px',
+                padding: '9px 12px',
                 fontSize: '13px',
-                background: CHART_EDITOR_THEME.buttonGhostBg,
+                background: 'rgba(8, 12, 24, 0.34)',
                 color: CHART_EDITOR_THEME.textSecondary,
-                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                border: '1px solid rgba(238, 247, 242, 0.13)',
                 borderRadius: CHART_EDITOR_THEME.radiusSm,
                 cursor: status === 'loading' ? 'wait' : 'pointer',
                 transition: 'all 0.15s ease-out',
-                boxShadow: CHART_EDITOR_THEME.shadowSoft,
+                boxShadow: 'none',
                 opacity: status === 'loading' ? 0.6 : 1,
               }}
               onMouseEnter={(e) => {
@@ -970,15 +974,15 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               className="chart-select-toolbar-button"
               onClick={onClose}
               style={{
-                padding: '10px 18px',
+                padding: '9px 14px',
                 fontSize: '13px',
-                background: CHART_EDITOR_THEME.buttonGhostBg,
+                background: 'rgba(8, 12, 24, 0.34)',
                 color: CHART_EDITOR_THEME.textPrimary,
-                border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+                border: '1px solid rgba(238, 247, 242, 0.13)',
                 borderRadius: CHART_EDITOR_THEME.radiusSm,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease-out',
-                boxShadow: CHART_EDITOR_THEME.shadowSoft,
+                boxShadow: 'none',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = CHART_EDITOR_THEME.buttonGhostBgHover;
@@ -1001,8 +1005,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
           style={{
             height: '100%',
             overflowY: 'hidden',
-            padding: '24px 28px 36px',
-            background: 'linear-gradient(180deg, rgba(15,23,42,0.45), rgba(15,23,42,0.8))',
+            padding: '18px 28px 36px',
+            background: 'linear-gradient(180deg, rgba(10,15,28,0.18), rgba(10,15,28,0.5))',
             transition: 'background 0.6s ease',
           }}
         >
@@ -1028,12 +1032,13 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 flexWrap: 'wrap',
                 gap: '10px',
                 alignItems: 'center',
-                marginBottom: '18px',
-                padding: '10px',
+                marginBottom: '14px',
+                padding: '7px',
                 borderRadius: CHART_EDITOR_THEME.radiusMd,
-                border: '1px solid rgba(59,130,246,0.12)',
-                background: 'linear-gradient(135deg, rgba(8,12,24,0.7), rgba(20,33,61,0.54))',
-                boxShadow: CHART_EDITOR_THEME.shadowSoft,
+                border: '1px solid rgba(238, 247, 242, 0.08)',
+                background: 'rgba(8, 12, 24, 0.24)',
+                boxShadow: 'none',
+                backdropFilter: 'blur(6px)',
               }}
             >
               <button
@@ -1045,8 +1050,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   height: '42px',
                   flex: '0 0 42px',
                   borderRadius: CHART_EDITOR_THEME.radiusSm,
-                  border: `1px solid ${isSearchOpen || searchQuery ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.borderSubtle}`,
-                  background: isSearchOpen || searchQuery ? 'rgba(34,211,238,0.16)' : CHART_EDITOR_THEME.buttonGhostBg,
+                  border: `1px solid ${isSearchOpen || searchQuery ? CHART_EDITOR_THEME.accentStrong : 'rgba(238, 247, 242, 0.12)'}`,
+                  background: isSearchOpen || searchQuery ? 'rgba(34,211,238,0.16)' : 'rgba(8, 12, 24, 0.32)',
                   color: CHART_EDITOR_THEME.textPrimary,
                   cursor: 'pointer',
                   fontSize: '18px',
@@ -1067,12 +1072,12 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   placeholder="제목 또는 작성자"
                   autoFocus
                   style={{
-                    width: 'min(100%, 270px)',
+                    width: 'min(100%, 250px)',
                     flex: '1 1 190px',
-                    padding: '12px 14px',
+                    padding: '10px 12px',
                     borderRadius: CHART_EDITOR_THEME.radiusSm,
-                    border: `1px solid ${CHART_EDITOR_THEME.inputBorder}`,
-                    backgroundColor: CHART_EDITOR_THEME.inputBg,
+                    border: '1px solid rgba(238, 247, 242, 0.12)',
+                    backgroundColor: 'rgba(2, 6, 23, 0.38)',
                     color: CHART_EDITOR_THEME.textPrimary,
                     fontSize: '14px',
                     transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
@@ -1089,10 +1094,10 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       setCurrentPage(1);
                     }}
                     style={{
-                      padding: '12px 12px',
+                      padding: '10px 12px',
                       borderRadius: CHART_EDITOR_THEME.radiusSm,
-                      border: `1px solid ${CHART_EDITOR_THEME.inputBorder}`,
-                      backgroundColor: CHART_EDITOR_THEME.inputBg,
+                      border: '1px solid rgba(238, 247, 242, 0.12)',
+                      backgroundColor: 'rgba(2, 6, 23, 0.38)',
                       color: CHART_EDITOR_THEME.textPrimary,
                       fontSize: '14px',
                     }}
@@ -1109,10 +1114,10 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     setCurrentPage(1);
                   }}
                   style={{
-                    padding: '12px 15px',
+                    padding: '10px 13px',
                     borderRadius: CHART_EDITOR_THEME.radiusSm,
-                    border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                    backgroundColor: CHART_EDITOR_THEME.buttonGhostBg,
+                    border: '1px solid rgba(238, 247, 242, 0.12)',
+                    backgroundColor: 'rgba(8, 12, 24, 0.32)',
                     color: CHART_EDITOR_THEME.textPrimary,
                     fontSize: '14px',
                     cursor: 'pointer',

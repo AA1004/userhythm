@@ -1478,7 +1478,7 @@ body {
 }
 
 .chart-select-count::before {
-  content: '';
+  content: none;
   position: absolute;
   inset: 0 auto 0 -70%;
   width: 55%;
@@ -1516,12 +1516,12 @@ body {
   position: absolute;
   left: 0;
   bottom: -8px;
-  width: 120px;
-  height: 2px;
+  width: 92px;
+  height: 1px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #77ffd6, #ffcf5f, #ff4e7a);
-  box-shadow: 0 0 8px rgba(119, 255, 214, 0.22);
-  animation: chartSelectTitleScan 5200ms ease-in-out infinite;
+  background: linear-gradient(90deg, rgba(119, 255, 214, 0.88), rgba(255, 78, 122, 0.7), transparent);
+  box-shadow: none;
+  animation: none;
 }
 
 .chart-select-main {
@@ -1536,7 +1536,7 @@ body {
 }
 
 .chart-select-filter::before {
-  content: '';
+  content: none;
   position: absolute;
   inset: 0 auto 0 -26%;
   width: 24%;
