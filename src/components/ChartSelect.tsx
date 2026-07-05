@@ -1611,10 +1611,10 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                         color: CHART_EDITOR_THEME.textSecondary,
                         fontSize: '12px',
                         lineHeight: 1.5,
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
+                        maxHeight: '96px',
+                        overflowY: 'auto',
+                        whiteSpace: 'pre-wrap',
+                        scrollbarWidth: 'thin',
                       }}
                     >
                       {selectedChart.description}
