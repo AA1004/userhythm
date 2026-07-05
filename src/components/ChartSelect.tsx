@@ -68,6 +68,13 @@ const getYouTubeThumbnailFallback = (url: string | null) => {
   );
 };
 
+const getChartPayload = (raw: any) => {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw) && raw.chart && typeof raw.chart === 'object') {
+    return raw.chart;
+  }
+  return raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+};
+
 export const ChartSelect: React.FC<ChartSelectProps> = ({
   onSelect,
   onClose,
@@ -131,7 +138,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
     return loadedCharts.map((chart: ApiChart) => {
       let chartData: any = {};
       try {
-        chartData = JSON.parse(chart.data_json || '{}');
+        chartData = getChartPayload(JSON.parse(chart.data_json || '{}'));
       } catch {
         chartData = {};
       }
@@ -412,7 +419,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   const previewSpec = useMemo<ChartSelectPreviewSpec | null>(() => {
     if (!selectedChart) return null;
     try {
-      const chartData = JSON.parse(selectedChart.data_json || '{}');
+      const chartData = getChartPayload(JSON.parse(selectedChart.data_json || '{}'));
       const youtubeUrl: string = chartData.youtubeUrl || selectedChart.youtube_url || '';
       const youtubeVideoId =
         chartData.youtubeVideoId || (youtubeUrl ? extractYouTubeVideoId(youtubeUrl) : null);
@@ -473,7 +480,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
 
     const startChart = () => {
       try {
-        const chartData = JSON.parse(chart.data_json);
+        const chartData = getChartPayload(JSON.parse(chart.data_json));
 
         // YouTube 정보 정규화
         const youtubeUrl: string = chartData.youtubeUrl || chart.youtube_url || '';
