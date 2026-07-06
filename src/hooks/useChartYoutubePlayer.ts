@@ -313,11 +313,13 @@ export function useChartYoutubePlayer({
   }, [currentTime]);
 
   const applyImmediatePlaybackState = useCallback(
-    (nextPlaying: boolean) => {
+    (nextPlaying: boolean, timeMs?: number) => {
       if (!youtubePlayer || !youtubePlayerReadyRef.current) return false;
 
       ++playbackCommandTokenRef.current;
-      const desiredTimeMs = latestTimeRef.current;
+      const desiredTimeMs = Math.max(0, timeMs ?? latestTimeRef.current);
+      latestTimeRef.current = desiredTimeMs;
+      lastSyncTimeRef.current = desiredTimeMs;
       const desiredSeconds = getPlayerTimeSeconds(desiredTimeMs);
       clearPlaybackRetryTimer();
 

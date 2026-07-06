@@ -244,6 +244,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [notes, setNotes] = useState<Note[]>([]);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const isPlayingRef = useRef(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [zoom, setZoom] = useState<number>(1);
   const [volume, setVolume] = useState<number>(100);
@@ -563,6 +564,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   // 매 프레임 상태 업데이트 (모니터 주사율에 맞춤)
   const internalTimeRef = useRef<number>(0);
   const [autosaveCurrentTime, setAutosaveCurrentTime] = useState<number>(0);
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
 
   useEffect(() => {
     if (!isPlaying) {
@@ -2395,30 +2400,35 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
   // 키보드 핸들러 (에디터 전용 전역 단축키)
   const handleToggleEditorPlayback = useCallback(async () => {
-    const nextPlaying = !isPlaying;
+    const nextPlaying = !isPlayingRef.current;
+    const commandTimeMs = Math.max(0, internalTimeRef.current);
+    isPlayingRef.current = nextPlaying;
 
     if (!nextPlaying) {
-      const pauseAtMs = Math.max(0, internalTimeRef.current);
-      seekTo(pauseAtMs, { shouldPause: true });
+      setCurrentTime(commandTimeMs);
+      if (!applyImmediatePlaybackState(false, commandTimeMs)) {
+        seekTo(commandTimeMs, { shouldPause: true });
+      }
       setIsPlaying(false);
       return;
     }
 
-    if (nextPlaying) {
-      try {
-        await ensureAudioContext();
-      } catch {
-        // ignore: fallback to play without pre-warm
-      }
+    try {
+      await ensureAudioContext();
+    } catch {
+      // ignore: fallback to play without pre-warm
     }
 
-    if (!applyImmediatePlaybackState(nextPlaying)) {
-      setIsPlaying(nextPlaying);
+    if (!isPlayingRef.current) {
       return;
     }
 
-    setIsPlaying(nextPlaying);
-  }, [applyImmediatePlaybackState, ensureAudioContext, isPlaying, seekTo]);
+    if (!applyImmediatePlaybackState(true, commandTimeMs)) {
+      seekTo(commandTimeMs, { snapOnly: true });
+    }
+
+    setIsPlaying(true);
+  }, [applyImmediatePlaybackState, ensureAudioContext, seekTo]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
