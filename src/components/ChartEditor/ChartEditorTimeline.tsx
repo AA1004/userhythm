@@ -149,6 +149,29 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     beatsPerMeasure,
   });
   const [isBgaResizing, setIsBgaResizing] = useState(false);
+  const currentMeasureLabel = useMemo(
+    () => `${timeToMeasure(currentTime, bpm, bpmChanges, beatsPerMeasure)}마디`,
+    [currentTime, bpm, bpmChanges, beatsPerMeasure]
+  );
+
+  const syncPlayhead = useCallback((timeMs: number) => {
+    const helpers = renderHelpersRef.current;
+    const nextPlayheadY = helpers.timeToY(timeMs);
+
+    if (playheadRef.current) {
+      playheadRef.current.style.transform = `translate3d(0, ${nextPlayheadY - PLAYHEAD_HIT_HEIGHT / 2}px, 0)`;
+    }
+
+    if (measureLabelRef.current) {
+      measureLabelRef.current.style.transform = `translate3d(0, ${nextPlayheadY - 6}px, 0)`;
+      measureLabelRef.current.textContent = `${timeToMeasure(
+        timeMs,
+        helpers.bpm,
+        helpers.bpmChanges,
+        helpers.beatsPerMeasure
+      )}마디`;
+    }
+  }, []);
 
   useLayoutEffect(() => {
     renderHelpersRef.current = {
@@ -158,29 +181,16 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
       bpmChanges,
       beatsPerMeasure,
     };
-  }, [currentTime, timeToY, bpm, bpmChanges, beatsPerMeasure]);
+
+    if (!isPlaying) {
+      syncPlayhead(currentTime);
+    }
+  }, [currentTime, timeToY, bpm, bpmChanges, beatsPerMeasure, isPlaying, syncPlayhead]);
 
   // 재생선은 재생 중 currentTimeRef를 직접 읽어 고주사율로 갱신한다.
   // 부모 state는 더 낮은 빈도로 커밋되어도 재생선 시각 움직임은 유지된다.
   useEffect(() => {
     let frameId: number | null = null;
-
-    const syncPlayhead = (timeMs: number) => {
-      const helpers = renderHelpersRef.current;
-      const nextPlayheadY = helpers.timeToY(timeMs);
-      if (playheadRef.current) {
-        playheadRef.current.style.transform = `translate3d(0, ${nextPlayheadY - PLAYHEAD_HIT_HEIGHT / 2}px, 0)`;
-      }
-      if (measureLabelRef.current) {
-        measureLabelRef.current.style.transform = `translate3d(0, ${nextPlayheadY - 6}px, 0)`;
-        measureLabelRef.current.textContent = `${timeToMeasure(
-          timeMs,
-          helpers.bpm,
-          helpers.bpmChanges,
-          helpers.beatsPerMeasure
-        )}마디`;
-      }
-    };
 
     if (!isPlaying || !currentTimeRef) {
       syncPlayhead(renderHelpersRef.current.currentTime);
@@ -199,7 +209,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         cancelAnimationFrame(frameId);
       }
     };
-  }, [currentTimeRef, isPlaying]);
+  }, [currentTimeRef, isPlaying, syncPlayhead]);
 
   // 뷰포트 정보 (가시 영역 + 버퍼)
   const [viewTop, setViewTop] = useState(0);
@@ -1486,7 +1496,9 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
             transform: `translate3d(0, ${playheadY - 6}px, 0)`,
             willChange: 'transform',
           }}
-        />
+        >
+          {currentMeasureLabel}
+        </div>
         </div>
       </div>
     </div>
