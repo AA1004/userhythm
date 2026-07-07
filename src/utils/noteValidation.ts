@@ -92,6 +92,64 @@ export function isValidNote(note: Note): boolean {
   return true;
 }
 
+const NOTE_CONFLICT_EPSILON_MS = 0.5;
+
+const getNoteRange = (note: Note) => {
+  const start = Number.isFinite(note.time) ? note.time : 0;
+  const end = note.type === 'hold' && Number.isFinite(note.endTime)
+    ? Math.max(start, note.endTime)
+    : start;
+  return { start, end };
+};
+
+/**
+ * 같은 레인에서 시간 구간이 겹치는지 확인.
+ * 탭 노트는 start=end인 구간으로 취급해서 같은 위치 중복을 막는다.
+ */
+export function doNotesOverlap(a: Note, b: Note): boolean {
+  if (a.id === b.id) return false;
+  if (a.lane !== b.lane) return false;
+
+  const aRange = getNoteRange(a);
+  const bRange = getNoteRange(b);
+  return (
+    aRange.start <= bRange.end + NOTE_CONFLICT_EPSILON_MS &&
+    bRange.start <= aRange.end + NOTE_CONFLICT_EPSILON_MS
+  );
+}
+
+export function hasNotePlacementConflict(
+  notes: Note[],
+  candidate: Note,
+  ignoredIds: Set<number> = new Set()
+): boolean {
+  return notes.some((note) => {
+    if (ignoredIds.has(note.id)) return false;
+    return doNotesOverlap(note, candidate);
+  });
+}
+
+export function hasAnyNotePlacementConflict(notes: Note[]): boolean {
+  for (let i = 0; i < notes.length; i++) {
+    for (let j = i + 1; j < notes.length; j++) {
+      if (doNotesOverlap(notes[i], notes[j])) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+export function removeNotePlacementConflicts(notes: Note[]): Note[] {
+  const accepted: Note[] = [];
+  for (const note of notes) {
+    if (!hasNotePlacementConflict(accepted, note)) {
+      accepted.push(note);
+    }
+  }
+  return accepted;
+}
+
 /**
  * 노트 배열을 검증하고 정규화
  * - 각 노트를 검증/정규화
@@ -99,14 +157,17 @@ export function isValidNote(note: Note): boolean {
  * - 시간순 정렬
  */
 export function validateNotes(notes: Note[]): Note[] {
-  return notes
+  const normalized = notes
     .map((note, originalIndex) => ({
       note: validateNote(note),
       originalIndex,
     }))
     .filter(({ note }) => isValidNote(note))
     .sort((a, b) => a.note.time - b.note.time || a.originalIndex - b.originalIndex)
-    .map(({ note }, index) => ({
+    .map(({ note }) => note);
+
+  return removeNotePlacementConflicts(normalized)
+    .map((note, index) => ({
       ...note,
       // Runtime Set/cursor logic depends on ids following the sorted session order.
       id: index + 1,

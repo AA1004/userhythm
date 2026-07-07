@@ -1,6 +1,10 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { Note, Lane } from '../types/game';
-import { MIN_LONG_NOTE_DURATION } from '../utils/noteValidation';
+import {
+  MIN_LONG_NOTE_DURATION,
+  hasAnyNotePlacementConflict,
+  hasNotePlacementConflict,
+} from '../utils/noteValidation';
 
 export interface UseChartNotesOptions {
   /** 히스토리에 저장하는 콜백 */
@@ -79,7 +83,7 @@ export function useChartNotes(options: UseChartNotesOptions = {}): UseChartNotes
     }
 
     const newNote: Note = {
-      id: noteIdRef.current++,
+      id: noteIdRef.current,
       lane,
       time,
       type: finalType,
@@ -90,6 +94,10 @@ export function useChartNotes(options: UseChartNotesOptions = {}): UseChartNotes
     };
 
     setNotes((prev) => {
+      if (hasNotePlacementConflict(prev, newNote)) {
+        return prev;
+      }
+      noteIdRef.current += 1;
       const newNotes = [...prev, newNote];
       saveToHistory?.(newNotes);
       return newNotes;
@@ -131,6 +139,9 @@ export function useChartNotes(options: UseChartNotesOptions = {}): UseChartNotes
         }
         return note;
       });
+      if (hasAnyNotePlacementConflict(newNotes)) {
+        return prev;
+      }
       saveToHistory?.(newNotes);
       return newNotes;
     });
@@ -174,7 +185,19 @@ export function useChartNotes(options: UseChartNotesOptions = {}): UseChartNotes
     if (newNotes.length === 0) return;
 
     setNotes((prev) => {
-      const mergedNotes = [...prev, ...newNotes].sort((a, b) => a.time - b.time);
+      const acceptedNotes: Note[] = [];
+      for (const note of newNotes) {
+        if (
+          !hasNotePlacementConflict(prev, note) &&
+          !hasNotePlacementConflict(acceptedNotes, note)
+        ) {
+          acceptedNotes.push(note);
+        }
+      }
+      if (acceptedNotes.length === 0) {
+        return prev;
+      }
+      const mergedNotes = [...prev, ...acceptedNotes].sort((a, b) => a.time - b.time);
       saveToHistory?.(mergedNotes);
       return mergedNotes;
     });
@@ -203,6 +226,9 @@ export function useChartNotes(options: UseChartNotesOptions = {}): UseChartNotes
         }
         return note;
       });
+      if (hasAnyNotePlacementConflict(newNotes)) {
+        return prev;
+      }
       const sortedNotes = newNotes.sort((a, b) => a.time - b.time);
       saveToHistory?.(sortedNotes);
       return sortedNotes;

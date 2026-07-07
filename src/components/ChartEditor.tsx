@@ -27,7 +27,13 @@ import {
 import { extractYouTubeVideoId } from '../utils/youtube';
 import { getDisplayChartDifficulty } from '../constants/chartDifficulty';
 import { localSubtitleStorage } from '../lib/subtitleAPI';
-import { MIN_LONG_NOTE_DURATION, validateNotes, getMaxNoteId } from '../utils/noteValidation';
+import {
+  MIN_LONG_NOTE_DURATION,
+  getMaxNoteId,
+  hasAnyNotePlacementConflict,
+  hasNotePlacementConflict,
+  validateNotes,
+} from '../utils/noteValidation';
 import { convertBgaEventsToEditableIntervals } from '../utils/bgaVisibility';
 import { normalizeSubtitlePayload } from '../utils/subtitleNormalization';
 import { START_DELAY_MS } from '../constants/gameConstants';
@@ -1333,7 +1339,21 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
     
     setNotes((prev) => {
-      const newNotesList = [...prev, ...newNotes].sort((a, b) => a.time - b.time);
+      const acceptedNotes: Note[] = [];
+      for (const note of newNotes) {
+        if (
+          !hasNotePlacementConflict(prev, note) &&
+          !hasNotePlacementConflict(acceptedNotes, note)
+        ) {
+          acceptedNotes.push(note);
+        }
+      }
+
+      if (acceptedNotes.length === 0) {
+        return prev;
+      }
+
+      const newNotesList = [...prev, ...acceptedNotes].sort((a, b) => a.time - b.time);
       saveToHistory(newNotesList);
       return newNotesList;
     });
@@ -1397,6 +1417,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           }
           return note;
         });
+
+        if (hasAnyNotePlacementConflict(newNotes)) {
+          setDragOffset(null);
+          dragStartRef.current = null;
+          return prev;
+        }
+
         const sortedNotes = [...newNotes].sort((a, b) => a.time - b.time);
         saveToHistory(sortedNotes);
         
@@ -1490,6 +1517,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         }
         return note;
       });
+
+      if (hasAnyNotePlacementConflict(newNotes)) {
+        return prev;
+      }
+
       const sortedNotes = newNotes.sort((a, b) => a.time - b.time);
       saveToHistory(sortedNotes);
       return sortedNotes;
@@ -1608,7 +1640,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
     
     const newNote: Note = {
-      id: noteIdRef.current++,
+      id: noteIdRef.current,
       lane,
       time,
       type,
@@ -1618,6 +1650,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       hit: false,
     };
     setNotes((prev) => {
+      if (hasNotePlacementConflict(prev, newNote)) {
+        return prev;
+      }
+      noteIdRef.current += 1;
       const newNotes = [...prev, newNote];
       saveToHistory(newNotes);
       return newNotes;
