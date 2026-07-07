@@ -566,7 +566,10 @@ export function useChartYoutubePlayer({
       }
 
       if (driftMs < 0) {
-        if (isPlaying && Math.abs(driftMs) > 80 && now - lastEditorFollowSeekMsRef.current > 250) {
+        // During editor playback, frequent YouTube seekTo calls are audible as stutter,
+        // especially at 0.5x while users repeatedly scrub for beat timing.
+        // Keep normal drift visual-only and only rescue genuinely large desyncs.
+        if (isPlaying && Math.abs(driftMs) > 750 && now - lastEditorFollowSeekMsRef.current > 1500) {
           lastEditorFollowSeekMsRef.current = now;
           try {
             youtubePlayer.seekTo?.(getPlayerTimeSeconds(fallbackTimeMs), true);
