@@ -25,6 +25,7 @@ import { useTestSession } from '../hooks/useTestSession';
 import { useChartLoader } from '../hooks/useChartLoader';
 import { useGameSessionController } from '../hooks/useGameSessionController';
 import { GameMenu } from './GameMenu';
+import { MainMenuSidebar } from './MainMenuSidebar';
 import { GameEndScreen } from './GameEndScreen';
 import { FpsHud } from './FpsHud';
 import { TutorialScreen } from './TutorialScreen';
@@ -956,13 +957,6 @@ export const Game: React.FC = () => {
         className={`main-to-chart-transition${isChartSelectTransitioning ? ' main-to-chart-transition--active' : ''}`}
         aria-hidden={isChartSelectTransitioning ? true : undefined}
       >
-        {/* 공지사항/버전 리포트 사이드바는 현재 레이아웃 버그가 있어 임시 비활성화한다.
-        {!gameState.gameStarted && (
-          <>
-            <MainMenuSidebar type="version" position="left" />
-            <MainMenuSidebar type="notice" position="right" />
-          </>
-        )} */}
       
       {/* Show FPS HUD only during gameplay */}
       {gameState.gameStarted && !gameState.gameEnded && <FpsHud enabled={true} />}
@@ -1240,6 +1234,8 @@ export const Game: React.FC = () => {
                   onLogout={handleLogout}
                   onSettings={() => setIsSettingsOpen(true)}
                   ensureEditorAccess={ensureEditorAccess}
+                  leftPanel={<MainMenuSidebar type="version" />}
+                  rightPanel={<MainMenuSidebar type="notice" />}
                 />
               )}
 

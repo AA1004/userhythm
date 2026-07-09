@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api, ApiNotice, ApiVersion } from '../lib/api';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { useAuth } from '../hooks/useAuth';
@@ -6,84 +6,15 @@ import { NoticeVersionAdmin } from './NoticeVersionAdmin';
 
 interface MainMenuSidebarProps {
   type: 'notice' | 'version';
-  position: 'left' | 'right';
 }
 
-const MAIN_MENU_RESERVED_WIDTH = 560;
-const MAIN_MENU_MIN_GAP = 36;
-const clamp = (value: number, min: number, max: number) =>
-  Math.max(min, Math.min(max, value));
-
-const getMainMenuSidebarLayout = (viewportWidth: number) => {
-  if (viewportWidth > 1920) {
-    return { mode: 'full' as const, width: 600, edge: 60, top: 60, height: 'calc(100dvh - 120px)', padding: 24 };
-  }
-
-  if (viewportWidth > 1680) {
-    return { mode: 'full' as const, width: 500, edge: 40, top: 60, height: 'calc(100dvh - 120px)', padding: 24 };
-  }
-
-  if (viewportWidth > 1520) {
-    const edge = 24;
-    const availableSideWidth = (viewportWidth - MAIN_MENU_RESERVED_WIDTH - MAIN_MENU_MIN_GAP * 2) / 2;
-    return {
-      mode: 'full' as const,
-      width: clamp(availableSideWidth - edge, 300, 420),
-      edge,
-      top: 60,
-      height: 'calc(100dvh - 120px)',
-      padding: 22,
-    };
-  }
-
-  if (viewportWidth >= 900) {
-    return {
-      mode: 'compact' as const,
-      width: Math.max(260, Math.floor(viewportWidth / 2) - 28),
-      edge: 16,
-      top: null,
-      height: 'clamp(150px, 22dvh, 220px)',
-      padding: 14,
-    };
-  }
-
-  return {
-    mode: 'dock' as const,
-    width: Math.max(280, viewportWidth - 24),
-    edge: 12,
-    top: null,
-    height: 'clamp(120px, 18dvh, 170px)',
-    padding: 12,
-  };
-};
-
-export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
-  type,
-  position,
-}) => {
+export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({ type }) => {
   const [notice, setNotice] = useState<ApiNotice | null>(null);
   const [version, setVersion] = useState<ApiVersion | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const { isAdmin } = useAuth();
-  const [windowSize, setWindowSize] = useState(() => {
-    if (typeof window === 'undefined') return { width: 1920, height: 1080 };
-    return { width: window.innerWidth, height: window.innerHeight };
-  });
-
-  const sidebarLayout = useMemo(() => {
-    return getMainMenuSidebarLayout(windowSize.width);
-  }, [windowSize.width]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const handleResize = () => {
-      setWindowSize({ width: window.innerWidth, height: window.innerHeight });
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   useEffect(() => {
     if (type === 'notice') {
@@ -125,72 +56,30 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({
           setIsLoading(false);
         });
     }
-  }, [type, sidebarLayout]);
-
-  const isLeft = position === 'left';
-
-  const getSidebarWidth = () => {
-    return `${sidebarLayout.width}px`;
-  };
-
-  const getSidebarHeight = () => {
-    return sidebarLayout.height;
-  };
+  }, [type]);
 
   const getFontSize = (large: number, medium: number, small: number) => {
-    const viewportWidth = windowSize.width;
-    // 폰트 크기를 줄여서 더 많은 내용 표시
-    if (viewportWidth > 1920) return `${large * 0.85}px`;
-    if (viewportWidth > 1440) return `${medium * 0.85}px`;
-    return `${small * 0.85}px`;
-  };
-
-  const getSidebarPosition = () => {
-    return `${sidebarLayout.edge}px`;
+    return `clamp(${small}px, 0.72vw + ${small * 0.45}px, ${Math.max(medium, large * 0.9)}px)`;
   };
 
   const sidebarStyle: React.CSSProperties = {
-    position: 'fixed',
-    height: getSidebarHeight(),
-    width: getSidebarWidth(),
-    backgroundColor: '#0b1120',
-    border: `2px solid ${CHART_EDITOR_THEME.borderStrong}`,
+    width: '100%',
+    height: '100%',
+    minHeight: 0,
+    background: 'linear-gradient(145deg, rgba(8, 13, 26, 0.86), rgba(3, 7, 18, 0.74))',
+    border: `1px solid ${CHART_EDITOR_THEME.borderStrong}`,
     borderRadius: CHART_EDITOR_THEME.radiusLg,
-    padding: `${sidebarLayout.padding}px`,
-    boxShadow: '0 0 30px rgba(0, 0, 0, 0.9)',
+    padding: 'clamp(14px, 1.2vw, 22px)',
+    boxShadow: '0 18px 44px rgba(0, 0, 0, 0.36)',
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    zIndex: 1000,
+    backdropFilter: 'blur(10px)',
   };
-
-  if (sidebarLayout.mode === 'compact') {
-    sidebarStyle.bottom = '18px';
-    sidebarStyle.top = 'auto';
-    if (isLeft) {
-      sidebarStyle.left = getSidebarPosition();
-    } else {
-      sidebarStyle.right = getSidebarPosition();
-    }
-  } else if (sidebarLayout.mode === 'dock') {
-    sidebarStyle.left = getSidebarPosition();
-    sidebarStyle.right = getSidebarPosition();
-    sidebarStyle.width = 'auto';
-    sidebarStyle.top = 'auto';
-    sidebarStyle.bottom = isLeft ? `calc(${sidebarLayout.height} + 24px)` : '12px';
-  } else if (isLeft) {
-    sidebarStyle.top = `${sidebarLayout.top}px`;
-    sidebarStyle.left = getSidebarPosition();
-  } else {
-    sidebarStyle.top = `${sidebarLayout.top}px`;
-    sidebarStyle.right = getSidebarPosition();
-  }
 
   const sidebarClassName = [
     'main-menu-sidebar',
     `main-menu-sidebar--${type}`,
-    `main-menu-sidebar--${position}`,
-    `main-menu-sidebar--${sidebarLayout.mode}`,
   ].join(' ');
 
   return (
