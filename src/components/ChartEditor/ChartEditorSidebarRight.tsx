@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { SpeedChange, BgaVisibilityInterval, BPMChange } from '../../types/game';
+import { SpeedChange, BgaVisibilityInterval, BPMChange, LanePositionInterval } from '../../types/game';
 import { CHART_EDITOR_THEME } from './constants';
 import { timeToMeasure, beatIndexToTime } from '../../utils/bpmUtils';
 import {
@@ -18,6 +18,10 @@ export interface ChartEditorSidebarRightProps {
   onAddBgaIntervalAtCurrent: () => void;
   onUpdateBgaInterval: (id: string, patch: Partial<BgaVisibilityInterval>) => void;
   onDeleteBgaInterval: (id: string) => void;
+  lanePositionIntervals: LanePositionInterval[];
+  onAddLanePositionIntervalAtCurrent: (offsetX: number) => void;
+  onUpdateLanePositionInterval: (id: string, patch: Partial<LanePositionInterval>) => void;
+  onDeleteLanePositionInterval: (id: string) => void;
   testStartInput: string;
   onTestStartInputChange: (value: string) => void;
   currentTime: number;
@@ -136,6 +140,10 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
   onAddBgaIntervalAtCurrent,
   onUpdateBgaInterval,
   onDeleteBgaInterval,
+  lanePositionIntervals,
+  onAddLanePositionIntervalAtCurrent,
+  onUpdateLanePositionInterval,
+  onDeleteLanePositionInterval,
   testStartInput,
   onTestStartInputChange,
   currentTime,
@@ -347,6 +355,14 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
         onAddBgaIntervalAtCurrent={onAddBgaIntervalAtCurrent}
         onUpdateBgaInterval={onUpdateBgaInterval}
         onDeleteBgaInterval={onDeleteBgaInterval}
+      />
+
+      <LanePositionSection
+        lanePositionIntervals={lanePositionIntervals}
+        currentTime={currentTime}
+        onAddLanePositionIntervalAtCurrent={onAddLanePositionIntervalAtCurrent}
+        onUpdateLanePositionInterval={onUpdateLanePositionInterval}
+        onDeleteLanePositionInterval={onDeleteLanePositionInterval}
       />
 
       <div
@@ -702,6 +718,146 @@ const BgaEventsSection: React.FC<BgaEventsSectionProps> = ({
                       value={Math.round(it.fadeOutMs ?? 0)}
                       disabled={!isBgaPlacementMode}
                       onChange={(e) => onUpdateBgaInterval(it.id, { fadeOutMs: Math.max(0, Number(e.target.value) || 0) })}
+                      style={{ ...inputBaseStyle, width: '100%', padding: '3px 4px', fontSize: 11 }}
+                    />
+                  </label>
+                </div>
+              </div>
+            );
+          })}
+      </div>
+    )}
+  </div>
+);
+
+interface LanePositionSectionProps {
+  lanePositionIntervals: LanePositionInterval[];
+  currentTime: number;
+  onAddLanePositionIntervalAtCurrent: (offsetX: number) => void;
+  onUpdateLanePositionInterval: (id: string, patch: Partial<LanePositionInterval>) => void;
+  onDeleteLanePositionInterval: (id: string) => void;
+}
+
+const LanePositionSection: React.FC<LanePositionSectionProps> = ({
+  lanePositionIntervals,
+  currentTime,
+  onAddLanePositionIntervalAtCurrent,
+  onUpdateLanePositionInterval,
+  onDeleteLanePositionInterval,
+}) => (
+  <div
+    style={{
+      ...panelSectionStyle,
+      marginBottom: '12px',
+      padding: '8px',
+    }}
+  >
+    <SectionHeader
+      label="Lane Position"
+      description="BGA 하이라이트가 중앙을 가릴 때 특정 구간에서 플레이 레인을 좌우로 이동합니다. 타임라인에는 왼쪽 얇은 세로선으로 표시됩니다."
+    >
+      <Badge>{lanePositionIntervals.length}개</Badge>
+    </SectionHeader>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 8 }}>
+      {[
+        { label: 'Left', value: -150, color: '#67e8f9' },
+        { label: 'Center', value: 0, color: '#cbd5e1' },
+        { label: 'Right', value: 150, color: '#c084fc' },
+      ].map((preset) => (
+        <button
+          key={preset.label}
+          data-editor-transient-action="true"
+          onMouseDown={keepTransientButtonFromTakingFocus}
+          onClick={(e) => {
+            onAddLanePositionIntervalAtCurrent(preset.value);
+            blurTransientButton(e);
+          }}
+          style={{
+            padding: '6px 4px',
+            fontSize: 10,
+            fontWeight: 800,
+            borderRadius: CHART_EDITOR_THEME.radiusSm,
+            border: `1px solid ${preset.color}`,
+            backgroundColor: 'rgba(15,23,42,0.58)',
+            color: preset.color,
+            cursor: 'pointer',
+          }}
+        >
+          {preset.label}
+        </button>
+      ))}
+    </div>
+    {lanePositionIntervals.length === 0 ? (
+      <div style={{ fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>구간 없음</div>
+    ) : (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 140, overflowY: 'auto' }}>
+        {[...lanePositionIntervals]
+          .sort((a, b) => a.startTimeMs - b.startTimeMs)
+          .map((interval, index) => {
+            const isCurrent = currentTime >= interval.startTimeMs && currentTime < interval.endTimeMs;
+            const durationMs = Math.max(0, interval.endTimeMs - interval.startTimeMs);
+            const tone = interval.offsetX < 0 ? '#67e8f9' : interval.offsetX > 0 ? '#c084fc' : '#cbd5e1';
+            return (
+              <div
+                key={interval.id}
+                style={{
+                  padding: 6,
+                  borderRadius: CHART_EDITOR_THEME.radiusSm,
+                  border: `1px solid ${isCurrent ? tone : CHART_EDITOR_THEME.borderSubtle}`,
+                  backgroundColor: isCurrent ? 'rgba(34,211,238,0.1)' : 'rgba(15,23,42,0.4)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: tone }}>POS {index + 1}</span>
+                  <span style={{ fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>
+                    {Math.round(interval.startTimeMs)}ms - {Math.round(interval.endTimeMs)}ms
+                  </span>
+                  <div style={{ flex: 1 }} />
+                  <button
+                    data-editor-transient-action="true"
+                    onMouseDown={keepTransientButtonFromTakingFocus}
+                    onClick={(e) => {
+                      onDeleteLanePositionInterval(interval.id);
+                      blurTransientButton(e);
+                    }}
+                    style={{
+                      fontSize: 10,
+                      padding: '2px 6px',
+                      borderRadius: CHART_EDITOR_THEME.radiusSm,
+                      border: `1px solid ${CHART_EDITOR_THEME.danger}`,
+                      backgroundColor: 'rgba(239,68,68,0.12)',
+                      color: CHART_EDITOR_THEME.danger,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    삭제
+                  </button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>
+                    길이
+                    <input
+                      type="number"
+                      min={120}
+                      value={Math.round(durationMs)}
+                      onChange={(e) => {
+                        const nextDuration = Math.max(120, Number(e.target.value) || 120);
+                        onUpdateLanePositionInterval(interval.id, { endTimeMs: interval.startTimeMs + nextDuration });
+                      }}
+                      style={{ ...inputBaseStyle, width: '100%', padding: '3px 4px', fontSize: 11 }}
+                    />
+                  </label>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>
+                    X Offset
+                    <input
+                      type="number"
+                      min={-220}
+                      max={220}
+                      value={Math.round(interval.offsetX)}
+                      onChange={(e) => {
+                        const nextOffset = Math.max(-220, Math.min(220, Number(e.target.value) || 0));
+                        onUpdateLanePositionInterval(interval.id, { offsetX: nextOffset });
+                      }}
                       style={{ ...inputBaseStyle, width: '100%', padding: '3px 4px', fontSize: 11 }}
                     />
                   </label>

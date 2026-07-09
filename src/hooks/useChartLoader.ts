@@ -1,10 +1,11 @@
 import { useCallback } from 'react';
-import { GameState, Note, BgaVisibilityInterval } from '../types/game';
+import { GameState, Note, BgaVisibilityInterval, LanePositionInterval } from '../types/game';
 import { buildInitialScore, AudioSettings, calculatePlayableChartDuration } from '../utils/gameHelpers';
 import { START_DELAY_MS } from '../constants/gameConstants';
 import { SubtitleCue } from '../types/subtitle';
 import { normalizeSubtitlePayload } from '../utils/subtitleNormalization';
 import { normalizeBgaIntervalsForRuntime } from '../utils/bgaVisibility';
+import { normalizeLanePositionIntervals } from '../utils/lanePositionIntervals';
 import type { ResetGameSessionOptions } from './useGameSessionController';
 
 export interface UseChartLoaderOptions {
@@ -16,6 +17,7 @@ export interface UseChartLoaderOptions {
   onSubtitlesClear: () => void;
   onBgaIntervalsSet: (intervals: BgaVisibilityInterval[]) => void;
   onBgaIntervalsRefSet: (intervals: BgaVisibilityInterval[]) => void;
+  onLanePositionIntervalsSet?: (intervals: LanePositionInterval[]) => void;
   onDynamicGameDurationSet: (duration: number) => void;
   onChartSelectClose: () => void;
 }
@@ -33,6 +35,7 @@ export function useChartLoader({
   onSubtitlesClear,
   onBgaIntervalsSet,
   onBgaIntervalsRefSet,
+  onLanePositionIntervalsSet,
   onDynamicGameDurationSet,
   onChartSelectClose,
 }: UseChartLoaderOptions): UseChartLoaderReturn {
@@ -193,6 +196,12 @@ export function useChartLoader({
       onBgaIntervalsSet(sortedIntervals);
       onBgaIntervalsRefSet(sortedIntervals);
 
+      const lanePositionIntervals = normalizeLanePositionIntervals(
+        Array.isArray(chartData.lanePositionIntervals) ? chartData.lanePositionIntervals : [],
+        clampedDuration
+      );
+      onLanePositionIntervalsSet?.(lanePositionIntervals);
+
       onDynamicGameDurationSet(clampedDuration);
       
       setGameState({
@@ -238,6 +247,7 @@ export function useChartLoader({
     onSubtitlesClear,
     onBgaIntervalsSet,
     onBgaIntervalsRefSet,
+    onLanePositionIntervalsSet,
     onDynamicGameDurationSet,
     onChartSelectClose,
   ]);

@@ -1,5 +1,5 @@
 import React, { startTransition, useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Note, BPMChange, ChartTestPayload, SubtitleEditorChartData, Lane, SpeedChange, BgaVisibilityInterval } from '../types/game';
+import { Note, BPMChange, ChartTestPayload, SubtitleEditorChartData, Lane, SpeedChange, BgaVisibilityInterval, LanePositionInterval } from '../types/game';
 import { ChartEditorHeader } from './ChartEditor/ChartEditorHeader';
 import { ChartEditorSidebarLeft } from './ChartEditor/ChartEditorSidebarLeft';
 import { ChartEditorSidebarRight } from './ChartEditor/ChartEditorSidebarRight';
@@ -35,6 +35,10 @@ import {
   validateNotes,
 } from '../utils/noteValidation';
 import { convertBgaEventsToEditableIntervals } from '../utils/bgaVisibility';
+import {
+  DEFAULT_LANE_POSITION_DURATION_MS,
+  normalizeLanePositionIntervals,
+} from '../utils/lanePositionIntervals';
 import { normalizeSubtitlePayload } from '../utils/subtitleNormalization';
 import { START_DELAY_MS } from '../constants/gameConstants';
 import { AudioAnalysisData } from '../types/audioAnalysis';
@@ -336,6 +340,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [gridDivision, setGridDivision] = useState<number>(1);
   const [speedChanges, setSpeedChanges] = useState<SpeedChange[]>([]);
   const [bgaVisibilityIntervals, setBgaVisibilityIntervals] = useState<BgaVisibilityInterval[]>([]);
+  const [lanePositionIntervals, setLanePositionIntervals] = useState<LanePositionInterval[]>([]);
   const [audioAnalysis, setAudioAnalysis] = useState<AudioAnalysisData | null>(null);
 
   const handleNumericInputFocus = useCallback((event: React.FocusEvent<HTMLDivElement>) => {
@@ -746,6 +751,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         bpmChanges,
         speedChanges,
         bgaVisibilityIntervals,
+        lanePositionIntervals,
         subtitles: cachedSubtitlePayload.subtitles.length > 0 ? cachedSubtitlePayload.subtitles : undefined,
         subtitleTracks: cachedSubtitlePayload.subtitleTracks,
         editingChartId,
@@ -785,6 +791,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       bpmChanges,
         speedChanges,
         bgaVisibilityIntervals,
+        lanePositionIntervals,
       editingChartId,
       shareTitle,
       shareAuthor,
@@ -929,6 +936,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     } else {
       setBgaVisibilityIntervals([]);
     }
+    if (Array.isArray(data.lanePositionIntervals)) {
+      setLanePositionIntervals(
+        normalizeLanePositionIntervals(data.lanePositionIntervals, timelineDurationMs)
+      );
+    } else {
+      setLanePositionIntervals([]);
+    }
     if (typeof data.chartTitle === 'string') setShareTitle(data.chartTitle);
     if (typeof data.chartAuthor === 'string') setShareAuthor(data.chartAuthor);
     if (typeof data.chartDifficulty === 'string') setShareDifficulty(data.chartDifficulty);
@@ -1054,6 +1068,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setGridDivision(1);
     setSpeedChanges([]);
     setBgaVisibilityIntervals([]);
+    setLanePositionIntervals([]);
     setAudioAnalysis(null);
     setIsBpmInputOpen(false);
     setIsAutoScrollEnabled(true);
@@ -1253,6 +1268,37 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const handleDeleteBgaInterval = useCallback((id: string) => {
     if (!confirm('이 간주 구간을 삭제할까요?')) return;
     setBgaVisibilityIntervals((prev) => prev.filter((interval) => interval.id !== id));
+  }, []);
+
+  const handleAddLanePositionIntervalAtCurrent = useCallback((offsetX: number) => {
+    const start = clampTime(snapToGrid(currentTime));
+    const end = clampTime(start + DEFAULT_LANE_POSITION_DURATION_MS);
+    const interval: LanePositionInterval = {
+      id: `lane-pos-${Date.now()}`,
+      startTimeMs: start,
+      endTimeMs: end > start ? end : start + DEFAULT_LANE_POSITION_DURATION_MS,
+      offsetX,
+    };
+
+    setLanePositionIntervals((prev) =>
+      normalizeLanePositionIntervals([...prev, interval], timelineDurationMs)
+    );
+  }, [clampTime, currentTime, snapToGrid, timelineDurationMs]);
+
+  const handleUpdateLanePositionInterval = useCallback(
+    (id: string, patch: Partial<LanePositionInterval>) => {
+      setLanePositionIntervals((prev) =>
+        normalizeLanePositionIntervals(
+          prev.map((interval) => (interval.id === id ? { ...interval, ...patch, id } : interval)),
+          timelineDurationMs
+        )
+      );
+    },
+    [timelineDurationMs]
+  );
+
+  const handleDeleteLanePositionInterval = useCallback((id: string) => {
+    setLanePositionIntervals((prev) => prev.filter((interval) => interval.id !== id));
   }, []);
 
   // --- 복사/붙여넣기 핸들러 ---
@@ -1962,6 +2008,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         bpmChanges,
         speedChanges,
         bgaVisibilityIntervals,
+        lanePositionIntervals,
           subtitles: subtitlePayload.subtitles.length > 0 ? subtitlePayload.subtitles : undefined,
           subtitleTracks: subtitlePayload.subtitleTracks,
           chartTitle: shareTitle,
@@ -2024,7 +2071,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     } finally {
       setIsUploading(false);
     }
-  }, [shareTitle, shareAuthor, shareDifficulty, adminAssignedDifficulty, shareDescription, bpm, youtubeUrl, youtubeVideoId, youtubeThumbnailUrl, notes, beatsPerMeasure, timeSignatureOffset, timelineExtraMs, audioOffsetMs, startDelayMs, bpmChanges, speedChanges, bgaVisibilityIntervals, gridDivision, isLongNoteMode, user, subtitleSessionId, sharePreviewStartMeasure, sharePreviewEndMeasure, shareIsWip, shareWipNote, wipParentChartId, editingChartId, isAdmin]);
+  }, [shareTitle, shareAuthor, shareDifficulty, adminAssignedDifficulty, shareDescription, bpm, youtubeUrl, youtubeVideoId, youtubeThumbnailUrl, notes, beatsPerMeasure, timeSignatureOffset, timelineExtraMs, audioOffsetMs, startDelayMs, bpmChanges, speedChanges, bgaVisibilityIntervals, lanePositionIntervals, gridDivision, isLongNoteMode, user, subtitleSessionId, sharePreviewStartMeasure, sharePreviewEndMeasure, shareIsWip, shareWipNote, wipParentChartId, editingChartId, isAdmin]);
 
   const handleExportJson = useCallback(() => {
     try {
@@ -2227,6 +2274,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       audioOffsetMs,
       startDelayMs,
       bgaVisibilityIntervals,
+      lanePositionIntervals,
       chartId: subtitleSessionId,
       subtitles: normalizeSubtitlePayload(
         subtitleSessionId,
@@ -2246,6 +2294,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       audioOffsetMs,
       startDelayMs,
       bgaVisibilityIntervals,
+      lanePositionIntervals,
       subtitleSessionId,
       resolveEditorPreviewChartTimeMs,
     ]);
@@ -2669,6 +2718,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
               bpm={bpm}
               bpmChanges={sortedBpmChanges}
                 bgaVisibilityIntervals={bgaVisibilityIntervals}
+                lanePositionIntervals={lanePositionIntervals}
                 audioAnalysis={audioAnalysis}
                 isBgaPlacementMode={isBgaPlacementMode}
                  isSelectionMode={isSelectionMode}
@@ -2735,6 +2785,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           onAddBgaIntervalAtCurrent={() => handleAddBgaIntervalAt(currentTime)}
           onUpdateBgaInterval={handleUpdateBgaInterval}
           onDeleteBgaInterval={handleDeleteBgaInterval}
+          lanePositionIntervals={lanePositionIntervals}
+          onAddLanePositionIntervalAtCurrent={handleAddLanePositionIntervalAtCurrent}
+          onUpdateLanePositionInterval={handleUpdateLanePositionInterval}
+          onDeleteLanePositionInterval={handleDeleteLanePositionInterval}
           testStartInput={testStartInput}
           onTestStartInputChange={setTestStartInput}
           currentTime={currentTime}

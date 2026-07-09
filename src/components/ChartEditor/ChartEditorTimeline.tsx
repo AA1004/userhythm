@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
-import { Note, SpeedChange, BPMChange, BgaVisibilityInterval, Lane } from '../../types/game';
+import { Note, SpeedChange, BPMChange, BgaVisibilityInterval, Lane, LanePositionInterval } from '../../types/game';
 import {
   LANE_POSITIONS,
   LANE_WIDTH,
@@ -45,6 +45,7 @@ interface ChartEditorTimelineProps {
   bpm: number;
   bpmChanges: BPMChange[];
   bgaVisibilityIntervals?: BgaVisibilityInterval[];
+  lanePositionIntervals?: LanePositionInterval[];
   isBgaPlacementMode?: boolean;
   // 선택 영역 관련
   isSelectionMode?: boolean;
@@ -115,6 +116,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   bpm,
   bpmChanges,
   bgaVisibilityIntervals = [],
+  lanePositionIntervals = [],
   isBgaPlacementMode = false,
   isSelectionMode = false,
   selectedLane: _selectedLane = null,
@@ -484,6 +486,28 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         });
     },
     [bgaVisibilityIntervals, timelineDurationMs, _zoom, timelineContentHeight, paddedTop, paddedBottom]
+  );
+
+  const visibleLanePositionSegments = useMemo(
+    () => {
+      const zoom = _zoom;
+      const timeToYLocal = (timeMs: number): number => {
+        return timelineContentHeight - TIMELINE_BOTTOM_PADDING - (timeMs / 1000) * PIXELS_PER_SECOND * zoom;
+      };
+      return lanePositionIntervals
+        .map((segment) => {
+          const startTime = Math.max(0, Math.min(timelineDurationMs, segment.startTimeMs));
+          const endTime = Math.max(startTime, Math.min(timelineDurationMs, segment.endTimeMs));
+          const top = Math.min(timeToYLocal(startTime), timeToYLocal(endTime));
+          const height = Math.max(8, Math.abs(timeToYLocal(endTime) - timeToYLocal(startTime)));
+          return { segment, top, height };
+        })
+        .filter(({ top, height }) => {
+          const bottom = top + height;
+          return bottom >= paddedTop && top <= paddedBottom;
+        });
+    },
+    [lanePositionIntervals, timelineDurationMs, _zoom, timelineContentHeight, paddedTop, paddedBottom]
   );
 
   const visibleAnalysisMarkers = useMemo(() => {
@@ -1092,6 +1116,52 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
             title={`Speed BPM ${sc.bpm}`}
           />
         ))}
+
+        {/* 레인 위치 이동 구간: 노트 레인이 아니라 왼쪽 얇은 보조 트랙에 표시 */}
+        {visibleLanePositionSegments.map(({ segment, top, height }) => {
+          const tone =
+            segment.offsetX < 0
+              ? '34,211,238'
+              : segment.offsetX > 0
+                ? '168,85,247'
+                : '148,163,184';
+          const label = segment.offsetX < 0 ? 'L' : segment.offsetX > 0 ? 'R' : 'C';
+          return (
+            <div
+              key={segment.id}
+              style={{
+                position: 'absolute',
+                left: -18,
+                top: `${top}px`,
+                width: 12,
+                height: `${height}px`,
+                borderRadius: 999,
+                background: `rgba(${tone}, 0.42)`,
+                border: `1px solid rgba(${tone}, 0.9)`,
+                boxShadow: `0 0 10px rgba(${tone}, 0.35)`,
+                zIndex: 7,
+                pointerEvents: 'none',
+              }}
+              title={`레인 위치 ${label} (${Math.round(segment.startTimeMs)}ms ~ ${Math.round(segment.endTimeMs)}ms)`}
+            >
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 2,
+                  left: 0,
+                  width: '100%',
+                  textAlign: 'center',
+                  fontSize: 8,
+                  fontWeight: 900,
+                  color: '#f8fafc',
+                  textShadow: '0 0 4px rgba(0,0,0,0.8)',
+                }}
+              >
+                {label}
+              </span>
+            </div>
+          );
+        })}
 
 
         {/* 간주 구간 오버레이 (채보 레인 숨김) */}

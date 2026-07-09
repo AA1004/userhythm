@@ -56,6 +56,13 @@ export interface BgaVisibilityInterval {
   easing?: 'linear';
 }
 
+export interface LanePositionInterval {
+  id: string;
+  startTimeMs: number;
+  endTimeMs: number;
+  offsetX: number;
+}
+
 export interface BPMChange {
   id: number;
   beatIndex: number; // 변속이 시작되는 비트 인덱스
@@ -96,6 +103,7 @@ export interface ChartTestPayload {
   speedChanges?: SpeedChange[];
   chartId?: string;
   bgaVisibilityIntervals?: BgaVisibilityInterval[];
+  lanePositionIntervals?: LanePositionInterval[];
   overlayAudioTrack?: EmbeddedAudioTrack | null;
   subtitles?: SubtitleCue[];
   subtitleTracks?: SubtitleTrack[];

@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { GameState, Note, BgaVisibilityInterval, EmbeddedAudioTrack } from '../types/game';
+import { GameState, Note, BgaVisibilityInterval, EmbeddedAudioTrack, LanePositionInterval } from '../types/game';
 import { buildInitialScore, calculateGameDuration } from '../utils/gameHelpers';
 import { DEFAULT_GAME_DURATION, START_DELAY_MS } from '../constants/gameConstants';
 import { normalizeBgaIntervalsForRuntime } from '../utils/bgaVisibility';
@@ -17,6 +17,7 @@ export interface EditorTestPayload {
   startDelayMs?: number;
   chartId?: string;
   bgaVisibilityIntervals?: BgaVisibilityInterval[];
+  lanePositionIntervals?: LanePositionInterval[];
   overlayAudioTrack?: EmbeddedAudioTrack | null;
   subtitles?: SubtitleCue[];
   subtitleTracks?: SubtitleTrack[];

@@ -1,5 +1,5 @@
 ﻿import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { GameState, Note } from '../types/game';
+import { GameState, LanePositionInterval, Note } from '../types/game';
 import { ChartEditor } from './ChartEditor';
 import { ChartSelect } from './ChartSelect';
 import { ChartSelectTransition } from './ChartSelectTransition';
@@ -36,6 +36,10 @@ import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gamepl
 import { api, ApiChart } from '../lib/api';
 import { chartAPI } from '../lib/supabaseClient';
 import type { SubtitleCue, SubtitleTrack } from '../types/subtitle';
+import {
+  getLanePositionOffsetAtTime,
+  normalizeLanePositionIntervals,
+} from '../utils/lanePositionIntervals';
 
 const EDITOR_CONTRIBUTION_DRAFT_KEY = 'userhythm:editor-contribution-draft';
 
@@ -196,10 +200,35 @@ export const Game: React.FC = () => {
     currentTimeRef,
     currentTimeOffsetMs: currentChartTimeOffsetMs,
   });
+  const [lanePositionIntervals, setLanePositionIntervals] = useState<LanePositionInterval[]>([]);
+  const lanePositionIntervalsRef = useRef<LanePositionInterval[]>([]);
+
+  useEffect(() => {
+    lanePositionIntervalsRef.current = lanePositionIntervals;
+  }, [lanePositionIntervals]);
+
+  useEffect(() => {
+    if (!gameState.gameStarted) {
+      setLanePositionIntervals([]);
+      lanePositionIntervalsRef.current = [];
+    }
+  }, [gameState.gameStarted]);
+
+  const activeLanePositionOffsetX = useMemo(
+    () => getLanePositionOffsetAtTime(lanePositionIntervals, currentChartTimeMs),
+    [lanePositionIntervals, currentChartTimeMs]
+  );
 
   const playfieldGeometry = useMemo(
-    () => buildPlayfieldGeometry(visualSettings, judgeLineY),
-    [visualSettings, judgeLineY]
+    () =>
+      buildPlayfieldGeometry(
+        {
+          ...visualSettings,
+          laneOffsetX: visualSettings.laneOffsetX + activeLanePositionOffsetX,
+        },
+        judgeLineY
+      ),
+    [visualSettings, judgeLineY, activeLanePositionOffsetX]
   );
 
   useEffect(() => {
@@ -400,6 +429,11 @@ export const Game: React.FC = () => {
         applyPendingVisualSettings();
       }
       resetGameSession({ currentTime: -startDelayMs });
+      const nextLanePositionIntervals = normalizeLanePositionIntervals(
+        payload.lanePositionIntervals || []
+      );
+      setLanePositionIntervals(nextLanePositionIntervals);
+      lanePositionIntervalsRef.current = nextLanePositionIntervals;
       window.setTimeout(() => {
         handleEditorTest(payload);
       }, 0);
@@ -726,6 +760,10 @@ export const Game: React.FC = () => {
     onSubtitlesClear: () => setSubtitles([]),
     onBgaIntervalsSet: setBgaVisibilityIntervals,
     onBgaIntervalsRefSet: (intervals) => { testBgaIntervalsRef.current = intervals; },
+    onLanePositionIntervalsSet: (intervals) => {
+      setLanePositionIntervals(intervals);
+      lanePositionIntervalsRef.current = intervals;
+    },
     onDynamicGameDurationSet: setDynamicGameDuration,
     onChartSelectClose: () => setViewMode({ type: 'menu' }),
   });
