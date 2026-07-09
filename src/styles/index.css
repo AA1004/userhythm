@@ -979,8 +979,9 @@ body {
    ========================= */
 
 .game-menu-shell {
-  position: absolute;
+  position: fixed;
   inset: 0;
+  z-index: 50;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -998,13 +999,13 @@ body {
 .game-menu-layout {
   position: relative;
   z-index: 1;
-  width: min(100%, 1900px);
+  width: min(100%, 1780px);
   display: grid;
   grid-template-columns:
     minmax(260px, 1fr)
-    minmax(360px, 520px)
+    minmax(340px, 500px)
     minmax(260px, 1fr);
-  gap: clamp(18px, 2.2vw, 48px);
+  gap: clamp(16px, 2vw, 38px);
   align-items: center;
   pointer-events: auto;
 }
@@ -1117,7 +1118,7 @@ body {
   animation: menuPanelIn 320ms ease-out both;
 }
 
-@media (max-width: 1340px), (max-height: 740px) {
+@media (max-width: 1120px), (max-height: 760px) {
   .game-menu-shell {
     align-items: flex-start;
   }

@@ -1050,6 +1050,30 @@ export const Game: React.FC = () => {
         bgaOpacity={visualSettings.bgaOpacity}
         performanceMode={visualSettings.performanceMode}
       >
+      {/* 메인 메뉴는 500x800 게임 스테이지 바깥에서 화면 전체 기준으로 배치한다. */}
+      {!gameState.gameStarted && (
+        <GameMenu
+          authUser={authUser}
+          canEditCharts={canEditCharts}
+          canSeeAdminMenu={canSeeAdminMenu}
+          userDisplayName={userDisplayName}
+          roleChessIcon={roleChessIcon}
+          isAdmin={isAdmin}
+          isModerator={isModerator}
+          onPlay={() => openChartSelect()}
+          onWorkInProgress={() => openChartSelect(undefined, 'wip')}
+          onEdit={() => setViewMode({ type: 'editor' })}
+          onAdmin={() => setViewMode({ type: 'admin' })}
+          onTutorial={() => setViewMode({ type: 'tutorial' })}
+          onLogin={handleLoginWithGoogle}
+          onLogout={handleLogout}
+          onSettings={() => setIsSettingsOpen(true)}
+          ensureEditorAccess={ensureEditorAccess}
+          leftPanel={<MainMenuSidebar type="version" />}
+          rightPanel={<MainMenuSidebar type="notice" />}
+        />
+      )}
+
       {/* 게임 + 자막 wrapper (자막이 게임 바깥으로 나갈 수 있도록).
           레인 페이드 중에도 자막은 보여야 하므로 wrapper 전체 opacity는 건드리지 않는다. */}
       <div
@@ -1214,31 +1238,6 @@ export const Game: React.FC = () => {
                     YOUTUBE LOADING
                   </div>
                 )}
-
-              {/* 게임 시작 UI */}
-              {!gameState.gameStarted && (
-                <GameMenu
-                  authUser={authUser}
-                  canEditCharts={canEditCharts}
-                  canSeeAdminMenu={canSeeAdminMenu}
-                  userDisplayName={userDisplayName}
-                  roleChessIcon={roleChessIcon}
-                  isAdmin={isAdmin}
-                  isModerator={isModerator}
-                  onPlay={() => openChartSelect()}
-                  onWorkInProgress={() => openChartSelect(undefined, 'wip')}
-                  onEdit={() => setViewMode({ type: 'editor' })}
-                  onAdmin={() => setViewMode({ type: 'admin' })}
-                  onTutorial={() => setViewMode({ type: 'tutorial' })}
-                  onLogin={handleLoginWithGoogle}
-                  onLogout={handleLogout}
-                  onSettings={() => setIsSettingsOpen(true)}
-                  ensureEditorAccess={ensureEditorAccess}
-                  leftPanel={<MainMenuSidebar type="version" />}
-                  rightPanel={<MainMenuSidebar type="notice" />}
-                />
-              )}
-
 
               {/* 게임 종료 UI */}
               {gameState.gameEnded && (
