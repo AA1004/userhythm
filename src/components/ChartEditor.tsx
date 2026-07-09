@@ -2742,6 +2742,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
                  onAddBgaIntervalAt={handleAddBgaIntervalAt}
                  onUpdateBgaInterval={handleUpdateBgaInterval}
                  onDeleteBgaInterval={handleDeleteBgaInterval}
+                 onUpdateLanePositionInterval={handleUpdateLanePositionInterval}
             />
 
             <EditorTimelineActionRails

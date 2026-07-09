@@ -71,6 +71,7 @@ interface ChartEditorTimelineProps {
   onAddBgaIntervalAt?: (startTimeMs: number) => void;
   onUpdateBgaInterval?: (id: string, patch: Partial<BgaVisibilityInterval>) => void;
   onDeleteBgaInterval?: (id: string) => void;
+  onUpdateLanePositionInterval?: (id: string, patch: Partial<LanePositionInterval>) => void;
   audioAnalysis?: AudioAnalysisData | null;
 }
 
@@ -138,6 +139,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   onAddBgaIntervalAt,
   onUpdateBgaInterval,
   onDeleteBgaInterval,
+  onUpdateLanePositionInterval,
   audioAnalysis = null,
 }) => {
   // 재생선 ref (리렌더링 없이 직접 DOM 업데이트)
@@ -151,6 +153,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     beatsPerMeasure,
   });
   const [isBgaResizing, setIsBgaResizing] = useState(false);
+  const [isLanePositionResizing, setIsLanePositionResizing] = useState(false);
   const currentMeasureLabel = useMemo(
     () => `${timeToMeasure(currentTime, bpm, bpmChanges, beatsPerMeasure)}마디`,
     [currentTime, bpm, bpmChanges, beatsPerMeasure]
@@ -586,6 +589,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   const isDraggingSelectionRef = useRef(false);
   const isDraggingMoveRef = useRef(false);
   const bgaResizeRef = useRef<{ id: string; edge: 'start' | 'end' } | null>(null);
+  const lanePositionResizeRef = useRef<{ id: string; edge: 'start' | 'end' } | null>(null);
   const moveStartRef = useRef<{ time: number; lane: number } | null>(null);
   const suppressNextTimelineClickRef = useRef(false);
   const selectionPointerStartRef = useRef<{
@@ -613,6 +617,20 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     event.preventDefault();
     event.stopPropagation();
   }, [isBgaPlacementMode, suppressTimelineClick]);
+
+  const startLanePositionResize = useCallback((
+    event: React.MouseEvent<HTMLElement>,
+    id: string,
+    edge: 'start' | 'end'
+  ) => {
+    if (!onUpdateLanePositionInterval) return;
+    lanePositionResizeRef.current = { id, edge };
+    setIsLanePositionResizing(true);
+    suppressTimelineClick();
+    window.getSelection()?.removeAllRanges();
+    event.preventDefault();
+    event.stopPropagation();
+  }, [onUpdateLanePositionInterval, suppressTimelineClick]);
 
   const isScrollbarInteraction = useCallback((clientX: number, clientY: number) => {
     const scroll = timelineScrollRef.current;
@@ -682,6 +700,20 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     }
 
     const target = e.target as HTMLElement;
+    const lanePositionHandle = target.closest('[data-lane-position-resize]') as HTMLElement | null;
+    if (lanePositionHandle) {
+      const id = lanePositionHandle.dataset.lanePositionId;
+      const edge = lanePositionHandle.dataset.lanePositionResize as 'start' | 'end' | undefined;
+      if (id && edge) {
+        lanePositionResizeRef.current = { id, edge };
+        setIsLanePositionResizing(true);
+        suppressTimelineClick();
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+    }
+
     const bgaHandle = isBgaPlacementMode ? (target.closest('[data-bga-resize]') as HTMLElement | null) : null;
     if (bgaHandle) {
       const id = bgaHandle.dataset.bgaId;
@@ -785,6 +817,32 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   }, [isSelectionMode, isMoveMode, selectedNoteIds, yToTime, onMoveStart, timelineContentRef, suppressTimelineClick, isScrollbarInteraction, isBgaPlacementMode]);
   
   const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (lanePositionResizeRef.current && onUpdateLanePositionInterval && timelineContentRef.current) {
+      const activeResize = lanePositionResizeRef.current;
+      const interval = lanePositionIntervals.find((item) => item.id === activeResize.id);
+      if (!interval) {
+        lanePositionResizeRef.current = null;
+        setIsLanePositionResizing(false);
+        return;
+      }
+
+      const rect = timelineContentRef.current.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const currentResizeTime = Math.max(0, yToTime(y));
+
+      if (activeResize.edge === 'start') {
+        onUpdateLanePositionInterval(activeResize.id, {
+          startTimeMs: Math.min(currentResizeTime, Math.max(0, interval.endTimeMs - BGA_MIN_DURATION_MS)),
+        });
+      } else {
+        onUpdateLanePositionInterval(activeResize.id, {
+          endTimeMs: Math.max(interval.startTimeMs + BGA_MIN_DURATION_MS, currentResizeTime),
+        });
+      }
+      e.preventDefault();
+      return;
+    }
+
     if (bgaResizeRef.current && onUpdateBgaInterval && timelineContentRef.current) {
       const activeResize = bgaResizeRef.current;
       const interval = bgaVisibilityIntervals.find((item) => item.id === activeResize.id);
@@ -884,9 +942,13 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
 
     if (onSelectionUpdate) onSelectionUpdate(yToTime(y));
     e.preventDefault();
-  }, [isTrackingSelection, yToTime, onSelectionStart, onSelectionUpdate, onMoveUpdate, timelineContentRef, normalizeRect, onMarqueeStart, onMarqueeUpdate, computeMarqueeSelectedIds, suppressTimelineClick, onUpdateBgaInterval, bgaVisibilityIntervals]);
+  }, [isTrackingSelection, yToTime, onSelectionStart, onSelectionUpdate, onMoveUpdate, timelineContentRef, normalizeRect, onMarqueeStart, onMarqueeUpdate, computeMarqueeSelectedIds, suppressTimelineClick, onUpdateBgaInterval, bgaVisibilityIntervals, onUpdateLanePositionInterval, lanePositionIntervals]);
   
   const handleMouseUp = useCallback(() => {
+    if (lanePositionResizeRef.current) {
+      lanePositionResizeRef.current = null;
+    }
+    setIsLanePositionResizing(false);
     if (bgaResizeRef.current) {
       bgaResizeRef.current = null;
     }
@@ -918,7 +980,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   }, [onSelectionEnd, onMoveEnd, onMarqueeUpdate, onMarqueeEnd, marqueeRect, computeMarqueeSelectedIds]);
   
   useEffect(() => {
-    if (isTrackingSelection || isDraggingSelectionRef.current || isDraggingMoveRef.current || isBgaResizing) {
+    if (isTrackingSelection || isDraggingSelectionRef.current || isDraggingMoveRef.current || isBgaResizing || isLanePositionResizing) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
       return () => {
@@ -926,7 +988,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         window.removeEventListener('mouseup', handleMouseUp);
       };
     }
-  }, [isTrackingSelection, isBgaResizing, handleMouseMove, handleMouseUp]);
+  }, [isTrackingSelection, isBgaResizing, isLanePositionResizing, handleMouseMove, handleMouseUp]);
 
   // 기존 세로 선택(selectionBox)은 마퀴 선택으로 대체됨
 
@@ -1129,6 +1191,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
           return (
             <div
               key={segment.id}
+              data-lane-position-segment="true"
               style={{
                 position: 'absolute',
                 left: -18,
@@ -1140,10 +1203,82 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
                 border: `1px solid rgba(${tone}, 0.9)`,
                 boxShadow: `0 0 10px rgba(${tone}, 0.35)`,
                 zIndex: 7,
-                pointerEvents: 'none',
+                pointerEvents: onUpdateLanePositionInterval ? 'auto' : 'none',
               }}
               title={`레인 위치 ${label} (${Math.round(segment.startTimeMs)}ms ~ ${Math.round(segment.endTimeMs)}ms)`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
             >
+              {onUpdateLanePositionInterval && (
+                <>
+                  <button
+                    type="button"
+                    data-lane-position-resize="end"
+                    data-lane-position-id={segment.id}
+                    onMouseDown={(e) => startLanePositionResize(e, segment.id, 'end')}
+                    style={{
+                      position: 'absolute',
+                      top: -7,
+                      left: -5,
+                      width: 22,
+                      height: 18,
+                      border: 'none',
+                      borderRadius: 999,
+                      background: 'transparent',
+                      cursor: 'ns-resize',
+                      padding: 0,
+                    }}
+                    aria-label="Lane position end resize"
+                  />
+                  <button
+                    type="button"
+                    data-lane-position-resize="start"
+                    data-lane-position-id={segment.id}
+                    onMouseDown={(e) => startLanePositionResize(e, segment.id, 'start')}
+                    style={{
+                      position: 'absolute',
+                      bottom: -7,
+                      left: -5,
+                      width: 22,
+                      height: 18,
+                      border: 'none',
+                      borderRadius: 999,
+                      background: 'transparent',
+                      cursor: 'ns-resize',
+                      padding: 0,
+                    }}
+                    aria-label="Lane position start resize"
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: -1,
+                      left: -2,
+                      width: 14,
+                      height: 3,
+                      borderRadius: 999,
+                      background: `rgba(${tone}, 0.95)`,
+                      boxShadow: `0 0 7px rgba(${tone}, 0.55)`,
+                      pointerEvents: 'none',
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: -1,
+                      left: -2,
+                      width: 14,
+                      height: 3,
+                      borderRadius: 999,
+                      background: `rgba(${tone}, 0.95)`,
+                      boxShadow: `0 0 7px rgba(${tone}, 0.55)`,
+                      pointerEvents: 'none',
+                    }}
+                  />
+                </>
+              )}
               <span
                 style={{
                   position: 'absolute',
