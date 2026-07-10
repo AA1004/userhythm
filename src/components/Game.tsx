@@ -44,6 +44,8 @@ import { getChartPayload } from '../utils/chartPayload';
 import { retryOnceOnTransientFailure } from '../utils/requestRetry';
 
 const EDITOR_CONTRIBUTION_DRAFT_KEY = 'userhythm:editor-contribution-draft';
+// 키 아래 슬롯 HUD가 기본 800px 플레이필드 밖으로 밀리지 않게 확보하는 전용 영역이다.
+const GAMEPLAY_SLOT_AREA_HEIGHT = 92;
 
 // Subtitle editor chart data
 interface SubtitleEditorChartData {
@@ -266,6 +268,10 @@ export const Game: React.FC = () => {
   }, []);
 
   const userDisplayName = getUserDisplayName(displayName);
+  const stageLogicalHeight =
+    gameState.gameStarted && !gameState.gameEnded
+      ? GAME_VIEW_HEIGHT + GAMEPLAY_SLOT_AREA_HEIGHT
+      : GAME_VIEW_HEIGHT;
   const stageScale = useMemo(() => {
     const horizontalPadding = 32;
     const verticalPadding = 32;
@@ -273,12 +279,12 @@ export const Game: React.FC = () => {
     const availableHeight = Math.max(320, viewportSize.height - verticalPadding);
     return Math.min(
       availableWidth / GAME_VIEW_WIDTH,
-      availableHeight / GAME_VIEW_HEIGHT,
+      availableHeight / stageLogicalHeight,
       1
     );
-  }, [viewportSize.width, viewportSize.height]);
+  }, [viewportSize.width, viewportSize.height, stageLogicalHeight]);
   const stageDisplayWidth = Math.round(GAME_VIEW_WIDTH * stageScale);
-  const stageDisplayHeight = Math.round(GAME_VIEW_HEIGHT * stageScale);
+  const stageDisplayHeight = Math.round(stageLogicalHeight * stageScale);
   const [topLaneExtensionHeightPx, setTopLaneExtensionHeightPx] = useState(0);
   const topLaneExtensionHeight = useMemo(
     () =>
@@ -1179,7 +1185,7 @@ export const Game: React.FC = () => {
                 left: 0,
                 top: 0,
                 width: `${GAME_VIEW_WIDTH}px`,
-                height: `${GAME_VIEW_HEIGHT}px`,
+                height: `${stageLogicalHeight}px`,
                 transform: `scale(${stageScale})`,
                 transformOrigin: 'top left',
                 zIndex: 2,
