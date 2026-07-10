@@ -1,18 +1,13 @@
 import React from 'react';
 import { Score as ScoreType } from '../types/game';
+import { calculateScoreAccuracy } from '../utils/scoreAccuracy';
 
 interface ScoreProps {
   score: ScoreType;
 }
 
 const ScoreComponent: React.FC<ScoreProps> = ({ score }) => {
-  const total = score.perfect + score.great + score.good + score.miss;
-  const accuracy =
-    total > 0
-      ? ((score.perfect * 100 + score.great * 80 + score.good * 50) /
-          (total * 100)) *
-        100
-      : 0;
+  const accuracy = calculateScoreAccuracy(score);
 
   return (
     <div

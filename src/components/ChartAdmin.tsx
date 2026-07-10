@@ -156,6 +156,17 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
           audioOffsetMs: typeof normalized._data?.audioOffsetMs === 'number' ? normalized._data.audioOffsetMs : 0,
           bpm: normalized.bpm,
           speedChanges: normalized._data?.speedChanges || [],
+          bpmChanges: normalized._data?.bpmChanges || [],
+          bgaVisibilityIntervals: normalized._data?.bgaVisibilityIntervals || [],
+          lanePositionIntervals: normalized._data?.lanePositionIntervals || [],
+          subtitles: normalized._data?.subtitles || [],
+          subtitleTracks: normalized._data?.subtitleTracks || [],
+          timelineExtraMs: typeof normalized._data?.timelineExtraMs === 'number' ? normalized._data.timelineExtraMs : 0,
+          startDelayMs: typeof normalized._data?.startDelayMs === 'number' ? normalized._data.startDelayMs : undefined,
+          beatsPerMeasure: typeof normalized._data?.beatsPerMeasure === 'number' ? normalized._data.beatsPerMeasure : 4,
+          timeSignatureOffset: typeof normalized._data?.timeSignatureOffset === 'number' ? normalized._data.timeSignatureOffset : 0,
+          chartId: chart.id,
+          sourceChartId: chart.id,
         });
       }
     } catch (error) {

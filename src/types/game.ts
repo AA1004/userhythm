@@ -101,7 +101,12 @@ export interface ChartTestPayload {
   startDelayMs?: number;
   bpm?: number;
   speedChanges?: SpeedChange[];
+  bpmChanges?: BPMChange[];
+  beatsPerMeasure?: number;
+  timeSignatureOffset?: number;
+  timelineExtraMs?: number;
   chartId?: string;
+  sourceChartId?: string;
   bgaVisibilityIntervals?: BgaVisibilityInterval[];
   lanePositionIntervals?: LanePositionInterval[];
   overlayAudioTrack?: EmbeddedAudioTrack | null;

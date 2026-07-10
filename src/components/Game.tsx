@@ -39,6 +39,7 @@ import { chartAPI } from '../lib/supabaseClient';
 import type { SubtitleCue, SubtitleTrack } from '../types/subtitle';
 import { normalizeLanePositionIntervals } from '../utils/lanePositionIntervals';
 import { useLanePositionOffset } from '../hooks/useLanePositionOffset';
+import { calculateScoreAccuracy } from '../utils/scoreAccuracy';
 
 const EDITOR_CONTRIBUTION_DRAFT_KEY = 'userhythm:editor-contribution-draft';
 
@@ -643,19 +644,10 @@ export const Game: React.FC = () => {
   }, [isFromEditor, gameState.gameStarted, gameState.gameEnded, handleReturnToEditor, handleReturnToPlayList]);
 
 
-  const total = gameState.score.perfect + gameState.score.great + 
-                gameState.score.good + gameState.score.miss;
-  const accuracy =
-    total > 0
-      ? ((gameState.score.perfect * 100 +
-          gameState.score.great * 80 +
-          gameState.score.good * 50) /
-          (total * 100)) *
-        100
-      : 0;
+  const accuracy = calculateScoreAccuracy(gameState.score);
 
   useEffect(() => {
-    if (!gameState.gameStarted || gameState.gameEnded || isFromEditor) return;
+    if (!gameState.gameStarted || !gameState.gameEnded || isFromEditor) return;
     if (!activePlayableChartId || !playSessionToken || hasRecordedPlayRef.current) return;
 
     hasRecordedPlayRef.current = true;

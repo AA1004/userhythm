@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { GameState } from '../types/game';
+import { calculateScoreAccuracy } from '../utils/scoreAccuracy';
 
 interface GameplaySlotHudProps {
   laneGroupLeft: number;
@@ -17,12 +18,6 @@ interface GameplaySlotHudProps {
 
 const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
 const GAMEPLAY_HUD_PAINT_EVENT = 'userhythm:gameplay-hud-paint';
-
-const calculateAccuracy = (score: GameState['score']) => {
-  const total = score.perfect + score.great + score.good + score.miss;
-  if (total === 0) return 100;
-  return ((score.perfect + score.great * 0.7 + score.good * 0.3) / total) * 100;
-};
 
 const GameplaySlotHudComponent: React.FC<GameplaySlotHudProps> = ({
   laneGroupLeft,
@@ -53,7 +48,7 @@ const GameplaySlotHudComponent: React.FC<GameplaySlotHudProps> = ({
     const renderScore = () => {
       if (!scoreRuntimeRef) return;
       const score = scoreRuntimeRef.current;
-      const nextAccuracy = Math.round(calculateAccuracy(score) * 100) / 100;
+      const nextAccuracy = Math.round(calculateScoreAccuracy(score) * 100) / 100;
       if (score.combo !== lastCombo) {
         lastCombo = score.combo;
         if (comboValueRef.current) {
