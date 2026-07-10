@@ -42,12 +42,17 @@ export function useChartYoutubePlayer({
   const playbackRetryTimerRef = useRef<number | null>(null);
   const skipPlaybackEffectStateRef = useRef<boolean | null>(null);
   const lastEditorFollowSeekMsRef = useRef(0);
+  const latestVolumeRef = useRef(volume);
   const playerClockSampleRef = useRef<{
     playerSeconds: number;
     sampledAtMs: number;
     isPlaying: boolean;
   } | null>(null);
   const lastPlayerClockPollMsRef = useRef(0);
+
+  useEffect(() => {
+    latestVolumeRef.current = volume;
+  }, [volume]);
   const getPlayerTimeSeconds = useCallback(
     (timeMs: number) => Math.max(0, timeMs - audioOffsetMs) / 1000,
     [audioOffsetMs]
@@ -270,7 +275,7 @@ export function useChartYoutubePlayer({
 
               // 초기 볼륨 설정
               try {
-                player.setVolume(volume);
+                player.setVolume(latestVolumeRef.current);
               } catch (e) {
                 console.warn('볼륨 설정 실패:', e);
               }
@@ -305,7 +310,7 @@ export function useChartYoutubePlayer({
         youtubePlayerRef.current.innerHTML = '';
       }
     };
-  }, [youtubeVideoId, setIsPlaying, setCurrentTime, volume, clearPlaybackRetryTimer, applyEditorPlaybackQuality]);
+  }, [youtubeVideoId, setIsPlaying, setCurrentTime, clearPlaybackRetryTimer, applyEditorPlaybackQuality]);
 
   // latest currentTime snapshot (재생 시작 시점에서 사용)
   useEffect(() => {

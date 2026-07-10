@@ -667,13 +667,29 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     const lastNoteTime = notes.length > 0 
       ? Math.max(...notes.map(n => n.endTime || n.time)) 
       : 0;
+    const bgaEndTime = bgaVisibilityIntervals.length > 0
+      ? Math.max(...bgaVisibilityIntervals.map((interval) => interval.endTimeMs))
+      : 0;
+    const lanePositionEndTime = lanePositionIntervals.length > 0
+      ? Math.max(...lanePositionIntervals.map((interval) => interval.endTimeMs))
+      : 0;
+    const subtitleEndTime = cachedSubtitlePayload.subtitles.length > 0
+      ? Math.max(...cachedSubtitlePayload.subtitles.map((cue) => cue.endTimeMs))
+      : 0;
     const videoDurationMs = (videoDurationSeconds || 0) * 1000;
     const validVideoDuration = (videoDurationSeconds && videoDurationSeconds > 0) 
       ? videoDurationMs 
       : MIN_TIMELINE_DURATION_MS;
-    const baseDuration = Math.max(lastNoteTime + 5000, validVideoDuration, MIN_TIMELINE_DURATION_MS);
+    const baseDuration = Math.max(
+      lastNoteTime + 5000,
+      bgaEndTime,
+      lanePositionEndTime,
+      subtitleEndTime,
+      validVideoDuration,
+      MIN_TIMELINE_DURATION_MS
+    );
     return Math.max(MIN_TIMELINE_DURATION_MS, baseDuration + timelineExtraMs);
-  }, [notes, videoDurationSeconds, timelineExtraMs]);
+  }, [notes, bgaVisibilityIntervals, lanePositionIntervals, cachedSubtitlePayload.subtitles, videoDurationSeconds, timelineExtraMs]);
 
   const timelineContentHeight = useMemo(() => {
     return TIMELINE_TOP_PADDING + TIMELINE_BOTTOM_PADDING + (timelineDurationMs / 1000) * PIXELS_PER_SECOND * zoom;
@@ -866,20 +882,47 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       return;
     }
 
+    // Restore from one local snapshot so a previous chart's state cannot clamp new metadata.
+    const restoredNotes = Array.isArray(data.notes) ? validateNotes(data.notes) : [];
+    const restoredBpm = typeof data.bpm === 'number' ? data.bpm : bpm;
+    const restoredBeatsPerMeasure = typeof data.beatsPerMeasure === 'number'
+      ? data.beatsPerMeasure
+      : beatsPerMeasure;
+    const restoredTimeSignatureOffset = data.timeSignatureOffset !== undefined
+      ? data.timeSignatureOffset
+      : timeSignatureOffset;
+    const restoredTimelineExtraMs = typeof data.timelineExtraMs === 'number'
+      ? data.timelineExtraMs
+      : 0;
+    const restoredBgaInput = Array.isArray(data.bgaVisibilityIntervals)
+      ? data.bgaVisibilityIntervals
+      : [];
+    const restoredLaneInput = Array.isArray(data.lanePositionIntervals)
+      ? data.lanePositionIntervals
+      : [];
+    const restoredSubtitleInput = Array.isArray(data.subtitles) ? data.subtitles : [];
+    const restoredTimelineDurationMs = Math.max(
+      MIN_TIMELINE_DURATION_MS,
+      (restoredNotes.length > 0 ? Math.max(...restoredNotes.map((note) => note.endTime || note.time)) : 0)
+        + 5000 + Math.max(0, restoredTimelineExtraMs),
+      ...restoredBgaInput.map((interval: any) => Math.max(0, Number(interval?.endTimeMs) || 0)),
+      ...restoredLaneInput.map((interval: any) => Math.max(0, Number(interval?.endTimeMs) || 0)),
+      ...restoredSubtitleInput.map((cue: any) => Math.max(0, Number(cue?.endTimeMs) || 0))
+    );
+
     if (Array.isArray(data.notes)) {
       // 복원 시 노트 검증 및 정규화 (validateNotes 유틸리티 사용)
-      const restoredNotes = validateNotes(data.notes);
       setNotes(restoredNotes);
       // 히스토리 초기화
       resetHistory([...restoredNotes]);
       noteIdRef.current = getMaxNoteId(restoredNotes) + 1;
     }
 
-    if (typeof data.bpm === 'number') setBpm(data.bpm);
+    setBpm(restoredBpm);
     if (typeof data.youtubeUrl === 'string') setYoutubeUrl(data.youtubeUrl);
-    if (typeof data.beatsPerMeasure === 'number') setBeatsPerMeasure(data.beatsPerMeasure);
-    if (data.timeSignatureOffset !== undefined) setTimeSignatureOffset(data.timeSignatureOffset);
-    if (typeof data.timelineExtraMs === 'number') setTimelineExtraMs(data.timelineExtraMs);
+    setBeatsPerMeasure(restoredBeatsPerMeasure);
+    setTimeSignatureOffset(restoredTimeSignatureOffset);
+    setTimelineExtraMs(restoredTimelineExtraMs);
     if (typeof data.audioOffsetMs === 'number') setAudioOffsetMs(data.audioOffsetMs);
     setStartDelayMs(
       typeof data.startDelayMs === 'number'
@@ -900,19 +943,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           : 0;
       speedChangeIdRef.current = maxId + 1;
     }
-    if (Array.isArray(data.bgaVisibilityIntervals)) {
-      const restoredNotes = Array.isArray(data.notes) ? validateNotes(data.notes) : notes;
-      const restoredTimelineExtraMs =
-        typeof data.timelineExtraMs === 'number' ? data.timelineExtraMs : timelineExtraMs;
-      const restoredLastNoteTime =
-        restoredNotes.length > 0
-          ? Math.max(...restoredNotes.map((note) => note.endTime || note.time))
-          : 0;
-      const restoreTimelineDurationMs = Math.max(
-        MIN_TIMELINE_DURATION_MS,
-        restoredLastNoteTime + 5000 + restoredTimelineExtraMs
-      );
-      const hydrated = data.bgaVisibilityIntervals.map((interval: any, idx: number) => ({
+    if (restoredBgaInput.length > 0) {
+      const hydrated = restoredBgaInput.map((interval: any, idx: number) => ({
         id: typeof interval.id === 'string' ? interval.id : `bga-${idx}`,
         startTimeMs: Math.max(0, Number(interval.startTimeMs) || 0),
         endTimeMs: Math.max(0, Number(interval.endTimeMs) || 0),
@@ -929,17 +961,15 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       }));
       setBgaVisibilityIntervals(
         sortAndClampBgaIntervals(
-          convertBgaEventsToEditableIntervals(hydrated, restoreTimelineDurationMs),
-          restoreTimelineDurationMs
+          convertBgaEventsToEditableIntervals(hydrated, restoredTimelineDurationMs),
+          restoredTimelineDurationMs
         )
       );
     } else {
       setBgaVisibilityIntervals([]);
     }
-    if (Array.isArray(data.lanePositionIntervals)) {
-      setLanePositionIntervals(
-        normalizeLanePositionIntervals(data.lanePositionIntervals, timelineDurationMs)
-      );
+    if (restoredLaneInput.length > 0) {
+      setLanePositionIntervals(normalizeLanePositionIntervals(restoredLaneInput, restoredTimelineDurationMs));
     } else {
       setLanePositionIntervals([]);
     }
@@ -1001,10 +1031,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           subtitleTracks: restoredSubtitlePayload.subtitleTracks,
           subtitles: restoredSubtitlePayload.subtitles,
           selectedTrackId: restoredSubtitlePayload.selectedTrackId,
-          beatsPerMeasure,
+          beatsPerMeasure: restoredBeatsPerMeasure,
           noteValue: 4,
           isPlayheadLocked: false,
-          gridOffsetMs: timeSignatureOffset,
+          gridOffsetMs: restoredTimeSignatureOffset,
           currentTimeMs: 0,
         })
       );
