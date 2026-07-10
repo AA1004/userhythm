@@ -40,6 +40,8 @@ import type { SubtitleCue, SubtitleTrack } from '../types/subtitle';
 import { normalizeLanePositionIntervals } from '../utils/lanePositionIntervals';
 import { useLanePositionOffset } from '../hooks/useLanePositionOffset';
 import { calculateScoreAccuracy } from '../utils/scoreAccuracy';
+import { getChartPayload } from '../utils/chartPayload';
+import { retryOnceOnTransientFailure } from '../utils/requestRetry';
 
 const EDITOR_CONTRIBUTION_DRAFT_KEY = 'userhythm:editor-contribution-draft';
 
@@ -591,7 +593,7 @@ export const Game: React.FC = () => {
     if (!ensureEditorAccess()) return;
 
     try {
-      const parsed = JSON.parse(chart.data_json || '{}');
+      const parsed = getChartPayload(JSON.parse(chart.data_json || '{}'));
       const draft = {
         ...parsed,
         editingChartId: null,
@@ -651,7 +653,7 @@ export const Game: React.FC = () => {
     if (!activePlayableChartId || !playSessionToken || hasRecordedPlayRef.current) return;
 
     hasRecordedPlayRef.current = true;
-    void chartAPI.incrementPlayCount(activePlayableChartId, playSessionToken).catch((error: unknown) => {
+    void retryOnceOnTransientFailure(() => chartAPI.incrementPlayCount(activePlayableChartId, playSessionToken)).catch((error: unknown) => {
       hasRecordedPlayRef.current = false;
       console.error('Failed to increment play count:', error);
     });
@@ -665,8 +667,7 @@ export const Game: React.FC = () => {
     playSessionRequestChartIdRef.current = activePlayableChartId;
     setPlaySessionToken(null);
 
-    void api
-      .createPlaySession(activePlayableChartId)
+    void retryOnceOnTransientFailure(() => api.createPlaySession(activePlayableChartId))
       .then(({ playSessionToken: token }) => {
         if (playSessionRequestChartIdRef.current === activePlayableChartId) {
           setPlaySessionToken(token);
@@ -694,8 +695,7 @@ export const Game: React.FC = () => {
 
     hasSubmittedScoreRef.current = true;
     const score = gameState.score;
-    void api
-      .submitScore({
+    void retryOnceOnTransientFailure(() => api.submitScore({
         chartId: activePlayableChartId,
         perfect: score.perfect,
         great: score.great,
@@ -703,7 +703,7 @@ export const Game: React.FC = () => {
         miss: score.miss,
         maxCombo: score.maxCombo,
         playSessionToken,
-      })
+      }))
       .then(() => {
         window.dispatchEvent(
           new CustomEvent('userhythm:leaderboard-updated', {

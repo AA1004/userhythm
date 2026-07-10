@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { api, ApiChart } from '../lib/api';
 import { extractYouTubeVideoId } from '../utils/youtube';
 import { validateNotes } from '../utils/noteValidation';
+import { getChartPayload } from '../utils/chartPayload';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { getDisplayChartDifficulty } from '../constants/chartDifficulty';
 
@@ -93,7 +94,7 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
 
   const normalizeChart = (chart: ApiChart) => {
     try {
-      const data = JSON.parse(chart.data_json || '{}');
+      const data = getChartPayload(JSON.parse(chart.data_json || '{}'));
       const youtubeUrl: string = data.youtubeUrl || chart.youtube_url || '';
       let youtubeVideoId: string | null = data.youtubeVideoId || null;
       if (!youtubeVideoId && youtubeUrl) {
@@ -147,24 +148,25 @@ export const ChartAdmin: React.FC<ChartAdminProps> = ({ onClose, onTestChart }) 
     const normalized = normalizeChart(chart);
     try {
       if (onTestChart) {
+        const chartData = normalized._data as Record<string, any> | null;
         onTestChart({
-          notes: normalized._data?.notes || [],
+          notes: chartData?.notes || [],
           startTimeMs: 0,
           youtubeVideoId: normalized._youtubeVideoId,
           youtubeUrl: normalized._youtubeUrl,
-          playbackSpeed: normalized._data?.playbackSpeed || 1,
-          audioOffsetMs: typeof normalized._data?.audioOffsetMs === 'number' ? normalized._data.audioOffsetMs : 0,
+          playbackSpeed: chartData?.playbackSpeed || 1,
+          audioOffsetMs: typeof chartData?.audioOffsetMs === 'number' ? chartData.audioOffsetMs : 0,
           bpm: normalized.bpm,
-          speedChanges: normalized._data?.speedChanges || [],
-          bpmChanges: normalized._data?.bpmChanges || [],
-          bgaVisibilityIntervals: normalized._data?.bgaVisibilityIntervals || [],
-          lanePositionIntervals: normalized._data?.lanePositionIntervals || [],
-          subtitles: normalized._data?.subtitles || [],
-          subtitleTracks: normalized._data?.subtitleTracks || [],
-          timelineExtraMs: typeof normalized._data?.timelineExtraMs === 'number' ? normalized._data.timelineExtraMs : 0,
-          startDelayMs: typeof normalized._data?.startDelayMs === 'number' ? normalized._data.startDelayMs : undefined,
-          beatsPerMeasure: typeof normalized._data?.beatsPerMeasure === 'number' ? normalized._data.beatsPerMeasure : 4,
-          timeSignatureOffset: typeof normalized._data?.timeSignatureOffset === 'number' ? normalized._data.timeSignatureOffset : 0,
+          speedChanges: chartData?.speedChanges || [],
+          bpmChanges: chartData?.bpmChanges || [],
+          bgaVisibilityIntervals: chartData?.bgaVisibilityIntervals || [],
+          lanePositionIntervals: chartData?.lanePositionIntervals || [],
+          subtitles: chartData?.subtitles || [],
+          subtitleTracks: chartData?.subtitleTracks || [],
+          timelineExtraMs: typeof chartData?.timelineExtraMs === 'number' ? chartData.timelineExtraMs : 0,
+          startDelayMs: typeof chartData?.startDelayMs === 'number' ? chartData.startDelayMs : undefined,
+          beatsPerMeasure: typeof chartData?.beatsPerMeasure === 'number' ? chartData.beatsPerMeasure : 4,
+          timeSignatureOffset: typeof chartData?.timeSignatureOffset === 'number' ? chartData.timeSignatureOffset : 0,
           chartId: chart.id,
           sourceChartId: chart.id,
         });

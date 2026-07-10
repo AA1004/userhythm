@@ -40,6 +40,7 @@ import {
   normalizeLanePositionIntervals,
 } from '../utils/lanePositionIntervals';
 import { normalizeSubtitlePayload } from '../utils/subtitleNormalization';
+import { getChartPayload } from '../utils/chartPayload';
 import { START_DELAY_MS } from '../constants/gameConstants';
 import { AudioAnalysisData } from '../types/audioAnalysis';
 import {
@@ -2155,8 +2156,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       if (!file) return;
       try {
         const text = await file.text();
-        const parsed = JSON.parse(text);
-        const chartData = parsed.chart ?? parsed;
+        const chartData = getChartPayload(JSON.parse(text));
         if (!chartData || typeof chartData !== 'object') {
           throw new Error('올바르지 않은 JSON 구조입니다.');
         }
@@ -2374,7 +2374,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
 
     try {
-      const parsed = JSON.parse(chart.data_json || '{}');
+      const parsed = getChartPayload(JSON.parse(chart.data_json || '{}'));
       handleRestore({
         ...parsed,
         editingChartId: chart.id,

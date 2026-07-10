@@ -4,6 +4,7 @@ import { chartAPI } from '../lib/supabaseClient';
 import { extractYouTubeVideoId } from '../utils/youtube';
 import { measureToTime } from '../utils/bpmUtils';
 import { validateNotes } from '../utils/noteValidation';
+import { getChartPayload } from '../utils/chartPayload';
 import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { useChartSelectPreview, type ChartSelectPreviewSpec } from '../hooks/useChartSelectPreview';
 import { ChartSelectPreviewStage } from './chart-select/ChartSelectPreviewStage';
@@ -66,13 +67,6 @@ const getYouTubeThumbnailFallback = (url: string | null) => {
     /(i\.ytimg\.com|img\.youtube\.com)\/vi\/([^/]+)\/maxresdefault\.jpg/,
     '$1/vi/$2/hqdefault.jpg'
   );
-};
-
-const getChartPayload = (raw: any) => {
-  if (raw && typeof raw === 'object' && !Array.isArray(raw) && raw.chart && typeof raw.chart === 'object') {
-    return raw.chart;
-  }
-  return raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
 };
 
 export const ChartSelect: React.FC<ChartSelectProps> = ({

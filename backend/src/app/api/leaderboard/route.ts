@@ -173,43 +173,48 @@ export async function POST(req: NextRequest) {
     if (!verifiedSession.ok) {
       return NextResponse.json({ error: verifiedSession.error }, { status: 401 });
     }
-    const persistedSession = await prisma.playSession.findUnique({
-      where: { nonce: verifiedSession.claims.nonce },
+    const scoreResult = await prisma.$transaction(async (tx) => {
+      const persistedSession = await tx.playSession.findUnique({
+        where: { nonce: verifiedSession.claims.nonce },
+      });
+      if (
+        !persistedSession ||
+        persistedSession.userId !== session.userId ||
+        persistedSession.chartId !== chartId ||
+        persistedSession.chartHash !== validatedScore.chart.chartHash ||
+        persistedSession.expectedJudgments !== validatedScore.chart.expectedJudgments ||
+        persistedSession.expiresAt <= new Date()
+      ) return { kind: 'invalid' as const };
+
+      const consumed = await tx.playSession.updateMany({
+        where: { nonce: persistedSession.nonce, scoreConsumedAt: null },
+        data: { scoreConsumedAt: new Date() },
+      });
+      if (consumed.count === 0) return { kind: 'reused' as const };
+
+      const score = await tx.score.create({
+        data: {
+          chartId,
+          userId: session.userId,
+          accuracy: validatedScore.accuracy,
+          perfect: validatedScore.counts.perfect,
+          great: validatedScore.counts.great,
+          good: validatedScore.counts.good,
+          miss: validatedScore.counts.miss,
+          maxCombo: validatedScore.counts.maxCombo,
+        },
+        include: { user: { include: { profile: true } }, chart: true },
+      });
+      return { kind: 'created' as const, score };
     });
-    if (
-      !persistedSession ||
-      persistedSession.userId !== session.userId ||
-      persistedSession.chartId !== chartId ||
-      persistedSession.chartHash !== validatedScore.chart.chartHash ||
-      persistedSession.expectedJudgments !== validatedScore.chart.expectedJudgments ||
-      persistedSession.expiresAt <= new Date()
-    ) {
+
+    if (scoreResult.kind === 'invalid') {
       return NextResponse.json({ error: 'invalid_play_session' }, { status: 401 });
     }
-
-    const consumed = await prisma.playSession.updateMany({
-      where: { nonce: persistedSession.nonce, scoreConsumedAt: null },
-      data: { scoreConsumedAt: new Date() },
-    });
-    if (consumed.count === 0) {
+    if (scoreResult.kind === 'reused') {
       return NextResponse.json({ error: 'play_session_reused' }, { status: 409 });
     }
-
-    const score = await prisma.score.create({
-      data: {
-        chartId,
-        userId: session.userId,
-        accuracy: validatedScore.accuracy,
-        perfect: validatedScore.counts.perfect,
-        great: validatedScore.counts.great,
-        good: validatedScore.counts.good,
-        miss: validatedScore.counts.miss,
-        maxCombo: validatedScore.counts.maxCombo,
-      },
-      include: { user: { include: { profile: true } }, chart: true },
-    });
-
-    return NextResponse.json({ score: serializeScore(score) }, { status: 201 });
+    return NextResponse.json({ score: serializeScore(scoreResult.score) }, { status: 201 });
   } catch (error) {
     console.error('leaderboard post error', error);
     return NextResponse.json({ error: 'failed to submit score' }, { status: 500 });
