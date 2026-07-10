@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getSessionFromRequest } from '../../../lib/auth';
 import { validateScoreSubmission } from '../../../lib/scoreValidation';
-import { consumePlaySessionForScore, verifyPlaySessionToken } from '../../../lib/playSession';
+import { verifyPlaySessionToken } from '../../../lib/playSession';
 
 const serializeScore = (score: any, userMap?: Map<string, any>, chartMap?: Map<string, any>) => ({
   id: score.id,
@@ -173,7 +173,25 @@ export async function POST(req: NextRequest) {
     if (!verifiedSession.ok) {
       return NextResponse.json({ error: verifiedSession.error }, { status: 401 });
     }
-    if (!consumePlaySessionForScore(verifiedSession.claims.nonce)) {
+    const persistedSession = await prisma.playSession.findUnique({
+      where: { nonce: verifiedSession.claims.nonce },
+    });
+    if (
+      !persistedSession ||
+      persistedSession.userId !== session.userId ||
+      persistedSession.chartId !== chartId ||
+      persistedSession.chartHash !== validatedScore.chart.chartHash ||
+      persistedSession.expectedJudgments !== validatedScore.chart.expectedJudgments ||
+      persistedSession.expiresAt <= new Date()
+    ) {
+      return NextResponse.json({ error: 'invalid_play_session' }, { status: 401 });
+    }
+
+    const consumed = await prisma.playSession.updateMany({
+      where: { nonce: persistedSession.nonce, scoreConsumedAt: null },
+      data: { scoreConsumedAt: new Date() },
+    });
+    if (consumed.count === 0) {
       return NextResponse.json({ error: 'play_session_reused' }, { status: 409 });
     }
 

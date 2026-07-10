@@ -9,7 +9,7 @@ import {
   MAX_TITLE_LENGTH,
   validateChartDataJson,
 } from '../../../../lib/chartData';
-import { markPlaySessionCounted, verifyPlaySessionToken } from '../../../../lib/playSession';
+import { verifyPlaySessionToken } from '../../../../lib/playSession';
 
 const sanitizeAdminDifficulty = (value: unknown): string | null =>
   typeof value === 'string' && value.trim().length > 0
@@ -238,7 +238,25 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: verifiedSession.error }, { status: 401 });
     }
 
-    if (!markPlaySessionCounted(verifiedSession.claims.nonce)) {
+    const now = new Date();
+    const recordedSession = await prisma.playSession.findUnique({
+      where: { nonce: verifiedSession.claims.nonce },
+    });
+    if (
+      !recordedSession ||
+      recordedSession.chartId !== existingChart.id ||
+      recordedSession.chartHash !== validatedChartData.chartHash ||
+      recordedSession.expectedJudgments !== validatedChartData.expectedJudgments ||
+      recordedSession.expiresAt <= now
+    ) {
+      return NextResponse.json({ error: 'invalid_play_session' }, { status: 401 });
+    }
+
+    const claimed = await prisma.playSession.updateMany({
+      where: { nonce: recordedSession.nonce, countedAt: null },
+      data: { countedAt: now },
+    });
+    if (claimed.count === 0) {
       return NextResponse.json({
         chart: serializeChart(existingChart, {
           authorRole: existingChart.user?.profile?.role || existingChart.user?.role || undefined,
@@ -251,11 +269,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const chart = await prisma.chart.update({
       where: { id: params.id },
-      data: {
-        playCount: {
-          increment: 1,
-        },
-      },
+      data: { playCount: { increment: 1 } },
       include: { user: { include: { profile: true } } },
     });
 

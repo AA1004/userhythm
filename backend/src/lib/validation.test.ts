@@ -19,8 +19,6 @@ async function main() {
   const {
     signPlaySessionToken,
     verifyPlaySessionToken,
-    markPlaySessionCounted,
-    consumePlaySessionForScore,
   } = await import('./playSession');
 
   const validChartJson = JSON.stringify({
@@ -141,10 +139,6 @@ async function main() {
   });
   assert.equal(verified.ok, true);
   if (!verified.ok) throw new Error('expected valid play session');
-  assert.equal(markPlaySessionCounted(verified.claims.nonce), true);
-  assert.equal(markPlaySessionCounted(verified.claims.nonce), false);
-  assert.equal(consumePlaySessionForScore(verified.claims.nonce), true);
-  assert.equal(consumePlaySessionForScore(verified.claims.nonce), false);
 
   const mismatched = verifyPlaySessionToken(token, {
     chartId: 'chart-1',

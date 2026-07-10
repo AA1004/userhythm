@@ -2,7 +2,7 @@ import jwt, { JwtPayload } from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
 
 const PLAY_SESSION_TYPE = 'play_session';
-const PLAY_SESSION_MAX_AGE_SEC = 60 * 60 * 6;
+export const PLAY_SESSION_MAX_AGE_SEC = 60 * 60 * 6;
 const MAX_FUTURE_SKEW_MS = 30_000;
 
 export interface PlaySessionClaims {
@@ -18,21 +18,10 @@ export type PlaySessionVerificationResult =
   | { ok: true; claims: PlaySessionClaims }
   | { ok: false; error: string };
 
-const countedPlaySessions = new Map<string, number>();
-const consumedScoreSessions = new Map<string, number>();
-
 const getTokenSecret = (): string =>
   process.env.PLAY_SESSION_SECRET ||
   process.env.SESSION_SECRET ||
   (process.env.NODE_ENV === 'production' ? '' : 'dev-secret-change-me');
-
-const pruneExpired = (store: Map<string, number>, now = Date.now()) => {
-  for (const [nonce, expiresAt] of store) {
-    if (expiresAt <= now) {
-      store.delete(nonce);
-    }
-  }
-};
 
 export const isPlaySessionSecretConfigured = (): boolean => getTokenSecret().length > 0;
 
@@ -57,7 +46,6 @@ export const signPlaySessionToken = (input: {
 
   return jwt.sign(claims, secret, { expiresIn: PLAY_SESSION_MAX_AGE_SEC });
 };
-
 const isClaimsPayload = (decoded: string | JwtPayload): decoded is JwtPayload & PlaySessionClaims => {
   if (typeof decoded === 'string') return false;
   return (
@@ -110,20 +98,4 @@ export const verifyPlaySessionToken = (
       nonce: decoded.nonce,
     },
   };
-};
-
-export const markPlaySessionCounted = (nonce: string): boolean => {
-  const now = Date.now();
-  pruneExpired(countedPlaySessions, now);
-  if (countedPlaySessions.has(nonce)) return false;
-  countedPlaySessions.set(nonce, now + PLAY_SESSION_MAX_AGE_SEC * 1000);
-  return true;
-};
-
-export const consumePlaySessionForScore = (nonce: string): boolean => {
-  const now = Date.now();
-  pruneExpired(consumedScoreSessions, now);
-  if (consumedScoreSessions.has(nonce)) return false;
-  consumedScoreSessions.set(nonce, now + PLAY_SESSION_MAX_AGE_SEC * 1000);
-  return true;
 };

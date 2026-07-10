@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { validateChartDataJson } from '../../../lib/chartData';
 import { isPlaySessionSecretConfigured, signPlaySessionToken } from '../../../lib/playSession';
+import { getSessionFromRequest } from '../../../lib/auth';
 
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const RATE_LIMIT_MAX = 60;
@@ -64,6 +65,24 @@ export async function POST(req: NextRequest) {
       chartId: chart.id,
       chartHash: validated.chartHash,
       expectedJudgments: validated.expectedJudgments,
+    });
+    const tokenPayload = JSON.parse(Buffer.from(playSessionToken.split('.')[1], 'base64url').toString()) as {
+      nonce: string;
+      startedAt: number;
+    };
+    const session = getSessionFromRequest(req);
+
+    await prisma.playSession.deleteMany({ where: { expiresAt: { lte: new Date() } } });
+    await prisma.playSession.create({
+      data: {
+        nonce: tokenPayload.nonce,
+        userId: session?.userId ?? null,
+        chartId: chart.id,
+        chartHash: validated.chartHash,
+        expectedJudgments: validated.expectedJudgments,
+        startedAt: new Date(tokenPayload.startedAt),
+        expiresAt: new Date(tokenPayload.startedAt + 6 * 60 * 60 * 1000),
+      },
     });
 
     return NextResponse.json({

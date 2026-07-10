@@ -24,6 +24,7 @@ model User {
   profile       Profile?
   charts        Chart[]
   scores        Score[]
+  playSessions  PlaySession[]
 }
 
 model Profile {
@@ -57,6 +58,7 @@ model Chart {
   userId           String?
   user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   scores           Score[]
+  playSessions     PlaySession[]
 
   @@index([status, isWorkInProgress, createdAt])
   @@index([status, isWorkInProgress, playCount])
@@ -80,6 +82,26 @@ model Score {
 
   @@index([chartId, accuracy])
   @@index([userId, createdAt])
+}
+
+model PlaySession {
+  nonce            String   @id
+  userId           String?
+  chartId          String
+  chartHash        String
+  expectedJudgments Int
+  startedAt        DateTime
+  expiresAt        DateTime
+  countedAt        DateTime?
+  scoreConsumedAt  DateTime?
+  createdAt        DateTime @default(now())
+
+  user  User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  chart Chart  @relation(fields: [chartId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([chartId])
+  @@index([userId])
 }
 
 model Notice {
