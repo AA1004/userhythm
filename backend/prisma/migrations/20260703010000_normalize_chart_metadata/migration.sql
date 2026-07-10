@@ -1,7 +1,7 @@
 ﻿-- Promote chart metadata that used to be inferred from dataJson into indexed columns.
 ALTER TABLE "Chart"
-  ADD COLUMN "adminDifficulty" TEXT,
-  ADD COLUMN "isWorkInProgress" BOOLEAN NOT NULL DEFAULT false;
+  ADD COLUMN IF NOT EXISTS "adminDifficulty" TEXT,
+  ADD COLUMN IF NOT EXISTS "isWorkInProgress" BOOLEAN NOT NULL DEFAULT false;
 
 UPDATE "Chart"
 SET "adminDifficulty" = LEFT(NULLIF(TRIM("dataJson"::jsonb ->> 'adminDifficulty'), ''), 50)
@@ -14,11 +14,11 @@ SET "isWorkInProgress" = CASE
 END
 WHERE "dataJson"::jsonb ? 'wip';
 
-CREATE INDEX "Chart_status_isWorkInProgress_createdAt_idx"
+CREATE INDEX IF NOT EXISTS "Chart_status_isWorkInProgress_createdAt_idx"
   ON "Chart"("status", "isWorkInProgress", "createdAt");
 
-CREATE INDEX "Chart_status_isWorkInProgress_playCount_idx"
+CREATE INDEX IF NOT EXISTS "Chart_status_isWorkInProgress_playCount_idx"
   ON "Chart"("status", "isWorkInProgress", "playCount");
 
-CREATE INDEX "Chart_status_isWorkInProgress_title_idx"
+CREATE INDEX IF NOT EXISTS "Chart_status_isWorkInProgress_title_idx"
   ON "Chart"("status", "isWorkInProgress", "title");
