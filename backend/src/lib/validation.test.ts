@@ -68,6 +68,38 @@ async function main() {
   if (!adminChart.ok) throw new Error('expected valid admin chart');
   assert.equal(adminChart.adminDifficulty, 'secret-admin-label');
 
+  const normalizedContractChart = validateChartDataJson(
+    JSON.stringify({
+      bpm: 180,
+      notes: [
+        { lane: 0, time: 0, duration: 500 }, // duration-only hold
+        { lane: 1, time: 0, endTime: 500 }, // endTime-only hold
+        { lane: 2, time: 0, duration: 20, type: 'hold' }, // short hold becomes tap
+        { lane: 3, time: 0, duration: 500, type: 'tap' }, // duration wins over declared type
+        { lane: 0, time: 250, duration: 0, type: 'tap' }, // overlaps the first hold
+        { lane: 1, time: 0, duration: 0, type: 'tap' }, // overlaps the endTime-only hold
+      ],
+    })
+  );
+  assert.equal(normalizedContractChart.ok, true);
+  if (!normalizedContractChart.ok) throw new Error('expected normalized contract chart');
+  assert.deepEqual(
+    normalizedContractChart.chartData.notes.map((note) => ({
+      id: note.id,
+      lane: note.lane,
+      duration: note.duration,
+      endTime: note.endTime,
+      type: note.type,
+    })),
+    [
+      { id: 1, lane: 0, duration: 500, endTime: 500, type: 'hold' },
+      { id: 2, lane: 1, duration: 500, endTime: 500, type: 'hold' },
+      { id: 3, lane: 2, duration: 0, endTime: 0, type: 'tap' },
+      { id: 4, lane: 3, duration: 500, endTime: 500, type: 'hold' },
+    ]
+  );
+  assert.equal(normalizedContractChart.expectedJudgments, 7);
+
   const invalidLane = validateChartDataJson(
     JSON.stringify({ bpm: 120, notes: [{ lane: 9, time: 0, duration: 0, type: 'tap' }] })
   );

@@ -1,4 +1,8 @@
 import { createHash } from 'crypto';
+import {
+  normalizeChartNote,
+  removeCanonicalNoteConflicts,
+} from '../../../src/shared/chartNoteNormalization';
 
 export const MAX_DATA_JSON_LENGTH = 1_000_000;
 export const MAX_TITLE_LENGTH = 200;
@@ -103,40 +107,15 @@ const normalizeNote = (value: unknown, index: number): ChartNote | { error: stri
     return { error: 'invalid_note_duration' };
   }
 
-  const isHold = declaredType === 'hold' || duration > 0;
-  if (!isHold) {
-    return {
-      id: index + 1,
-      lane,
-      time,
-      duration: 0,
-      endTime: time,
-      type: 'tap',
-      y: 0,
-      hit: false,
-    };
-  }
-
-  if (duration <= 0) {
-    return {
-      id: index + 1,
-      lane,
-      time,
-      duration: 0,
-      endTime: time,
-      type: 'tap',
-      y: 0,
-      hit: false,
-    };
-  }
-
-  return {
-    id: index + 1,
+  const normalized = normalizeChartNote({
     lane,
     time,
     duration,
-    endTime: time + duration,
-    type: 'hold',
+    endTime: rawEndTime ?? undefined,
+    type: declaredType,
+  }, index + 1);
+  return {
+    ...normalized,
     y: 0,
     hit: false,
   };
@@ -153,9 +132,12 @@ const normalizeNotes = (value: unknown): ChartNote[] | { error: string } => {
     normalized.push({ note, originalIndex: index });
   }
 
-  return normalized
+  const sorted = normalized
     .sort((left, right) => left.note.time - right.note.time || left.originalIndex - right.originalIndex)
-    .map(({ note }, index) => ({ ...note, id: index + 1 }));
+    .map(({ note }) => note);
+
+  return removeCanonicalNoteConflicts(sorted)
+    .map((note, index) => ({ ...note, id: index + 1 }));
 };
 
 export const extractYouTubeVideoId = (input: string): string | null => {

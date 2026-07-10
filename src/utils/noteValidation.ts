@@ -1,106 +1,36 @@
 import { Note, Lane } from '../types/game';
+import {
+  doCanonicalNotesOverlap,
+  MIN_LONG_NOTE_DURATION_MS,
+  normalizeChartNote,
+  removeCanonicalNoteConflicts,
+} from '../shared/chartNoteNormalization';
 
 /** 롱노트의 최소 길이 (ms) - 이보다 짧으면 탭노트로 변환 */
-export const MIN_LONG_NOTE_DURATION = 50;
+export const MIN_LONG_NOTE_DURATION = MIN_LONG_NOTE_DURATION_MS;
 
 /**
- * 단일 노트를 검증하고 정규화
- * - 롱노트: duration > 0, endTime = time + duration
- * - 탭노트: duration = 0, endTime = time
- * - 잘못된 롱노트는 탭노트로 변환
+ * 단일 노트를 정규화한다. duration이 있으면 legacy endTime보다 우선한다.
  */
 export function validateNote(note: Note): Note {
-  // 기본 필드 정리
-  const cleanedNote: Note = {
-    id: note.id,
-    lane: note.lane as Lane,
-    time: note.time,
-    duration: typeof note.duration === 'number' ? note.duration : 0,
-    endTime: typeof note.endTime === 'number' ? note.endTime : note.time,
-    type: note.type || 'tap',
+  const normalized = normalizeChartNote(note, note.id);
+  return {
+    ...normalized,
+    lane: normalized.lane as Lane,
     y: note.y ?? 0,
     hit: false,
   };
-
-  // 롱노트 검증
-  if (cleanedNote.type === 'hold' || cleanedNote.duration > 0) {
-    // duration이 0 이하이거나 endTime이 time보다 작거나 같으면 탭 노트로 변환
-    if (cleanedNote.duration <= 0 || (cleanedNote.endTime !== undefined && cleanedNote.endTime <= cleanedNote.time)) {
-      return {
-        ...cleanedNote,
-        type: 'tap',
-        duration: 0,
-        endTime: cleanedNote.time,
-      };
-    }
-
-    // 최소 길이 미만이면 탭 노트로 변환
-    if (cleanedNote.duration < MIN_LONG_NOTE_DURATION) {
-      return {
-        ...cleanedNote,
-        type: 'tap',
-        duration: 0,
-        endTime: cleanedNote.time,
-      };
-    }
-
-    // endTime이 올바르게 설정되지 않은 경우 수정
-    if (!cleanedNote.endTime || cleanedNote.endTime <= cleanedNote.time) {
-      return {
-        ...cleanedNote,
-        endTime: cleanedNote.time + cleanedNote.duration,
-      };
-    }
-
-    // endTime과 duration이 일치하지 않는 경우 수정
-    const expectedEndTime = cleanedNote.time + cleanedNote.duration;
-    if (cleanedNote.endTime !== expectedEndTime) {
-      return {
-        ...cleanedNote,
-        endTime: expectedEndTime,
-      };
-    }
-
-    return cleanedNote;
-  }
-
-  // 탭 노트의 경우 endTime을 time과 동일하게 설정
-  return {
-    ...cleanedNote,
-    type: 'tap',
-    duration: 0,
-    endTime: cleanedNote.time,
-  };
 }
 
-/**
- * 노트가 유효한지 확인
- */
+/** 노트가 유효한지 확인 */
 export function isValidNote(note: Note): boolean {
-  // time이 음수이거나 NaN인 경우 무효
-  if (note.time < 0 || isNaN(note.time)) return false;
-
-  // endTime이 time보다 작은 경우 무효
-  if (note.endTime < note.time) return false;
-
-  // endTime이 NaN인 경우 무효
-  if (isNaN(note.endTime)) return false;
-
-  // duration이 0인데 endTime이 time과 다른 경우 무효 (탭 노트는 endTime === time이어야 함)
+  if (note.time < 0 || !Number.isFinite(note.time)) return false;
+  if (!Number.isInteger(note.lane) || note.lane < 0 || note.lane > 3) return false;
+  if (!Number.isFinite(note.duration) || note.duration < 0) return false;
+  if (note.endTime < note.time || !Number.isFinite(note.endTime)) return false;
   if (note.duration === 0 && note.endTime !== note.time) return false;
-
   return true;
 }
-
-const NOTE_CONFLICT_EPSILON_MS = 0.5;
-
-const getNoteRange = (note: Note) => {
-  const start = Number.isFinite(note.time) ? note.time : 0;
-  const end = note.type === 'hold' && Number.isFinite(note.endTime)
-    ? Math.max(start, note.endTime)
-    : start;
-  return { start, end };
-};
 
 /**
  * 같은 레인에서 시간 구간이 겹치는지 확인.
@@ -108,14 +38,7 @@ const getNoteRange = (note: Note) => {
  */
 export function doNotesOverlap(a: Note, b: Note): boolean {
   if (a.id === b.id) return false;
-  if (a.lane !== b.lane) return false;
-
-  const aRange = getNoteRange(a);
-  const bRange = getNoteRange(b);
-  return (
-    aRange.start <= bRange.end + NOTE_CONFLICT_EPSILON_MS &&
-    bRange.start <= aRange.end + NOTE_CONFLICT_EPSILON_MS
-  );
+  return doCanonicalNotesOverlap(a, b);
 }
 
 export function hasNotePlacementConflict(
@@ -123,87 +46,51 @@ export function hasNotePlacementConflict(
   candidate: Note,
   ignoredIds: Set<number> = new Set()
 ): boolean {
-  return notes.some((note) => {
-    if (ignoredIds.has(note.id)) return false;
-    return doNotesOverlap(note, candidate);
-  });
+  return notes.some((note) => !ignoredIds.has(note.id) && doNotesOverlap(note, candidate));
 }
 
 export function hasAnyNotePlacementConflict(notes: Note[]): boolean {
   for (let i = 0; i < notes.length; i++) {
     for (let j = i + 1; j < notes.length; j++) {
-      if (doNotesOverlap(notes[i], notes[j])) {
-        return true;
-      }
+      if (doNotesOverlap(notes[i], notes[j])) return true;
     }
   }
   return false;
 }
 
 export function removeNotePlacementConflicts(notes: Note[]): Note[] {
-  const accepted: Note[] = [];
-  for (const note of notes) {
-    if (!hasNotePlacementConflict(accepted, note)) {
-      accepted.push(note);
-    }
-  }
-  return accepted;
+  return removeCanonicalNoteConflicts(notes);
 }
 
 /**
- * 노트 배열을 검증하고 정규화
- * - 각 노트를 검증/정규화
- * - 유효하지 않은 노트 필터링
- * - 시간순 정렬
+ * 노트 배열을 검증하고 정규화한다.
+ * Runtime Set/cursor logic depends on ids following this sorted session order.
  */
 export function validateNotes(notes: Note[]): Note[] {
   const normalized = notes
-    .map((note, originalIndex) => ({
-      note: validateNote(note),
-      originalIndex,
-    }))
+    .map((note, originalIndex) => ({ note: validateNote(note), originalIndex }))
     .filter(({ note }) => isValidNote(note))
     .sort((a, b) => a.note.time - b.note.time || a.originalIndex - b.originalIndex)
     .map(({ note }) => note);
 
-  return removeNotePlacementConflicts(normalized)
-    .map((note, index) => ({
-      ...note,
-      // Runtime Set/cursor logic depends on ids following the sorted session order.
-      id: index + 1,
-      hit: false,
-    }));
-}
-
-/**
- * 유령 노트(ghost notes) 정리
- * - hit 상태 리셋
- * - y 위치 초기화
- */
-export function cleanupGhostNotes(notes: Note[]): Note[] {
-  return notes.map((note) => ({
-    ...note,
-    hit: false,
-    y: 0,
-  }));
-}
-
-/**
- * 노트 ID 재할당 (1부터 시작)
- */
-export function reassignNoteIds(notes: Note[]): Note[] {
-  return notes.map((note, index) => ({
+  return removeNotePlacementConflicts(normalized).map((note, index) => ({
     ...note,
     id: index + 1,
+    hit: false,
   }));
 }
 
-/**
- * 노트 배열에서 최대 ID 찾기
- */
+/** 유령 노트 상태를 런타임 초기값으로 되돌린다. */
+export function cleanupGhostNotes(notes: Note[]): Note[] {
+  return notes.map((note) => ({ ...note, hit: false, y: 0 }));
+}
+
+/** 노트 ID 재할당 (1부터 시작) */
+export function reassignNoteIds(notes: Note[]): Note[] {
+  return notes.map((note, index) => ({ ...note, id: index + 1 }));
+}
+
+/** 노트 배열에서 최대 ID 찾기 */
 export function getMaxNoteId(notes: Note[]): number {
-  return notes.reduce((max, note) => {
-    const noteId = typeof note.id === 'number' ? note.id : 0;
-    return Math.max(max, noteId);
-  }, 0);
+  return notes.reduce((max, note) => Math.max(max, typeof note.id === 'number' ? note.id : 0), 0);
 }
