@@ -500,6 +500,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
           timeSignatureOffset: chartData.timeSignatureOffset || 0,
           speedChanges: chartData.speedChanges || [],
           bgaVisibilityIntervals: chartData.bgaVisibilityIntervals || [],
+          lanePositionIntervals: chartData.lanePositionIntervals || [],
           subtitles: chartData.subtitles || [],
           subtitleTracks: chartData.subtitleTracks || [],
           timelineExtraMs: typeof chartData.timelineExtraMs === 'number' ? chartData.timelineExtraMs : 0,

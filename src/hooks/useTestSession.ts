@@ -41,7 +41,12 @@ export interface UseTestSessionReturn {
   isTestMode: boolean;
   isFromEditor: boolean;
   dynamicGameDuration: number;
-  startTestSession: (notes: Note[], intervals: BgaVisibilityInterval[], startDelayMs?: number) => void;
+  startTestSession: (
+    notes: Note[],
+    intervals: BgaVisibilityInterval[],
+    startDelayMs?: number,
+    chartTimeOffsetMs?: number
+  ) => void;
   handleEditorTest: (payload: EditorTestPayload) => void;
   handleRetest: () => void;
   reset: () => void;
@@ -71,12 +76,20 @@ export function useTestSession({
   const preparedNotesRef = useRef<Note[]>([]);
   const bgaIntervalsRef = useRef<BgaVisibilityInterval[]>([]);
   const startDelayMsRef = useRef<number>(START_DELAY_MS);
+  const chartTimeOffsetMsRef = useRef<number>(0);
 
   const startTestSession = useCallback(
-    (preparedNotes: Note[], visibilityIntervals: BgaVisibilityInterval[] = [], startDelayMs = START_DELAY_MS) => {
+    (
+      preparedNotes: Note[],
+      visibilityIntervals: BgaVisibilityInterval[] = [],
+      startDelayMs = START_DELAY_MS,
+      chartTimeOffsetMs = chartTimeOffsetMsRef.current
+    ) => {
       if (!preparedNotes.length) return;
       const safeStartDelayMs = Number.isFinite(startDelayMs) ? Math.max(0, Math.round(startDelayMs)) : START_DELAY_MS;
+      const safeChartTimeOffsetMs = Number.isFinite(chartTimeOffsetMs) ? Math.max(0, chartTimeOffsetMs) : 0;
       startDelayMsRef.current = safeStartDelayMs;
+      chartTimeOffsetMsRef.current = safeChartTimeOffsetMs;
       
       onProcessedMissNotesClear();
       onPressedKeysReset();
@@ -86,7 +99,10 @@ export function useTestSession({
       const clampedDuration = calculateGameDuration(preparedNotes);
       setDynamicGameDuration(clampedDuration);
       
-      const sortedIntervals = normalizeBgaIntervalsForRuntime(visibilityIntervals, clampedDuration);
+      const sortedIntervals = normalizeBgaIntervalsForRuntime(
+        visibilityIntervals,
+        safeChartTimeOffsetMs + clampedDuration
+      );
       bgaIntervalsRef.current = sortedIntervals;
       onBgaIntervalsSet(sortedIntervals);
 
@@ -180,7 +196,12 @@ export function useTestSession({
       // YouTube 플레이어 초기화를 위해 videoId 설정
       onYoutubeVideoIdSet(payload.youtubeVideoId);
       
-      startTestSession(preparedNotes, payload.bgaVisibilityIntervals || [], payload.startDelayMs ?? START_DELAY_MS);
+      startTestSession(
+        preparedNotes,
+        payload.bgaVisibilityIntervals || [],
+        payload.startDelayMs ?? START_DELAY_MS,
+        startMs
+      );
     },
     [startTestSession, onSubtitlesLoad, onSubtitlesSet, onSubtitlesClear, onYoutubeVideoIdSet, onAudioSettingsSet, onEditorClose]
   );
@@ -193,6 +214,7 @@ export function useTestSession({
   }, [startTestSession]);
 
   const reset = useCallback(() => {
+    chartTimeOffsetMsRef.current = 0;
     resetGameSessionRuntime({
       setGameState,
       setIsTestMode,

@@ -100,15 +100,18 @@ export function useChartLoader({
         return;
       }
 
-      // 일반 플레이는 에디터 테스트와 달리 채보 타임라인 여유분까지 재생한다.
-      const clampedDuration = calculatePlayableChartDuration(
-        preparedNotes,
-        typeof chartData.timelineExtraMs === 'number' ? chartData.timelineExtraMs : 0
-      );
-
       const chartIntervals: BgaVisibilityInterval[] = Array.isArray(chartData.bgaVisibilityIntervals)
         ? [...chartData.bgaVisibilityIntervals]
         : [];
+      const rawLanePositionIntervals: LanePositionInterval[] = Array.isArray(chartData.lanePositionIntervals)
+        ? chartData.lanePositionIntervals
+        : [];
+      const clampedDuration = calculatePlayableChartDuration(preparedNotes, {
+        timelineExtraMs: typeof chartData.timelineExtraMs === 'number' ? chartData.timelineExtraMs : 0,
+        bgaVisibilityIntervals: chartIntervals,
+        lanePositionIntervals: rawLanePositionIntervals,
+        subtitles: Array.isArray(chartData.subtitles) ? chartData.subtitles : [],
+      });
       const sortedIntervals: BgaVisibilityInterval[] = normalizeBgaIntervalsForRuntime(chartIntervals
         .map((it, idx): BgaVisibilityInterval => ({
           id: typeof it.id === 'string' ? it.id : `bga-${idx}`,
@@ -130,7 +133,7 @@ export function useChartLoader({
       onBgaIntervalsRefSet(sortedIntervals);
 
       const lanePositionIntervals = normalizeLanePositionIntervals(
-        Array.isArray(chartData.lanePositionIntervals) ? chartData.lanePositionIntervals : [],
+        rawLanePositionIntervals,
         clampedDuration
       );
       onLanePositionIntervalsSet?.(lanePositionIntervals);

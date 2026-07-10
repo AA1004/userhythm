@@ -37,10 +37,8 @@ import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gamepl
 import { api, ApiChart } from '../lib/api';
 import { chartAPI } from '../lib/supabaseClient';
 import type { SubtitleCue, SubtitleTrack } from '../types/subtitle';
-import {
-  getLanePositionOffsetAtTime,
-  normalizeLanePositionIntervals,
-} from '../utils/lanePositionIntervals';
+import { normalizeLanePositionIntervals } from '../utils/lanePositionIntervals';
+import { useLanePositionOffset } from '../hooks/useLanePositionOffset';
 
 const EDITOR_CONTRIBUTION_DRAFT_KEY = 'userhythm:editor-contribution-draft';
 
@@ -163,6 +161,7 @@ export const Game: React.FC = () => {
   const currentTimeRef = useRef<number>(0);
   const hasRecordedPlayRef = useRef(false);
   const hasSubmittedScoreRef = useRef(false);
+  const audioEndedBeforeChartRef = useRef(false);
   const playSessionRequestChartIdRef = useRef<string | null>(null);
   const [playSessionToken, setPlaySessionToken] = useState<string | null>(null);
   useEffect(() => {
@@ -180,6 +179,7 @@ export const Game: React.FC = () => {
       hasSubmittedScoreRef.current = false;
       playSessionRequestChartIdRef.current = null;
       setPlaySessionToken(null);
+      audioEndedBeforeChartRef.current = false;
     }
   }, [gameState.gameStarted]);
 
@@ -215,9 +215,11 @@ export const Game: React.FC = () => {
     }
   }, [gameState.gameStarted]);
 
-  const activeLanePositionOffsetX = useMemo(
-    () => getLanePositionOffsetAtTime(lanePositionIntervals, currentChartTimeMs),
-    [lanePositionIntervals, currentChartTimeMs]
+  const activeLanePositionOffsetX = useLanePositionOffset(
+    lanePositionIntervals,
+    currentTimeRef,
+    currentChartTimeOffsetMs,
+    gameState.gameStarted && !gameState.gameEnded
   );
 
   const playfieldGeometry = useMemo(
@@ -392,8 +394,10 @@ export const Game: React.FC = () => {
     volume: gameVolume,
     performanceMode: visualSettings.performanceMode,
     onPlaybackEnded: () => {
-      if (!isFromEditor) {
+      if (!isFromEditor && currentTimeRef.current >= dynamicGameDuration) {
         finishCurrentGame();
+      } else if (!isFromEditor) {
+        audioEndedBeforeChartRef.current = true;
       }
     },
   });
@@ -452,15 +456,15 @@ export const Game: React.FC = () => {
   useEffect(() => {
     if (!gameState.gameStarted || gameState.gameEnded) return;
 
-    const shouldEndByChartDuration =
-      isFromEditor || !hasYoutubeAudioSession || !testYoutubeVideoId;
-    if (!shouldEndByChartDuration) return;
-
     const remainingMs = Math.max(0, dynamicGameDuration - currentTimeRef.current);
     const timerId = window.setTimeout(() => {
       if (!gameStateRef.current.gameStarted || gameStateRef.current.gameEnded) return;
+      const shouldEndByChartDuration =
+        isFromEditor || !hasYoutubeAudioSession || !testYoutubeVideoId || audioEndedBeforeChartRef.current;
+      if (!shouldEndByChartDuration) return;
+
       finishCurrentGame();
-      if (hasYoutubeAudioSession && testYoutubePlayerReady) {
+      if (isFromEditor && hasYoutubeAudioSession && testYoutubePlayerReady) {
         pauseYoutubePlayer();
       }
     }, remainingMs + 20);

@@ -1,4 +1,5 @@
-import { EmbeddedAudioTrack, Note } from '../types/game';
+import { BgaVisibilityInterval, EmbeddedAudioTrack, LanePositionInterval, Note } from '../types/game';
+import { SubtitleCue } from '../types/subtitle';
 import { MAX_CHART_DURATION } from '../constants/gameConstants';
 
 export interface Score {
@@ -43,27 +44,22 @@ export const getAudioPositionSeconds = (gameTimeMs: number, audioSettings: Audio
   return Math.max(0, (startTimeMs - audioOffsetMs + effectiveTime) / 1000);
 };
 
-export const calculateGameDuration = (notes: Note[]): number => {
-  const lastNoteTime = notes.length
-    ? Math.max(
-        ...notes.map((n) =>
-          typeof n.endTime === 'number' ? n.endTime : n.time
-        )
-      )
-    : 0;
-  const TAIL_MARGIN_MS = 5000; // 마지막 노트 이후 여유 시간
-  const MIN_DURATION_MS = 60000; // 최소 1분
-  const MAX_DURATION_MS = MAX_CHART_DURATION; // 상한은 채보 최대 길이(5분)
-  const computedDuration = lastNoteTime + TAIL_MARGIN_MS;
-  return Math.max(
-    MIN_DURATION_MS,
-    Math.min(computedDuration, MAX_DURATION_MS)
-  );
-};
+export interface PlayableChartDurationOptions {
+  timelineExtraMs?: number;
+  bgaVisibilityIntervals?: BgaVisibilityInterval[];
+  lanePositionIntervals?: LanePositionInterval[];
+  subtitles?: SubtitleCue[];
+}
+
+const getFiniteRangeEnd = (items: readonly { endTimeMs?: number }[] = []): number =>
+  items.reduce((latest, item) => Math.max(latest, Number.isFinite(item.endTimeMs) ? item.endTimeMs! : 0), 0);
+
+export const calculateGameDuration = (notes: Note[]): number =>
+  calculatePlayableChartDuration(notes);
 
 export const calculatePlayableChartDuration = (
   notes: Note[],
-  timelineExtraMs = 0
+  options: PlayableChartDurationOptions = {}
 ): number => {
   const lastNoteTime = notes.length
     ? Math.max(
@@ -74,11 +70,16 @@ export const calculatePlayableChartDuration = (
     : 0;
   const TAIL_MARGIN_MS = 5000;
   const MIN_DURATION_MS = 60000;
-  const extraMs = Number.isFinite(timelineExtraMs) ? Math.max(0, timelineExtraMs) : 0;
-  const computedDuration = lastNoteTime + TAIL_MARGIN_MS + extraMs;
+  const extraMs = Number.isFinite(options.timelineExtraMs) ? Math.max(0, options.timelineExtraMs!) : 0;
+  const chartContentEnd = Math.max(
+    lastNoteTime + TAIL_MARGIN_MS + extraMs,
+    getFiniteRangeEnd(options.bgaVisibilityIntervals),
+    getFiniteRangeEnd(options.lanePositionIntervals),
+    getFiniteRangeEnd(options.subtitles)
+  );
   return Math.max(
     MIN_DURATION_MS,
-    Math.min(computedDuration, MAX_CHART_DURATION)
+    Math.min(chartContentEnd, MAX_CHART_DURATION)
   );
 };
 
