@@ -1,11 +1,12 @@
 import { useCallback } from 'react';
-import { GameState, Note, BgaVisibilityInterval, LanePositionInterval } from '../types/game';
+import { GameState, BgaVisibilityInterval, LanePositionInterval } from '../types/game';
 import { buildInitialScore, AudioSettings, calculatePlayableChartDuration } from '../utils/gameHelpers';
 import { START_DELAY_MS } from '../constants/gameConstants';
 import { SubtitleCue } from '../types/subtitle';
 import { normalizeSubtitlePayload } from '../utils/subtitleNormalization';
 import { normalizeBgaIntervalsForRuntime } from '../utils/bgaVisibility';
 import { normalizeLanePositionIntervals } from '../utils/lanePositionIntervals';
+import { validateNotes } from '../utils/noteValidation';
 import type { ResetGameSessionOptions } from './useGameSessionController';
 
 export interface UseChartLoaderOptions {
@@ -87,80 +88,12 @@ export function useChartLoader({
           : null);
       }
       
-      // 선택된 채보 데이터로 게임 상태 초기화 (키 중복 방지 및 기본 필드 보정 + 유령노트 정리)
-      type PreparedNoteDraft = Note & { __originalIndex: number };
-
-      const preparedNotes = chartData.notes
-        .map((note: Note, index: number): PreparedNoteDraft => {
-          // 유령노트 정리: hit 상태를 항상 false로 리셋
-          const cleanedNote = {
-            ...note,
-            hit: false,
-          };
-          
-          // duration이 0이거나 음수면 무조건 탭 노트로 처리
-          const isTapNote = (cleanedNote.duration ?? 0) <= 0 || cleanedNote.type === 'tap';
-          
-          const safeDuration = isTapNote
-            ? 0
-            : (typeof cleanedNote.duration === 'number'
-                ? Math.max(0, cleanedNote.duration)
-                : Math.max(
-                    0,
-                    (typeof cleanedNote.endTime === 'number' && cleanedNote.endTime > cleanedNote.time
-                      ? cleanedNote.endTime - cleanedNote.time
-                      : 0)
-                  ));
-          
-          // endTime 계산 및 검증
-          let endTime: number;
-          if (isTapNote) {
-            // 탭 노트는 항상 endTime === time
-            endTime = cleanedNote.time;
-          } else {
-            // 롱노트의 경우
-            if (typeof cleanedNote.endTime === 'number' && cleanedNote.endTime > cleanedNote.time) {
-              endTime = cleanedNote.endTime;
-              // endTime과 duration이 일치하지 않으면 duration 기준으로 수정
-              const expectedEndTime = cleanedNote.time + safeDuration;
-              if (Math.abs(endTime - expectedEndTime) > 1) { // 1ms 오차 허용
-                endTime = expectedEndTime;
-              }
-            } else {
-              endTime = cleanedNote.time + safeDuration;
-            }
-          }
-          
-          return {
-            ...cleanedNote,
-            time: Math.max(0, cleanedNote.time),
-            duration: safeDuration,
-            endTime,
-            type: safeDuration > 0 ? 'hold' : 'tap',
-            y: -100, // 게임 시작 시 모든 노트는 화면 위에서 시작
-            hit: false,
-            __originalIndex: index,
-          };
-        })
-        .filter((note: PreparedNoteDraft) => {
-          // 유효하지 않은 노트 필터링 (유령노트 제거)
-          // time이 음수이거나 NaN인 경우 제거
-          if (note.time < 0 || isNaN(note.time)) return false;
-          // endTime이 NaN인 경우 제거
-          if (isNaN(note.endTime)) return false;
-          // 롱노트인데 endTime이 time보다 작은 경우만 제거 (단노트는 endTime === time이 정상)
-          if (note.duration > 0 && note.endTime < note.time) return false;
-          return true;
-        })
-        .sort((a: PreparedNoteDraft, b: PreparedNoteDraft) => a.time - b.time || a.__originalIndex - b.__originalIndex)
-        .map((note: PreparedNoteDraft, index: number): Note => {
-          const { __originalIndex, ...sortedNote } = note;
-          return {
-            ...sortedNote,
-            // Runtime hit sets and scan cursors assume ids are assigned after sorting.
-            id: index + 1,
-          };
-        });
+      // 일반 플레이도 저장/서버 검증과 같은 정규화 계약을 사용한다.
+      const preparedNotes = validateNotes(chartData.notes).map((note) => ({
+        ...note,
+        y: -100,
+        hit: false,
+      }));
       
       if (preparedNotes.length === 0) {
         alert('이 채보에는 노트가 없습니다.');
