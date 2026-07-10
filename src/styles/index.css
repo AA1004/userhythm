@@ -985,8 +985,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: auto;
-  padding: clamp(18px, 3vw, 46px);
+  overflow: hidden;
+  padding: clamp(18px, 2.4vw, 36px);
   box-sizing: border-box;
   pointer-events: none;
   color: #eef7f2;
@@ -999,13 +999,14 @@ body {
 .game-menu-layout {
   position: relative;
   z-index: 1;
-  width: min(100%, 1780px);
+  width: min(100%, 1680px);
+  max-height: calc(100dvh - clamp(36px, 4.8vw, 72px));
   display: grid;
   grid-template-columns:
-    minmax(260px, 1fr)
-    minmax(340px, 500px)
-    minmax(260px, 1fr);
-  gap: clamp(16px, 2vw, 38px);
+    minmax(250px, 0.86fr)
+    minmax(340px, 480px)
+    minmax(250px, 0.86fr);
+  gap: clamp(14px, 1.7vw, 30px);
   align-items: center;
   pointer-events: auto;
 }
@@ -1013,8 +1014,8 @@ body {
 .game-menu-side {
   min-width: 0;
   width: 100%;
-  height: min(760px, calc(100dvh - 96px));
-  min-height: 280px;
+  height: clamp(360px, 62dvh, 680px);
+  min-height: 0;
   display: flex;
 }
 
@@ -1121,6 +1122,7 @@ body {
 @media (max-width: 1120px), (max-height: 760px) {
   .game-menu-shell {
     align-items: flex-start;
+    overflow-y: auto;
   }
 
   .game-menu-layout {

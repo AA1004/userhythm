@@ -125,6 +125,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({ type }) => {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
+            gap: '12px',
             marginBottom: '16px',
             borderBottom: `2px solid ${CHART_EDITOR_THEME.borderStrong}`,
             paddingBottom: '12px',
@@ -133,10 +134,14 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({ type }) => {
           <h2
             className="main-menu-sidebar__title"
             style={{
-              fontSize: getFontSize(28, 24, 22),
+              fontSize: getFontSize(22, 19, 17),
               fontWeight: 'bold',
               color: CHART_EDITOR_THEME.textPrimary,
               margin: 0,
+              minWidth: 0,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}
           >
             {type === 'notice' ? '📢 공지사항' : '📋 버전 리포트'}
@@ -146,7 +151,8 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({ type }) => {
               className="main-menu-sidebar__edit"
               onClick={() => setIsAdminModalOpen(true)}
               style={{
-                padding: '8px 16px',
+                flex: '0 0 auto',
+                padding: '7px 12px',
                 fontSize: getFontSize(14, 13, 12),
                 fontWeight: '600',
                 background: CHART_EDITOR_THEME.buttonGhostBg,
