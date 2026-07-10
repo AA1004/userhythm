@@ -186,14 +186,17 @@ export function normalizeBgaIntervalsForRuntime(
       const startTimeMs = Math.max(0, Number(interval.startTimeMs) || 0);
       const endTimeMs = Math.max(0, Number(interval.endTimeMs) || 0);
 
-      // A hide interval that extends beyond the playable duration should never
-      // synthesize a trailing show event near chart end during runtime.
+      // A hide interval that reaches the playable duration should stay as a
+      // finite hidden segment. Collapsing it into a point-like hide event makes
+      // useBgaMask interpret it as "hidden forever" because runtime mask
+      // calculation does not receive maxTimeMs.
       if (interval.mode !== 'visible' && endTimeMs >= maxTimeMs) {
         return {
           ...interval,
           startTimeMs,
-          endTimeMs: startTimeMs,
+          endTimeMs: Math.max(startTimeMs, maxTimeMs),
           mode: 'hidden' as const,
+          fadeOutMs: 0,
         };
       }
 
