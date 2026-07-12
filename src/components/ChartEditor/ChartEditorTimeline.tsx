@@ -1179,7 +1179,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
           />
         ))}
 
-        {/* 레인 위치 이동 구간: 노트 레인이 아니라 왼쪽 얇은 보조 트랙에 표시 */}
+        {/* 레인 위치 이동 구간: 버튼 레일과 겹치지 않도록 타임라인 내부 거터에 표시 */}
         {visibleLanePositionSegments.map(({ segment, top, height }) => {
           const tone =
             segment.offsetX < 0
@@ -1194,7 +1194,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
               data-lane-position-segment="true"
               style={{
                 position: 'absolute',
-                left: -18,
+                left: 8,
                 top: `${top}px`,
                 width: 12,
                 height: `${height}px`,
@@ -1221,7 +1221,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
                     style={{
                       position: 'absolute',
                       top: -7,
-                      left: -5,
+                      left: -7,
                       width: 22,
                       height: 18,
                       border: 'none',
@@ -1240,7 +1240,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
                     style={{
                       position: 'absolute',
                       bottom: -7,
-                      left: -5,
+                      left: -7,
                       width: 22,
                       height: 18,
                       border: 'none',

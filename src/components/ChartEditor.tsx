@@ -118,7 +118,7 @@ const EditorTimelineActionRails: React.FC<EditorTimelineActionRailsProps> = Reac
   const railBaseStyle: React.CSSProperties = {
     position: 'absolute',
     top: 16,
-    width: 150,
+    width: 136,
     display: 'flex',
     flexDirection: 'column',
     gap: 8,
@@ -162,7 +162,7 @@ const EditorTimelineActionRails: React.FC<EditorTimelineActionRailsProps> = Reac
           className="chart-editor-lane-action-rail"
           style={{
             ...railBaseStyle,
-            right: 'calc(50% + 224px)',
+            right: 'calc(50% + 244px)',
           }}
         >
           <div style={railLabelStyle}>Edit Mode</div>
@@ -214,7 +214,7 @@ const EditorTimelineActionRails: React.FC<EditorTimelineActionRailsProps> = Reac
           className="chart-editor-lane-action-rail"
           style={{
             ...railBaseStyle,
-            left: 'calc(50% + 224px)',
+            left: 'calc(50% + 244px)',
           }}
         >
           <div style={railLabelStyle}>Selection</div>
