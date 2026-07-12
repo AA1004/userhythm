@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { SpeedChange, BgaVisibilityInterval, BPMChange, LanePositionInterval } from '../../types/game';
 import { CHART_EDITOR_THEME } from './constants';
+import { EditorNumberInput } from './EditorNumberInput';
 import { timeToMeasure, beatIndexToTime } from '../../utils/bpmUtils';
 import {
   blurEditorTransientAction,
@@ -274,52 +275,53 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
                 >
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                     <span style={{ fontSize: '11px', color: CHART_EDITOR_THEME.textSecondary }}>시작</span>
-                    <input
-                      type="number"
-                      min={1}
-                      step={1}
+                    <EditorNumberInput
                       value={startMeasure}
-                      onChange={(e) => {
-                        const measure = Math.max(1, parseInt(e.target.value || '1', 10));
+                      min={1}
+                      integer
+                      onCommit={(measure) => {
+                        if (measure == null) return;
                         const beatIdx = (measure - 1) * beatsPerMeasure;
                         const timeMs = beatIndexToTime(beatIdx, bpm, sortedBpmChanges);
                         onUpdateSpeedChange(sc.id, { startTimeMs: timeMs });
                       }}
-                      style={{ ...inputBaseStyle, flex: 1, padding: '2px 4px', fontSize: '11px' }}
+                      ariaLabel="변속 시작 마디"
+                      style={{ flex: 1 }}
                     />
                     <span style={{ fontSize: '11px', color: CHART_EDITOR_THEME.textSecondary }}>마디</span>
                   </div>
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                     <span style={{ fontSize: '11px', color: CHART_EDITOR_THEME.textSecondary }}>끝</span>
-                    <input
-                      type="number"
+                    <EditorNumberInput
+                      value={endMeasure}
                       min={1}
-                      step={1}
-                      value={endMeasure || ''}
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        if (!raw) {
+                      integer
+                      allowEmpty
+                      onCommit={(measure) => {
+                        if (measure == null) {
                           onUpdateSpeedChange(sc.id, { endTimeMs: null });
                           return;
                         }
-                        const measure = Math.max(1, parseInt(raw, 10));
                         const beatIdx = (measure - 1) * beatsPerMeasure;
                         const timeMs = beatIndexToTime(beatIdx, bpm, sortedBpmChanges);
                         onUpdateSpeedChange(sc.id, { endTimeMs: timeMs });
                       }}
                       placeholder="끝까지"
-                      style={{ ...inputBaseStyle, flex: 1, padding: '2px 4px', fontSize: '11px' }}
+                      ariaLabel="변속 종료 마디"
+                      style={{ flex: 1 }}
                     />
                     <span style={{ fontSize: '11px', color: CHART_EDITOR_THEME.textSecondary }}>마디</span>
                   </div>
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                     <span style={{ fontSize: '11px', color: CHART_EDITOR_THEME.textSecondary }}>BPM</span>
-                    <input
-                      type="number"
-                      min={1}
+                    <EditorNumberInput
                       value={sc.bpm}
-                      onChange={(e) => onUpdateSpeedChange(sc.id, { bpm: Math.max(1, parseFloat(e.target.value || '1')) })}
-                      style={{ ...inputBaseStyle, flex: 1, padding: '2px 4px', fontSize: '11px' }}
+                      min={1}
+                      onCommit={(nextBpm) => {
+                        if (nextBpm != null) onUpdateSpeedChange(sc.id, { bpm: nextBpm });
+                      }}
+                      ariaLabel="변속 BPM"
+                      style={{ flex: 1 }}
                     />
                     <button
                       data-editor-transient-action="true"
@@ -687,38 +689,43 @@ const BgaEventsSection: React.FC<BgaEventsSectionProps> = ({
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>
                     길이
-                    <input
-                      type="number"
-                      min={0}
+                    <EditorNumberInput
                       value={Math.round(durationMs)}
+                      min={0}
+                      integer
                       disabled={!isBgaPlacementMode}
-                      onChange={(e) => {
-                        const nextDuration = Math.max(0, Number(e.target.value) || 0);
-                        onUpdateBgaInterval(it.id, { endTimeMs: it.startTimeMs + nextDuration });
+                      onCommit={(nextDuration) => {
+                        if (nextDuration != null) {
+                          onUpdateBgaInterval(it.id, { endTimeMs: it.startTimeMs + nextDuration });
+                        }
                       }}
-                      style={{ ...inputBaseStyle, width: '100%', padding: '3px 4px', fontSize: 11 }}
+                      ariaLabel="BGA 페이드 구간 길이"
                     />
                   </label>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>
                     등장
-                    <input
-                      type="number"
-                      min={0}
+                    <EditorNumberInput
                       value={Math.round(it.fadeInMs ?? 0)}
+                      min={0}
+                      integer
                       disabled={!isBgaPlacementMode}
-                      onChange={(e) => onUpdateBgaInterval(it.id, { fadeInMs: Math.max(0, Number(e.target.value) || 0) })}
-                      style={{ ...inputBaseStyle, width: '100%', padding: '3px 4px', fontSize: 11 }}
+                      onCommit={(fadeInMs) => {
+                        if (fadeInMs != null) onUpdateBgaInterval(it.id, { fadeInMs });
+                      }}
+                      ariaLabel="BGA 등장 페이드 밀리초"
                     />
                   </label>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>
                     퇴장
-                    <input
-                      type="number"
-                      min={0}
+                    <EditorNumberInput
                       value={Math.round(it.fadeOutMs ?? 0)}
+                      min={0}
+                      integer
                       disabled={!isBgaPlacementMode}
-                      onChange={(e) => onUpdateBgaInterval(it.id, { fadeOutMs: Math.max(0, Number(e.target.value) || 0) })}
-                      style={{ ...inputBaseStyle, width: '100%', padding: '3px 4px', fontSize: 11 }}
+                      onCommit={(fadeOutMs) => {
+                        if (fadeOutMs != null) onUpdateBgaInterval(it.id, { fadeOutMs });
+                      }}
+                      ariaLabel="BGA 퇴장 페이드 밀리초"
                     />
                   </label>
                 </div>
@@ -836,29 +843,31 @@ const LanePositionSection: React.FC<LanePositionSectionProps> = ({
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>
                     길이
-                    <input
-                      type="number"
-                      min={120}
+                    <EditorNumberInput
                       value={Math.round(durationMs)}
-                      onChange={(e) => {
-                        const nextDuration = Math.max(120, Number(e.target.value) || 120);
-                        onUpdateLanePositionInterval(interval.id, { endTimeMs: interval.startTimeMs + nextDuration });
+                      min={120}
+                      integer
+                      onCommit={(nextDuration) => {
+                        if (nextDuration != null) {
+                          onUpdateLanePositionInterval(interval.id, { endTimeMs: interval.startTimeMs + nextDuration });
+                        }
                       }}
-                      style={{ ...inputBaseStyle, width: '100%', padding: '3px 4px', fontSize: 11 }}
+                      ariaLabel="레인 이동 구간 길이"
                     />
                   </label>
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 2, fontSize: 10, color: CHART_EDITOR_THEME.textMuted }}>
                     X Offset
-                    <input
-                      type="number"
+                    <EditorNumberInput
+                      value={Math.round(interval.offsetX)}
                       min={-220}
                       max={220}
-                      value={Math.round(interval.offsetX)}
-                      onChange={(e) => {
-                        const nextOffset = Math.max(-220, Math.min(220, Number(e.target.value) || 0));
-                        onUpdateLanePositionInterval(interval.id, { offsetX: nextOffset });
+                      integer
+                      onCommit={(nextOffset) => {
+                        if (nextOffset != null) {
+                          onUpdateLanePositionInterval(interval.id, { offsetX: nextOffset });
+                        }
                       }}
-                      style={{ ...inputBaseStyle, width: '100%', padding: '3px 4px', fontSize: 11 }}
+                      ariaLabel="레인 이동 X 오프셋"
                     />
                   </label>
                 </div>

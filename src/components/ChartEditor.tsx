@@ -45,9 +45,8 @@ import { START_DELAY_MS } from '../constants/gameConstants';
 import { AudioAnalysisData } from '../types/audioAnalysis';
 import {
   blurEditorNonTextControlAfterPointer,
-  blurEditorNonTextControlOnFocus,
+  blurEditorSelectAfterChange,
   blurEditorTransientAction,
-  blurEditorTransientActionOnFocus,
   isInteractiveElementFocused,
   isTextEditingTarget,
   preventTransientEditorActionFocus,
@@ -2588,11 +2587,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   return (
     <div
       className="chart-editor-root"
-      onPointerUpCapture={blurEditorNonTextControlAfterPointer}
-      onFocusCapture={(event) => {
-        handleNumericInputFocus(event);
-        blurEditorNonTextControlOnFocus(event);
-      }}
+      onFocusCapture={handleNumericInputFocus}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -2676,10 +2671,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         onPointerUpCapture={blurEditorNonTextControlAfterPointer}
         onMouseDownCapture={preventTransientEditorActionFocus}
         onClickCapture={blurEditorTransientAction}
-        onFocusCapture={(event) => {
-          blurEditorTransientActionOnFocus(event);
-          blurEditorNonTextControlOnFocus(event);
-        }}
+        onChangeCapture={blurEditorSelectAfterChange}
         style={{
           flex: 1,
           minHeight: 0,

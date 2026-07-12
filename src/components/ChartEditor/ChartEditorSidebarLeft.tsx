@@ -1,5 +1,6 @@
 import React from 'react';
 import { CHART_EDITOR_THEME } from './constants';
+import { EditorNumberInput } from './EditorNumberInput';
 
 interface ChartEditorSidebarLeftProps {
   zoom: number;
@@ -349,27 +350,14 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
         >
           +면 노래가 늦게, -면 노래가 빨리 시작됩니다.
         </div>
-        <input
-          type="number"
-          step="0.1"
-          value={Number(displayAudioOffsetSeconds)}
-          onChange={(e) => {
-            const nextSeconds = parseFloat(e.target.value);
-            onAudioOffsetChange(() => (Number.isFinite(nextSeconds) ? Math.round(nextSeconds * 1000) : 0));
+        <EditorNumberInput
+          value={audioOffsetMs / 1000}
+          onCommit={(nextSeconds) => {
+            if (nextSeconds == null) return;
+            onAudioOffsetChange(() => Math.round(nextSeconds * 1000));
           }}
-          onFocus={(e) => e.currentTarget.select()}
-          onWheel={(e) => e.currentTarget.blur()}
-          style={{
-            width: '100%',
-            boxSizing: 'border-box',
-            marginBottom: 6,
-            padding: '6px 8px',
-            borderRadius: CHART_EDITOR_THEME.radiusSm,
-            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-            backgroundColor: 'rgba(2,6,23,0.72)',
-            color: CHART_EDITOR_THEME.textPrimary,
-            fontSize: '12px',
-          }}
+          ariaLabel="오디오 시작 보정 초"
+          style={{ marginBottom: 6 }}
         />
         <div
           style={{
@@ -479,32 +467,15 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
         >
           노트 타임라인 0초로 들어가기 전 대기 시간입니다. 시작부터 페이드가 있으면 0초로 둘 수 있습니다.
         </div>
-        <input
-          type="number"
-          min="0"
-          step="0.1"
-          value={Number(displayStartDelaySeconds)}
-          onChange={(e) => {
-            const nextSeconds = parseFloat(e.target.value);
-            onStartDelayChange(() =>
-              Number.isFinite(nextSeconds)
-                ? Math.max(0, Math.round(nextSeconds * 1000))
-                : 0
-            );
+        <EditorNumberInput
+          value={startDelayMs / 1000}
+          min={0}
+          onCommit={(nextSeconds) => {
+            if (nextSeconds == null) return;
+            onStartDelayChange(() => Math.round(nextSeconds * 1000));
           }}
-          onFocus={(e) => e.currentTarget.select()}
-          onWheel={(e) => e.currentTarget.blur()}
-          style={{
-            width: '100%',
-            boxSizing: 'border-box',
-            marginBottom: 6,
-            padding: '6px 8px',
-            borderRadius: CHART_EDITOR_THEME.radiusSm,
-            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-            backgroundColor: 'rgba(2,6,23,0.72)',
-            color: CHART_EDITOR_THEME.textPrimary,
-            fontSize: '12px',
-          }}
+          ariaLabel="게임 시작 대기 초"
+          style={{ marginBottom: 6 }}
         />
         <div
           style={{
