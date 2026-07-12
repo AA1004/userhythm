@@ -49,6 +49,11 @@ export function useChartYoutubePlayer({
     isPlaying: boolean;
   } | null>(null);
   const lastPlayerClockPollMsRef = useRef(0);
+  const pendingPlaybackStartRef = useRef<{
+    timelineMs: number;
+    playerSeconds: number;
+    requestedAtMs: number;
+  } | null>(null);
 
   useEffect(() => {
     latestVolumeRef.current = volume;
@@ -376,6 +381,11 @@ export function useChartYoutubePlayer({
 
       try {
         if (nextPlaying) {
+          pendingPlaybackStartRef.current = {
+            timelineMs: desiredTimeMs,
+            playerSeconds: desiredSeconds,
+            requestedAtMs: performance.now(),
+          };
           applyEditorPlaybackQuality(youtubePlayer);
 
           const playerTime = typeof youtubePlayer.getCurrentTime === 'function'
@@ -390,6 +400,7 @@ export function useChartYoutubePlayer({
           }
           wasPlayingRef.current = true;
         } else {
+          pendingPlaybackStartRef.current = null;
           youtubePlayer.pauseVideo?.();
           playerClockSampleRef.current = {
             playerSeconds: desiredSeconds,
@@ -429,6 +440,11 @@ export function useChartYoutubePlayer({
 
         if (isPlaying) {
           if (!wasPlayingRef.current) {
+            pendingPlaybackStartRef.current = {
+              timelineMs: latestTimeRef.current,
+              playerSeconds: getPlayerTimeSeconds(latestTimeRef.current),
+              requestedAtMs: performance.now(),
+            };
             syncPlayerToTimeline(latestTimeRef.current, true);
           } else if (
             typeof window !== 'undefined' &&
@@ -452,6 +468,7 @@ export function useChartYoutubePlayer({
         }
 
         youtubePlayer.pauseVideo?.();
+        pendingPlaybackStartRef.current = null;
         wasPlayingRef.current = false;
 
         if (
@@ -472,11 +489,12 @@ export function useChartYoutubePlayer({
     return () => {
       clearPlaybackRetryTimer();
     };
-  }, [clearPlaybackRetryTimer, isPlaying, youtubePlayer, syncPlayerToTimeline]);
+  }, [clearPlaybackRetryTimer, getPlayerTimeSeconds, isPlaying, youtubePlayer, syncPlayerToTimeline]);
 
   // 플레이어가 새로 생성되면 재생 상태 초기화
   useEffect(() => {
     wasPlayingRef.current = false;
+    pendingPlaybackStartRef.current = null;
     clearPlaybackRetryTimer();
   }, [youtubePlayer, clearPlaybackRetryTimer]);
 
@@ -530,7 +548,9 @@ export function useChartYoutubePlayer({
       }
 
       const now = performance.now();
-      const shouldPoll = now - lastPlayerClockPollMsRef.current >= 50;
+      const pendingStart = pendingPlaybackStartRef.current;
+      const pollIntervalMs = pendingStart ? 16 : 50;
+      const shouldPoll = now - lastPlayerClockPollMsRef.current >= pollIntervalMs;
 
       if (shouldPoll) {
         lastPlayerClockPollMsRef.current = now;
@@ -548,10 +568,36 @@ export function useChartYoutubePlayer({
               sampledAtMs: now,
               isPlaying: Boolean(playerIsPlaying),
             };
+
+            if (pendingStart) {
+              if (!playerIsPlaying) {
+                return pendingStart.timelineMs;
+              }
+
+              // A rapid pause/seek/play sequence can briefly expose the previous
+              // PLAYING state and timestamp. Do not release the editor clock until
+              // the iframe has actually reached the requested start position.
+              if (
+                Math.abs(playerSeconds - pendingStart.playerSeconds) > 0.3 &&
+                now - pendingStart.requestedAtMs < 1200
+              ) {
+                return pendingStart.timelineMs;
+              }
+
+              pendingPlaybackStartRef.current = null;
+              return Math.max(
+                pendingStart.timelineMs,
+                playerSeconds * 1000 + audioOffsetMs
+              );
+            }
           }
         } catch (e) {
-          return fallbackTimeMs;
+          return pendingStart?.timelineMs ?? fallbackTimeMs;
         }
+      }
+
+      if (pendingStart) {
+        return pendingStart.timelineMs;
       }
 
       const sample = playerClockSampleRef.current;
@@ -602,6 +648,7 @@ export function useChartYoutubePlayer({
     (timeMs: number, options?: { shouldPause?: boolean; snapOnly?: boolean }) => {
       const { shouldPause = false, snapOnly = false } = options || {};
       ++playbackCommandTokenRef.current;
+      pendingPlaybackStartRef.current = null;
       clearPlaybackRetryTimer();
       setCurrentTime(timeMs);
       lastSyncTimeRef.current = timeMs;
