@@ -24,6 +24,7 @@ interface GameplayRuntimeLayerProps {
   timingOffsetMs: number;
   judgeLineY: number;
   playfieldGeometry: PlayfieldGeometry;
+  lanePositionOffsetX: number;
   playfieldTopOffset: number;
   bgaMaskOpacity: number;
   isLaneUiVisible: boolean;
@@ -47,6 +48,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
   timingOffsetMs,
   judgeLineY,
   playfieldGeometry,
+  lanePositionOffsetX,
   playfieldTopOffset,
   bgaMaskOpacity,
   isLaneUiVisible,
@@ -117,7 +119,15 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
       ? Math.min(100, Math.max(0, (currentTimeRef.current / durationMs) * 100))
       : 0;
   return (
-    <>
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        // 좌표와 캔버스 크기를 바꾸지 않고 전체 플레이필드를 GPU 합성으로 이동한다.
+        transform: lanePositionOffsetX ? `translate3d(${lanePositionOffsetX}px, 0, 0)` : undefined,
+        willChange: lanePositionOffsetX ? 'transform' : undefined,
+      }}
+    >
       {isGameplayActive && shouldRenderLaneUi && !useSlotHud && isLegacyHud && (
         <div style={{ opacity: laneUiOpacity }}>
           <Score score={displayScore} />
@@ -179,6 +189,6 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
           opacity={playfieldGeometry.slotHudOpacity * laneUiOpacity}
         />
       )}
-    </>
+    </div>
   );
 };

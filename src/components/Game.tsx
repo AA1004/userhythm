@@ -228,15 +228,8 @@ export const Game: React.FC = () => {
   );
 
   const playfieldGeometry = useMemo(
-    () =>
-      buildPlayfieldGeometry(
-        {
-          ...visualSettings,
-          laneOffsetX: visualSettings.laneOffsetX + activeLanePositionOffsetX,
-        },
-        judgeLineY
-      ),
-    [visualSettings, judgeLineY, activeLanePositionOffsetX]
+    () => buildPlayfieldGeometry(visualSettings, judgeLineY),
+    [visualSettings, judgeLineY]
   );
 
   useEffect(() => {
@@ -784,6 +777,7 @@ export const Game: React.FC = () => {
         youtubeUrl: chartData.youtubeUrl || '',
         playbackSpeed: 1,
         audioOffsetMs: typeof chartData.audioOffsetMs === 'number' ? chartData.audioOffsetMs : 0,
+        lanePositionIntervals: chartData.lanePositionIntervals || [],
         startDelayMs: typeof chartData.startDelayMs === 'number' ? Math.max(0, Math.round(chartData.startDelayMs)) : START_DELAY_MS,
       });
       }, 0);
@@ -1209,6 +1203,7 @@ export const Game: React.FC = () => {
                     timingOffsetMs={timingOffsetMs}
                     judgeLineY={judgeLineY}
                     playfieldGeometry={playfieldGeometry}
+                    lanePositionOffsetX={activeLanePositionOffsetX}
                     playfieldTopOffset={topLaneExtensionHeight}
                     bgaMaskOpacity={activeBgaMaskOpacity}
                     isLaneUiVisible={activeLaneUiVisible}

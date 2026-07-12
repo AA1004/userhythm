@@ -2,6 +2,7 @@ import { LanePositionInterval } from '../types/game';
 
 export const DEFAULT_LANE_POSITION_DURATION_MS = 4000;
 export const LANE_POSITION_PRESET_OFFSET = 150;
+export const MAX_LANE_POSITION_OFFSET = 220;
 
 export function normalizeLanePositionIntervals(
   intervals: LanePositionInterval[],
@@ -17,7 +18,9 @@ export function normalizeLanePositionIntervals(
         id: typeof interval.id === 'string' && interval.id ? interval.id : `lane-pos-${index}`,
         startTimeMs: Math.min(start, maxTime),
         endTimeMs: Math.min(Math.max(start, end), maxTime),
-        offsetX: Number.isFinite(Number(interval.offsetX)) ? Number(interval.offsetX) : 0,
+        offsetX: Number.isFinite(Number(interval.offsetX))
+          ? Math.max(-MAX_LANE_POSITION_OFFSET, Math.min(MAX_LANE_POSITION_OFFSET, Number(interval.offsetX)))
+          : 0,
       };
     })
     .filter((interval) => interval.endTimeMs > interval.startTimeMs)
