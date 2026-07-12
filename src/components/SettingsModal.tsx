@@ -763,43 +763,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             <div style={sectionCardStyle}>
               <h3 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px', marginTop: 0, marginBottom: '10px' }}>
-                플레이 HUD 스타일
+                플레이 HUD
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '8px' }}>
-                {([
-                  { value: 'legacy', label: 'Legacy' },
-                  { value: 'new-lite', label: 'New Lite' },
-                  { value: 'new-full', label: 'New Full' },
-                ] as const).map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => applyToggleVisualSettings({ gameplayHudMode: option.value })}
-                    style={{
-                      padding: '9px 8px',
-                      borderRadius: CHART_EDITOR_THEME.radiusSm,
-                      border: `1px solid ${
-                        visualSettings.gameplayHudMode === option.value
-                          ? CHART_EDITOR_THEME.accent
-                          : CHART_EDITOR_THEME.borderSubtle
-                      }`,
-                      background:
-                        visualSettings.gameplayHudMode === option.value
-                          ? CHART_EDITOR_THEME.accentSoft
-                          : 'transparent',
-                      color: CHART_EDITOR_THEME.textPrimary,
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      fontWeight: visualSettings.gameplayHudMode === option.value ? 700 : 500,
-                    }}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-              <p style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '11px', lineHeight: 1.5, marginBottom: '12px' }}>
-                `New Lite`는 저사양 권장, `New Full`은 시각 효과를 더 유지한다. `Balanced`와 `Performance`에서는 `New Lite`가 기본 권장값이다.
-              </p>
-
               <h4 style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', margin: '10px 0 8px' }}>
                 렌더링 / 성능
               </h4>
@@ -930,8 +895,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   lineHeight: 1.45,
                 }}
               >
-                Legacy/New HUD 선택에 따라 키 눌림 디자인도 함께 변경됩니다.
-                옵션으로 글로우/펄스 연출을 개별 ON/OFF 할 수 있습니다.
+                New Full HUD를 사용하며, 글로우/펄스 연출은 개별 ON/OFF 할 수 있습니다.
               </p>
             </div>
           </>

@@ -105,7 +105,7 @@ export const DEFAULT_GAME_VISUAL_SETTINGS: GameVisualSettings = {
   comboOpacity: 0.7,
     bgaOpacity: 0,
     bgaBlurEnabled: true,
-    gameplayHudMode: 'new-lite',
+    gameplayHudMode: 'new-full',
   topLaneExtensionEnabled: true,
   slotHudEnabled: true,
   lanePressTintEnabled: true,
@@ -134,7 +134,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     comboOpacity: 0.7,
   bgaOpacity: 0,
   bgaBlurEnabled: true,
-  gameplayHudMode: 'new-lite',
+  gameplayHudMode: 'new-full',
     topLaneExtensionEnabled: true,
     slotHudEnabled: true,
     lanePressTintEnabled: true,
@@ -160,7 +160,7 @@ export const GAME_VISUAL_PRESETS: Record<Exclude<VisualPresetId, 'custom'>, Game
     comboOpacity: 0.7,
     bgaOpacity: 0,
     bgaBlurEnabled: true,
-    gameplayHudMode: 'new-lite',
+    gameplayHudMode: 'new-full',
     topLaneExtensionEnabled: true,
     slotHudEnabled: true,
     lanePressTintEnabled: true,
@@ -269,13 +269,8 @@ export const normalizeGameVisualSettings = (
     VISUAL_SETTING_LIMITS.bgaOpacity.max
   );
   const bgaBlurEnabled = booleanOr(raw.bgaBlurEnabled, fallback.bgaBlurEnabled);
-  const rawGameplayHudMode = (raw as { gameplayHudMode?: unknown }).gameplayHudMode;
-  const gameplayHudMode: GameplayHudMode =
-    rawGameplayHudMode === 'new-full' || rawGameplayHudMode === 'new'
-      ? 'new-full'
-      : rawGameplayHudMode === 'new-lite'
-      ? 'new-lite'
-      : 'legacy';
+  // Legacy와 New Lite는 폐기됐다. 과거 저장값도 단일 New Full 경로로 마이그레이션한다.
+  const gameplayHudMode: GameplayHudMode = 'new-full';
   // The playfield lanes are always drawn from the top of the stage.
   // The persisted flag is kept only for old settings compatibility.
   const topLaneExtensionEnabled = true;
