@@ -61,7 +61,10 @@ const KEY_TO_LANE: Record<string, Lane> = {
 };
 const BGA_INTERVAL_MIN_DURATION_MS = 120;
 const EDITOR_CONTRIBUTION_DRAFT_KEY = 'userhythm:editor-contribution-draft';
-const EDITOR_UI_COMMIT_INTERVAL_MS = 1000 / 60;
+// The playhead reads internalTimeRef on every animation frame. React snapshots
+// only need 30 Hz, which keeps large charts from re-rendering thousands of notes
+// often enough to disturb the editor clock.
+const EDITOR_UI_COMMIT_INTERVAL_MS = 1000 / 30;
 const EDITOR_METRONOME_STORAGE_KEY = 'userhythm:editor-metronome:v1';
 
 interface EditorMetronomeSettings {
@@ -439,7 +442,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [pendingLongNote, setPendingLongNote] = useState<{ lane: Lane; startTime: number } | null>(null);
   const playheadRafIdRef = useRef<number | null>(null);
   const dragPlayheadRafIdRef = useRef<number | null>(null);
-  const lastTickTimestampRef = useRef<number | null>(null);
   const lastUiCommitTimestampRef = useRef<number | null>(null);
   const lastHitCheckTimeRef = useRef<number>(0);
   const playedNoteIdsRef = useRef<Set<number>>(new Set());
@@ -620,29 +622,37 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         cancelAnimationFrame(playheadRafIdRef.current);
         playheadRafIdRef.current = null;
       }
-      lastTickTimestampRef.current = null;
       lastUiCommitTimestampRef.current = null;
       return;
     }
 
-    const MAX_DELTA_MS = 100; // 백그라운드 복귀 시 큰 점프 방지 (100ms 상한)
-    internalTimeRef.current = currentTime; // 초기값 동기화
+    let clockAnchorTimeMs = Math.max(0, internalTimeRef.current);
+    let clockAnchorTimestamp: number | null = null;
 
     const tick = (timestamp: number) => {
       if (!isPlaying) return;
 
-      if (lastTickTimestampRef.current === null) {
-        lastTickTimestampRef.current = timestamp;
+      if (clockAnchorTimestamp === null) {
+        clockAnchorTimestamp = timestamp;
       }
-      const rawDeltaMs = (timestamp - lastTickTimestampRef.current) * playbackSpeed;
-      // 탭이 백그라운드에 있다가 돌아오면 delta가 매우 커질 수 있음
-      // 이 경우 타임스탬프만 리셋하고 시간은 점프하지 않음 (키음 폭발 방지)
-      const deltaMs = rawDeltaMs > MAX_DELTA_MS ? 0 : rawDeltaMs;
-      lastTickTimestampRef.current = timestamp;
+
+      // Derive time from one monotonic anchor instead of accumulating frame
+      // deltas. A heavy chart may skip frames, but it must never lose song time.
+      const fallbackTime = Math.max(
+        0,
+        clockAnchorTimeMs + (timestamp - clockAnchorTimestamp) * playbackSpeed
+      );
 
       const nextRuntimeTime = youtubeVideoId
-        ? getSynchronizedTimelineTime(Math.max(0, internalTimeRef.current + deltaMs))
-        : Math.max(0, internalTimeRef.current + deltaMs);
+        ? getSynchronizedTimelineTime(fallbackTime)
+        : fallbackTime;
+
+      // YouTube startup gating or drift correction can adjust the clock. Rebase
+      // the monotonic anchor so the next frame continues from that exact point.
+      if (Math.abs(nextRuntimeTime - fallbackTime) > 0.5) {
+        clockAnchorTimeMs = nextRuntimeTime;
+        clockAnchorTimestamp = timestamp;
+      }
 
       if (nextRuntimeTime !== internalTimeRef.current) {
         internalTimeRef.current = nextRuntimeTime;
@@ -669,7 +679,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
         cancelAnimationFrame(playheadRafIdRef.current);
         playheadRafIdRef.current = null;
       }
-      lastTickTimestampRef.current = null;
       lastUiCommitTimestampRef.current = null;
       // 최종 시간 동기화
       setCurrentTime(internalTimeRef.current);
