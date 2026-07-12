@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   DEFAULT_KEY_BINDINGS,
+  DEFAULT_NOTE_SPEED,
   DISPLAY_NAME_STORAGE_KEY,
   KEY_BINDINGS_STORAGE_KEY,
   NOTE_SPEED_STORAGE_KEY,
@@ -96,7 +97,7 @@ const normalizeSyncedUserSettings = (value: unknown): SyncedUserSettings | null 
     noteSpeed:
       typeof value.noteSpeed === 'number' && value.noteSpeed >= 0.5 && value.noteSpeed <= 10
         ? value.noteSpeed
-        : 3.5,
+        : DEFAULT_NOTE_SPEED,
     timingOffsetMs:
       typeof value.timingOffsetMs === 'number' && value.timingOffsetMs >= -200 && value.timingOffsetMs <= 200
         ? Math.round(value.timingOffsetMs)
@@ -179,7 +180,7 @@ export function useGameSettings(options: UseGameSettingsOptions = {}): UseGameSe
         return parsed;
       }
     }
-    return 3.5;
+    return DEFAULT_NOTE_SPEED;
   });
   const [timingOffsetMs, setTimingOffsetMs] = useState<number>(() => {
     const stored = safeReadLocalStorage(TIMING_OFFSET_MS_STORAGE_KEY);

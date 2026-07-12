@@ -12,6 +12,7 @@ export const DEFAULT_GAME_DURATION = 30000; // 30초 (기본 랜덤 게임 / 리
 export const MAX_CHART_DURATION = 2 * 60 * 60 * 1000; // 백엔드 계약과 동일한 2시간
 export const START_DELAY_MS = 4000;
 export const BASE_FALL_DURATION = 2000; // 기본 노트 낙하 시간(ms)
+export const DEFAULT_NOTE_SPEED = 3.8;
 
 export const DEFAULT_KEY_BINDINGS: [string, string, string, string] = ['D', 'F', 'J', 'K'];
 
