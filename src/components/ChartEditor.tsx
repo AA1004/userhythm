@@ -11,6 +11,7 @@ import { useChartTimeline } from '../hooks/useChartTimeline';
 import { useChartAutosave } from '../hooks/useChartAutosave';
 import { useChartHistory } from '../hooks/useChartHistory';
 import { useHitSound } from '../hooks/useHitSound';
+import { useEditorMetronome } from '../hooks/useEditorMetronome';
 import { TapBPMCalculator, isValidBPM } from '../utils/bpmAnalyzer';
 import { calculateTotalBeatsWithChanges, formatSongLength, timeToMeasure } from '../utils/bpmUtils';
 import { chartAPI, supabase, isSupabaseConfigured } from '../lib/supabaseClient';
@@ -61,6 +62,28 @@ const KEY_TO_LANE: Record<string, Lane> = {
 const BGA_INTERVAL_MIN_DURATION_MS = 120;
 const EDITOR_CONTRIBUTION_DRAFT_KEY = 'userhythm:editor-contribution-draft';
 const EDITOR_UI_COMMIT_INTERVAL_MS = 1000 / 60;
+const EDITOR_METRONOME_STORAGE_KEY = 'userhythm:editor-metronome:v1';
+
+interface EditorMetronomeSettings {
+  enabled: boolean;
+  volume: number;
+}
+
+const loadEditorMetronomeSettings = (): EditorMetronomeSettings => {
+  if (typeof window === 'undefined') return { enabled: false, volume: 35 };
+  try {
+    const parsed = JSON.parse(localStorage.getItem(EDITOR_METRONOME_STORAGE_KEY) || 'null');
+    return {
+      enabled: typeof parsed?.enabled === 'boolean' ? parsed.enabled : false,
+      volume:
+        typeof parsed?.volume === 'number' && Number.isFinite(parsed.volume)
+          ? Math.max(0, Math.min(100, Math.round(parsed.volume)))
+          : 35,
+    };
+  } catch {
+    return { enabled: false, volume: 35 };
+  }
+};
 
 const keepTimelineActionButtonFromTakingFocus = (event: React.MouseEvent<HTMLButtonElement>) => {
   event.preventDefault();
@@ -259,6 +282,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [zoom, setZoom] = useState<number>(1);
   const [volume, setVolume] = useState<number>(100);
   const [hitSoundVolume, setHitSoundVolume] = useState<number>(40);
+  const [metronomeSettings, setMetronomeSettings] = useState<EditorMetronomeSettings>(
+    loadEditorMetronomeSettings
+  );
   const [subtitleSessionId, setSubtitleSessionId] = useState(() => {
     if (typeof window === 'undefined') {
       return `local-${Date.now()}`;
@@ -505,6 +531,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setHitSoundVolumeInternal(hitSoundVolume);
   }, [hitSoundVolume, setHitSoundVolumeInternal]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(EDITOR_METRONOME_STORAGE_KEY, JSON.stringify(metronomeSettings));
+    } catch {
+      // Editor preferences remain usable even when storage is unavailable.
+    }
+  }, [metronomeSettings]);
+
   const sortedNotesByTime = useMemo(() => {
     return [...notes].sort((a, b) => a.time - b.time);
   }, [notes]);
@@ -661,6 +695,19 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const sortedBpmChanges = useMemo(() => {
     return [...bpmChanges].sort((a, b) => a.beatIndex - b.beatIndex);
   }, [bpmChanges]);
+
+  useEditorMetronome({
+    enabled: metronomeSettings.enabled,
+    volume: metronomeSettings.volume,
+    isPlaying,
+    currentTimeRef: internalTimeRef,
+    playbackSpeed,
+    bpm,
+    bpmChanges: sortedBpmChanges,
+    beatsPerMeasure,
+    timeSignatureOffset,
+    ensureAudioContext,
+  });
 
 
   const timelineDurationMs = useMemo(() => {
@@ -2695,6 +2742,17 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
           onVolumeChange={setVolume}
           hitSoundVolume={hitSoundVolume}
           onHitSoundVolumeChange={setHitSoundVolume}
+          metronomeEnabled={metronomeSettings.enabled}
+          onMetronomeEnabledChange={(enabled) =>
+            setMetronomeSettings((previous) => ({ ...previous, enabled }))
+          }
+          metronomeVolume={metronomeSettings.volume}
+          onMetronomeVolumeChange={(nextVolume) =>
+            setMetronomeSettings((previous) => ({
+              ...previous,
+              volume: Math.max(0, Math.min(100, Math.round(nextVolume))),
+            }))
+          }
           beatsPerMeasure={beatsPerMeasure}
           onTimeSignatureChange={setBeatsPerMeasure}
           gridDivision={gridDivision}

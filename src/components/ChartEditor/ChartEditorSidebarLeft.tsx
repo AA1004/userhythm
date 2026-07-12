@@ -12,6 +12,10 @@ interface ChartEditorSidebarLeftProps {
   onVolumeChange: (volume: number) => void;
   hitSoundVolume: number;
   onHitSoundVolumeChange: (volume: number) => void;
+  metronomeEnabled: boolean;
+  onMetronomeEnabledChange: (enabled: boolean) => void;
+  metronomeVolume: number;
+  onMetronomeVolumeChange: (volume: number) => void;
   beatsPerMeasure: number;
   onTimeSignatureChange: (beats: number) => void;
   gridDivision: number;
@@ -75,6 +79,10 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
   onVolumeChange,
   hitSoundVolume,
   onHitSoundVolumeChange,
+  metronomeEnabled,
+  onMetronomeEnabledChange,
+  metronomeVolume,
+  onMetronomeVolumeChange,
   beatsPerMeasure,
   onTimeSignatureChange,
   gridDivision,
@@ -550,6 +558,96 @@ const ChartEditorSidebarLeftInner: React.FC<ChartEditorSidebarLeftProps> = ({
           onMouseUp={(e) => e.currentTarget.blur()}
           onTouchEnd={(e) => e.currentTarget.blur()}
           style={{ width: '100%' }}
+        />
+      </div>
+
+      {/* 메트로놈 */}
+      <div
+        style={{
+          marginBottom: '10px',
+          padding: '8px',
+          borderRadius: CHART_EDITOR_THEME.radiusMd,
+          backgroundColor: metronomeEnabled
+            ? 'rgba(34,211,238,0.08)'
+            : CHART_EDITOR_THEME.surfaceElevated,
+          border: `1px solid ${
+            metronomeEnabled ? 'rgba(34,211,238,0.42)' : CHART_EDITOR_THEME.borderSubtle
+          }`,
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+            marginBottom: 6,
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700 }}>메트로놈</div>
+            <div style={{ marginTop: 2, color: CHART_EDITOR_THEME.textMuted, fontSize: 9 }}>
+              첫 박자는 높은 음으로 강조
+            </div>
+          </div>
+          <button
+            type="button"
+            data-editor-transient-action="true"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={(event) => {
+              onMetronomeEnabledChange(!metronomeEnabled);
+              event.currentTarget.blur();
+            }}
+            aria-pressed={metronomeEnabled}
+            style={{
+              minWidth: 48,
+              padding: '5px 8px',
+              borderRadius: 999,
+              border: `1px solid ${
+                metronomeEnabled ? CHART_EDITOR_THEME.accentStrong : CHART_EDITOR_THEME.borderSubtle
+              }`,
+              backgroundColor: metronomeEnabled
+                ? 'rgba(34,211,238,0.18)'
+                : 'rgba(15,23,42,0.72)',
+              color: metronomeEnabled
+                ? CHART_EDITOR_THEME.accentStrong
+                : CHART_EDITOR_THEME.textMuted,
+              cursor: 'pointer',
+              fontSize: 10,
+              fontWeight: 800,
+            }}
+          >
+            {metronomeEnabled ? 'ON' : 'OFF'}
+          </button>
+        </div>
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+            marginBottom: 4,
+            color: metronomeEnabled
+              ? CHART_EDITOR_THEME.textSecondary
+              : CHART_EDITOR_THEME.textMuted,
+            fontSize: 10,
+          }}
+        >
+          <span>볼륨</span>
+          <ValueBadge>{metronomeVolume}%</ValueBadge>
+        </label>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={metronomeVolume}
+          disabled={!metronomeEnabled}
+          onChange={(event) => onMetronomeVolumeChange(parseInt(event.target.value, 10))}
+          onMouseUp={(event) => event.currentTarget.blur()}
+          onTouchEnd={(event) => event.currentTarget.blur()}
+          aria-label="메트로놈 볼륨"
+          style={{ width: '100%', opacity: metronomeEnabled ? 1 : 0.45 }}
         />
       </div>
 
