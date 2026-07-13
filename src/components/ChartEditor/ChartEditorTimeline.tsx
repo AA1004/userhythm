@@ -285,18 +285,27 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
 
   // 그리드 라인 생성
   const gridLines = useMemo(() => {
-    const lines: Array<{ y: number; isMeasure: boolean }> = [];
+    const lines: Array<{ y: number; kind: 'measure' | 'beat' | 'subdivision' }> = [];
     const safeBeatDuration = Math.max(1, beatDuration);
     const beatsPerSecond = 1000 / safeBeatDuration;
     const totalBeats = (timelineDurationMs / 1000) * beatsPerSecond;
+    const safeDivision = Math.max(1, Math.round(gridDivision));
+    const measureStepCount = safeDivision * Math.max(1, Math.round(beatsPerMeasure));
+    const totalSteps = Math.floor(totalBeats * safeDivision);
 
-    for (let beat = 0; beat <= totalBeats; beat += 1 / gridDivision) {
+    // Integer step indexes avoid floating-point drift for triplet divisions such as 1/3 and 1/6.
+    for (let stepIndex = 0; stepIndex <= totalSteps; stepIndex++) {
+      const beat = stepIndex / safeDivision;
       const timeMs = (beat * beatDuration) + timeSignatureOffset;
       if (timeMs < 0 || timeMs > timelineDurationMs) continue;
 
       const y = timeToY(timeMs);
-      const isMeasure = beat % beatsPerMeasure === 0;
-      lines.push({ y, isMeasure });
+      const kind = stepIndex % measureStepCount === 0
+        ? 'measure'
+        : stepIndex % safeDivision === 0
+          ? 'beat'
+          : 'subdivision';
+      lines.push({ y, kind });
     }
 
     return lines;
@@ -1172,10 +1181,15 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
               left: 0,
               top: `${line.y}px`,
               width: `${CONTENT_WIDTH}px`,
-              height: '1px',
-              backgroundColor: line.isMeasure
-                ? 'rgba(56, 189, 248, 0.55)'
-                : 'rgba(148, 163, 184, 0.25)',
+              height: line.kind === 'measure' ? '2px' : '1px',
+              backgroundColor: line.kind === 'measure'
+                ? 'rgba(56, 189, 248, 0.7)'
+                : line.kind === 'beat'
+                  ? 'rgba(226, 232, 240, 0.42)'
+                  : 'rgba(148, 163, 184, 0.2)',
+              boxShadow: line.kind === 'measure'
+                ? '0 0 6px rgba(56, 189, 248, 0.24)'
+                : undefined,
             }}
           />
         ))}
