@@ -585,10 +585,7 @@ export function useChartYoutubePlayer({
               }
 
               pendingPlaybackStartRef.current = null;
-              return Math.max(
-                pendingStart.timelineMs,
-                playerSeconds * 1000 + audioOffsetMs
-              );
+              return pendingStart.timelineMs;
             }
           }
         } catch (e) {
@@ -612,33 +609,23 @@ export function useChartYoutubePlayer({
       const youtubeTimeMs = Math.max(0, sample.playerSeconds * 1000 + elapsedMs + audioOffsetMs);
       const driftMs = youtubeTimeMs - fallbackTimeMs;
 
-      if (Math.abs(driftMs) <= 8) {
-        return fallbackTimeMs;
-      }
-
-      if (driftMs < 0) {
-        // During editor playback, frequent YouTube seekTo calls are audible as stutter,
-        // especially at 0.5x while users repeatedly scrub for beat timing.
-        // Keep normal drift visual-only and only rescue genuinely large desyncs.
-        if (isPlaying && Math.abs(driftMs) > 750 && now - lastEditorFollowSeekMsRef.current > 1500) {
-          lastEditorFollowSeekMsRef.current = now;
-          try {
-            youtubePlayer.seekTo?.(getPlayerTimeSeconds(fallbackTimeMs), true);
-            youtubePlayer.playVideo?.();
-            playerClockSampleRef.current = {
-              playerSeconds: getPlayerTimeSeconds(fallbackTimeMs),
-              sampledAtMs: now,
-              isPlaying: true,
-            };
-          } catch {
-            // Keep editor responsiveness even if YouTube rejects the seek.
-          }
+      // Never step the visual clock to match coarse iframe samples. The editor
+      // clock stays monotonic; only a genuinely large drift repairs YouTube.
+      if (isPlaying && Math.abs(driftMs) > 750 && now - lastEditorFollowSeekMsRef.current > 1500) {
+        lastEditorFollowSeekMsRef.current = now;
+        try {
+          youtubePlayer.seekTo?.(getPlayerTimeSeconds(fallbackTimeMs), true);
+          youtubePlayer.playVideo?.();
+          playerClockSampleRef.current = {
+            playerSeconds: getPlayerTimeSeconds(fallbackTimeMs),
+            sampledAtMs: now,
+            isPlaying: true,
+          };
+        } catch {
+          // Keep editor responsiveness even if YouTube rejects the seek.
         }
-        return fallbackTimeMs;
       }
-
-      const maxCorrectionMs = 24;
-      return Math.max(0, fallbackTimeMs + Math.min(maxCorrectionMs, driftMs));
+      return fallbackTimeMs;
     },
     [audioOffsetMs, getPlayerTimeSeconds, isPlaying, playbackSpeed, youtubePlayer]
   );
