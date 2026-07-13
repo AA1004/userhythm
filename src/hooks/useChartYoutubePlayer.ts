@@ -563,22 +563,13 @@ export function useChartYoutubePlayer({
               isPlaying: Boolean(playerIsPlaying),
             };
 
-            if (pendingStart) {
-              if (!playerIsPlaying) {
-                return pendingStart.timelineMs;
-              }
-
+            if (pendingStart && playerIsPlaying) {
               pendingPlaybackStartRef.current = null;
-              return pendingStart.timelineMs;
             }
           }
         } catch (e) {
-          return pendingStart?.timelineMs ?? fallbackTimeMs;
+          return fallbackTimeMs;
         }
-      }
-
-      if (pendingStart) {
-        return pendingStart.timelineMs;
       }
 
       const sample = playerClockSampleRef.current;

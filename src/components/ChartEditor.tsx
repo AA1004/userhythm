@@ -281,7 +281,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [isPlaying, setIsPlayingState] = useState<boolean>(false);
   const isPlayingRef = useRef(false);
-  const playbackToggleCommandRef = useRef(0);
   const setIsPlaying = useCallback<React.Dispatch<React.SetStateAction<boolean>>>((nextState) => {
     const resolvedState = typeof nextState === 'function'
       ? nextState(isPlayingRef.current)
@@ -2582,36 +2581,29 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   }, [scheduleDraggedPlayheadTimeUpdate]);
 
   // 키보드 핸들러 (에디터 전용 전역 단축키)
-  const handleToggleEditorPlayback = useCallback(async () => {
-    const commandId = ++playbackToggleCommandRef.current;
+  const handleToggleEditorPlayback = useCallback(() => {
     const nextPlaying = !isPlayingRef.current;
     const commandTimeMs = Math.max(0, internalTimeRef.current);
-    isPlayingRef.current = nextPlaying;
 
     if (!nextPlaying) {
       setCurrentTime(commandTimeMs);
+      setIsPlaying(false);
       if (!applyImmediatePlaybackState(false, commandTimeMs)) {
         seekTo(commandTimeMs, { shouldPause: true });
       }
-      setIsPlaying(false);
       return;
     }
 
-    try {
-      await ensureAudioContext();
-    } catch {
-      // ignore: fallback to play without pre-warm
-    }
-
-    if (commandId !== playbackToggleCommandRef.current || !isPlayingRef.current) {
-      return;
-    }
-
+    // The editor clock must react synchronously to rapid rhythm-finding taps.
+    // AudioContext warm-up may finish later, but it must never hold the playhead.
+    setIsPlaying(true);
     if (!applyImmediatePlaybackState(true, commandTimeMs)) {
       seekTo(commandTimeMs, { snapOnly: true });
     }
 
-    setIsPlaying(true);
+    void ensureAudioContext().catch(() => {
+      // The YouTube player remains usable when hit-sound warm-up is unavailable.
+    });
   }, [applyImmediatePlaybackState, ensureAudioContext, seekTo]);
 
   useEffect(() => {
