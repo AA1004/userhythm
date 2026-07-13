@@ -94,11 +94,19 @@ export function beatIndexToTime(
   baseBpm: number,
   bpmChanges: BPMChange[]
 ): number {
-  if (!bpmChanges || bpmChanges.length === 0) {
+  const sortedChanges = [...bpmChanges].sort((a, b) => a.beatIndex - b.beatIndex);
+  return beatIndexToTimeFromSortedChanges(beatIndex, baseBpm, sortedChanges);
+}
+
+/** Allocation-free beat conversion for render paths that already own a sorted index. */
+export function beatIndexToTimeFromSortedChanges(
+  beatIndex: number,
+  baseBpm: number,
+  sortedChanges: readonly BPMChange[]
+): number {
+  if (sortedChanges.length === 0) {
     return (beatIndex * 60 * 1000) / baseBpm;
   }
-
-  const sortedChanges = [...bpmChanges].sort((a, b) => a.beatIndex - b.beatIndex);
   
   let timeMs = 0;
   let currentBpm = baseBpm;
@@ -139,11 +147,19 @@ export function timeToBeatIndex(
   baseBpm: number,
   bpmChanges: BPMChange[]
 ): number {
-  if (!bpmChanges || bpmChanges.length === 0) {
+  const sortedChanges = [...bpmChanges].sort((a, b) => a.beatIndex - b.beatIndex);
+  return timeToBeatIndexFromSortedChanges(timeMs, baseBpm, sortedChanges);
+}
+
+/** Allocation-free time conversion for render paths that already own a sorted index. */
+export function timeToBeatIndexFromSortedChanges(
+  timeMs: number,
+  baseBpm: number,
+  sortedChanges: readonly BPMChange[]
+): number {
+  if (sortedChanges.length === 0) {
     return (timeMs * baseBpm) / (60 * 1000);
   }
-
-  const sortedChanges = [...bpmChanges].sort((a, b) => a.beatIndex - b.beatIndex);
   
   let currentTimeMs = 0;
   let currentBpm = baseBpm;
@@ -335,5 +351,4 @@ export function totalBeatsToSeconds(
 ): number {
   return beatIndexToTime(totalBeats, baseBpm, bpmChanges) / 1000;
 }
-
 

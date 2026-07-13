@@ -9,6 +9,7 @@ import {
 } from './constants';
 import { timeToMeasure } from '../../utils/bpmUtils';
 import { AudioAnalysisData, AudioAnalysisOnset } from '../../types/audioAnalysis';
+import { ChartEditorPlaybackCanvas } from './ChartEditorPlaybackCanvas';
 
 // 노트가 레인 경계선 안에 딱 맞게 들어가도록 레인 너비에서 약간의 여백만 남김
 const NOTE_WIDTH = LANE_WIDTH - 4;
@@ -217,29 +218,12 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     }
   }, [currentTime, timeToY, bpm, bpmChanges, beatsPerMeasure, isPlaying, syncPlayhead]);
 
-  // 재생선은 재생 중 currentTimeRef를 직접 읽어 고주사율로 갱신한다.
-  // 부모 state는 더 낮은 빈도로 커밋되어도 재생선 시각 움직임은 유지된다.
+  // Playback uses the canvas playhead. The DOM playhead remains a paused-editor control.
   useEffect(() => {
-    let frameId: number | null = null;
-
-    if (!isPlaying || !currentTimeRef) {
+    if (!isPlaying) {
       syncPlayhead(renderHelpersRef.current.currentTime);
-      return;
     }
-
-    const render = () => {
-      syncPlayhead(currentTimeRef.current);
-      frameId = requestAnimationFrame(render);
-    };
-
-    frameId = requestAnimationFrame(render);
-
-    return () => {
-      if (frameId !== null) {
-        cancelAnimationFrame(frameId);
-      }
-    };
-  }, [currentTimeRef, isPlaying, syncPlayhead]);
+  }, [isPlaying, syncPlayhead]);
 
   // 뷰포트 정보 (가시 영역 + 버퍼)
   const [viewTop, setViewTop] = useState(0);
@@ -249,13 +233,14 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
 
   // 스크롤/리사이즈에 맞춰 뷰포트 값을 갱신
   const updateViewport = useCallback(() => {
+    if (isPlaying) return;
     const container = timelineScrollRef.current;
     if (!container) return;
     const nextTop = container.scrollTop;
     const nextHeight = container.clientHeight;
     setViewTop((prev) => (prev === nextTop ? prev : nextTop));
     setViewHeight((prev) => (prev === nextHeight ? prev : nextHeight));
-  }, [timelineScrollRef]);
+  }, [isPlaying, timelineScrollRef]);
 
   useEffect(() => {
     const container = timelineScrollRef.current;
@@ -1073,6 +1058,14 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         }
       `}</style>
       <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          overflow: 'hidden',
+        }}
+      >
+      <div
         ref={timelineScrollRef}
         onClick={handleTimelineClick}
         onMouseDown={handleMouseDown}
@@ -1164,7 +1157,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         ))}
 
         {/* 그리드 라인 */}
-        {visibleGridLines.map((line, index) => (
+        {!isPlaying && visibleGridLines.map((line, index) => (
           <div
             key={`grid-${index}`}
             style={{
@@ -1181,7 +1174,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         ))}
 
         {/* 로컬 오디오 분석 마커 */}
-        {visibleAnalysisMarkers.beats.map(({ beat, index, y }) => {
+        {!isPlaying && visibleAnalysisMarkers.beats.map(({ beat, index, y }) => {
           const isDownbeat = beat.beatInMeasure === 1;
           return (
             <div
@@ -1204,7 +1197,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
           );
         })}
 
-        {visibleAnalysisMarkers.onsets.map(({ onset, index, y }) => {
+        {!isPlaying && visibleAnalysisMarkers.onsets.map(({ onset, index, y }) => {
           const strength = Math.max(0.08, Math.min(1, Number(onset.strength) || 0.35));
           const color = getAnalysisBandColor(onset.band);
           return (
@@ -1228,7 +1221,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         })}
 
         {/* 변속 마커 (SpeedChange) */}
-        {visibleSpeedChanges.map(({ sc, y }) => (
+        {!isPlaying && visibleSpeedChanges.map(({ sc, y }) => (
           <div
             key={`speed-start-${sc.id}`}
             style={{
@@ -1246,7 +1239,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         ))}
 
         {/* 레인 위치 이동 구간: 버튼 레일과 겹치지 않도록 타임라인 내부 거터에 표시 */}
-        {visibleLanePositionSegments.map(({ segment, top, height }) => {
+        {!isPlaying && visibleLanePositionSegments.map(({ segment, top, height }) => {
           const tone =
             segment.offsetX < 0
               ? '34,211,238'
@@ -1366,7 +1359,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
 
 
         {/* 간주 구간 오버레이 (채보 레인 숨김) */}
-        {visibleBgaSegments.map(({ segment, top, height }) => {
+        {!isPlaying && visibleBgaSegments.map(({ segment, top, height }) => {
           const total = Math.max(1, segment.endTimeMs - segment.startTimeMs);
           const fadeInRatio = Math.min(1, Math.max(0, (segment.fadeInMs ?? 0) / total));
           const fadeOutRatio = Math.min(1, Math.max(0, (segment.fadeOutMs ?? 0) / total));
@@ -1560,7 +1553,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         })}
 
         {/* 롱노트 시작점 마커 */}
-        {pendingLongNote && (() => {
+        {!isPlaying && pendingLongNote && (() => {
           const startY = timeToY(pendingLongNote.startTime);
           const laneCenter = LANE_POSITIONS[pendingLongNote.lane];
           return (
@@ -1599,7 +1592,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         />
 
          {/* 노트 렌더링 */}
-          {visibleNotes.map(({ note, isHold, topPosition, noteHeight, isSquishedLeft, isSquishedRight, squishRatio }) => {
+          {!isPlaying && visibleNotes.map(({ note, isHold, topPosition, noteHeight, isSquishedLeft, isSquishedRight, squishRatio }) => {
            const isOddLane = note.lane === 0 || note.lane === 2;
            const tapGradient = isOddLane
              ? 'linear-gradient(180deg, #FF6B6B 0%, #FF9A8B 100%)'
@@ -1720,7 +1713,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         {/* (removed) 세로 선택 영역 */}
 
         {/* 재생선 */}
-        <div
+        {!isPlaying && <div
           ref={playheadRef}
           data-playhead
           onMouseDown={onPlayheadMouseDown}
@@ -1748,10 +1741,10 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
               boxShadow: '0 0 0 1px rgba(255, 255, 255, 0.18), 0 0 14px rgba(255, 0, 0, 0.75)',
             }}
           />
-        </div>
+        </div>}
 
         {/* 마디 번호 표시 (재생선 오른쪽) */}
-        <div
+        {!isPlaying && <div
           ref={measureLabelRef}
           style={{
             position: 'absolute',
@@ -1769,9 +1762,27 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
           }}
         >
           {currentMeasureLabel}
-        </div>
+        </div>}
         </div>
       </div>
+    </div>
+      <ChartEditorPlaybackCanvas
+        active={isPlaying}
+        noteIndex={noteRenderIndex}
+        bpm={bpm}
+        bpmChanges={bpmChanges}
+        speedChanges={speedChanges}
+        bgaVisibilityIntervals={bgaVisibilityIntervals}
+        lanePositionIntervals={lanePositionIntervals}
+        currentTimeRef={currentTimeRef}
+        selectedNoteIds={selectedNoteIds}
+        zoom={_zoom}
+        gridDivision={gridDivision}
+        beatsPerMeasure={beatsPerMeasure}
+        timeSignatureOffset={timeSignatureOffset}
+        timelineContentHeight={timelineContentHeight}
+        timelineScrollRef={timelineScrollRef}
+      />
     </div>
     </>
   );
