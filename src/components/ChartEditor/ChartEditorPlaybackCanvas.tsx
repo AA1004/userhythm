@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useLayoutEffect, useMemo, useRef } from 'react';
 import type {
   BgaVisibilityInterval,
   BPMChange,
@@ -22,6 +22,52 @@ const CONTENT_WIDTH = LANE_WIDTH * 4;
 const NOTE_WIDTH = LANE_WIDTH - 4;
 const MAX_DPR = 1.25;
 const MEASURE_LABEL_FONT = '700 11px sans-serif';
+const NOTE_SPRITE_PADDING = 10;
+
+interface PlaybackNoteSprites {
+  tapWarm: HTMLCanvasElement;
+  tapCool: HTMLCanvasElement;
+  holdWarm: HTMLCanvasElement;
+  holdCool: HTMLCanvasElement;
+}
+
+const createNoteSprite = (
+  height: number,
+  topColor: string,
+  bottomColor: string,
+  borderColor: string,
+  radius: number,
+  shadowColor: string
+): HTMLCanvasElement => {
+  const canvas = document.createElement('canvas');
+  canvas.width = NOTE_WIDTH + NOTE_SPRITE_PADDING * 2;
+  canvas.height = height + NOTE_SPRITE_PADDING * 2;
+  const context = canvas.getContext('2d');
+  if (!context) return canvas;
+
+  const gradient = context.createLinearGradient(0, NOTE_SPRITE_PADDING, 0, height + NOTE_SPRITE_PADDING);
+  gradient.addColorStop(0, topColor);
+  gradient.addColorStop(1, bottomColor);
+  context.beginPath();
+  context.roundRect(NOTE_SPRITE_PADDING, NOTE_SPRITE_PADDING, NOTE_WIDTH, height, radius);
+  context.fillStyle = gradient;
+  context.shadowColor = shadowColor;
+  context.shadowBlur = 8;
+  context.shadowOffsetY = 3;
+  context.fill();
+  context.shadowColor = 'transparent';
+  context.lineWidth = 3;
+  context.strokeStyle = borderColor;
+  context.stroke();
+  return canvas;
+};
+
+const createPlaybackNoteSprites = (): PlaybackNoteSprites => ({
+  tapWarm: createNoteSprite(TAP_NOTE_HEIGHT, '#ff6b6b', '#ff9a8b', '#ee5a52', 14, 'rgba(0,0,0,0.45)'),
+  tapCool: createNoteSprite(TAP_NOTE_HEIGHT, '#4ecdc4', '#4ac8e7', '#45b7b8', 14, 'rgba(0,0,0,0.45)'),
+  holdWarm: createNoteSprite(120, 'rgba(255,231,157,0.95)', 'rgba(255,193,7,0.65)', 'rgba(255,255,255,0.25)', 18, 'rgba(255,214,102,0.8)'),
+  holdCool: createNoteSprite(120, 'rgba(78,205,196,0.9)', 'rgba(32,164,154,0.7)', 'rgba(255,255,255,0.25)', 18, 'rgba(0,0,0,0.45)'),
+});
 
 export interface PlaybackNoteIndex {
   sorted: readonly Note[];
@@ -103,7 +149,8 @@ const drawNote = (
   scrollTop: number,
   timelineContentHeight: number,
   zoom: number,
-  selected: boolean
+  selected: boolean,
+  sprites: PlaybackNoteSprites
 ) => {
   const pixelsPerMs = (PIXELS_PER_SECOND * zoom) / 1000;
   const viewportBaseY = timelineContentHeight - TIMELINE_BOTTOM_PADDING - scrollTop;
@@ -116,17 +163,22 @@ const drawNote = (
     : TAP_NOTE_HEIGHT;
   const left = laneLeft + LANE_POSITIONS[note.lane] - NOTE_WIDTH / 2;
   const warmLane = note.lane === 0 || note.lane === 2;
+  const sprite = isHold
+    ? warmLane ? sprites.holdWarm : sprites.holdCool
+    : warmLane ? sprites.tapWarm : sprites.tapCool;
+  context.drawImage(
+    sprite,
+    left - NOTE_SPRITE_PADDING,
+    top - NOTE_SPRITE_PADDING,
+    NOTE_WIDTH + NOTE_SPRITE_PADDING * 2,
+    height + NOTE_SPRITE_PADDING * 2
+  );
 
-  context.fillStyle = isHold
-    ? warmLane ? 'rgba(250, 204, 21, 0.82)' : 'rgba(45, 212, 191, 0.78)'
-    : warmLane ? '#ff7b72' : '#4ecdc4';
-  context.fillRect(left, top, NOTE_WIDTH, height);
-
-  context.strokeStyle = selected
-    ? '#60a5fa'
-    : warmLane ? 'rgba(254, 202, 202, 0.9)' : 'rgba(153, 246, 228, 0.9)';
-  context.lineWidth = selected ? 3 : 2;
-  context.strokeRect(left + 1, top + 1, NOTE_WIDTH - 2, Math.max(1, height - 2));
+  if (selected) {
+    context.strokeStyle = '#60a5fa';
+    context.lineWidth = 3;
+    context.strokeRect(left, top, NOTE_WIDTH, height);
+  }
 };
 
 export const ChartEditorPlaybackCanvas = React.memo(({
@@ -148,6 +200,7 @@ export const ChartEditorPlaybackCanvas = React.memo(({
 }: ChartEditorPlaybackCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sizeRef = useRef({ width: 0, height: 0, dpr: 1 });
+  const noteSprites = useMemo(createPlaybackNoteSprites, []);
 
   const renderIndex = useMemo(() => {
     const sortedBpmChanges = [...bpmChanges].sort((a, b) => a.beatIndex - b.beatIndex);
@@ -167,7 +220,7 @@ export const ChartEditorPlaybackCanvas = React.memo(({
     };
   }, [bpm, bpmChanges, speedChanges, bgaVisibilityIntervals, lanePositionIntervals, timeSignatureOffset]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     const container = timelineScrollRef.current;
     if (!canvas || !container) return;
@@ -196,7 +249,7 @@ export const ChartEditorPlaybackCanvas = React.memo(({
     };
   }, [timelineScrollRef]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const context = canvas.getContext('2d', { alpha: true });
@@ -337,7 +390,8 @@ export const ChartEditorPlaybackCanvas = React.memo(({
             scrollTop,
             timelineContentHeight,
             zoom,
-            selectedNoteIds.has(note.id)
+            selectedNoteIds.has(note.id),
+            noteSprites
           );
         }
       }
@@ -353,7 +407,8 @@ export const ChartEditorPlaybackCanvas = React.memo(({
           scrollTop,
           timelineContentHeight,
           zoom,
-          selectedNoteIds.has(note.id)
+          selectedNoteIds.has(note.id),
+          noteSprites
         );
       }
 
@@ -384,7 +439,7 @@ export const ChartEditorPlaybackCanvas = React.memo(({
       frameId = requestAnimationFrame(render);
     };
 
-    frameId = requestAnimationFrame(render);
+    render();
     return () => cancelAnimationFrame(frameId);
   }, [
     active,
@@ -393,6 +448,7 @@ export const ChartEditorPlaybackCanvas = React.memo(({
     currentTimeRef,
     gridDivision,
     noteIndex,
+    noteSprites,
     renderIndex,
     selectedNoteIds,
     timeSignatureOffset,

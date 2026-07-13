@@ -1156,8 +1156,17 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
           />
         ))}
 
+        <div
+          aria-hidden={isPlaying}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            visibility: isPlaying ? 'hidden' : 'visible',
+          }}
+        >
+
         {/* 그리드 라인 */}
-        {!isPlaying && visibleGridLines.map((line, index) => (
+        {visibleGridLines.map((line, index) => (
           <div
             key={`grid-${index}`}
             style={{
@@ -1174,7 +1183,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         ))}
 
         {/* 로컬 오디오 분석 마커 */}
-        {!isPlaying && visibleAnalysisMarkers.beats.map(({ beat, index, y }) => {
+        {visibleAnalysisMarkers.beats.map(({ beat, index, y }) => {
           const isDownbeat = beat.beatInMeasure === 1;
           return (
             <div
@@ -1197,7 +1206,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
           );
         })}
 
-        {!isPlaying && visibleAnalysisMarkers.onsets.map(({ onset, index, y }) => {
+        {visibleAnalysisMarkers.onsets.map(({ onset, index, y }) => {
           const strength = Math.max(0.08, Math.min(1, Number(onset.strength) || 0.35));
           const color = getAnalysisBandColor(onset.band);
           return (
@@ -1221,7 +1230,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         })}
 
         {/* 변속 마커 (SpeedChange) */}
-        {!isPlaying && visibleSpeedChanges.map(({ sc, y }) => (
+        {visibleSpeedChanges.map(({ sc, y }) => (
           <div
             key={`speed-start-${sc.id}`}
             style={{
@@ -1239,7 +1248,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         ))}
 
         {/* 레인 위치 이동 구간: 버튼 레일과 겹치지 않도록 타임라인 내부 거터에 표시 */}
-        {!isPlaying && visibleLanePositionSegments.map(({ segment, top, height }) => {
+        {visibleLanePositionSegments.map(({ segment, top, height }) => {
           const tone =
             segment.offsetX < 0
               ? '34,211,238'
@@ -1359,7 +1368,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
 
 
         {/* 간주 구간 오버레이 (채보 레인 숨김) */}
-        {!isPlaying && visibleBgaSegments.map(({ segment, top, height }) => {
+        {visibleBgaSegments.map(({ segment, top, height }) => {
           const total = Math.max(1, segment.endTimeMs - segment.startTimeMs);
           const fadeInRatio = Math.min(1, Math.max(0, (segment.fadeInMs ?? 0) / total));
           const fadeOutRatio = Math.min(1, Math.max(0, (segment.fadeOutMs ?? 0) / total));
@@ -1553,7 +1562,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         })}
 
         {/* 롱노트 시작점 마커 */}
-        {!isPlaying && pendingLongNote && (() => {
+        {pendingLongNote && (() => {
           const startY = timeToY(pendingLongNote.startTime);
           const laneCenter = LANE_POSITIONS[pendingLongNote.lane];
           return (
@@ -1592,7 +1601,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         />
 
          {/* 노트 렌더링 */}
-          {!isPlaying && visibleNotes.map(({ note, isHold, topPosition, noteHeight, isSquishedLeft, isSquishedRight, squishRatio }) => {
+          {visibleNotes.map(({ note, isHold, topPosition, noteHeight, isSquishedLeft, isSquishedRight, squishRatio }) => {
            const isOddLane = note.lane === 0 || note.lane === 2;
            const tapGradient = isOddLane
              ? 'linear-gradient(180deg, #FF6B6B 0%, #FF9A8B 100%)'
@@ -1713,7 +1722,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         {/* (removed) 세로 선택 영역 */}
 
         {/* 재생선 */}
-        {!isPlaying && <div
+        <div
           ref={playheadRef}
           data-playhead
           onMouseDown={onPlayheadMouseDown}
@@ -1741,10 +1750,10 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
               boxShadow: '0 0 0 1px rgba(255, 255, 255, 0.18), 0 0 14px rgba(255, 0, 0, 0.75)',
             }}
           />
-        </div>}
+        </div>
 
         {/* 마디 번호 표시 (재생선 오른쪽) */}
-        {!isPlaying && <div
+        <div
           ref={measureLabelRef}
           style={{
             position: 'absolute',
@@ -1762,7 +1771,8 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
           }}
         >
           {currentMeasureLabel}
-        </div>}
+        </div>
+        </div>
         </div>
       </div>
     </div>
