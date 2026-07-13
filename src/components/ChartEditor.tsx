@@ -2495,7 +2495,20 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
   // 자동 스크롤은 재생선과 동일한 runtime time source를 읽어 떨림을 줄인다.
   useEffect(() => {
-    if (!isPlaying || !isAutoScrollEnabled || isDraggingPlayheadRef.current) {
+    if (!isPlaying) {
+      // Keep the final fractional scroll compensation when pausing. Clearing
+      // it moves the entire timeline by the sub-pixel amount that scrollTop
+      // discarded, making the stopped playhead appear slightly misaligned.
+      if (isAutoScrollEnabled && !isDraggingPlayheadRef.current && timelineScrollRef.current) {
+        const centerOffset = timelineScrollRef.current.clientHeight / 2;
+        applyTimelineScrollPosition(timeToY(internalTimeRef.current) - centerOffset);
+      } else if (timelineContentRef.current) {
+        timelineContentRef.current.style.transform = 'translateX(-50%) translateY(0px)';
+      }
+      return;
+    }
+
+    if (!isAutoScrollEnabled || isDraggingPlayheadRef.current) {
       if (timelineContentRef.current) {
         timelineContentRef.current.style.transform = 'translateX(-50%) translateY(0px)';
       }
@@ -2524,9 +2537,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     return () => {
       if (frameId !== null) {
         cancelAnimationFrame(frameId);
-      }
-      if (timelineContentRef.current) {
-        timelineContentRef.current.style.transform = 'translateX(-50%) translateY(0px)';
       }
     };
   }, [isPlaying, isAutoScrollEnabled, timeToY, applyTimelineScrollPosition]);
