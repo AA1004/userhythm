@@ -2474,10 +2474,11 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     if (!container) return;
 
     const clampedTarget = Math.max(0, targetScrollTopRaw);
-    const snappedScrollTop = Math.round(clampedTarget);
 
-    if (Math.abs(container.scrollTop - snappedScrollTop) >= 1) {
-      container.scrollTop = snappedScrollTop;
+    // Keep sub-pixel movement at high refresh rates. Integer snapping makes a
+    // slowly moving timeline advance in visible one-pixel steps.
+    if (Math.abs(container.scrollTop - clampedTarget) >= 0.01) {
+      container.scrollTop = clampedTarget;
     }
 
     if (timelineContentRef.current) {

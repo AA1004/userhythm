@@ -246,14 +246,19 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   const [viewHeight, setViewHeight] = useState(0);
   const viewBottom = viewTop + viewHeight;
   const VIRTUAL_BUFFER = 800; // 위·아래 버퍼(px)
+  const VIRTUAL_VIEW_UPDATE_THRESHOLD = 160;
 
   // 스크롤/리사이즈에 맞춰 뷰포트 값을 갱신
-  const updateViewport = useCallback(() => {
+  const updateViewport = useCallback((force = false) => {
     const container = timelineScrollRef.current;
     if (!container) return;
     const nextTop = container.scrollTop;
     const nextHeight = container.clientHeight;
-    setViewTop((prev) => (prev === nextTop ? prev : nextTop));
+    setViewTop((prev) => (
+      force || Math.abs(prev - nextTop) >= VIRTUAL_VIEW_UPDATE_THRESHOLD
+        ? nextTop
+        : prev
+    ));
     setViewHeight((prev) => (prev === nextHeight ? prev : nextHeight));
   }, [timelineScrollRef]);
 
@@ -266,14 +271,14 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
       if (rafId !== null) return;
       rafId = requestAnimationFrame(() => {
         rafId = null;
-        updateViewport();
+        updateViewport(false);
       });
     };
 
-    updateViewport();
+    updateViewport(true);
     container.addEventListener('scroll', handleScroll, { passive: true });
 
-    const resizeObserver = new ResizeObserver(() => updateViewport());
+    const resizeObserver = new ResizeObserver(() => updateViewport(true));
     resizeObserver.observe(container);
 
     return () => {
