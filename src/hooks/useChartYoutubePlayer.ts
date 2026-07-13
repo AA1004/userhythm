@@ -386,14 +386,14 @@ export function useChartYoutubePlayer({
             playerSeconds: desiredSeconds,
             requestedAtMs: performance.now(),
           };
-          applyEditorPlaybackQuality(youtubePlayer);
-
           const playerTime = typeof youtubePlayer.getCurrentTime === 'function'
             ? youtubePlayer.getCurrentTime() ?? 0
             : 0;
           const timeDrift = Math.abs(playerTime - desiredSeconds);
 
-          if (!wasPlayingRef.current || timeDrift > 0.08) {
+          // A paused player is already at the editor cursor in the common case.
+          // Seeking on every resume makes YouTube briefly rebuffer and stalls the editor.
+          if (timeDrift > 0.08) {
             syncPlayerToTimeline(desiredTimeMs, true);
           } else {
             youtubePlayer.playVideo?.();
@@ -418,7 +418,7 @@ export function useChartYoutubePlayer({
         return false;
       }
     },
-    [clearPlaybackRetryTimer, getPlayerTimeSeconds, syncPlayerToTimeline, youtubePlayer, applyEditorPlaybackQuality]
+    [clearPlaybackRetryTimer, getPlayerTimeSeconds, syncPlayerToTimeline, youtubePlayer]
   );
 
   // 재생/일시정지 제어 (YouTube 쪽만 제어, 타임라인은 별도 동기화)
