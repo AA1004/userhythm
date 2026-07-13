@@ -2473,7 +2473,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     const container = timelineScrollRef.current;
     if (!container) return;
 
-    const clampedTarget = Math.max(0, targetScrollTopRaw);
+    const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
+    const clampedTarget = Math.min(maxScrollTop, Math.max(0, targetScrollTopRaw));
 
     // Keep sub-pixel movement at high refresh rates. Integer snapping makes a
     // slowly moving timeline advance in visible one-pixel steps.
@@ -2482,9 +2483,10 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
 
     if (timelineContentRef.current) {
-      // Keep auto-scroll on a single coordinate path. Fractional wrapper transforms
-      // make the grid and the playhead disagree at high refresh rates.
-      timelineContentRef.current.style.transform = 'translateX(-50%) translateY(0px)';
+      // Some browsers quantize scrollTop to device pixels. Compensate only the
+      // residual so the grid, notes and playhead share one continuous position.
+      const residualY = container.scrollTop - clampedTarget;
+      timelineContentRef.current.style.transform = `translateX(-50%) translateY(${residualY}px)`;
     }
   }, []);
 

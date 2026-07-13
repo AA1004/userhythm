@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
+import React, { startTransition, useMemo, useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import { Note, SpeedChange, BPMChange, BgaVisibilityInterval, Lane, LanePositionInterval } from '../../types/game';
 import {
   LANE_POSITIONS,
@@ -246,7 +246,8 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   const [viewHeight, setViewHeight] = useState(0);
   const viewBottom = viewTop + viewHeight;
   const VIRTUAL_BUFFER = 800; // 위·아래 버퍼(px)
-  const VIRTUAL_VIEW_UPDATE_THRESHOLD = 160;
+  const VIRTUAL_VIEW_UPDATE_THRESHOLD = 320;
+  const virtualViewTopRef = useRef(0);
 
   // 스크롤/리사이즈에 맞춰 뷰포트 값을 갱신
   const updateViewport = useCallback((force = false) => {
@@ -254,12 +255,13 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     if (!container) return;
     const nextTop = container.scrollTop;
     const nextHeight = container.clientHeight;
-    setViewTop((prev) => (
-      force || Math.abs(prev - nextTop) >= VIRTUAL_VIEW_UPDATE_THRESHOLD
-        ? nextTop
-        : prev
-    ));
-    setViewHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+    if (force || Math.abs(virtualViewTopRef.current - nextTop) >= VIRTUAL_VIEW_UPDATE_THRESHOLD) {
+      virtualViewTopRef.current = nextTop;
+      startTransition(() => setViewTop(nextTop));
+    }
+    if (force) {
+      setViewHeight((prev) => (prev === nextHeight ? prev : nextHeight));
+    }
   }, [timelineScrollRef]);
 
   useEffect(() => {
