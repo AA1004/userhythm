@@ -279,8 +279,16 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   // --- 기본 상태 ---
   const [notes, setNotes] = useState<Note[]>([]);
   const [currentTime, setCurrentTime] = useState<number>(0);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [isPlaying, setIsPlayingState] = useState<boolean>(false);
   const isPlayingRef = useRef(false);
+  const playbackToggleCommandRef = useRef(0);
+  const setIsPlaying = useCallback<React.Dispatch<React.SetStateAction<boolean>>>((nextState) => {
+    const resolvedState = typeof nextState === 'function'
+      ? nextState(isPlayingRef.current)
+      : nextState;
+    isPlayingRef.current = resolvedState;
+    setIsPlayingState(resolvedState);
+  }, []);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
   const [zoom, setZoom] = useState<number>(1);
   const [volume, setVolume] = useState<number>(100);
@@ -611,10 +619,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   // 매 프레임 상태 업데이트 (모니터 주사율에 맞춤)
   const internalTimeRef = useRef<number>(0);
   const [autosaveCurrentTime, setAutosaveCurrentTime] = useState<number>(0);
-
-  useEffect(() => {
-    isPlayingRef.current = isPlaying;
-  }, [isPlaying]);
 
   useEffect(() => {
     if (!isPlaying) {
@@ -2579,6 +2583,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
   // 키보드 핸들러 (에디터 전용 전역 단축키)
   const handleToggleEditorPlayback = useCallback(async () => {
+    const commandId = ++playbackToggleCommandRef.current;
     const nextPlaying = !isPlayingRef.current;
     const commandTimeMs = Math.max(0, internalTimeRef.current);
     isPlayingRef.current = nextPlaying;
@@ -2598,7 +2603,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       // ignore: fallback to play without pre-warm
     }
 
-    if (!isPlayingRef.current) {
+    if (commandId !== playbackToggleCommandRef.current || !isPlayingRef.current) {
       return;
     }
 

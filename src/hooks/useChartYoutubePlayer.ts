@@ -51,8 +51,6 @@ export function useChartYoutubePlayer({
   const lastPlayerClockPollMsRef = useRef(0);
   const pendingPlaybackStartRef = useRef<{
     timelineMs: number;
-    playerSeconds: number;
-    requestedAtMs: number;
   } | null>(null);
 
   useEffect(() => {
@@ -383,8 +381,6 @@ export function useChartYoutubePlayer({
         if (nextPlaying) {
           pendingPlaybackStartRef.current = {
             timelineMs: desiredTimeMs,
-            playerSeconds: desiredSeconds,
-            requestedAtMs: performance.now(),
           };
           const playerTime = typeof youtubePlayer.getCurrentTime === 'function'
             ? youtubePlayer.getCurrentTime() ?? 0
@@ -442,8 +438,6 @@ export function useChartYoutubePlayer({
           if (!wasPlayingRef.current) {
             pendingPlaybackStartRef.current = {
               timelineMs: latestTimeRef.current,
-              playerSeconds: getPlayerTimeSeconds(latestTimeRef.current),
-              requestedAtMs: performance.now(),
             };
             syncPlayerToTimeline(latestTimeRef.current, true);
           } else if (
@@ -571,16 +565,6 @@ export function useChartYoutubePlayer({
 
             if (pendingStart) {
               if (!playerIsPlaying) {
-                return pendingStart.timelineMs;
-              }
-
-              // A rapid pause/seek/play sequence can briefly expose the previous
-              // PLAYING state and timestamp. Do not release the editor clock until
-              // the iframe has actually reached the requested start position.
-              if (
-                Math.abs(playerSeconds - pendingStart.playerSeconds) > 0.3 &&
-                now - pendingStart.requestedAtMs < 1200
-              ) {
                 return pendingStart.timelineMs;
               }
 
