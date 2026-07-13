@@ -75,7 +75,7 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
   onImportJson,
   onImportAnalysis,
 }) => {
-  const measures = Math.max(1, Math.round(songInfo.totalBeats / beatsPerMeasure));
+  const measures = Math.max(1, Math.ceil(songInfo.totalBeats / beatsPerMeasure));
   const beatsRounded = Math.round(songInfo.totalBeats);
   const [bpmDraft, setBpmDraft] = React.useState(() => Math.round(bpm).toString());
   const [bpmError, setBpmError] = React.useState<string | null>(null);

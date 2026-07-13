@@ -722,9 +722,9 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   });
 
 
-  const timelineDurationMs = useMemo(() => {
-    const lastNoteTime = notes.length > 0 
-      ? Math.max(...notes.map(n => n.endTime || n.time)) 
+  const timelineContentBounds = useMemo(() => {
+    const lastNoteTime = notes.length > 0
+      ? Math.max(...notes.map(n => n.endTime || n.time))
       : 0;
     const bgaEndTime = bgaVisibilityIntervals.length > 0
       ? Math.max(...bgaVisibilityIntervals.map((interval) => interval.endTimeMs))
@@ -736,19 +736,33 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       ? Math.max(...cachedSubtitlePayload.subtitles.map((cue) => cue.endTimeMs))
       : 0;
     const videoDurationMs = (videoDurationSeconds || 0) * 1000;
-    const validVideoDuration = (videoDurationSeconds && videoDurationSeconds > 0) 
-      ? videoDurationMs 
-      : MIN_TIMELINE_DURATION_MS;
-    const baseDuration = Math.max(
-      lastNoteTime + 5000,
+    const authoredEndTime = Math.max(
+      lastNoteTime,
       bgaEndTime,
       lanePositionEndTime,
       subtitleEndTime,
-      validVideoDuration,
+      videoDurationMs
+    );
+
+    return {
+      authoredEndTime,
+      paddedEndTime: Math.max(
+        lastNoteTime + (lastNoteTime > 0 ? 5000 : 0),
+        bgaEndTime,
+        lanePositionEndTime,
+        subtitleEndTime,
+        videoDurationMs
+      ),
+    };
+  }, [notes, bgaVisibilityIntervals, lanePositionIntervals, cachedSubtitlePayload.subtitles, videoDurationSeconds]);
+
+  const timelineDurationMs = useMemo(() => {
+    const baseDuration = Math.max(
+      timelineContentBounds.paddedEndTime,
       MIN_TIMELINE_DURATION_MS
     );
     return Math.max(MIN_TIMELINE_DURATION_MS, baseDuration + timelineExtraMs);
-  }, [notes, bgaVisibilityIntervals, lanePositionIntervals, cachedSubtitlePayload.subtitles, videoDurationSeconds, timelineExtraMs]);
+  }, [timelineContentBounds.paddedEndTime, timelineExtraMs]);
 
   const timelineContentHeight = useMemo(() => {
     return TIMELINE_TOP_PADDING + TIMELINE_BOTTOM_PADDING + (timelineDurationMs / 1000) * PIXELS_PER_SECOND * zoom;
@@ -768,7 +782,12 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   });
 
   const songInfo = useMemo(() => {
-    const durationSeconds = timelineDurationMs / 1000;
+    // The editor keeps a minimum scrollable canvas, but that padding is not
+    // part of the song and must not inflate short-chart measure counts.
+    const durationSeconds = Math.max(
+      0,
+      timelineContentBounds.authoredEndTime + timelineExtraMs
+    ) / 1000;
     const totalBeats = calculateTotalBeatsWithChanges(
       durationSeconds,
       bpm,
@@ -784,7 +803,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       baseBpm: bpm,
       bpmChanges: sortedBpmChanges
     };
-  }, [timelineDurationMs, bpm, sortedBpmChanges, beatsPerMeasure]);
+  }, [timelineContentBounds.authoredEndTime, timelineExtraMs, bpm, sortedBpmChanges, beatsPerMeasure]);
 
   const clampTime = useCallback(
     (time: number) => Math.max(0, Math.min(time, timelineDurationMs)),
