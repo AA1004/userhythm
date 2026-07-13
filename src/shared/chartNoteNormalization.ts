@@ -64,10 +64,15 @@ export function removeCanonicalNoteConflicts<LaneType, NoteType extends Canonica
   notes: readonly NoteType[]
 ): NoteType[] {
   const accepted: NoteType[] = [];
+  const lastAcceptedByLane = new Map<LaneType, NoteType>();
+
   for (const note of notes) {
-    if (!accepted.some((existing) => doCanonicalNotesOverlap(existing, note))) {
-      accepted.push(note);
-    }
+    const previous = lastAcceptedByLane.get(note.lane);
+    if (previous && doCanonicalNotesOverlap(previous, note)) continue;
+
+    accepted.push(note);
+    lastAcceptedByLane.set(note.lane, note);
   }
+
   return accepted;
 }

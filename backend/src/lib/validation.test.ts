@@ -20,6 +20,60 @@ async function main() {
     signPlaySessionToken,
     verifyPlaySessionToken,
   } = await import('./playSession');
+  const {
+    removeCanonicalNoteConflicts,
+  } = await import('../../../src/shared/chartNoteNormalization');
+
+  const canonicalNote = (
+    id: number,
+    lane: number,
+    time: number,
+    duration = 0
+  ) => ({
+    id,
+    lane,
+    time,
+    duration,
+    endTime: time + duration,
+    type: duration > 0 ? 'hold' as const : 'tap' as const,
+  });
+
+  assert.deepEqual(
+    removeCanonicalNoteConflicts([
+      canonicalNote(1, 0, 100),
+      canonicalNote(2, 0, 100),
+    ]).map((note) => note.id),
+    [1]
+  );
+  assert.deepEqual(
+    removeCanonicalNoteConflicts([
+      canonicalNote(1, 1, 200, 500),
+      canonicalNote(2, 1, 400),
+    ]).map((note) => note.id),
+    [1]
+  );
+  assert.deepEqual(
+    removeCanonicalNoteConflicts([
+      canonicalNote(1, 0, 500),
+      canonicalNote(2, 1, 500),
+    ]).map((note) => note.id),
+    [1, 2]
+  );
+  assert.deepEqual(
+    removeCanonicalNoteConflicts([
+      canonicalNote(1, 2, 1000, 100),
+      canonicalNote(2, 2, 1100.4),
+    ]).map((note) => note.id),
+    [1]
+  );
+
+  const largeNonConflictingChart = Array.from({ length: 6001 }, (_, index) =>
+    canonicalNote(index + 1, index % 4, index * 2)
+  );
+  assert.equal(
+    removeCanonicalNoteConflicts(largeNonConflictingChart).length,
+    largeNonConflictingChart.length
+  );
 
   const validChartJson = JSON.stringify({
     bpm: 128,

@@ -20,6 +20,31 @@ const BGA_MIN_DURATION_MS = 120;
 const PLAYHEAD_HIT_HEIGHT = 28;
 const PLAYHEAD_Z_INDEX = 1200;
 
+const getTimelineNoteEndTime = (note: Note): number =>
+  note.endTime ?? note.time + Math.max(0, note.duration ?? 0);
+
+const lowerBoundNoteTime = (notes: readonly Note[], targetTime: number): number => {
+  let low = 0;
+  let high = notes.length;
+  while (low < high) {
+    const mid = (low + high) >>> 1;
+    if (notes[mid].time < targetTime) low = mid + 1;
+    else high = mid;
+  }
+  return low;
+};
+
+const upperBoundNoteTime = (notes: readonly Note[], targetTime: number): number => {
+  let low = 0;
+  let high = notes.length;
+  while (low < high) {
+    const mid = (low + high) >>> 1;
+    if (notes[mid].time <= targetTime) low = mid + 1;
+    else high = mid;
+  }
+  return low;
+};
+
 interface ChartEditorTimelineProps {
   notes: Note[];
   beatsPerMeasure: number;
@@ -288,6 +313,21 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
   // 노트 높이는 줌과 무관하게 고정 (타임라인 스케일만 줌에 따라 변함)
   const tapNoteHeight = TAP_NOTE_HEIGHT;
 
+  // Build searchable note indexes only when the chart changes. Editor actions
+  // preserve IDs, so selection and drag state can safely reference the same notes.
+  const noteRenderIndex = useMemo(() => {
+    const sorted = [...notes].sort((left, right) => left.time - right.time);
+    const byLane: Note[][] = [[], [], [], []];
+    const byId = new Map<number, Note>();
+
+    for (const note of sorted) {
+      byLane[note.lane]?.push(note);
+      byId.set(note.id, note);
+    }
+
+    return { sorted, byLane, byId };
+  }, [notes]);
+
   // 성능 최적화: 가시 영역 노트만 계산 (timeToY 의존성 제거)
   // 1. 시간 범위로 빠르게 필터링 후 계산
   // 2. timeToY 대신 직접 계산하여 currentTime 변경시 재계산 방지
@@ -308,13 +348,44 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     const viewStartTime = yToTimeLocal(paddedBottom);
     const viewEndTime = yToTimeLocal(paddedTop);
 
-    // 시간 범위 내 노트만 필터링 후 계산
-    return notes
-      .filter((note) => {
-        const endTime = note.endTime || note.time + (note.duration || 0);
-        return endTime >= viewStartTime && note.time <= viewEndTime;
-      })
-      .map((note) => {
+    const visibleStartMs = Math.max(0, Math.min(viewStartTime, viewEndTime));
+    const visibleEndMs = Math.max(viewStartTime, viewEndTime);
+    const startIndex = lowerBoundNoteTime(noteRenderIndex.sorted, visibleStartMs);
+    const endIndex = upperBoundNoteTime(noteRenderIndex.sorted, visibleEndMs);
+    const candidateNotes = noteRenderIndex.sorted.slice(startIndex, endIndex);
+    const candidateIds = new Set<number>();
+
+    for (const note of candidateNotes) candidateIds.add(note.id);
+
+    // At most one accepted note per lane can cross the viewport start because
+    // canonical notes on the same lane never overlap.
+    for (const laneNotes of noteRenderIndex.byLane) {
+      const predecessorIndex = lowerBoundNoteTime(laneNotes, visibleStartMs) - 1;
+      if (predecessorIndex < 0) continue;
+      const predecessor = laneNotes[predecessorIndex];
+      if (
+        predecessor.time <= visibleEndMs &&
+        getTimelineNoteEndTime(predecessor) >= visibleStartMs &&
+        !candidateIds.has(predecessor.id)
+      ) {
+        candidateNotes.push(predecessor);
+        candidateIds.add(predecessor.id);
+      }
+    }
+
+    // Selected notes stay mounted while moving, even when their original time
+    // lies outside the viewport and the drag offset moves them into view.
+    for (const id of selectedNoteIds) {
+      const selectedNote = noteRenderIndex.byId.get(id);
+      if (selectedNote && !candidateIds.has(id)) {
+        candidateNotes.push(selectedNote);
+        candidateIds.add(id);
+      }
+    }
+
+    candidateNotes.sort((left, right) => left.time - right.time);
+
+    return candidateNotes.map((note) => {
         // 이동 모드에서 선택된 노트는 오프셋 적용된 시간 사용
         const isSelected = selectedNoteIds.has(note.id);
         const effectiveTime = dragOffset && isSelected ? Math.max(0, note.time + dragOffset.time) : note.time;
@@ -354,7 +425,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
           squishRatio,
         };
       });
-  }, [notes, _zoom, timelineContentHeight, paddedTop, paddedBottom, tapNoteHeight, selectedNoteIds, dragOffset]);
+  }, [noteRenderIndex, _zoom, timelineContentHeight, paddedTop, paddedBottom, tapNoteHeight, selectedNoteIds, dragOffset]);
 
   // 마퀴 선택용 preparedNotes (모든 노트 필요)
   // 성능 최적화: timeToY 대신 로컬 함수 사용하여 currentTime 변경시 재계산 방지
@@ -365,15 +436,10 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         return timelineContentHeight - TIMELINE_BOTTOM_PADDING - (timeMs / 1000) * PIXELS_PER_SECOND * zoom;
       };
 
-      return notes.map((note) => {
-        const isSelected = selectedNoteIds.has(note.id);
-        const effectiveTime = dragOffset && isSelected ? Math.max(0, note.time + dragOffset.time) : note.time;
-        const rawLane = dragOffset && isSelected ? note.lane + dragOffset.lane : note.lane;
-        const effectiveLane = Math.max(0, Math.min(3, rawLane)) as Lane;
-
-        const noteY = timeToYLocal(effectiveTime);
+      return noteRenderIndex.sorted.map((note) => {
+        const noteY = timeToYLocal(note.time);
         const isHold = note.duration > 0 || note.type === 'hold';
-        const endTime = isHold ? (note.endTime || note.time + note.duration) : effectiveTime;
+        const endTime = isHold ? getTimelineNoteEndTime(note) : note.time;
         const endY = isHold ? timeToYLocal(endTime) : noteY;
         const topPosition = isHold
           ? Math.min(noteY, endY) - tapNoteHeight / 2
@@ -383,13 +449,13 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
           : tapNoteHeight;
 
         return {
-          note: { ...note, time: effectiveTime, lane: effectiveLane },
+          note,
           topPosition,
           noteHeight,
         };
       });
     },
-    [notes, _zoom, timelineContentHeight, tapNoteHeight, selectedNoteIds, dragOffset]
+    [noteRenderIndex, _zoom, timelineContentHeight, tapNoteHeight]
   );
 
   // -----------------------------

@@ -5,6 +5,7 @@ interface UseChartAutosaveOptions<T> {
   data: T;
   onRestore: (data: T) => void;
   debounceMs?: number;
+  paused?: boolean;
 }
 
 /**
@@ -24,21 +25,42 @@ export function useChartAutosave<T>(
           key: keyOrOptions,
           data: data!,
           onRestore: onRestore!,
-          debounceMs: debounceMs ?? 1000,
+          debounceMs: debounceMs ?? 2000,
         }
       : keyOrOptions;
 
-  const { key, data: dataValue, onRestore: onRestoreValue, debounceMs: debounceMsValue = 1000 } = options;
+  const {
+    key,
+    data: dataValue,
+    onRestore: onRestoreValue,
+    debounceMs: debounceMsValue = 2000,
+    paused = false,
+  } = options;
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isRestoredRef = useRef(false);
   const previousKeyRef = useRef<string | null>(null);
+  const previousDataRef = useRef<T>(dataValue);
+  const latestKeyRef = useRef(key);
+  const latestDataRef = useRef(dataValue);
+  const pausedRef = useRef(paused);
+  const dirtyRef = useRef(false);
+
+  latestKeyRef.current = key;
+  latestDataRef.current = dataValue;
+  pausedRef.current = paused;
 
   useEffect(() => {
     if (previousKeyRef.current !== key) {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
       previousKeyRef.current = key;
       isRestoredRef.current = false;
+      dirtyRef.current = false;
+      previousDataRef.current = dataValue;
     }
-  }, [key]);
+  }, [key, dataValue]);
 
   // key별로 한 번씩 복원
   useEffect(() => {
@@ -61,13 +83,25 @@ export function useChartAutosave<T>(
   useEffect(() => {
     if (!isRestoredRef.current) return; // 복원 전에는 저장하지 않음
 
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
+    if (previousDataRef.current !== dataValue) {
+      previousDataRef.current = dataValue;
+      dirtyRef.current = true;
     }
 
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    if (paused || !dirtyRef.current) return;
+
     timeoutRef.current = setTimeout(() => {
+      timeoutRef.current = null;
+      if (pausedRef.current || !dirtyRef.current) return;
+
       try {
-        localStorage.setItem(key, JSON.stringify(dataValue));
+        localStorage.setItem(latestKeyRef.current, JSON.stringify(latestDataRef.current));
+        dirtyRef.current = false;
       } catch (error) {
         console.error('Failed to save to localStorage:', error);
       }
@@ -76,9 +110,29 @@ export function useChartAutosave<T>(
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
     };
-  }, [key, dataValue, debounceMsValue]);
+  }, [key, dataValue, debounceMsValue, paused]);
+
+  // localStorage writes are synchronous, so flush the latest dirty payload when
+  // the editor is closed normally even if playback had autosave paused.
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      if (!isRestoredRef.current || !dirtyRef.current) return;
+
+      try {
+        localStorage.setItem(latestKeyRef.current, JSON.stringify(latestDataRef.current));
+        dirtyRef.current = false;
+      } catch (error) {
+        console.error('Failed to save to localStorage:', error);
+      }
+    };
+  }, []);
 }
 
 

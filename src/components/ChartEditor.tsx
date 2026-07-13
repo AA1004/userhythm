@@ -1127,7 +1127,13 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     }
   }, [handleRestore]);
 
-  useChartAutosave(AUTO_SAVE_KEY, autoSaveData, handleRestore);
+  useChartAutosave({
+    key: AUTO_SAVE_KEY,
+    data: autoSaveData,
+    onRestore: handleRestore,
+    debounceMs: 2000,
+    paused: isPlaying,
+  });
 
   // 초기화 핸들러
   const handleReset = useCallback(() => {
