@@ -9,7 +9,6 @@ import {
 } from './constants';
 import { timeToMeasure } from '../../utils/bpmUtils';
 import { AudioAnalysisData, AudioAnalysisOnset } from '../../types/audioAnalysis';
-import { ChartEditorPlaybackCanvas } from './ChartEditorPlaybackCanvas';
 
 // 노트가 레인 경계선 안에 딱 맞게 들어가도록 레인 너비에서 약간의 여백만 남김
 const NOTE_WIDTH = LANE_WIDTH - 4;
@@ -218,12 +217,29 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
     }
   }, [currentTime, timeToY, bpm, bpmChanges, beatsPerMeasure, isPlaying, syncPlayhead]);
 
-  // Playback uses the canvas playhead. The DOM playhead remains a paused-editor control.
+  // 재생선은 재생 중 currentTimeRef를 직접 읽어 고주사율로 갱신한다.
+  // 부모 state는 더 낮은 빈도로 커밋되어도 재생선 시각 움직임은 유지된다.
   useEffect(() => {
-    if (!isPlaying) {
+    let frameId: number | null = null;
+
+    if (!isPlaying || !currentTimeRef) {
       syncPlayhead(renderHelpersRef.current.currentTime);
+      return;
     }
-  }, [isPlaying, syncPlayhead]);
+
+    const render = () => {
+      syncPlayhead(currentTimeRef.current);
+      frameId = requestAnimationFrame(render);
+    };
+
+    frameId = requestAnimationFrame(render);
+
+    return () => {
+      if (frameId !== null) {
+        cancelAnimationFrame(frameId);
+      }
+    };
+  }, [currentTimeRef, isPlaying, syncPlayhead]);
 
   // 뷰포트 정보 (가시 영역 + 버퍼)
   const [viewTop, setViewTop] = useState(0);
@@ -233,14 +249,13 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
 
   // 스크롤/리사이즈에 맞춰 뷰포트 값을 갱신
   const updateViewport = useCallback(() => {
-    if (isPlaying) return;
     const container = timelineScrollRef.current;
     if (!container) return;
     const nextTop = container.scrollTop;
     const nextHeight = container.clientHeight;
     setViewTop((prev) => (prev === nextTop ? prev : nextTop));
     setViewHeight((prev) => (prev === nextHeight ? prev : nextHeight));
-  }, [isPlaying, timelineScrollRef]);
+  }, [timelineScrollRef]);
 
   useEffect(() => {
     const container = timelineScrollRef.current;
@@ -1058,14 +1073,6 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
         }
       `}</style>
       <div
-        style={{
-          position: 'relative',
-          width: '100%',
-          height: '100%',
-          overflow: 'hidden',
-        }}
-      >
-      <div
         ref={timelineScrollRef}
         onClick={handleTimelineClick}
         onMouseDown={handleMouseDown}
@@ -1155,15 +1162,6 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
             }}
           />
         ))}
-
-        <div
-          aria-hidden={isPlaying}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            visibility: isPlaying ? 'hidden' : 'visible',
-          }}
-        >
 
         {/* 그리드 라인 */}
         {visibleGridLines.map((line, index) => (
@@ -1773,26 +1771,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
           {currentMeasureLabel}
         </div>
         </div>
-        </div>
       </div>
-    </div>
-      <ChartEditorPlaybackCanvas
-        active={isPlaying}
-        noteIndex={noteRenderIndex}
-        bpm={bpm}
-        bpmChanges={bpmChanges}
-        speedChanges={speedChanges}
-        bgaVisibilityIntervals={bgaVisibilityIntervals}
-        lanePositionIntervals={lanePositionIntervals}
-        currentTimeRef={currentTimeRef}
-        selectedNoteIds={selectedNoteIds}
-        zoom={_zoom}
-        gridDivision={gridDivision}
-        beatsPerMeasure={beatsPerMeasure}
-        timeSignatureOffset={timeSignatureOffset}
-        timelineContentHeight={timelineContentHeight}
-        timelineScrollRef={timelineScrollRef}
-      />
     </div>
     </>
   );
