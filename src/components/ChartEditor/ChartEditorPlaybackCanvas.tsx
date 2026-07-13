@@ -21,6 +21,7 @@ import {
 const CONTENT_WIDTH = LANE_WIDTH * 4;
 const NOTE_WIDTH = LANE_WIDTH - 4;
 const MAX_DPR = 1.25;
+const MEASURE_LABEL_FONT = '700 11px sans-serif';
 
 export interface PlaybackNoteIndex {
   sorted: readonly Note[];
@@ -209,6 +210,8 @@ export const ChartEditorPlaybackCanvas = React.memo(({
     }
 
     let frameId = 0;
+    let renderedMeasure = -1;
+    let renderedMeasureLabel = '';
     const render = () => {
       const container = timelineScrollRef.current;
       const { width, height, dpr } = sizeRef.current;
@@ -358,6 +361,25 @@ export const ChartEditorPlaybackCanvas = React.memo(({
       const playheadY = viewportBaseY - playheadTime * pixelsPerMs;
       context.fillStyle = '#ff4d21';
       context.fillRect(laneLeft, Math.round(playheadY) - 1, CONTENT_WIDTH, 3);
+
+      const currentBeatIndex = timeToBeatIndexFromSortedChanges(
+        playheadTime,
+        bpm,
+        renderIndex.sortedBpmChanges
+      );
+      const currentMeasure = Math.floor(currentBeatIndex / Math.max(1, beatsPerMeasure)) + 1;
+      if (currentMeasure !== renderedMeasure) {
+        renderedMeasure = currentMeasure;
+        renderedMeasureLabel = `${currentMeasure}마디`;
+      }
+      context.font = MEASURE_LABEL_FONT;
+      context.textBaseline = 'middle';
+      context.fillStyle = '#ff3b3b';
+      context.fillText(
+        renderedMeasureLabel,
+        laneLeft + CONTENT_WIDTH + 8,
+        Math.round(playheadY)
+      );
 
       frameId = requestAnimationFrame(render);
     };
