@@ -150,6 +150,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
         currentTimeRef={currentTimeRef}
         fallDuration={fallDuration}
         judgeLineY={judgeLineY}
+        timingOffsetMs={timingOffsetMs}
         playfieldGeometry={playfieldGeometry}
         playfieldTopOffset={playfieldTopOffset}
         hitNoteIdsRef={hitNoteIdsRef}

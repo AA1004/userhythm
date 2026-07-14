@@ -456,6 +456,7 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
             currentTimeRef={currentTimeRef}
             fallDuration={fallDuration}
             judgeLineY={JUDGE_LINE_Y}
+            timingOffsetMs={0}
             playfieldGeometry={playfieldGeometry}
             playfieldTopOffset={0}
             hitNoteIdsRef={hitNoteIdsRef}

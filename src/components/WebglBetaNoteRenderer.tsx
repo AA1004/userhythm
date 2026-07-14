@@ -35,6 +35,7 @@ interface WebglBetaNoteRendererProps {
   currentTimeRef: React.MutableRefObject<number>;
   fallDuration: number;
   judgeLineY: number;
+  timingOffsetMs: number;
   playfieldTopOffset?: number;
   laneCenters?: readonly number[];
   noteWidth?: number;
@@ -181,6 +182,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
   currentTimeRef,
   fallDuration,
   judgeLineY,
+  timingOffsetMs,
   playfieldTopOffset = 0,
   laneCenters = LANE_POSITIONS,
   noteWidth = 90,
@@ -210,6 +212,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
   const laneCentersRef = useRef(laneCenters);
   const fallDurationRef = useRef(fallDuration);
   const judgeLineYRef = useRef(judgeLineY);
+  const timingOffsetMsRef = useRef(timingOffsetMs);
   const playfieldTopOffsetRef = useRef(playfieldTopOffset);
   const noteWidthRef = useRef(noteWidth);
   const noteHeightRef = useRef(noteHeight);
@@ -253,6 +256,10 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
   useEffect(() => {
     judgeLineYRef.current = judgeLineY;
   }, [judgeLineY]);
+
+  useEffect(() => {
+    timingOffsetMsRef.current = timingOffsetMs;
+  }, [timingOffsetMs]);
 
   useEffect(() => {
     playfieldTopOffsetRef.current = playfieldTopOffset;
@@ -356,7 +363,8 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
           const holdIndicesByEnd = holdIndicesByEndRef.current;
           const holdIndicesByStart = holdIndicesByStartRef.current;
           const activeHoldIndices = activeHoldIndicesRef.current;
-          const currentTime = currentTimeRef.current;
+          // Match the renderer to useGameJudging/useGameLoop's adjusted timing clock.
+          const currentTime = currentTimeRef.current - timingOffsetMsRef.current;
           const activeFallDuration = fallDurationRef.current;
           const activeJudgeLineY = judgeLineYRef.current;
           const activePlayfieldTopOffset = playfieldTopOffsetRef.current;
@@ -635,6 +643,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
           currentTimeRef={currentTimeRef}
           fallDuration={fallDuration}
           judgeLineY={judgeLineY}
+          timingOffsetMs={timingOffsetMs}
           playfieldTopOffset={playfieldTopOffset}
           laneCenters={laneCenters}
           noteWidth={noteWidth}

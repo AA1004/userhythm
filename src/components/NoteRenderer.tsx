@@ -186,6 +186,7 @@ interface NoteRendererProps {
   currentTimeRef: React.MutableRefObject<number>;
   fallDuration: number;
   judgeLineY: number;
+  timingOffsetMs: number;
   playfieldTopOffset?: number;
   laneCenters?: readonly number[];
   noteWidth?: number;
@@ -207,6 +208,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
   currentTimeRef,
   fallDuration,
   judgeLineY,
+  timingOffsetMs,
   playfieldTopOffset = 0,
   laneCenters = LANE_POSITIONS,
   noteWidth = 90,
@@ -221,6 +223,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
   const notesRef = useRef(notes);
   const fallDurationRef = useRef(fallDuration);
   const judgeLineYRef = useRef(judgeLineY);
+  const timingOffsetMsRef = useRef(timingOffsetMs);
   const playfieldTopOffsetRef = useRef(playfieldTopOffset);
   const laneCentersRef = useRef(laneCenters);
   const noteWidthRef = useRef(noteWidth);
@@ -245,6 +248,10 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
   useEffect(() => {
     judgeLineYRef.current = judgeLineY;
   }, [judgeLineY]);
+
+  useEffect(() => {
+    timingOffsetMsRef.current = timingOffsetMs;
+  }, [timingOffsetMs]);
 
   useEffect(() => {
     playfieldTopOffsetRef.current = playfieldTopOffset;
@@ -307,7 +314,8 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
       const shouldProfile = isGameplayProfilerEnabled();
       const profileStart = shouldProfile ? performance.now() : 0;
       let drawnNotes = 0;
-      const currentTime = currentTimeRef.current;
+      // Keep visual note arrival on the same adjusted timeline as hit and miss judging.
+      const currentTime = currentTimeRef.current - timingOffsetMsRef.current;
       const renderNotes = notesRef.current;
       const activeHoldingNotes = holdingNotesRef.current;
       const activeFallDuration = fallDurationRef.current;

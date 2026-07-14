@@ -27,6 +27,7 @@ interface GamePlayAreaProps {
   currentTimeRef: React.MutableRefObject<number>;
   fallDuration: number;
   judgeLineY: number;
+  timingOffsetMs: number;
   playfieldGeometry: PlayfieldGeometry;
   playfieldTopOffset: number;
   hitNoteIdsRef: HitNoteIdsRef;
@@ -51,6 +52,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
   currentTimeRef,
   fallDuration,
   judgeLineY,
+  timingOffsetMs,
   playfieldGeometry,
   playfieldTopOffset,
   hitNoteIdsRef,
@@ -169,6 +171,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
               currentTimeRef={currentTimeRef}
               fallDuration={fallDuration}
               judgeLineY={judgeLineY}
+              timingOffsetMs={timingOffsetMs}
               laneCenters={playfieldGeometry.laneCenters}
               noteWidth={playfieldGeometry.noteWidth}
               noteHeight={playfieldGeometry.noteHeight}
@@ -205,6 +208,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
                 currentTimeRef={currentTimeRef}
                 fallDuration={fallDuration}
                 judgeLineY={judgeLineY}
+                timingOffsetMs={timingOffsetMs}
                 playfieldTopOffset={playfieldTopOffset}
                 laneCenters={playfieldGeometry.laneCenters}
                 noteWidth={playfieldGeometry.noteWidth}
@@ -230,6 +234,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       currentTimeRef,
       fallDuration,
       judgeLineY,
+      timingOffsetMs,
       playfieldTopOffset,
       holdingNotesRef,
       hitNoteIdsRef,
