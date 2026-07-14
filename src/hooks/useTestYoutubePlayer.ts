@@ -49,6 +49,7 @@ export function useTestYoutubePlayer({
   const lastCueSeekTimeRef = useRef(0);
   const lastAudioSyncCheckAtRef = useRef(0);
   const audioPrerollStartedRef = useRef(false);
+  const audioClockAnchoredRef = useRef(false);
   const isExternalPlayerRef = useRef(false);
   const latestVolumeRef = useRef(volume);
   const onPlaybackEndedRef = useRef(onPlaybackEnded);
@@ -70,6 +71,42 @@ export function useTestYoutubePlayer({
     onPlaybackEndedRef.current?.();
   };
 
+  const confirmPlaybackStarted = (player: any) => {
+    const startDelayMs = audioSettings?.startDelayMs ?? 0;
+    const shouldAnchorClock =
+      startDelayMs === 0 &&
+      !audioClockAnchoredRef.current &&
+      currentTimeRef.current >= 0;
+
+    const complete = () => {
+      if (shouldAnchorClock) {
+        const baseSeconds = getAudioBaseSeconds(audioSettings);
+        const playerSeconds = Number(player.getCurrentTime?.());
+        if (Number.isFinite(playerSeconds)) {
+          // The iframe can report PLAYING a frame before React starts the gameplay clock.
+          // Start from the real audio position instead of losing that first frame.
+          currentTimeRef.current = Math.max(0, (playerSeconds - baseSeconds) * 1000);
+        }
+      }
+      setHasStartedPlayback(true);
+      if (currentTimeRef.current >= 0) {
+        try {
+          player.unMute?.();
+          player.setVolume?.(latestVolumeRef.current);
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    if (shouldAnchorClock) {
+      audioClockAnchoredRef.current = true;
+      requestAnimationFrame(complete);
+      return;
+    }
+    complete();
+  };
+
   // External player가 있으면 재사용
   useEffect(() => {
     if (externalPlayer && audioSessionActive && videoId) {
@@ -81,6 +118,7 @@ export function useTestYoutubePlayer({
       audioHasStartedRef.current = false;
       audioPlaybackEndedRef.current = false;
       audioPrerollStartedRef.current = false;
+      audioClockAnchoredRef.current = false;
       setHasStartedPlayback(false);
 
       // External player 설정
@@ -140,6 +178,7 @@ export function useTestYoutubePlayer({
     audioHasStartedRef.current = false;
     audioPlaybackEndedRef.current = false;
     audioPrerollStartedRef.current = false;
+    audioClockAnchoredRef.current = false;
     setHasStartedPlayback(false);
     lastCueSeekTimeRef.current = 0;
     lastResyncTimeRef.current = 0;
@@ -213,15 +252,7 @@ export function useTestYoutubePlayer({
             onStateChange: (event: any) => {
               if (isCancelled) return;
               if (event.data === window.YT?.PlayerState?.PLAYING) {
-                setHasStartedPlayback(true);
-                if (currentTimeRef.current >= 0) {
-                  try {
-                    event.target.unMute?.();
-                    event.target.setVolume?.(latestVolumeRef.current);
-                  } catch {
-                    // ignore
-                  }
-                }
+                confirmPlaybackStarted(event.target);
                 return;
               }
               if (event.data !== window.YT?.PlayerState?.ENDED) return;
@@ -261,6 +292,7 @@ export function useTestYoutubePlayer({
         audioHasStartedRef.current = false;
         audioPlaybackEndedRef.current = false;
         audioPrerollStartedRef.current = false;
+        audioClockAnchoredRef.current = false;
         setHasStartedPlayback(false);
         player.pauseVideo?.();
       } catch (e) {

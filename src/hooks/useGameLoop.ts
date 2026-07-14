@@ -149,7 +149,9 @@ export function useGameLoop(
     }
 
     if (startTimeRef.current === 0) {
-      startTimeRef.current = performance.now() + delayRef.current;
+      // Preserve a clock position supplied by an external audio start anchor. With the
+      // normal pre-start value of -delay this is identical to now + delay.
+      startTimeRef.current = performance.now() - currentTimeRef.current;
     }
 
     let disposed = false;
