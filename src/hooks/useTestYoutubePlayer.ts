@@ -21,6 +21,7 @@ export interface UseTestYoutubePlayerOptions {
 export interface UseTestYoutubePlayerReturn {
   playerRef: RefObject<HTMLDivElement>;
   isReady: boolean;
+  hasStartedPlayback: boolean;
   pause: () => void;
   destroy: () => void;
 }
@@ -39,6 +40,7 @@ export function useTestYoutubePlayer({
 }: UseTestYoutubePlayerOptions): UseTestYoutubePlayerReturn {
   const [player, setPlayer] = useState<any>(null);
   const [isReady, setIsReady] = useState(false);
+  const [hasStartedPlayback, setHasStartedPlayback] = useState(false);
   const playerRef = useRef<HTMLDivElement>(null);
   const playerReadyRef = useRef(false);
   const audioHasStartedRef = useRef(false);
@@ -64,6 +66,7 @@ export function useTestYoutubePlayer({
     audioHasStartedRef.current = false;
     audioPlaybackEndedRef.current = true;
     audioPrerollStartedRef.current = false;
+    setHasStartedPlayback(false);
     onPlaybackEndedRef.current?.();
   };
 
@@ -78,6 +81,7 @@ export function useTestYoutubePlayer({
       audioHasStartedRef.current = false;
       audioPlaybackEndedRef.current = false;
       audioPrerollStartedRef.current = false;
+      setHasStartedPlayback(false);
 
       // External player 설정
       if (audioSettings) {
@@ -136,6 +140,7 @@ export function useTestYoutubePlayer({
     audioHasStartedRef.current = false;
     audioPlaybackEndedRef.current = false;
     audioPrerollStartedRef.current = false;
+    setHasStartedPlayback(false);
     lastCueSeekTimeRef.current = 0;
     lastResyncTimeRef.current = 0;
     lastAudioSyncCheckAtRef.current = 0;
@@ -207,6 +212,18 @@ export function useTestYoutubePlayer({
             },
             onStateChange: (event: any) => {
               if (isCancelled) return;
+              if (event.data === window.YT?.PlayerState?.PLAYING) {
+                setHasStartedPlayback(true);
+                if (currentTimeRef.current >= 0) {
+                  try {
+                    event.target.unMute?.();
+                    event.target.setVolume?.(latestVolumeRef.current);
+                  } catch {
+                    // ignore
+                  }
+                }
+                return;
+              }
               if (event.data !== window.YT?.PlayerState?.ENDED) return;
               markPlaybackEnded();
               try {
@@ -244,6 +261,7 @@ export function useTestYoutubePlayer({
         audioHasStartedRef.current = false;
         audioPlaybackEndedRef.current = false;
         audioPrerollStartedRef.current = false;
+        setHasStartedPlayback(false);
         player.pauseVideo?.();
       } catch (e) {
         console.warn("YouTube stop on inactive session failed:", e);
@@ -276,10 +294,10 @@ export function useTestYoutubePlayer({
           !audioHasStartedRef.current
         ) {
           try {
-            const baseSeconds = getAudioBaseSeconds(audioSettings);
+            const prerollSeconds = getAudioPositionSeconds(currentTime, audioSettings);
             player.mute?.();
             player.setVolume?.(latestVolumeRef.current);
-            player.seekTo(baseSeconds, true);
+            player.seekTo(prerollSeconds, true);
             player.playVideo?.();
             audioPrerollStartedRef.current = true;
             audioHasStartedRef.current = true;
@@ -305,8 +323,8 @@ export function useTestYoutubePlayer({
 
       if (!audioHasStartedRef.current) {
         try {
-          // 미리듣기에서 볼륨이 낮아져 있을 수 있으므로 설정 볼륨으로 복원하고 음소거 해제
-          player.unMute?.();
+          // Wait for PLAYING before unmuting so a 0ms chart begins with real audio.
+          player.mute?.();
           player.setVolume?.(latestVolumeRef.current);
           player.seekTo(desiredSeconds, true);
           player.playVideo?.();
@@ -350,6 +368,18 @@ export function useTestYoutubePlayer({
 
       const currentSeconds = player.getCurrentTime?.() ?? 0;
       const playerState = player.getPlayerState?.();
+
+      if (playerState === window.YT?.PlayerState?.PLAYING) {
+        setHasStartedPlayback(true);
+        if (currentTimeRef.current >= 0) {
+          try {
+            player.unMute?.();
+            player.setVolume?.(latestVolumeRef.current);
+          } catch {
+            // ignore
+          }
+        }
+      }
 
       if (playerState !== window.YT?.PlayerState?.PLAYING) {
         try {
@@ -442,6 +472,7 @@ export function useTestYoutubePlayer({
     setPlayer(null);
     playerReadyRef.current = false;
     setIsReady(false);
+    setHasStartedPlayback(false);
     isExternalPlayerRef.current = false;
     if (playerRef.current) {
       playerRef.current.innerHTML = '';
@@ -451,6 +482,7 @@ export function useTestYoutubePlayer({
   return {
     playerRef,
     isReady,
+    hasStartedPlayback,
     pause,
     destroy,
   };

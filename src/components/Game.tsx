@@ -13,7 +13,6 @@ import { LyricOverlay } from './LyricOverlay';
 import {
   DEFAULT_GAME_DURATION,
   START_DELAY_MS,
-  YOUTUBE_AUDIO_PREROLL_MS,
 } from '../constants/gameConstants';
 import { buildInitialScore, AudioSettings } from '../utils/gameHelpers';
 import { useAuth } from '../hooks/useAuth';
@@ -178,11 +177,6 @@ export const Game: React.FC = () => {
   const currentStartDelayMs = testAudioSettings?.startDelayMs ?? START_DELAY_MS;
   const activePlayableChartId = testAudioSettings?.chartId ?? null;
   const hasYoutubeAudioSession = !!testYoutubeVideoId && !!testAudioSettings;
-  // A chart may intentionally use a 0ms lead-in. The hidden audio preroll
-  // still gives YouTube enough time to begin muted before chart time reaches 0.
-  const runtimeStartDelayMs = hasYoutubeAudioSession
-    ? Math.max(currentStartDelayMs, YOUTUBE_AUDIO_PREROLL_MS)
-    : currentStartDelayMs;
 
   useEffect(() => {
     if (!gameState.gameStarted) {
@@ -389,6 +383,7 @@ export const Game: React.FC = () => {
   const {
     playerRef: testYoutubePlayerRef,
     isReady: testYoutubePlayerReady,
+    hasStartedPlayback: testYoutubeAudioPlaying,
     pause: pauseYoutubePlayer,
     destroy: destroyYoutubePlayer,
   } = useTestYoutubePlayer({
@@ -455,9 +450,9 @@ export const Game: React.FC = () => {
   );
 
   const handleRetestWithRuntimeReset = useCallback(() => {
-    currentTimeRef.current = -runtimeStartDelayMs;
+    currentTimeRef.current = -currentStartDelayMs;
     handleRetest();
-  }, [runtimeStartDelayMs, handleRetest]);
+  }, [currentStartDelayMs, handleRetest]);
 
   // currentTimeRef is the source time. Use a one-shot timer instead of polling so
   // chart-duration end checks do not add a steady gameplay interval.
@@ -850,7 +845,13 @@ export const Game: React.FC = () => {
   const isChartSelectTransitioning = chartSelectTransition !== null;
   const isGameplayActive = gameState.gameStarted && !gameState.gameEnded;
   const isWaitingForYoutubeAudio =
-    isGameplayActive && hasYoutubeAudioSession && (!isYoutubeAudioMountReady || !testYoutubePlayerReady);
+    isGameplayActive &&
+    hasYoutubeAudioSession &&
+    (
+      !isYoutubeAudioMountReady ||
+      !testYoutubePlayerReady ||
+      (currentStartDelayMs === 0 && !testYoutubeAudioPlaying)
+    );
   const isGameplayClockRunning = isGameplayActive && !isWaitingForYoutubeAudio;
   const [isBgaTimelineReady, setIsBgaTimelineReady] = useState(false);
   useEffect(() => {
@@ -1218,7 +1219,7 @@ export const Game: React.FC = () => {
                     isGameplayActive={isGameplayActive}
                     clockEnabled={isGameplayClockRunning}
                     durationMs={dynamicGameDuration}
-                    startDelayMs={runtimeStartDelayMs}
+                    startDelayMs={currentStartDelayMs}
                   />
                 )}
 

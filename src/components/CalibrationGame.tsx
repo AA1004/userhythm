@@ -548,7 +548,7 @@ export const CalibrationGame: React.FC<CalibrationGameProps> = ({
               {phase === 'ready' || phase === 'complete' ? '보정 곡 시작' : '다시 시작'}
             </button>
             <button
-              onClick={() => onApplyTimingOffset(localMedianOffsetMs)}
+              onClick={() => onApplyTimingOffset(-localMedianOffsetMs)}
               disabled={!canApply}
               style={{
                 flex: 1,
