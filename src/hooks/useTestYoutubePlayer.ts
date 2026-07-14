@@ -376,8 +376,13 @@ export function useTestYoutubePlayer({
 
       if (audioPrerollStartedRef.current) {
         try {
+          // Preroll keeps the iframe warm while muted. It must not advance the
+          // audible chart clock, so rewind/seek to the exact chart position at
+          // the zero boundary before unmuting.
+          player.seekTo(desiredSeconds, true);
           player.unMute?.();
           player.setVolume?.(latestVolumeRef.current);
+          lastCueSeekTimeRef.current = Date.now();
         } catch (e) {
           console.warn("YouTube preroll unmute failed:", e);
         }
