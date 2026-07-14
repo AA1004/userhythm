@@ -879,7 +879,8 @@ export const Game: React.FC = () => {
       }
     };
   }, [isGameplayActive, isGameplayClockRunning, currentTimeRef]);
-  const backgroundVideoId = isGameplayActive && isBgaTimelineReady ? testYoutubeVideoId : null;
+  // Mount the muted BGA during the countdown so iframe loading never starts at chart time 0.
+  const backgroundVideoId = isGameplayActive ? testYoutubeVideoId : null;
   const shouldPlayBga =
     !!backgroundVideoId &&
     isBgaEnabled &&

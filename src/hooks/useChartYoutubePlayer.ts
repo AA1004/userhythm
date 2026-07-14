@@ -53,6 +53,7 @@ export function useChartYoutubePlayer({
     timelineMs: number;
     commandedAtMs: number;
   } | null>(null);
+  const playerNeedsPlaybackConfirmationRef = useRef(true);
 
   useEffect(() => {
     latestVolumeRef.current = volume;
@@ -215,6 +216,7 @@ export function useChartYoutubePlayer({
       return null;
     });
     youtubePlayerReadyRef.current = false;
+    playerNeedsPlaybackConfirmationRef.current = true;
     setIsYoutubePlayerReady(false);
 
     waitForYouTubeAPI().then(() => {
@@ -398,7 +400,7 @@ export function useChartYoutubePlayer({
 
           // A paused player is already at the editor cursor in the common case.
           // Seeking on every resume makes YouTube briefly rebuffer and stalls the editor.
-          if (timeDrift > 0.08) {
+          if (playerNeedsPlaybackConfirmationRef.current || timeDrift > 0.08) {
             requiresPositionRepair = true;
             pendingPlaybackStartRef.current = {
               timelineMs: desiredTimeMs,
@@ -605,6 +607,7 @@ export function useChartYoutubePlayer({
         }
 
         pendingPlaybackStartRef.current = null;
+        playerNeedsPlaybackConfirmationRef.current = false;
         lastEditorFollowSeekMsRef.current = now;
         return youtubeTimeMs;
       }
@@ -645,6 +648,10 @@ export function useChartYoutubePlayer({
       setCurrentTime(timeMs);
       lastSyncTimeRef.current = timeMs;
       latestTimeRef.current = timeMs;
+
+      if (!snapOnly && shouldPause) {
+        playerNeedsPlaybackConfirmationRef.current = true;
+      }
 
       if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
 
