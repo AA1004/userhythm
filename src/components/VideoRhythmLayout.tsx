@@ -19,6 +19,8 @@ type VideoRhythmLayoutProps = {
   /** 배경 동영상 투명도 (0~1, 값이 클수록 더 투명) */
   bgaOpacity?: number;
   performanceMode?: PerformanceMode;
+  /** 실제 플레이 중에는 슬롯 HUD가 화면 하단에 닿도록 정렬한다. */
+  contentVerticalAlign?: 'center' | 'bottom';
   children: React.ReactNode;
 };
 
@@ -41,6 +43,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
   bgaMaskOpacity = 0,
   bgaOpacity = 1,
   performanceMode: _performanceMode = 'quality',
+  contentVerticalAlign = 'center',
   children,
 }) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -332,7 +335,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
         minHeight: '100dvh',
         width: '100%',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: contentVerticalAlign === 'bottom' ? 'flex-end' : 'center',
         justifyContent: 'center',
         overflow: 'hidden',
         background: 'var(--ur-stage-background)',
@@ -405,7 +408,7 @@ export const VideoRhythmLayout: React.FC<VideoRhythmLayoutProps> = ({
         style={{
           position: 'relative',
           zIndex: 2,
-          padding: 16,
+          padding: contentVerticalAlign === 'bottom' ? '16px 16px 0' : 16,
           boxSizing: 'border-box',
           width: '100%',
           maxWidth: 1280,

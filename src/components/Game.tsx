@@ -1045,6 +1045,7 @@ export const Game: React.FC = () => {
         bgaMaskOpacity={activeBgaMaskOpacity}
         bgaOpacity={visualSettings.bgaOpacity}
         performanceMode={visualSettings.performanceMode}
+        contentVerticalAlign={isGameplayActive ? 'bottom' : 'center'}
       >
       {/* 메인 메뉴는 500x800 게임 스테이지 바깥에서 화면 전체 기준으로 배치한다. */}
       {!gameState.gameStarted && (
