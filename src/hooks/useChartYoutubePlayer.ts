@@ -51,6 +51,7 @@ export function useChartYoutubePlayer({
   const lastPlayerClockPollMsRef = useRef(0);
   const pendingPlaybackStartRef = useRef<{
     timelineMs: number;
+    commandedAtMs: number;
   } | null>(null);
 
   useEffect(() => {
@@ -88,7 +89,9 @@ export function useChartYoutubePlayer({
       playerClockSampleRef.current = {
         playerSeconds: timeSeconds,
         sampledAtMs: performance.now(),
-        isPlaying: shouldAutoplay,
+        // A seek/play command is not proof that the iframe has started. The
+        // next real getPlayerState sample confirms playback for clock gating.
+        isPlaying: false,
       };
 
       try {
@@ -348,12 +351,12 @@ export function useChartYoutubePlayer({
               window.YT &&
               playerState === window.YT.PlayerState.PLAYING;
 
-            if (!isActuallyPlaying) {
-              if (timeDrift > 0.12) {
-                syncPlayerToTimeline(desiredTimeMs, true);
-              } else {
-                youtubePlayer.playVideo?.();
-              }
+            // PLAYING can still refer to the previous seek position. Repair the
+            // position first so editor timing cannot depend on seek latency.
+            if (timeDrift > 0.12) {
+              syncPlayerToTimeline(desiredTimeMs, true);
+            } else if (!isActuallyPlaying) {
+              youtubePlayer.playVideo?.();
             }
           } else {
             const isStillPlaying =
@@ -381,6 +384,7 @@ export function useChartYoutubePlayer({
         if (nextPlaying) {
           pendingPlaybackStartRef.current = {
             timelineMs: desiredTimeMs,
+            commandedAtMs: performance.now(),
           };
           const playerTime = typeof youtubePlayer.getCurrentTime === 'function'
             ? youtubePlayer.getCurrentTime() ?? 0
@@ -438,6 +442,7 @@ export function useChartYoutubePlayer({
           if (!wasPlayingRef.current) {
             pendingPlaybackStartRef.current = {
               timelineMs: latestTimeRef.current,
+              commandedAtMs: performance.now(),
             };
             syncPlayerToTimeline(latestTimeRef.current, true);
           } else if (
@@ -563,9 +568,6 @@ export function useChartYoutubePlayer({
               isPlaying: Boolean(playerIsPlaying),
             };
 
-            if (pendingStart && playerIsPlaying) {
-              pendingPlaybackStartRef.current = null;
-            }
           }
         } catch (e) {
           return fallbackTimeMs;
@@ -574,14 +576,32 @@ export function useChartYoutubePlayer({
 
       const sample = playerClockSampleRef.current;
       if (!sample) {
-        return fallbackTimeMs;
-      }
-      if (isPlaying && !sample.isPlaying) {
-        return fallbackTimeMs;
+        return pendingStart?.timelineMs ?? fallbackTimeMs;
       }
 
       const elapsedMs = sample.isPlaying ? (now - sample.sampledAtMs) * playbackSpeed : 0;
       const youtubeTimeMs = Math.max(0, sample.playerSeconds * 1000 + elapsedMs + audioOffsetMs);
+
+      if (pendingStart) {
+        // A seek can buffer for a different amount of time at every position.
+        // Hold the editor clock at the requested cursor until YouTube is both
+        // playing and reporting that position, then adopt its first real sample.
+        if (
+          sample.sampledAtMs < pendingStart.commandedAtMs ||
+          !sample.isPlaying ||
+          Math.abs(youtubeTimeMs - pendingStart.timelineMs) > 250
+        ) {
+          return pendingStart.timelineMs;
+        }
+
+        pendingPlaybackStartRef.current = null;
+        lastEditorFollowSeekMsRef.current = now;
+        return youtubeTimeMs;
+      }
+
+      if (isPlaying && !sample.isPlaying) {
+        return fallbackTimeMs;
+      }
       const driftMs = youtubeTimeMs - fallbackTimeMs;
 
       // Never step the visual clock to match coarse iframe samples. The editor
