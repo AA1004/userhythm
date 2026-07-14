@@ -172,8 +172,10 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
               laneCenters={playfieldGeometry.laneCenters}
               noteWidth={playfieldGeometry.noteWidth}
               noteHeight={playfieldGeometry.noteHeight}
-              // 상단 연장부는 레인 chrome 전용이다. 노트는 원래 플레이필드에서만 생성한다.
-              playfieldTopOffset={0}
+              // The extended container starts above the stage. Offset the renderer's local
+              // coordinates by the same amount so a note at its timing point reaches the
+              // visible judge-line center, regardless of the top extension height.
+              playfieldTopOffset={playfieldTopOffset}
               laneNoteColors={laneNoteColors}
               holdingNotesRef={holdingNotesRef}
               hitNoteIdsRef={hitNoteIdsRef}
@@ -203,7 +205,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
                 currentTimeRef={currentTimeRef}
                 fallDuration={fallDuration}
                 judgeLineY={judgeLineY}
-                playfieldTopOffset={0}
+                playfieldTopOffset={playfieldTopOffset}
                 laneCenters={playfieldGeometry.laneCenters}
                 noteWidth={playfieldGeometry.noteWidth}
                 noteHeight={playfieldGeometry.noteHeight}

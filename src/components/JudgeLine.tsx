@@ -13,7 +13,9 @@ const JudgeLineComponent: React.FC<JudgeLineProps> = ({ left, width, top, opacit
       style={{
         position: 'absolute',
         left: `${left}px`,
-        top: `${top}px`,
+        // Note geometry uses judgeLineY as the note center at the timing point.
+        // Keep the 4px visual line centered on that same coordinate.
+        top: `${top - 2}px`,
         width: `${width}px`,
         height: '4px',
         backgroundColor: '#FF5722',
