@@ -34,10 +34,11 @@ export const getEventY = (
   eventTime: number,
   currentTime: number,
   fallDuration: number,
-  judgeLineY: number
+  judgeLineY: number,
+  spawnY = NOTE_SPAWN_Y
 ) => {
   const progress = 1 - (eventTime - currentTime) / fallDuration;
-  return NOTE_SPAWN_Y + progress * (judgeLineY - NOTE_SPAWN_Y);
+  return spawnY + progress * (judgeLineY - spawnY);
 };
 
 export const computeTapRenderPosition = (
@@ -47,14 +48,18 @@ export const computeTapRenderPosition = (
   judgeLineY: number,
   laneX: number,
   noteWidth: number,
-  noteHeight: number
+  noteHeight: number,
+  spawnY = NOTE_SPAWN_Y
 ): TapRenderPosition | null => {
   const y = Math.max(
-    NOTE_SPAWN_Y,
-    Math.min(judgeLineY, getEventY(note.time, currentTime, fallDuration, judgeLineY))
+    spawnY,
+    Math.min(judgeLineY, getEventY(note.time, currentTime, fallDuration, judgeLineY, spawnY))
   );
   const top = y - noteHeight / 2;
-  if (top > judgeLineY + NOTE_RENDER_BUFFER || top + noteHeight < -NOTE_RENDER_BUFFER) {
+  if (
+    top > judgeLineY + NOTE_RENDER_BUFFER ||
+    top + noteHeight < spawnY - NOTE_RENDER_BUFFER
+  ) {
     return null;
   }
 
@@ -71,7 +76,8 @@ export const computeHoldRenderSegment = (
   judgeLineY: number,
   noteHeight: number,
   isHolding: boolean,
-  viewportHeight: number
+  viewportHeight: number,
+  spawnY = NOTE_SPAWN_Y
 ): HoldRenderSegment | null => computeHoldRenderSegmentInto(
   note,
   currentTime,
@@ -86,7 +92,8 @@ export const computeHoldRenderSegment = (
     visibleTop: 0,
     visibleBottom: 0,
     holdHeadHeight: 0,
-  }
+  },
+  spawnY
 );
 
 export const computeHoldRenderSegmentInto = (
@@ -97,14 +104,15 @@ export const computeHoldRenderSegmentInto = (
   noteHeight: number,
   isHolding: boolean,
   viewportHeight: number,
-  out: HoldRenderSegment
+  out: HoldRenderSegment,
+  spawnY = NOTE_SPAWN_Y
 ): HoldRenderSegment | null => {
   const endTime = note.endTime ?? note.time + note.duration;
-  const rawHeadY = getEventY(note.time, currentTime, fallDuration, judgeLineY);
-  const rawTailY = getEventY(endTime, currentTime, fallDuration, judgeLineY);
+  const rawHeadY = getEventY(note.time, currentTime, fallDuration, judgeLineY, spawnY);
+  const rawTailY = getEventY(endTime, currentTime, fallDuration, judgeLineY, spawnY);
   const visualHalfHeight = noteHeight / 2;
   const visualBottomLimitY = judgeLineY + visualHalfHeight;
-  const visualTopLimitY = NOTE_SPAWN_Y - visualHalfHeight;
+  const visualTopLimitY = spawnY - visualHalfHeight;
 
   // Rendering-only rule: timing still uses note.time/endTime; this only controls visuals.
   const headY =
@@ -119,7 +127,7 @@ export const computeHoldRenderSegmentInto = (
   const fullHeight = Math.max(HOLD_MIN_HEIGHT, bottomY - topY);
   const containerTop = bottomY - fullHeight;
   const containerBottom = containerTop + fullHeight;
-  const visibleTop = Math.max(containerTop, -NOTE_RENDER_BUFFER);
+  const visibleTop = Math.max(containerTop, spawnY - NOTE_RENDER_BUFFER);
   const visibleBottom = Math.min(containerBottom, viewportHeight + NOTE_RENDER_BUFFER);
 
   if (visibleBottom <= visibleTop) return null;

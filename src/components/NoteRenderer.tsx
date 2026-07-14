@@ -10,6 +10,7 @@ import {
   getNoteViewportEnd,
   getNoteViewportStart,
   HOLD_HEAD_HEIGHT,
+  NOTE_SPAWN_Y,
 } from '../utils/noteRenderGeometry';
 import {
   darkenNoteColor,
@@ -321,6 +322,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
       const activeFallDuration = fallDurationRef.current;
       const activeJudgeLineY = judgeLineYRef.current;
       const activePlayfieldTopOffset = playfieldTopOffsetRef.current;
+      const activeSpawnY = NOTE_SPAWN_Y - activePlayfieldTopOffset;
       const activeLaneCenters = laneCentersRef.current;
       const activeLaneNoteColors = laneNoteColorsRef.current;
       const activeNoteWidth = noteWidthRef.current;
@@ -379,7 +381,8 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
             activeJudgeLineY,
             laneX,
             activeNoteWidth,
-            activeNoteHeight
+            activeNoteHeight,
+            activeSpawnY
           );
           if (!position) return;
           const { left, top } = position;
@@ -416,7 +419,8 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
             activeJudgeLineY,
             activeNoteHeight,
             isHolding,
-            logicalHeight
+            logicalHeight,
+            activeSpawnY
           );
           if (!segment) return;
           const {

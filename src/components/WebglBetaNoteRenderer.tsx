@@ -389,6 +389,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
           const activeFallDuration = fallDurationRef.current;
           const activeJudgeLineY = judgeLineYRef.current;
           const activePlayfieldTopOffset = playfieldTopOffsetRef.current;
+          const activeSpawnY = NOTE_SPAWN_Y - activePlayfieldTopOffset;
           const activeLaneCenters = laneCentersRef.current;
           const activeLaneNoteColors = laneNoteColorsRef.current;
           const activeHoldingNotes = holdingNotesRef.current;
@@ -443,7 +444,8 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
               activeNoteHeight,
               isHolding,
               GAME_VIEW_HEIGHT + activePlayfieldTopOffset,
-              holdSegmentRef.current
+              holdSegmentRef.current,
+              activeSpawnY
             );
             if (!segment) return false;
             const {
@@ -586,16 +588,22 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
             }
 
             const y = Math.max(
-              NOTE_SPAWN_Y,
+              activeSpawnY,
               Math.min(
                 activeJudgeLineY,
-                getEventY(note.time, currentTime, activeFallDuration, activeJudgeLineY)
+                getEventY(
+                  note.time,
+                  currentTime,
+                  activeFallDuration,
+                  activeJudgeLineY,
+                  activeSpawnY
+                )
               )
             );
             const top = y - activeNoteHeight / 2;
             if (
               top > activeJudgeLineY + NOTE_RENDER_BUFFER ||
-              top + activeNoteHeight < -NOTE_RENDER_BUFFER
+              top + activeNoteHeight < activeSpawnY - NOTE_RENDER_BUFFER
             ) {
               continue;
             }
