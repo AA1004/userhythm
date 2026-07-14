@@ -333,6 +333,7 @@ export function useChartYoutubePlayer({
       latestTimeRef.current = desiredTimeMs;
       lastSyncTimeRef.current = desiredTimeMs;
       const desiredSeconds = getPlayerTimeSeconds(desiredTimeMs);
+      let requiresPositionRepair = false;
       clearPlaybackRetryTimer();
 
       const verifyPlaybackState = (attempt: number) => {
@@ -359,7 +360,7 @@ export function useChartYoutubePlayer({
 
             // PLAYING can still refer to the previous seek position. Repair the
             // position first so editor timing cannot depend on seek latency.
-            if (timeDrift > 0.12) {
+            if (requiresPositionRepair && timeDrift > 0.12) {
               syncPlayerToTimeline(expectedTimeMs, true);
             } else if (!isActuallyPlaying) {
               youtubePlayer.playVideo?.();
@@ -375,7 +376,8 @@ export function useChartYoutubePlayer({
             }
           }
 
-          if (attempt < 2) {
+          const maxVerificationAttempts = requiresPositionRepair ? 2 : 0;
+          if (attempt < maxVerificationAttempts) {
             playbackRetryTimerRef.current = window.setTimeout(
               () => verifyPlaybackState(attempt + 1),
               attempt === 0 ? 45 : 90
@@ -397,6 +399,7 @@ export function useChartYoutubePlayer({
           // A paused player is already at the editor cursor in the common case.
           // Seeking on every resume makes YouTube briefly rebuffer and stalls the editor.
           if (timeDrift > 0.08) {
+            requiresPositionRepair = true;
             pendingPlaybackStartRef.current = {
               timelineMs: desiredTimeMs,
               commandedAtMs: commandStartedAtMs,
