@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { GameState, BgaVisibilityInterval, LanePositionInterval } from '../types/game';
 import { buildInitialScore, AudioSettings, calculatePlayableChartDuration } from '../utils/gameHelpers';
-import { START_DELAY_MS } from '../constants/gameConstants';
+import { START_DELAY_MS, YOUTUBE_AUDIO_PREROLL_MS } from '../constants/gameConstants';
 import { SubtitleCue } from '../types/subtitle';
 import { normalizeSubtitlePayload } from '../utils/subtitleNormalization';
 import { normalizeBgaIntervalsForRuntime } from '../utils/bgaVisibility';
@@ -58,9 +58,12 @@ export function useChartLoader({
         typeof chartData.startDelayMs === 'number' && Number.isFinite(chartData.startDelayMs)
           ? Math.max(0, Math.round(chartData.startDelayMs))
           : START_DELAY_MS;
+      const runtimeStartDelayMs = chartData.youtubeVideoId
+        ? Math.max(startDelayMs, YOUTUBE_AUDIO_PREROLL_MS)
+        : startDelayMs;
 
       onChartSelectClose();
-      onSessionReset({ currentTime: -startDelayMs });
+      onSessionReset({ currentTime: -runtimeStartDelayMs });
 
       // YouTube 플레이어 설정 (필요시) - 먼저 설정해야 useEffect가 올바르게 작동함
       if (chartData.youtubeVideoId) {
@@ -143,7 +146,7 @@ export function useChartLoader({
       setGameState({
         notes: preparedNotes,
         score: buildInitialScore(),
-        currentTime: -startDelayMs,
+        currentTime: -runtimeStartDelayMs,
         gameStarted: true,
         gameEnded: false,
       });

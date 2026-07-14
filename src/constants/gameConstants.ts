@@ -11,6 +11,9 @@ export const KEY_LANE_Y = 700;
 export const DEFAULT_GAME_DURATION = 30000; // 30초 (기본 랜덤 게임 / 리셋 시 사용)
 export const MAX_CHART_DURATION = 2 * 60 * 60 * 1000; // 백엔드 계약과 동일한 2시간
 export const START_DELAY_MS = 4000;
+// YouTube IFrame API needs a short muted lead-in before the chart clock reaches 0.
+// This is runtime-only and does not alter a chart's saved startDelayMs setting.
+export const YOUTUBE_AUDIO_PREROLL_MS = 300;
 export const BASE_FALL_DURATION = 2000; // 기본 노트 낙하 시간(ms)
 export const DEFAULT_NOTE_SPEED = 3.8;
 

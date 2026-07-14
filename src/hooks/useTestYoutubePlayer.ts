@@ -3,6 +3,7 @@ import { waitForYouTubeAPI, YOUTUBE_EMBED_HOST } from '../utils/youtube';
 import { getAudioBaseSeconds, getAudioPositionSeconds, AudioSettings } from '../utils/gameHelpers';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 import { PerformanceMode } from '../constants/gameVisualSettings';
+import { YOUTUBE_AUDIO_PREROLL_MS } from '../constants/gameConstants';
 
 export interface UseTestYoutubePlayerOptions {
   audioSessionActive: boolean;
@@ -268,7 +269,7 @@ export function useTestYoutubePlayer({
 
       if (currentTime < 0) {
         audioPlaybackEndedRef.current = false;
-        const prerollLeadMs = 140;
+        const prerollLeadMs = YOUTUBE_AUDIO_PREROLL_MS;
         if (
           currentTime >= -prerollLeadMs &&
           !audioPrerollStartedRef.current &&
