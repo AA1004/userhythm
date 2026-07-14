@@ -329,6 +329,7 @@ export function useChartYoutubePlayer({
 
       const commandToken = ++playbackCommandTokenRef.current;
       const desiredTimeMs = Math.max(0, timeMs ?? latestTimeRef.current);
+      const commandStartedAtMs = performance.now();
       latestTimeRef.current = desiredTimeMs;
       lastSyncTimeRef.current = desiredTimeMs;
       const desiredSeconds = getPlayerTimeSeconds(desiredTimeMs);
@@ -343,7 +344,12 @@ export function useChartYoutubePlayer({
           const playerTime = typeof youtubePlayer.getCurrentTime === 'function'
             ? youtubePlayer.getCurrentTime() ?? 0
             : desiredSeconds;
-          const timeDrift = Math.abs(playerTime - desiredSeconds);
+          const elapsedTimelineMs = nextPlaying && pendingPlaybackStartRef.current === null
+            ? Math.max(0, performance.now() - commandStartedAtMs) * playbackSpeed
+            : 0;
+          const expectedTimeMs = desiredTimeMs + elapsedTimelineMs;
+          const expectedSeconds = getPlayerTimeSeconds(expectedTimeMs);
+          const timeDrift = Math.abs(playerTime - expectedSeconds);
 
           if (nextPlaying) {
             const isActuallyPlaying =
@@ -354,7 +360,7 @@ export function useChartYoutubePlayer({
             // PLAYING can still refer to the previous seek position. Repair the
             // position first so editor timing cannot depend on seek latency.
             if (timeDrift > 0.12) {
-              syncPlayerToTimeline(desiredTimeMs, true);
+              syncPlayerToTimeline(expectedTimeMs, true);
             } else if (!isActuallyPlaying) {
               youtubePlayer.playVideo?.();
             }
@@ -382,10 +388,7 @@ export function useChartYoutubePlayer({
 
       try {
         if (nextPlaying) {
-          pendingPlaybackStartRef.current = {
-            timelineMs: desiredTimeMs,
-            commandedAtMs: performance.now(),
-          };
+          pendingPlaybackStartRef.current = null;
           const playerTime = typeof youtubePlayer.getCurrentTime === 'function'
             ? youtubePlayer.getCurrentTime() ?? 0
             : 0;
@@ -394,6 +397,10 @@ export function useChartYoutubePlayer({
           // A paused player is already at the editor cursor in the common case.
           // Seeking on every resume makes YouTube briefly rebuffer and stalls the editor.
           if (timeDrift > 0.08) {
+            pendingPlaybackStartRef.current = {
+              timelineMs: desiredTimeMs,
+              commandedAtMs: commandStartedAtMs,
+            };
             syncPlayerToTimeline(desiredTimeMs, true);
           } else {
             youtubePlayer.playVideo?.();
@@ -418,7 +425,7 @@ export function useChartYoutubePlayer({
         return false;
       }
     },
-    [clearPlaybackRetryTimer, getPlayerTimeSeconds, syncPlayerToTimeline, youtubePlayer]
+    [clearPlaybackRetryTimer, getPlayerTimeSeconds, playbackSpeed, syncPlayerToTimeline, youtubePlayer]
   );
 
   // 재생/일시정지 제어 (YouTube 쪽만 제어, 타임라인은 별도 동기화)
