@@ -82,7 +82,7 @@ const laneSetsEqual = (a: Set<Lane>, b: Set<Lane>) => {
   return true;
 };
 
-const GAMEPLAY_HUD_PAINT_EVENT = 'userhythm:gameplay-hud-paint';
+export const GAMEPLAY_HUD_PAINT_EVENT = 'userhythm:gameplay-hud-paint';
 
 const requestGameplayHudPaint = () => {
   if (typeof window === 'undefined') return;
@@ -348,6 +348,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
     [
       comboSnapshotsEnabled,
       gameStateRef,
+      hudPaintDispatchEnabled,
       scheduleUiCommit,
       scoreSnapshotsEnabled,
       updateScoreFromJudge,
@@ -390,7 +391,15 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
         }
       }
     },
-    [effectSnapshotsEnabled, gameStateRef, laneCenters, judgeLineY, scheduleUiCommit, scheduleEffectCleanup]
+    [
+      effectSnapshotsEnabled,
+      gameStateRef,
+      hudPaintDispatchEnabled,
+      laneCenters,
+      judgeLineY,
+      scheduleUiCommit,
+      scheduleEffectCleanup,
+    ]
   );
 
   const handleKeyPress = useCallback(
@@ -501,6 +510,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       onTimingSample,
       enqueueScoreJudge,
       addJudgeFeedback,
+      hudPaintDispatchEnabled,
       pressedKeySnapshotsEnabled,
       scheduleUiCommit,
     ]
@@ -600,6 +610,7 @@ export function useGameJudging(options: UseGameJudgingOptions): UseGameJudgingRe
       processedMissNotes,
       enqueueScoreJudge,
       addJudgeFeedback,
+      hudPaintDispatchEnabled,
       pressedKeySnapshotsEnabled,
       scheduleUiCommit,
     ]

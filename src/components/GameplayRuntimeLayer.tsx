@@ -59,6 +59,12 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
   startDelayMs,
 }) => {
   const isLegacyHud = playfieldGeometry.gameplayHudMode === 'legacy';
+  const [webglDriverReady, setWebglDriverReady] = React.useState(false);
+  const handleWebglDriverReadyChange = React.useCallback((ready: boolean) => {
+    setWebglDriverReady((current) => (current === ready ? current : ready));
+  }, []);
+  const externalDriverActive =
+    playfieldGeometry.renderBackend === 'webgl' && webglDriverReady && clockEnabled;
   const {
     displayScore,
     combo,
@@ -87,7 +93,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
     comboSnapshotsEnabled: isLegacyHud,
     scoreSnapshotsEnabled: isLegacyHud,
     effectSnapshotsEnabled: isLegacyHud,
-    hudPaintDispatchEnabled: isLegacyHud,
+    hudPaintDispatchEnabled: playfieldGeometry.gameplayHudMode === 'new-full',
   });
 
   useKeyboard(
@@ -97,7 +103,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
     keyBindings
   );
 
-  const { fallDuration } = useGameLoop(
+  const { fallDuration, advanceClock, scanMisses } = useGameLoop(
     gameState,
     setGameState,
     handleNoteMiss,
@@ -107,7 +113,7 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
     hitNoteIdsRef,
     timingOffsetMs,
     clockEnabled,
-    false
+    externalDriverActive
   );
 
   const useSlotHud = playfieldGeometry.slotHudEnabled;
@@ -154,6 +160,10 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
         playfieldGeometry={playfieldGeometry}
         playfieldTopOffset={playfieldTopOffset}
         hitNoteIdsRef={hitNoteIdsRef}
+        advanceGameplayClock={advanceClock}
+        scanGameplayMisses={scanMisses}
+        driveGameplayClock={externalDriverActive}
+        onGameplayClockDriverActiveChange={handleWebglDriverReadyChange}
       />
 
       <GameplayHudCanvas

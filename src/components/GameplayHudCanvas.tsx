@@ -6,8 +6,9 @@ import {
   PlayfieldGeometry,
 } from '../constants/gameVisualSettings';
 import { JUDGE_FEEDBACK_DURATION_MS, KEY_EFFECT_DURATION_MS } from '../constants/gameConstants';
-import { JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
+import { GAMEPLAY_HUD_PAINT_EVENT, JudgeFeedback, KeyEffect } from '../hooks/useGameJudging';
 import { JudgeType, Lane, GameState } from '../types/game';
+import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 
 interface GameplayHudCanvasProps {
   active: boolean;
@@ -40,6 +41,7 @@ const GAMEPLAY_HUD_CANVAS_DPR_LIMIT = 1;
 const SLOT_HUD_HEIGHT = 82;
 const SLOT_HUD_GAP = 8;
 const SLOT_PROGRESS_PAINT_STEP_MS = 100;
+const EFFECT_FRAME_INTERVAL_MS = 1000 / 120;
 
 const easeOutExpo = (t: number) => (t >= 1 ? 1 : 1 - 2 ** (-10 * t));
 
@@ -681,42 +683,40 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
       staticCtx.restore();
     };
 
-    const renderFrame = () => {
-      const now = Date.now();
-      const hudMode = gameplayHudModeRef.current === 'new-full' ? 'new-full' : 'new-lite';
+    const renderStaticIfChanged = (force = false) => {
       const staticSignature = makeStaticSignature();
-      if (staticSignature !== lastStaticSignatureRef.current) {
+      if (force || staticSignature !== lastStaticSignatureRef.current) {
         lastStaticSignatureRef.current = staticSignature;
         renderStaticHud();
       }
+    };
 
-      let hasActiveEffect = false;
-      if (visibleRef.current) {
-        for (const effect of keyEffectsRef.current) {
-          if (getKeyEffectProgress(effect, now) < 1) {
-            hasActiveEffect = true;
-            break;
-          }
-        }
-
-        if (!hasActiveEffect) {
-          for (const feedback of judgeFeedbacksRef.current) {
-            if (getJudgeProgress(feedback, now) < 1) {
-              hasActiveEffect = true;
-              break;
-            }
-          }
-        }
+    const hasActiveEffects = (now: number) => {
+      if (!visibleRef.current || !activeRef.current || !shouldRenderHud) return false;
+      for (const effect of keyEffectsRef.current) {
+        if (getKeyEffectProgress(effect, now) < 1) return true;
       }
+      for (const feedback of judgeFeedbacksRef.current) {
+        if (getJudgeProgress(feedback, now) < 1) return true;
+      }
+      return false;
+    };
 
+    const renderEffects = (now: number) => {
+      const hudMode = gameplayHudModeRef.current === 'new-full' ? 'new-full' : 'new-lite';
+      const hasActiveEffect = hasActiveEffects(now);
       if (hasActiveEffect || lastEffectsActiveRef.current) {
+        const shouldProfile = isGameplayProfilerEnabled();
+        const profileStart = shouldProfile ? performance.now() : 0;
+        let renderedEffects = 0;
         effectsCtx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasTotalHeight);
-        if (visibleRef.current) {
+        if (visibleRef.current && activeRef.current) {
           effectsCtx.save();
           effectsCtx.translate(0, playfieldTopOffset);
           for (const effect of keyEffectsRef.current) {
             if (getKeyEffectProgress(effect, now) < 1) {
               drawKeyEffect(effectsCtx, effect, now, hudMode);
+              renderedEffects += 1;
             }
           }
 
@@ -724,27 +724,68 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
             if (getJudgeProgress(feedback, now) < 1) {
               drawJudgeFeedback(effectsCtx, feedback, now, judgeFeedbackTopRef.current, hudMode);
               drawLaneTimingFeedback(effectsCtx, feedback, now, hudMode);
+              renderedEffects += 1;
             }
           }
           effectsCtx.restore();
         }
+        if (shouldProfile) {
+          recordGameplayMetric('effectRender', performance.now() - profileStart, renderedEffects);
+        }
       }
       lastEffectsActiveRef.current = hasActiveEffect;
-
-      frameIdRef.current = requestAnimationFrame(renderFrame);
+      return hasActiveEffect;
     };
+
+    let disposed = false;
+    let lastEffectFrameAt = 0;
+    const scheduleEffectFrame = () => {
+      if (disposed || frameIdRef.current !== null) return;
+      frameIdRef.current = requestAnimationFrame(renderEffectFrame);
+    };
+
+    const renderEffectFrame = (frameTime: number) => {
+      frameIdRef.current = null;
+      if (disposed) return;
+      if (frameTime - lastEffectFrameAt < EFFECT_FRAME_INTERVAL_MS - 0.5) {
+        scheduleEffectFrame();
+        return;
+      }
+      lastEffectFrameAt = frameTime;
+      if (renderEffects(Date.now())) {
+        scheduleEffectFrame();
+      }
+    };
+
+    const handlePaintRequest = () => {
+      renderStaticIfChanged();
+      if (hasActiveEffects(Date.now()) || lastEffectsActiveRef.current) {
+        scheduleEffectFrame();
+      }
+    };
+
+    const progressTimerId = window.setInterval(() => {
+      renderStaticIfChanged();
+    }, SLOT_PROGRESS_PAINT_STEP_MS);
+
+    window.addEventListener(GAMEPLAY_HUD_PAINT_EVENT, handlePaintRequest);
 
     if (!visible || !shouldRenderHud) {
       staticCtx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasTotalHeight);
       effectsCtx.clearRect(0, 0, GAME_VIEW_WIDTH, canvasTotalHeight);
-      frameIdRef.current = null;
-      return;
+    } else {
+      lastStaticSignatureRef.current = '';
+      lastEffectsActiveRef.current = false;
+      renderStaticIfChanged(true);
+      if (hasActiveEffects(Date.now())) {
+        scheduleEffectFrame();
+      }
     }
 
-    lastStaticSignatureRef.current = '';
-    lastEffectsActiveRef.current = false;
-    frameIdRef.current = requestAnimationFrame(renderFrame);
     return () => {
+      disposed = true;
+      window.removeEventListener(GAMEPLAY_HUD_PAINT_EVENT, handlePaintRequest);
+      window.clearInterval(progressTimerId);
       if (frameIdRef.current !== null) {
         cancelAnimationFrame(frameIdRef.current);
         frameIdRef.current = null;
@@ -762,7 +803,9 @@ export const GameplayHudCanvas: React.FC<GameplayHudCanvasProps> = ({
     shouldRenderHud,
     active,
     visible,
-    playfieldGeometry.slotHudEnabled,
+    playfieldGeometry,
+    gameplayHudMode,
+    laneKeyLabels,
   ]);
 
   return (

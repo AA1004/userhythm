@@ -47,6 +47,7 @@ interface WebglBetaNoteRendererProps {
   simpleHoldVisuals?: boolean;
   advanceGameplayClock?: (now?: number) => void;
   scanGameplayMisses?: () => void;
+  driveGameplayClock?: boolean;
   onGameplayClockDriverActiveChange?: (active: boolean) => void;
 }
 
@@ -144,8 +145,8 @@ const binarySearchStartIndex = (notes: Note[], targetTime: number) => {
   return low;
 };
 
-const hideUnusedSprites = (pool: SpriteEntry[], used: number) => {
-  for (let i = used; i < pool.length; i += 1) {
+const hideSpriteRange = (pool: SpriteEntry[], start: number, end: number) => {
+  for (let i = start; i < end; i += 1) {
     pool[i].sprite.visible = false;
   }
 };
@@ -194,6 +195,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
   simpleHoldVisuals = false,
   advanceGameplayClock,
   scanGameplayMisses,
+  driveGameplayClock = false,
   onGameplayClockDriverActiveChange,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -226,7 +228,16 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
     holdHeadHeight: 0,
   });
   const visibleRef = useRef(visible);
+  const advanceGameplayClockRef = useRef(advanceGameplayClock);
+  const scanGameplayMissesRef = useRef(scanGameplayMisses);
+  const driveGameplayClockRef = useRef(driveGameplayClock);
+  const driverReadyCallbackRef = useRef(onGameplayClockDriverActiveChange);
   const [fallback, setFallback] = useState(false);
+
+  advanceGameplayClockRef.current = advanceGameplayClock;
+  scanGameplayMissesRef.current = scanGameplayMisses;
+  driveGameplayClockRef.current = driveGameplayClock;
+  driverReadyCallbackRef.current = onGameplayClockDriverActiveChange;
 
   useEffect(() => {
     notesRef.current = notes;
@@ -278,6 +289,9 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
 
   useEffect(() => {
     visibleRef.current = visible;
+    if (stageRef.current) {
+      stageRef.current.renderable = visible;
+    }
   }, [visible]);
 
   useEffect(() => {
@@ -308,6 +322,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
         }
 
         const stage = new (pixi as any).Container();
+        stage.renderable = visibleRef.current;
         app.stage.addChild(stage);
         stageRef.current = stage;
 
@@ -320,9 +335,10 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
         }
         spritePoolRef.current = spritePool;
         appRef.current = app;
-        onGameplayClockDriverActiveChange?.(true);
+        driverReadyCallbackRef.current?.(true);
 
         const spriteCursor = { value: 0 };
+        let previousUsedCount = 0;
         let missScanAccumulatorMs = 0;
         let lastTickerTimeMs = performance.now();
         const nextSprite = (kind: SpriteKind, texture: any) => {
@@ -341,18 +357,23 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
 
         app.ticker.add(() => {
           const nowMs = performance.now();
-          advanceGameplayClock?.(nowMs);
-          missScanAccumulatorMs += Math.min(50, Math.max(0, nowMs - lastTickerTimeMs));
-          lastTickerTimeMs = nowMs;
-          let missScanSteps = 0;
-          while (missScanAccumulatorMs >= WEBGL_MISS_SCAN_INTERVAL_MS && missScanSteps < 2) {
-            scanGameplayMisses?.();
-            missScanAccumulatorMs -= WEBGL_MISS_SCAN_INTERVAL_MS;
-            missScanSteps += 1;
+          if (driveGameplayClockRef.current) {
+            advanceGameplayClockRef.current?.(nowMs);
+            missScanAccumulatorMs += Math.min(50, Math.max(0, nowMs - lastTickerTimeMs));
+            let missScanSteps = 0;
+            while (missScanAccumulatorMs >= WEBGL_MISS_SCAN_INTERVAL_MS && missScanSteps < 2) {
+              scanGameplayMissesRef.current?.();
+              missScanAccumulatorMs -= WEBGL_MISS_SCAN_INTERVAL_MS;
+              missScanSteps += 1;
+            }
+          } else {
+            missScanAccumulatorMs = 0;
           }
+          lastTickerTimeMs = nowMs;
 
           if (!visibleRef.current) {
-            hideUnusedSprites(spritePoolRef.current, 0);
+            hideSpriteRange(spritePoolRef.current, 0, previousUsedCount);
+            previousUsedCount = 0;
             return;
           }
 
@@ -388,6 +409,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
                 entry.sprite.visible = false;
                 entry.sprite.texture = (pixi as any).Texture.WHITE;
               }
+              previousUsedCount = 0;
               destroyTextureCache(textureRef.current);
             }
             const makeTexture = (kind: SpriteKind, width: number, height: number, holding: boolean, noteColor: NoteColorRgb) =>
@@ -588,14 +610,15 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
             drawn += 1;
           }
 
-          hideUnusedSprites(spritePool, spriteCursor.value);
+          hideSpriteRange(spritePool, spriteCursor.value, previousUsedCount);
+          previousUsedCount = spriteCursor.value;
           if (shouldProfile) {
             recordGameplayMetric('spritePoolUpdate', performance.now() - poolStart, spriteCursor.value);
             recordGameplayMetric('webglRender', performance.now() - profileStart, drawn);
           }
         });
       } catch (error) {
-        onGameplayClockDriverActiveChange?.(false);
+        driverReadyCallbackRef.current?.(false);
         console.warn('[renderer] WebGL failed; falling back to Canvas 2D.', error);
         setFallback(true);
       }
@@ -604,7 +627,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
     void mount();
     return () => {
       disposed = true;
-      onGameplayClockDriverActiveChange?.(false);
+      driverReadyCallbackRef.current?.(false);
       if (appRef.current) {
         destroyTextureCache(textureRef.current);
         appRef.current.destroy(true);
@@ -614,13 +637,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
         textureRef.current = {};
       }
     };
-  }, [
-    advanceGameplayClock,
-    currentTimeRef,
-    hitNoteIdsRef,
-    onGameplayClockDriverActiveChange,
-    scanGameplayMisses,
-  ]);
+  }, [currentTimeRef, hitNoteIdsRef]);
 
   if (fallback) {
     return (

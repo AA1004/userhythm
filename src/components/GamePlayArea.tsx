@@ -33,6 +33,7 @@ interface GamePlayAreaProps {
   hitNoteIdsRef: HitNoteIdsRef;
   advanceGameplayClock?: (now?: number) => void;
   scanGameplayMisses?: () => void;
+  driveGameplayClock?: boolean;
   onGameplayClockDriverActiveChange?: (active: boolean) => void;
 }
 
@@ -58,6 +59,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
   hitNoteIdsRef,
   advanceGameplayClock,
   scanGameplayMisses,
+  driveGameplayClock = false,
   onGameplayClockDriverActiveChange,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -162,65 +164,61 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
 
   const noteFieldLayer = useMemo(
     () =>
-      shouldRenderLaneUi ? (
+      playfieldGeometry.renderBackend === 'webgl' ? (
+        <WebglBetaNoteRenderer
+          notes={notes}
+          currentTimeRef={currentTimeRef}
+          fallDuration={fallDuration}
+          judgeLineY={judgeLineY}
+          timingOffsetMs={timingOffsetMs}
+          laneCenters={playfieldGeometry.laneCenters}
+          noteWidth={playfieldGeometry.noteWidth}
+          noteHeight={playfieldGeometry.noteHeight}
+          // The extended container starts above the stage. Offset the renderer's local
+          // coordinates by the same amount so a note at its timing point reaches the
+          // visible judge-line center, regardless of the top extension height.
+          playfieldTopOffset={playfieldTopOffset}
+          laneNoteColors={laneNoteColors}
+          holdingNotesRef={holdingNotesRef}
+          hitNoteIdsRef={hitNoteIdsRef}
+          visible={shouldRenderLaneUi}
+          simpleHoldVisuals={simpleHoldVisuals}
+          advanceGameplayClock={advanceGameplayClock}
+          scanGameplayMisses={scanGameplayMisses}
+          driveGameplayClock={driveGameplayClock}
+          onGameplayClockDriverActiveChange={onGameplayClockDriverActiveChange}
+        />
+      ) : shouldRenderLaneUi ? (
         <>
-          {playfieldGeometry.renderBackend === 'webgl' ? (
-            <WebglBetaNoteRenderer
-              key={`webgl-${playfieldGeometry.noteWidth}-${playfieldGeometry.noteHeight}`}
-              notes={notes}
-              currentTimeRef={currentTimeRef}
-              fallDuration={fallDuration}
-              judgeLineY={judgeLineY}
-              timingOffsetMs={timingOffsetMs}
-              laneCenters={playfieldGeometry.laneCenters}
-              noteWidth={playfieldGeometry.noteWidth}
-              noteHeight={playfieldGeometry.noteHeight}
-              // The extended container starts above the stage. Offset the renderer's local
-              // coordinates by the same amount so a note at its timing point reaches the
-              // visible judge-line center, regardless of the top extension height.
-              playfieldTopOffset={playfieldTopOffset}
-              laneNoteColors={laneNoteColors}
-              holdingNotesRef={holdingNotesRef}
-              hitNoteIdsRef={hitNoteIdsRef}
-              visible={shouldRenderLaneUi}
-              simpleHoldVisuals={simpleHoldVisuals}
-              advanceGameplayClock={advanceGameplayClock}
-              scanGameplayMisses={scanGameplayMisses}
-              onGameplayClockDriverActiveChange={onGameplayClockDriverActiveChange}
-            />
-          ) : (
-            <>
-              <canvas
-                ref={canvasRef}
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  top: 0,
-                  width: '100%',
-                  height: '100%',
-                  pointerEvents: 'none',
-                  zIndex: 100,
-                }}
-              />
-              <NoteRenderer
-                canvasRef={canvasRef}
-                notes={notes}
-                currentTimeRef={currentTimeRef}
-                fallDuration={fallDuration}
-                judgeLineY={judgeLineY}
-                timingOffsetMs={timingOffsetMs}
-                playfieldTopOffset={playfieldTopOffset}
-                laneCenters={playfieldGeometry.laneCenters}
-                noteWidth={playfieldGeometry.noteWidth}
-                noteHeight={playfieldGeometry.noteHeight}
-                laneNoteColors={laneNoteColors}
-                holdingNotesRef={holdingNotesRef}
-                hitNoteIdsRef={hitNoteIdsRef}
-                visible={shouldRenderLaneUi}
-                simpleHoldVisuals={simpleHoldVisuals}
-              />
-            </>
-          )}
+          <canvas
+            ref={canvasRef}
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              width: '100%',
+              height: '100%',
+              pointerEvents: 'none',
+              zIndex: 100,
+            }}
+          />
+          <NoteRenderer
+            canvasRef={canvasRef}
+            notes={notes}
+            currentTimeRef={currentTimeRef}
+            fallDuration={fallDuration}
+            judgeLineY={judgeLineY}
+            timingOffsetMs={timingOffsetMs}
+            playfieldTopOffset={playfieldTopOffset}
+            laneCenters={playfieldGeometry.laneCenters}
+            noteWidth={playfieldGeometry.noteWidth}
+            noteHeight={playfieldGeometry.noteHeight}
+            laneNoteColors={laneNoteColors}
+            holdingNotesRef={holdingNotesRef}
+            hitNoteIdsRef={hitNoteIdsRef}
+            visible={shouldRenderLaneUi}
+            simpleHoldVisuals={simpleHoldVisuals}
+          />
         </>
       ) : null,
     [
@@ -241,6 +239,7 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       simpleHoldVisuals,
       advanceGameplayClock,
       scanGameplayMisses,
+      driveGameplayClock,
       onGameplayClockDriverActiveChange,
     ]
   );
