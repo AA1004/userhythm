@@ -100,9 +100,8 @@ export function useEditorMetronome({
     let disposed = false;
     let schedulerId: number | null = null;
     let nextBeatIndex = 0;
-    let clockAnchorTimelineTime = currentTimeRef.current;
-    let clockAnchorTimestamp = performance.now();
     let previousObservedTimelineTime = currentTimeRef.current;
+    let previousSchedulerTimestamp = performance.now();
     let lastImmediateBeatIndex: number | null = null;
 
     const beatTimeAt = (beatIndex: number) =>
@@ -117,9 +116,8 @@ export function useEditorMetronome({
         Math.abs(nearestBeatTime - timelineTime) <= START_BEAT_TOLERANCE_MS
           ? nearestBeat
           : Math.ceil(beatPosition - 1e-7);
-      clockAnchorTimelineTime = timelineTime;
-      clockAnchorTimestamp = performance.now();
       previousObservedTimelineTime = timelineTime;
+      previousSchedulerTimestamp = performance.now();
     };
 
     const start = async () => {
@@ -167,19 +165,20 @@ export function useEditorMetronome({
         if (disposed) return;
         const now = performance.now();
         const timelineTime = currentTimeRef.current;
-        const expectedTime =
-          clockAnchorTimelineTime + (now - clockAnchorTimestamp) * playbackSpeed;
+        const schedulerElapsedMs = Math.max(0, now - previousSchedulerTimestamp) * playbackSpeed;
+        const observedDeltaMs = timelineTime - previousObservedTimelineTime;
         const movedBackward =
           timelineTime < previousObservedTimelineTime - START_BEAT_TOLERANCE_MS;
-        const didSeek =
-          movedBackward ||
-          Math.abs(timelineTime - expectedTime) > SEEK_RESET_THRESHOLD_MS;
+        const jumpedForward =
+          observedDeltaMs > Math.max(SEEK_RESET_THRESHOLD_MS, schedulerElapsedMs * 2 + START_BEAT_TOLERANCE_MS);
+        const didSeek = movedBackward || jumpedForward;
 
         if (didSeek) {
           if (movedBackward) lastImmediateBeatIndex = null;
           resetCursor(timelineTime);
         }
         previousObservedTimelineTime = timelineTime;
+        previousSchedulerTimestamp = now;
 
         const horizon = timelineTime + LOOKAHEAD_MS * playbackSpeed;
         let scheduledCount = 0;

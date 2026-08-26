@@ -498,6 +498,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     setYoutubeUrl,
     youtubeVideoId,
     youtubeVideoTitle,
+    isPlaybackClockReady,
     videoDurationSeconds,
     isLoadingDuration,
     handleYouTubeUrlSubmit,
@@ -711,7 +712,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   useEditorMetronome({
     enabled: metronomeSettings.enabled,
     volume: metronomeSettings.volume,
-    isPlaying,
+    isPlaying: isPlaying && (!youtubeVideoId || isPlaybackClockReady),
     currentTimeRef: internalTimeRef,
     playbackSpeed,
     bpm,

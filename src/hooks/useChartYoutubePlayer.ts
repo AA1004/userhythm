@@ -29,6 +29,7 @@ export function useChartYoutubePlayer({
   const [youtubeVideoTitle, setYoutubeVideoTitle] = useState<string>('');
   const [youtubePlayer, setYoutubePlayer] = useState<any>(null);
   const [isYoutubePlayerReady, setIsYoutubePlayerReady] = useState<boolean>(false);
+  const [isPlaybackClockReady, setIsPlaybackClockReady] = useState(false);
   const [videoDurationSeconds, setVideoDurationSeconds] = useState<number | null>(null);
   const [isLoadingDuration, setIsLoadingDuration] = useState<boolean>(false);
 
@@ -84,7 +85,7 @@ export function useChartYoutubePlayer({
     }
   }, []);
   const syncPlayerToTimeline = useCallback(
-    (timeMs: number, shouldAutoplay: boolean, forceReload = false) => {
+    (timeMs: number, shouldAutoplay: boolean) => {
       if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
       const timeSeconds = getPlayerTimeSeconds(timeMs);
       playerClockSampleRef.current = {
@@ -96,23 +97,6 @@ export function useChartYoutubePlayer({
       };
 
       try {
-        if (forceReload && youtubeVideoId && shouldAutoplay && typeof youtubePlayer.loadVideoById === 'function') {
-          youtubePlayer.loadVideoById({
-            videoId: youtubeVideoId,
-            startSeconds: timeSeconds,
-          });
-          return;
-        }
-
-        if (forceReload && youtubeVideoId && !shouldAutoplay && typeof youtubePlayer.cueVideoById === 'function') {
-          youtubePlayer.cueVideoById({
-            videoId: youtubeVideoId,
-            startSeconds: timeSeconds,
-          });
-          youtubePlayer.pauseVideo?.();
-          return;
-        }
-
         youtubePlayer.seekTo(timeSeconds, true);
         if (shouldAutoplay) {
           youtubePlayer.playVideo?.();
@@ -123,7 +107,7 @@ export function useChartYoutubePlayer({
         console.warn('플레이어 시간 동기화 실패:', e);
       }
     },
-    [getPlayerTimeSeconds, youtubePlayer, youtubeVideoId]
+    [getPlayerTimeSeconds, youtubePlayer]
   );
 
   // YouTube URL에서 Video ID 추출
@@ -217,6 +201,7 @@ export function useChartYoutubePlayer({
     });
     youtubePlayerReadyRef.current = false;
     playerNeedsPlaybackConfirmationRef.current = true;
+    setIsPlaybackClockReady(false);
     setIsYoutubePlayerReady(false);
 
     waitForYouTubeAPI().then(() => {
@@ -362,10 +347,15 @@ export function useChartYoutubePlayer({
 
             // PLAYING can still refer to the previous seek position. Repair the
             // position first so editor timing cannot depend on seek latency.
-            if (requiresPositionRepair && timeDrift > 0.12) {
-              syncPlayerToTimeline(expectedTimeMs, true);
-            } else if (!isActuallyPlaying) {
+            if (!isActuallyPlaying) {
               youtubePlayer.playVideo?.();
+            }
+
+            // seekTo normally settles asynchronously. Retrying during that
+            // window reloads the decoder and causes the audible double stutter.
+            // Repair only once when the final verification proves a real miss.
+            if (requiresPositionRepair && attempt === 2 && timeDrift > 0.75) {
+              syncPlayerToTimeline(expectedTimeMs, true);
             }
           } else {
             const isStillPlaying =
@@ -402,17 +392,21 @@ export function useChartYoutubePlayer({
           // Seeking on every resume makes YouTube briefly rebuffer and stalls the editor.
           if (playerNeedsPlaybackConfirmationRef.current || timeDrift > 0.08) {
             requiresPositionRepair = true;
+            setIsPlaybackClockReady(false);
             pendingPlaybackStartRef.current = {
               timelineMs: desiredTimeMs,
               commandedAtMs: commandStartedAtMs,
             };
             syncPlayerToTimeline(desiredTimeMs, true);
           } else {
+            playerNeedsPlaybackConfirmationRef.current = false;
+            setIsPlaybackClockReady(true);
             youtubePlayer.playVideo?.();
           }
           wasPlayingRef.current = true;
         } else {
           pendingPlaybackStartRef.current = null;
+          setIsPlaybackClockReady(false);
           youtubePlayer.pauseVideo?.();
           playerClockSampleRef.current = {
             playerSeconds: desiredSeconds,
@@ -456,6 +450,7 @@ export function useChartYoutubePlayer({
               timelineMs: latestTimeRef.current,
               commandedAtMs: performance.now(),
             };
+            setIsPlaybackClockReady(false);
             syncPlayerToTimeline(latestTimeRef.current, true);
           } else if (
             typeof window !== 'undefined' &&
@@ -480,6 +475,7 @@ export function useChartYoutubePlayer({
 
         youtubePlayer.pauseVideo?.();
         pendingPlaybackStartRef.current = null;
+        setIsPlaybackClockReady(false);
         wasPlayingRef.current = false;
 
         if (
@@ -541,7 +537,7 @@ export function useChartYoutubePlayer({
     if (lastAppliedAudioOffsetRef.current === audioOffsetMs) return;
 
     try {
-      syncPlayerToTimeline(latestTimeRef.current, isPlaying, true);
+      syncPlayerToTimeline(latestTimeRef.current, isPlaying);
     } catch (e) {
       console.warn('오디오 시작 보정 반영 실패:', e);
     }
@@ -608,6 +604,7 @@ export function useChartYoutubePlayer({
 
         pendingPlaybackStartRef.current = null;
         playerNeedsPlaybackConfirmationRef.current = false;
+        setIsPlaybackClockReady(true);
         lastEditorFollowSeekMsRef.current = now;
         return youtubeTimeMs;
       }
@@ -651,6 +648,7 @@ export function useChartYoutubePlayer({
 
       if (!snapOnly && shouldPause) {
         playerNeedsPlaybackConfirmationRef.current = true;
+        setIsPlaybackClockReady(false);
       }
 
       if (!youtubePlayer || !youtubePlayerReadyRef.current) return;
@@ -703,6 +701,7 @@ export function useChartYoutubePlayer({
     youtubeVideoTitle,
     youtubePlayer,
     isYoutubePlayerReady,
+    isPlaybackClockReady,
     videoDurationSeconds,
     isLoadingDuration,
     handleYouTubeUrlSubmit,
