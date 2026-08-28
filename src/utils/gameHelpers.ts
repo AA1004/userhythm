@@ -1,4 +1,4 @@
-import { BgaVisibilityInterval, EmbeddedAudioTrack, LanePositionInterval, Note } from '../types/game';
+import { BgaVisibilityInterval, EmbeddedAudioTrack, LanePositionInterval, Note, SpeedChange } from '../types/game';
 import { SubtitleCue } from '../types/subtitle';
 import { MAX_CHART_DURATION } from '../constants/gameConstants';
 
@@ -29,6 +29,8 @@ export interface AudioSettings {
   startDelayMs?: number;
   chartId?: string;
   overlayAudioTrack?: EmbeddedAudioTrack | null;
+  bpm?: number;
+  speedChanges?: SpeedChange[];
 }
 
 export const getAudioBaseSeconds = (audioSettings: AudioSettings | null): number => {

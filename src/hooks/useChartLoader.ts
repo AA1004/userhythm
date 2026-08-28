@@ -8,6 +8,7 @@ import { normalizeBgaIntervalsForRuntime } from '../utils/bgaVisibility';
 import { normalizeLanePositionIntervals } from '../utils/lanePositionIntervals';
 import { validateNotes } from '../utils/noteValidation';
 import type { ResetGameSessionOptions } from './useGameSessionController';
+import { normalizeSpeedChanges } from '../utils/speedChange';
 
 export interface UseChartLoaderOptions {
   setGameState: React.Dispatch<React.SetStateAction<GameState>>;
@@ -71,6 +72,8 @@ export function useChartLoader({
           audioOffsetMs: typeof chartData.audioOffsetMs === 'number' ? chartData.audioOffsetMs : 0,
           startDelayMs,
           chartId: chartData.chartId,
+          bpm: Number(chartData.bpm) || 0,
+          speedChanges: normalizeSpeedChanges(chartData.speedChanges),
         };
         onYoutubeSetup(chartData.youtubeVideoId, audioSettings);
       } else {
@@ -83,6 +86,8 @@ export function useChartLoader({
               audioOffsetMs: typeof chartData.audioOffsetMs === 'number' ? chartData.audioOffsetMs : 0,
               startDelayMs,
               chartId: chartData.chartId,
+              bpm: Number(chartData.bpm) || 0,
+              speedChanges: normalizeSpeedChanges(chartData.speedChanges),
             }
           : null);
       }

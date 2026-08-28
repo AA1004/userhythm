@@ -1,6 +1,7 @@
 import { Note, BPMChange, SpeedChange, BgaVisibilityInterval, LanePositionInterval } from '../types/game';
 import { SubtitleCue, SubtitleTrack } from '../types/subtitle';
 import { validateNotes, getMaxNoteId } from './noteValidation';
+import { normalizeSpeedChanges } from './speedChange';
 
 /**
  * 채보 데이터 구조
@@ -103,7 +104,7 @@ export function restoreChartData(data: ChartData): {
     audioOffsetMs: typeof data.audioOffsetMs === 'number' ? data.audioOffsetMs : 0,
     startDelayMs: typeof data.startDelayMs === 'number' ? Math.max(0, data.startDelayMs) : undefined,
     bpmChanges: Array.isArray(data.bpmChanges) ? data.bpmChanges : [],
-    speedChanges: Array.isArray(data.speedChanges) ? data.speedChanges : [],
+    speedChanges: normalizeSpeedChanges(data.speedChanges),
     bgaVisibilityIntervals: Array.isArray(data.bgaVisibilityIntervals) ? data.bgaVisibilityIntervals : [],
     lanePositionIntervals: Array.isArray(data.lanePositionIntervals) ? data.lanePositionIntervals : [],
     subtitles: Array.isArray(data.subtitles) ? data.subtitles : undefined,
@@ -139,7 +140,7 @@ export function createExportData(data: ChartData): ChartData {
     audioOffsetMs: data.audioOffsetMs,
     startDelayMs: data.startDelayMs,
     bpmChanges: data.bpmChanges,
-    speedChanges: data.speedChanges,
+    speedChanges: normalizeSpeedChanges(data.speedChanges),
     bgaVisibilityIntervals: data.bgaVisibilityIntervals,
     lanePositionIntervals: data.lanePositionIntervals,
     subtitles: data.subtitles,

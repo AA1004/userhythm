@@ -1248,7 +1248,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
           );
         })}
 
-        {/* 변속 마커 (SpeedChange) */}
+        {/* 영구 BPM 변속 지점 */}
         {visibleSpeedChanges.map(({ sc, y }) => (
           <div
             key={`speed-start-${sc.id}`}
@@ -1262,7 +1262,7 @@ export const ChartEditorTimeline: React.FC<ChartEditorTimelineProps> = React.mem
                 'linear-gradient(90deg, rgba(56,189,248,0.1), rgba(56,189,248,0.9), rgba(56,189,248,0.1))',
               boxShadow: '0 0 10px rgba(56,189,248,0.6)',
             }}
-            title={`Speed BPM ${sc.bpm}`}
+            title={`이 지점부터 BPM ${sc.bpm}`}
           />
         ))}
 

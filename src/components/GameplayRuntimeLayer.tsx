@@ -1,5 +1,5 @@
 import React from 'react';
-import { GameState } from '../types/game';
+import { GameState, SpeedChange } from '../types/game';
 import { useGameJudging } from '../hooks/useGameJudging';
 import { useKeyboard } from '../hooks/useKeyboard';
 import { useGameLoop } from '../hooks/useGameLoop';
@@ -21,6 +21,9 @@ interface GameplayRuntimeLayerProps {
   keyBindings: string[];
   laneKeyLabels: string[][];
   noteSpeed: number;
+  baseBpm: number;
+  speedChanges: SpeedChange[];
+  chartTimeOffsetMs: number;
   timingOffsetMs: number;
   judgeLineY: number;
   playfieldGeometry: PlayfieldGeometry;
@@ -45,6 +48,9 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
   keyBindings,
   laneKeyLabels,
   noteSpeed,
+  baseBpm,
+  speedChanges,
+  chartTimeOffsetMs,
   timingOffsetMs,
   judgeLineY,
   playfieldGeometry,
@@ -155,6 +161,9 @@ export const GameplayRuntimeLayer: React.FC<GameplayRuntimeLayerProps> = ({
         isFromEditor={isFromEditor}
         currentTimeRef={currentTimeRef}
         fallDuration={fallDuration}
+        baseBpm={baseBpm}
+        speedChanges={speedChanges}
+        chartTimeOffsetMs={chartTimeOffsetMs}
         judgeLineY={judgeLineY}
         timingOffsetMs={timingOffsetMs}
         playfieldGeometry={playfieldGeometry}

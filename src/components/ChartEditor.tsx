@@ -44,6 +44,7 @@ import { normalizeSubtitlePayload } from '../utils/subtitleNormalization';
 import { getChartPayload } from '../utils/chartPayload';
 import { START_DELAY_MS } from '../constants/gameConstants';
 import { AudioAnalysisData } from '../types/audioAnalysis';
+import { normalizeSpeedChanges } from '../utils/speedChange';
 import {
   blurEditorNonTextControlAfterPointer,
   blurEditorSelectAfterChange,
@@ -1011,7 +1012,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     );
     if (Array.isArray(data.bpmChanges)) setBpmChanges(data.bpmChanges);
     if (Array.isArray(data.speedChanges)) {
-      setSpeedChanges(data.speedChanges);
+      setSpeedChanges(normalizeSpeedChanges(data.speedChanges));
       const maxId =
         data.speedChanges.length > 0
           ? Math.max(
@@ -1227,7 +1228,6 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
     const newChange: SpeedChange = {
       id: speedChangeIdRef.current++,
       startTimeMs: start,
-      endTimeMs: null,
       bpm,
     };
     setSpeedChanges((prev) =>
@@ -1238,16 +1238,14 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
   const handleUpdateSpeedChange = useCallback(
     (id: number, patch: Partial<SpeedChange>) => {
       setSpeedChanges((prev) =>
-        prev
-          .map((c) => (c.id === id ? { ...c, ...patch } : c))
-          .sort((a, b) => a.startTimeMs - b.startTimeMs)
+        normalizeSpeedChanges(prev.map((c) => (c.id === id ? { ...c, ...patch } : c)))
       );
     },
     []
   );
 
   const handleDeleteSpeedChange = useCallback((id: number) => {
-    if (!confirm('이 변속 구간을 삭제할까요?')) return;
+    if (!confirm('이 변속 지점을 삭제할까요?')) return;
     setSpeedChanges((prev) => prev.filter((c) => c.id !== id));
   }, []);
 
@@ -2388,6 +2386,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       playbackSpeed: 1,
       audioOffsetMs,
       startDelayMs,
+      bpm,
+      speedChanges,
       bgaVisibilityIntervals,
       lanePositionIntervals,
       chartId: subtitleSessionId,
@@ -2408,6 +2408,8 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
       youtubeUrl,
       audioOffsetMs,
       startDelayMs,
+      bpm,
+      speedChanges,
       bgaVisibilityIntervals,
       lanePositionIntervals,
       subtitleSessionId,

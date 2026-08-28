@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Note } from '../types/game';
+import { Note, SpeedChange } from '../types/game';
 import { LANE_POSITIONS } from '../constants/gameConstants';
 import { GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH } from '../constants/gameLayout';
 import { HitNoteIdsRef, isNoteResolved } from '../utils/noteRuntimeState';
@@ -22,6 +22,10 @@ import {
   NoteColorRgb,
   noteColorToRgba,
 } from '../utils/noteColors';
+import {
+  getMaximumNoteFallDuration,
+  getNoteFallDurationFromSortedChanges,
+} from '../utils/speedChange';
 
 const SPRITE_POOL_SIZE = 384;
 const WEBGL_NOTE_RENDERER_DPR_LIMIT = 1;
@@ -34,6 +38,9 @@ interface WebglBetaNoteRendererProps {
   notes: Note[];
   currentTimeRef: React.MutableRefObject<number>;
   fallDuration: number;
+  baseBpm: number;
+  speedChanges: SpeedChange[];
+  chartTimeOffsetMs: number;
   judgeLineY: number;
   timingOffsetMs: number;
   playfieldTopOffset?: number;
@@ -182,6 +189,9 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
   notes,
   currentTimeRef,
   fallDuration,
+  baseBpm,
+  speedChanges,
+  chartTimeOffsetMs,
   judgeLineY,
   timingOffsetMs,
   playfieldTopOffset = 0,
@@ -213,6 +223,12 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
   const notesRef = useRef(notes);
   const laneCentersRef = useRef(laneCenters);
   const fallDurationRef = useRef(fallDuration);
+  const baseBpmRef = useRef(baseBpm);
+  const speedChangesRef = useRef(speedChanges);
+  const chartTimeOffsetMsRef = useRef(chartTimeOffsetMs);
+  const maximumFallDurationRef = useRef(
+    getMaximumNoteFallDuration(baseBpm, speedChanges, fallDuration)
+  );
   const judgeLineYRef = useRef(judgeLineY);
   const timingOffsetMsRef = useRef(timingOffsetMs);
   const playfieldTopOffsetRef = useRef(playfieldTopOffset);
@@ -262,7 +278,15 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
 
   useEffect(() => {
     fallDurationRef.current = fallDuration;
-  }, [fallDuration]);
+    baseBpmRef.current = baseBpm;
+    speedChangesRef.current = speedChanges;
+    chartTimeOffsetMsRef.current = chartTimeOffsetMs;
+    maximumFallDurationRef.current = getMaximumNoteFallDuration(
+      baseBpm,
+      speedChanges,
+      fallDuration
+    );
+  }, [baseBpm, chartTimeOffsetMs, fallDuration, speedChanges]);
 
   useEffect(() => {
     judgeLineYRef.current = judgeLineY;
@@ -387,6 +411,10 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
           // Match the renderer to useGameJudging/useGameLoop's adjusted timing clock.
           const currentTime = currentTimeRef.current - timingOffsetMsRef.current;
           const activeFallDuration = fallDurationRef.current;
+          const activeBaseBpm = baseBpmRef.current;
+          const activeSpeedChanges = speedChangesRef.current;
+          const activeChartTimeOffsetMs = chartTimeOffsetMsRef.current;
+          const activeMaximumFallDuration = maximumFallDurationRef.current;
           const activeJudgeLineY = judgeLineYRef.current;
           const activePlayfieldTopOffset = playfieldTopOffsetRef.current;
           const activeSpawnY = NOTE_SPAWN_Y - activePlayfieldTopOffset;
@@ -395,8 +423,8 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
           const activeHoldingNotes = holdingNotesRef.current;
           const activeNoteWidth = noteWidthRef.current;
           const activeNoteHeight = noteHeightRef.current;
-          const viewportStart = getNoteViewportStart(currentTime, activeFallDuration);
-          const viewportEnd = getNoteViewportEnd(currentTime, activeFallDuration);
+          const viewportStart = getNoteViewportStart(currentTime, activeMaximumFallDuration);
+          const viewportEnd = getNoteViewportEnd(currentTime, activeMaximumFallDuration);
           const startIndex = binarySearchStartIndex(renderNotes, viewportStart);
           const spritePool = spritePoolRef.current;
           spriteCursor.value = 0;
@@ -432,6 +460,12 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
           const texturesByLane = textureRef.current.byLane;
 
           const drawHoldNote = (note: Note) => {
+            const noteFallDuration = getNoteFallDurationFromSortedChanges(
+              note.time + activeChartTimeOffsetMs,
+              activeBaseBpm,
+              activeSpeedChanges,
+              activeFallDuration
+            );
             const laneX = activeLaneCenters[note.lane] ?? LANE_POSITIONS[note.lane];
             const laneTextures = texturesByLane[note.lane];
             const left = laneX - activeNoteWidth / 2;
@@ -439,7 +473,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
             const segment = computeHoldRenderSegmentInto(
               note,
               currentTime,
-              activeFallDuration,
+              noteFallDuration,
               activeJudgeLineY,
               activeNoteHeight,
               isHolding,
@@ -587,6 +621,13 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
               continue;
             }
 
+            const noteFallDuration = getNoteFallDurationFromSortedChanges(
+              note.time + activeChartTimeOffsetMs,
+              activeBaseBpm,
+              activeSpeedChanges,
+              activeFallDuration
+            );
+
             const y = Math.max(
               activeSpawnY,
               Math.min(
@@ -594,7 +635,7 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
                 getEventY(
                   note.time,
                   currentTime,
-                  activeFallDuration,
+                  noteFallDuration,
                   activeJudgeLineY,
                   activeSpawnY
                 )
@@ -667,6 +708,9 @@ export const WebglBetaNoteRenderer: React.FC<WebglBetaNoteRendererProps> = ({
           notes={notes}
           currentTimeRef={currentTimeRef}
           fallDuration={fallDuration}
+          baseBpm={baseBpm}
+          speedChanges={speedChanges}
+          chartTimeOffsetMs={chartTimeOffsetMs}
           judgeLineY={judgeLineY}
           timingOffsetMs={timingOffsetMs}
           playfieldTopOffset={playfieldTopOffset}

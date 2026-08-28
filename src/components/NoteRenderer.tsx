@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Note } from '../types/game';
+import { Note, SpeedChange } from '../types/game';
 import { LANE_POSITIONS } from '../constants/gameConstants';
 import { isGameplayProfilerEnabled, recordGameplayMetric } from '../utils/gameplayProfiler';
 import { HitNoteIdsRef, isNoteResolved } from '../utils/noteRuntimeState';
@@ -19,6 +19,10 @@ import {
   NoteColorRgb,
   noteColorToRgba,
 } from '../utils/noteColors';
+import {
+  getMaximumNoteFallDuration,
+  getNoteFallDurationFromSortedChanges,
+} from '../utils/speedChange';
 
 const NOTE_SPRITE_CACHE_LIMIT = 48;
 const GAMEPLAY_CANVAS_DPR_LIMIT = 1;
@@ -186,6 +190,9 @@ interface NoteRendererProps {
   notes: Note[];
   currentTimeRef: React.MutableRefObject<number>;
   fallDuration: number;
+  baseBpm: number;
+  speedChanges: SpeedChange[];
+  chartTimeOffsetMs: number;
   judgeLineY: number;
   timingOffsetMs: number;
   playfieldTopOffset?: number;
@@ -208,6 +215,9 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
   notes,
   currentTimeRef,
   fallDuration,
+  baseBpm,
+  speedChanges,
+  chartTimeOffsetMs,
   judgeLineY,
   timingOffsetMs,
   playfieldTopOffset = 0,
@@ -223,6 +233,12 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
   const rafIdRef = useRef<number>();
   const notesRef = useRef(notes);
   const fallDurationRef = useRef(fallDuration);
+  const baseBpmRef = useRef(baseBpm);
+  const speedChangesRef = useRef(speedChanges);
+  const chartTimeOffsetMsRef = useRef(chartTimeOffsetMs);
+  const maximumFallDurationRef = useRef(
+    getMaximumNoteFallDuration(baseBpm, speedChanges, fallDuration)
+  );
   const judgeLineYRef = useRef(judgeLineY);
   const timingOffsetMsRef = useRef(timingOffsetMs);
   const playfieldTopOffsetRef = useRef(playfieldTopOffset);
@@ -244,7 +260,15 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
 
   useEffect(() => {
     fallDurationRef.current = fallDuration;
-  }, [fallDuration]);
+    baseBpmRef.current = baseBpm;
+    speedChangesRef.current = speedChanges;
+    chartTimeOffsetMsRef.current = chartTimeOffsetMs;
+    maximumFallDurationRef.current = getMaximumNoteFallDuration(
+      baseBpm,
+      speedChanges,
+      fallDuration
+    );
+  }, [baseBpm, chartTimeOffsetMs, fallDuration, speedChanges]);
 
   useEffect(() => {
     judgeLineYRef.current = judgeLineY;
@@ -320,6 +344,10 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
       const renderNotes = notesRef.current;
       const activeHoldingNotes = holdingNotesRef.current;
       const activeFallDuration = fallDurationRef.current;
+      const activeBaseBpm = baseBpmRef.current;
+      const activeSpeedChanges = speedChangesRef.current;
+      const activeChartTimeOffsetMs = chartTimeOffsetMsRef.current;
+      const activeMaximumFallDuration = maximumFallDurationRef.current;
       const activeJudgeLineY = judgeLineYRef.current;
       const activePlayfieldTopOffset = playfieldTopOffsetRef.current;
       const activeSpawnY = NOTE_SPAWN_Y - activePlayfieldTopOffset;
@@ -350,8 +378,8 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
         };
       }
 
-      const viewportStart = getNoteViewportStart(currentTime, activeFallDuration);
-      const viewportEnd = getNoteViewportEnd(currentTime, activeFallDuration);
+      const viewportStart = getNoteViewportStart(currentTime, activeMaximumFallDuration);
+      const viewportEnd = getNoteViewportEnd(currentTime, activeMaximumFallDuration);
       const binaryStartIdx = binarySearchStartIndex(renderNotes, viewportStart);
       const canAdvanceCursor = viewportStart >= renderIndexRef.current.lastViewportStart;
       const startIdx = canAdvanceCursor
@@ -370,6 +398,12 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
         if (note.time > viewportEnd || getNoteRenderEndTime(note) < viewportStart) return;
 
         const isHoldNote = note.duration > 0 && note.type === 'hold';
+        const noteFallDuration = getNoteFallDurationFromSortedChanges(
+          note.time + activeChartTimeOffsetMs,
+          activeBaseBpm,
+          activeSpeedChanges,
+          activeFallDuration
+        );
         const laneX = activeLaneCenters[note.lane] ?? LANE_POSITIONS[note.lane];
         const laneColor = activeLaneNoteColors[note.lane];
 
@@ -377,7 +411,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           const position = computeTapRenderPosition(
             note,
             currentTime,
-            activeFallDuration,
+            noteFallDuration,
             activeJudgeLineY,
             laneX,
             activeNoteWidth,
@@ -415,7 +449,7 @@ export const NoteRenderer: React.FC<NoteRendererProps> = ({
           const segment = computeHoldRenderSegment(
             note,
             currentTime,
-            activeFallDuration,
+            noteFallDuration,
             activeJudgeLineY,
             activeNoteHeight,
             isHolding,

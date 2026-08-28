@@ -1,5 +1,5 @@
 import React, { useMemo, useRef } from 'react';
-import { Lane, Note } from '../types/game';
+import { Lane, Note, SpeedChange } from '../types/game';
 import { KeyLane } from './KeyLane';
 import { JudgeLine } from './JudgeLine';
 import { NoteRenderer } from './NoteRenderer';
@@ -10,6 +10,8 @@ import { GAME_VIEW_HEIGHT } from '../constants/gameLayout';
 import { HitNoteIdsRef } from '../utils/noteRuntimeState';
 import { getLaneNoteColor } from '../utils/noteColors';
 import { KeyEffect } from '../hooks/useGameJudging';
+
+const EMPTY_SPEED_CHANGES: SpeedChange[] = [];
 
 interface GamePlayAreaProps {
   notes: Note[];
@@ -26,6 +28,9 @@ interface GamePlayAreaProps {
   isFromEditor: boolean;
   currentTimeRef: React.MutableRefObject<number>;
   fallDuration: number;
+  baseBpm?: number;
+  speedChanges?: SpeedChange[];
+  chartTimeOffsetMs?: number;
   judgeLineY: number;
   timingOffsetMs: number;
   playfieldGeometry: PlayfieldGeometry;
@@ -52,6 +57,9 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
   isFromEditor: _isFromEditor,
   currentTimeRef,
   fallDuration,
+  baseBpm = 0,
+  speedChanges = EMPTY_SPEED_CHANGES,
+  chartTimeOffsetMs = 0,
   judgeLineY,
   timingOffsetMs,
   playfieldGeometry,
@@ -169,6 +177,9 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
           notes={notes}
           currentTimeRef={currentTimeRef}
           fallDuration={fallDuration}
+          baseBpm={baseBpm}
+          speedChanges={speedChanges}
+          chartTimeOffsetMs={chartTimeOffsetMs}
           judgeLineY={judgeLineY}
           timingOffsetMs={timingOffsetMs}
           laneCenters={playfieldGeometry.laneCenters}
@@ -207,6 +218,9 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
             notes={notes}
             currentTimeRef={currentTimeRef}
             fallDuration={fallDuration}
+            baseBpm={baseBpm}
+            speedChanges={speedChanges}
+            chartTimeOffsetMs={chartTimeOffsetMs}
             judgeLineY={judgeLineY}
             timingOffsetMs={timingOffsetMs}
             playfieldTopOffset={playfieldTopOffset}
@@ -231,6 +245,9 @@ const GamePlayAreaComponent: React.FC<GamePlayAreaProps> = ({
       notes,
       currentTimeRef,
       fallDuration,
+      baseBpm,
+      speedChanges,
+      chartTimeOffsetMs,
       judgeLineY,
       timingOffsetMs,
       playfieldTopOffset,

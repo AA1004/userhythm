@@ -1,11 +1,12 @@
 import { useState, useRef, useCallback } from 'react';
-import { GameState, Note, BgaVisibilityInterval, EmbeddedAudioTrack, LanePositionInterval } from '../types/game';
+import { GameState, Note, BgaVisibilityInterval, EmbeddedAudioTrack, LanePositionInterval, SpeedChange } from '../types/game';
 import { buildInitialScore, calculateGameDuration } from '../utils/gameHelpers';
 import { DEFAULT_GAME_DURATION, START_DELAY_MS } from '../constants/gameConstants';
 import { normalizeBgaIntervalsForRuntime } from '../utils/bgaVisibility';
 import { SubtitleCue, SubtitleTrack } from '../types/subtitle';
 import { normalizeSubtitlePayload } from '../utils/subtitleNormalization';
 import { resetGameSessionRuntime } from './useGameSessionController';
+import { normalizeSpeedChanges } from '../utils/speedChange';
 
 export interface EditorTestPayload {
   notes: Note[];
@@ -21,6 +22,8 @@ export interface EditorTestPayload {
   overlayAudioTrack?: EmbeddedAudioTrack | null;
   subtitles?: SubtitleCue[];
   subtitleTracks?: SubtitleTrack[];
+  bpm?: number;
+  speedChanges?: SpeedChange[];
 }
 
 export interface UseTestSessionOptions {
@@ -172,6 +175,8 @@ export function useTestSession({
         audioOffsetMs: payload.audioOffsetMs ?? 0,
         startDelayMs: payload.startDelayMs ?? START_DELAY_MS,
         overlayAudioTrack: payload.overlayAudioTrack ?? null,
+        bpm: Number(payload.bpm) || 0,
+        speedChanges: normalizeSpeedChanges(payload.speedChanges),
       });
 
       preparedNotesRef.current = preparedNotes.map((note) => ({ ...note }));

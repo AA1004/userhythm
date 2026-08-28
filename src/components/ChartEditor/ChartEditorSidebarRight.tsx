@@ -164,6 +164,14 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
     () => [...bpmChanges].sort((a, b) => a.beatIndex - b.beatIndex),
     [bpmChanges]
   );
+  const activeSpeedChangeId = useMemo(() => {
+    let activeId: number | null = null;
+    for (const change of speedChanges) {
+      if (change.startTimeMs > currentTime) break;
+      activeId = change.id;
+    }
+    return activeId;
+  }, [currentTime, speedChanges]);
 
   return (
     <div
@@ -205,8 +213,8 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
         }}
       >
         <SectionHeader
-          label="Timing FX"
-          description="기준 BPM은 상단 BPM 입력값이며, 변속 구간 BPM은 절대값입니다."
+          label="BPM Shift"
+          description="지점을 통과하면 새 BPM이 다음 변속 지점 또는 곡 끝까지 유지됩니다."
         >
           <Badge>{speedChanges.length}개</Badge>
         </SectionHeader>
@@ -218,7 +226,7 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
             marginBottom: '6px',
           }}
         >
-          <span style={{ fontSize: '12px', fontWeight: 600 }}>변속 구간</span>
+          <span style={{ fontSize: '12px', fontWeight: 600 }}>변속 지점</span>
           <button
             data-editor-transient-action="true"
             onMouseDown={keepTransientButtonFromTakingFocus}
@@ -241,7 +249,7 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
         </div>
         {speedChanges.length === 0 ? (
           <div style={{ fontSize: '11px', color: CHART_EDITOR_THEME.textMuted }}>
-            아직 변속 구간이 없습니다.
+            아직 변속 지점이 없습니다.
           </div>
         ) : (
           <div
@@ -255,10 +263,7 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
           >
             {speedChanges.map((sc) => {
               const startMeasure = timeToMeasure(sc.startTimeMs, bpm, sortedBpmChanges, beatsPerMeasure);
-              const endMeasure = sc.endTimeMs == null
-                ? null
-                : timeToMeasure(sc.endTimeMs, bpm, sortedBpmChanges, beatsPerMeasure);
-              const isCurrent = currentTime >= sc.startTimeMs && (sc.endTimeMs == null || currentTime < sc.endTimeMs);
+              const isCurrent = activeSpeedChangeId === sc.id;
 
               return (
                 <div
@@ -274,7 +279,7 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
                   }}
                 >
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '11px', color: CHART_EDITOR_THEME.textSecondary }}>시작</span>
+                    <span style={{ fontSize: '11px', color: CHART_EDITOR_THEME.textSecondary }}>지점</span>
                     <EditorNumberInput
                       value={startMeasure}
                       min={1}
@@ -285,29 +290,7 @@ const ChartEditorSidebarRightInner: React.FC<ChartEditorSidebarRightProps> = ({
                         const timeMs = beatIndexToTime(beatIdx, bpm, sortedBpmChanges);
                         onUpdateSpeedChange(sc.id, { startTimeMs: timeMs });
                       }}
-                      ariaLabel="변속 시작 마디"
-                      style={{ flex: 1 }}
-                    />
-                    <span style={{ fontSize: '11px', color: CHART_EDITOR_THEME.textSecondary }}>마디</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '11px', color: CHART_EDITOR_THEME.textSecondary }}>끝</span>
-                    <EditorNumberInput
-                      value={endMeasure}
-                      min={1}
-                      integer
-                      allowEmpty
-                      onCommit={(measure) => {
-                        if (measure == null) {
-                          onUpdateSpeedChange(sc.id, { endTimeMs: null });
-                          return;
-                        }
-                        const beatIdx = (measure - 1) * beatsPerMeasure;
-                        const timeMs = beatIndexToTime(beatIdx, bpm, sortedBpmChanges);
-                        onUpdateSpeedChange(sc.id, { endTimeMs: timeMs });
-                      }}
-                      placeholder="끝까지"
-                      ariaLabel="변속 종료 마디"
+                      ariaLabel="변속 지점 마디"
                       style={{ flex: 1 }}
                     />
                     <span style={{ fontSize: '11px', color: CHART_EDITOR_THEME.textSecondary }}>마디</span>

@@ -42,6 +42,7 @@ import { useLanePositionOffset } from '../hooks/useLanePositionOffset';
 import { calculateScoreAccuracy } from '../utils/scoreAccuracy';
 import { getChartPayload } from '../utils/chartPayload';
 import { retryOnceOnTransientFailure } from '../utils/requestRetry';
+import { normalizeSpeedChanges } from '../utils/speedChange';
 
 const EDITOR_CONTRIBUTION_DRAFT_KEY = 'userhythm:editor-contribution-draft';
 // 키 아래 슬롯 HUD가 기본 800px 플레이필드 밖으로 밀리지 않게 확보하는 전용 영역이다.
@@ -175,6 +176,11 @@ export const Game: React.FC = () => {
 
   const currentChartTimeOffsetMs = testAudioSettings?.startTimeMs ?? 0;
   const currentStartDelayMs = testAudioSettings?.startDelayMs ?? START_DELAY_MS;
+  const gameplayBaseBpm = testAudioSettings?.bpm ?? 0;
+  const gameplaySpeedChanges = useMemo(
+    () => normalizeSpeedChanges(testAudioSettings?.speedChanges),
+    [testAudioSettings?.speedChanges]
+  );
   const activePlayableChartId = testAudioSettings?.chartId ?? null;
   const hasYoutubeAudioSession = !!testYoutubeVideoId && !!testAudioSettings;
 
@@ -777,6 +783,8 @@ export const Game: React.FC = () => {
         youtubeVideoId: chartData.youtubeVideoId || null,
         youtubeUrl: chartData.youtubeUrl || '',
         playbackSpeed: 1,
+        bpm: Number(chartData.bpm) || 0,
+        speedChanges: chartData.speedChanges || [],
         audioOffsetMs: typeof chartData.audioOffsetMs === 'number' ? chartData.audioOffsetMs : 0,
         lanePositionIntervals: chartData.lanePositionIntervals || [],
         startDelayMs: typeof chartData.startDelayMs === 'number' ? Math.max(0, Math.round(chartData.startDelayMs)) : START_DELAY_MS,
@@ -1209,6 +1217,9 @@ export const Game: React.FC = () => {
                     keyBindings={keyBindings}
                     laneKeyLabels={laneKeyLabels}
                     noteSpeed={speed}
+                    baseBpm={gameplayBaseBpm}
+                    speedChanges={gameplaySpeedChanges}
+                    chartTimeOffsetMs={currentChartTimeOffsetMs}
                     timingOffsetMs={timingOffsetMs}
                     judgeLineY={judgeLineY}
                     playfieldGeometry={playfieldGeometry}

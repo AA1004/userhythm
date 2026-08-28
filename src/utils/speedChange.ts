@@ -1,10 +1,27 @@
 import { SpeedChange } from '../types/game';
 
+export function normalizeSpeedChanges(speedChanges: readonly SpeedChange[] = []): SpeedChange[] {
+  return speedChanges
+    .filter(
+      (change) =>
+        Number.isFinite(change.startTimeMs) &&
+        change.startTimeMs >= 0 &&
+        Number.isFinite(change.bpm) &&
+        change.bpm > 0
+    )
+    .map((change) => ({
+      id: change.id,
+      startTimeMs: change.startTimeMs,
+      bpm: change.bpm,
+    }))
+    .sort((a, b) => a.startTimeMs - b.startTimeMs);
+}
+
 /**
  * 주어진 시간(timeMs)에서 적용되는 BPM을 계산합니다.
  * - speedChanges는 시간 순으로 정렬되어 있다고 가정하지 않고, 내부에서 정렬합니다.
- * - startTimeMs <= timeMs < endTimeMs 인 마지막 구간의 bpm을 사용합니다.
- * - 어떤 구간에도 속하지 않으면 baseBpm을 반환합니다.
+ * - 마지막으로 지난 변속 지점의 BPM을 다음 변속 지점까지 계속 사용합니다.
+ * - 첫 변속 지점 전에는 baseBpm을 반환합니다.
  */
 export function getEffectiveBPM(
   timeMs: number,
@@ -13,17 +30,13 @@ export function getEffectiveBPM(
 ): number {
   if (!speedChanges || speedChanges.length === 0) return baseBpm;
 
-  const sorted = [...speedChanges].sort(
-    (a, b) => a.startTimeMs - b.startTimeMs
-  );
+  const sorted = normalizeSpeedChanges(speedChanges);
 
   let effectiveBpm = baseBpm;
 
   for (const change of sorted) {
     if (timeMs >= change.startTimeMs) {
-      if (change.endTimeMs == null || timeMs < change.endTimeMs) {
-        effectiveBpm = change.bpm;
-      }
+      effectiveBpm = change.bpm;
     } else {
       // 이후 구간들은 더 뒤 시간대이므로 중단
       break;
@@ -31,6 +44,41 @@ export function getEffectiveBPM(
   }
 
   return effectiveBpm;
+}
+
+export function getNoteFallDurationFromSortedChanges(
+  chartNoteTimeMs: number,
+  baseBpm: number,
+  sortedSpeedChanges: readonly SpeedChange[],
+  baseFallDuration: number
+): number {
+  if (baseBpm <= 0 || baseFallDuration <= 0 || sortedSpeedChanges.length === 0) {
+    return baseFallDuration;
+  }
+
+  let low = 0;
+  let high = sortedSpeedChanges.length;
+  while (low < high) {
+    const mid = (low + high) >>> 1;
+    if (sortedSpeedChanges[mid].startTimeMs <= chartNoteTimeMs) low = mid + 1;
+    else high = mid;
+  }
+
+  const effectiveBpm = low > 0 ? sortedSpeedChanges[low - 1].bpm : baseBpm;
+  return effectiveBpm > 0 ? baseFallDuration * (baseBpm / effectiveBpm) : baseFallDuration;
+}
+
+export function getMaximumNoteFallDuration(
+  baseBpm: number,
+  sortedSpeedChanges: readonly SpeedChange[],
+  baseFallDuration: number
+): number {
+  if (baseBpm <= 0 || baseFallDuration <= 0) return baseFallDuration;
+  let maximum = baseFallDuration;
+  for (const change of sortedSpeedChanges) {
+    maximum = Math.max(maximum, baseFallDuration * (baseBpm / change.bpm));
+  }
+  return maximum;
 }
 
 /**

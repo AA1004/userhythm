@@ -39,9 +39,10 @@ export interface GameState {
 // - BPMChange: 비트 인덱스 기준 BPM 변경(기존 ChartEditor용)
 export interface SpeedChange {
   id: number;
-  startTimeMs: number; // 변속 시작 시간(ms)
-  endTimeMs: number | null; // 변속 종료 시간(ms) - null이면 곡 끝까지
-  bpm: number; // 이 구간에서 적용할 절대 BPM
+  startTimeMs: number; // 이 시점부터 다음 변속 지점까지 적용
+  /** @deprecated 이전 구간형 채보를 읽기 위한 호환 필드. 런타임에서는 무시합니다. */
+  endTimeMs?: number | null;
+  bpm: number; // 이 지점부터 적용할 절대 BPM
 }
 
 export type BgaVisibilityMode = 'hidden' | 'visible';
