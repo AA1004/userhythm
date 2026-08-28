@@ -1,14 +1,4 @@
-/* =========================
-   Brand logo (UseRhythm)
-   ========================= */
-
-@font-face {
-  font-family: 'GeekbleMalrangiche';
-  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2302_01@1.0/GeekbleMalang2WOFF2.woff2') format('woff2');
-  font-weight: normal;
-  font-display: swap;
-}
-
+/* UseRhythm wordmark: one quiet rhythm-workspace signature. */
 .ur-brand {
   width: 100%;
   display: flex;
@@ -16,113 +6,42 @@
 }
 
 .ur-brand__grid {
-  display: grid;
-  grid-template-columns: auto auto;
-  grid-template-rows: auto auto;
-  column-gap: 14px;
-  row-gap: 10px;
-  align-items: center;
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 12px;
+  color: #6ef2c3;
 }
 
 .ur-brand__grid--overlap {
-  grid-template-columns: auto;
-  justify-items: center;
-}
-
-.ur-brand__mark {
-  grid-column: 1;
-  grid-row: 1;
-  flex: 0 0 auto;
-  filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.25))
-    drop-shadow(0 0 22px rgba(129, 140, 248, 0.18));
-  /* 타이틀 행에만 정렬되도록 살짝 올림 */
-  transform: translateY(-1px);
-}
-
-.ur-brand__titleWrap {
-  grid-column: 2;
-  grid-row: 1;
-  display: flex;
-  align-items: center;
-  position: relative;
-}
-
-.ur-brand__grid--overlap .ur-brand__titleWrap {
-  grid-column: 1;
   justify-content: center;
 }
 
-.ur-brand__mark--overlap {
-  position: absolute;
-  left: -18px;
-  top: 50%;
-  transform: translateY(-54%) scale(1.06);
-  opacity: 0.62;
-  z-index: 1;
-  pointer-events: none;
-  mix-blend-mode: screen;
-  filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.32))
-    drop-shadow(0 0 28px rgba(129, 140, 248, 0.22));
+.ur-brand__mark {
+  flex: 0 0 auto;
+  margin-top: 4px;
+}
+
+.ur-brand__text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .ur-logo {
   margin: 0;
-  font-weight: normal;
-  font-style: normal;
-  letter-spacing: var(--ur-logo-letter-spacing, 0.18em);
-  font-family: 'GeekbleMalrangiche', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'Pretendard',
-    'Apple SD Gothic Neo', 'Noto Sans KR', Arial, sans-serif;
-  text-transform: uppercase;
-  line-height: 1.05;
-  font-size: var(--ur-logo-size, 48px);
-  text-shadow: var(--ur-logo-glow, 0 0 24px rgba(56, 189, 248, 0.35));
-  position: relative;
-  z-index: 2; /* overlap 심볼 위에 텍스트가 오도록 */
-}
-
-.ur-logo__fill {
-  display: inline-block;
-  background: var(--ur-logo-gradient, linear-gradient(135deg, #22d3ee, #818cf8, #f0abfc));
-  background-size: 220% 220%;
-  background-position: 20% 50%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  -webkit-text-stroke: var(--ur-logo-stroke-width, 2px) var(--ur-logo-stroke, rgba(2, 6, 23, 0.95));
-  filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.14));
-  animation: urShimmer 2600ms ease-in-out infinite;
+  color: #f1f5f4;
+  font-family: "Arial Narrow", "Bahnschrift", sans-serif;
+  font-size: var(--ur-logo-size, 42px);
+  font-weight: 800;
+  letter-spacing: var(--ur-logo-letter-spacing, 0.06em);
+  line-height: 1;
 }
 
 .ur-tagline {
-  grid-column: 1 / span 2;
-  grid-row: 2;
-  margin-top: 10px;
-  font-size: 15px;
-  line-height: 1.6;
-  color: rgba(226, 232, 240, 0.78);
+  margin: 10px 0 0;
+  color: #8b97a3;
+  font-size: 14px;
+  line-height: 1.55;
+  text-align: left;
   white-space: pre-line;
-  text-align: center;
 }
-
-.ur-brand__grid--overlap .ur-tagline {
-  grid-column: 1;
-}
-
-@keyframes urShimmer {
-  0% {
-    background-position: 18% 50%;
-  }
-  50% {
-    background-position: 82% 50%;
-  }
-  100% {
-    background-position: 18% 50%;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ur-logo__fill {
-    animation: none;
-  }
-}
-

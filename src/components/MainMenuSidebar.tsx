@@ -6,9 +6,10 @@ import { NoticeVersionAdmin } from './NoticeVersionAdmin';
 
 interface MainMenuSidebarProps {
   type: 'notice' | 'version';
+  compact?: boolean;
 }
 
-export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({ type }) => {
+export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({ type, compact = false }) => {
   const [notice, setNotice] = useState<ApiNotice | null>(null);
   const [version, setVersion] = useState<ApiVersion | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -66,20 +67,20 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({ type }) => {
     width: '100%',
     height: '100%',
     minHeight: 0,
-    background: 'linear-gradient(145deg, rgba(8, 13, 26, 0.86), rgba(3, 7, 18, 0.74))',
-    border: `1px solid ${CHART_EDITOR_THEME.borderStrong}`,
-    borderRadius: CHART_EDITOR_THEME.radiusLg,
-    padding: 'clamp(14px, 1.2vw, 22px)',
-    boxShadow: '0 18px 44px rgba(0, 0, 0, 0.36)',
+    background: '#0d131b',
+    border: '1px solid #27313c',
+    borderRadius: '6px',
+    padding: compact ? '12px' : 'clamp(14px, 1.2vw, 22px)',
+    boxShadow: '0 8px 20px rgba(0, 0, 0, 0.22)',
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    backdropFilter: 'blur(10px)',
   };
 
   const sidebarClassName = [
     'main-menu-sidebar',
     `main-menu-sidebar--${type}`,
+    compact ? 'main-menu-sidebar--compact' : '',
   ].join(' ');
 
   return (
@@ -144,7 +145,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({ type }) => {
               whiteSpace: 'nowrap',
             }}
           >
-            {type === 'notice' ? '📢 공지사항' : '📋 버전 리포트'}
+            {type === 'notice' ? '공지사항' : '버전'}
           </h2>
           {isAdmin && (
             <button
@@ -171,7 +172,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({ type }) => {
                 e.currentTarget.style.color = CHART_EDITOR_THEME.textPrimary;
               }}
             >
-              ✏️ 편집
+              편집
             </button>
           )}
         </div>

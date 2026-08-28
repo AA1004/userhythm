@@ -852,34 +852,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
         opacity={previewOpacity}
       />
 
-      {/* 백그라운드 네온 패턴 */}
-      <div
-        className="chart-select-shell__scrim"
-        aria-hidden
-        style={{
-          position: 'absolute',
-          inset: 0,
-          backgroundImage:
-            'radial-gradient(circle at 20% 20%, rgba(56,189,248,0.08), transparent 22%), radial-gradient(circle at 80% 10%, rgba(129,140,248,0.1), transparent 24%), radial-gradient(circle at 70% 80%, rgba(34,211,238,0.06), transparent 22%)',
-          pointerEvents: 'none',
-          zIndex: 1,
-        }}
-      />
-      <div
-        className="chart-select-shell__scrim"
-        aria-hidden
-        style={{
-          position: 'absolute',
-          inset: 0,
-          backgroundImage:
-            'linear-gradient(120deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 40%, transparent 60%), linear-gradient(0deg, rgba(255,255,255,0.03) 0%, transparent 50%)',
-          mixBlendMode: 'screen',
-          opacity: 0.7,
-          pointerEvents: 'none',
-          zIndex: 1,
-        }}
-      />
-
       {/* 헤더 */}
       <div
         className="chart-select-header chart-select-shell__content"
@@ -903,7 +875,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 fontSize: '22px',
                 margin: 0,
                 letterSpacing: '-0.01em',
-                textShadow: CHART_EDITOR_THEME.titleGlow,
               }}
             >
               {chartStatus === 'wip' ? '제작 중인 채보' : '채보 선택하기'}
@@ -943,7 +914,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 e.currentTarget.style.background = 'rgba(8, 12, 24, 0.34)';
               }}
             >
-              🔄 새로고침
+              새로고침
             </button>
             <button
               className="chart-select-toolbar-button"
@@ -981,8 +952,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
             height: '100%',
             overflowY: 'hidden',
             padding: '18px 28px 36px',
-            background: 'linear-gradient(180deg, rgba(10,15,28,0.18), rgba(10,15,28,0.5))',
-            transition: 'background 0.6s ease',
+            background: '#0d131b',
           }}
         >
           <div
@@ -1013,7 +983,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 border: '1px solid rgba(238, 247, 242, 0.08)',
                 background: 'rgba(8, 12, 24, 0.24)',
                 boxShadow: 'none',
-                backdropFilter: 'blur(6px)',
               }}
             >
               <button
@@ -1190,9 +1159,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   }}
                   style={{
                     animationDelay: `${Math.min(index, 11) * 36}ms`,
-                    background: selectedChart?.id === chart.id
-                      ? 'linear-gradient(145deg, rgba(34,211,238,0.18), rgba(129,140,248,0.16))'
-                      : 'rgba(2,6,23,0.38)',
+                    background: selectedChart?.id === chart.id ? '#121a24' : '#0d131b',
                     borderRadius: CHART_EDITOR_THEME.radiusMd,
                     padding: '0',
                     cursor: 'pointer',
@@ -1201,8 +1168,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       : `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
                     transition: 'all 0.2s ease-out',
                     boxShadow: selectedChart?.id === chart.id
-                      ? CHART_EDITOR_THEME.shadowStrong
-                      : '0 16px 34px rgba(0,0,0,0.24)',
+                      ? '0 8px 20px rgba(0,0,0,0.28)'
+                      : '0 4px 12px rgba(0,0,0,0.18)',
                     minHeight: '96px',
                     overflow: 'hidden',
                     position: 'relative',
@@ -1266,8 +1233,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                           minHeight: '96px',
                           marginBottom: 0,
                           borderRadius: 0,
-                          background:
-                            'linear-gradient(135deg, rgba(56, 189, 248, 0.16), rgba(129, 140, 248, 0.12))',
+                          background: '#121a24',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -1285,10 +1251,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       position: 'relative',
                       minWidth: 0,
                       padding: '14px 14px 12px',
-                      background: [
-                        'linear-gradient(135deg, rgba(2,6,23,0.74), rgba(2,6,23,0.38) 58%, rgba(34,211,238,0.08))',
-                        'linear-gradient(90deg, rgba(0,0,0,0.38), transparent 64%)',
-                      ].join(', '),
+                      background: '#0d131b',
                       display: 'grid',
                       alignContent: 'space-between',
                       gap: '10px',
@@ -1305,8 +1268,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                         maxWidth: '100%',
                         padding: '6px 8px 7px',
                         borderRadius: '12px',
-                        background: 'linear-gradient(135deg, rgba(2,6,23,0.68), rgba(15,23,42,0.34))',
-                        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+                        background: 'rgba(8, 11, 16, 0.72)',
                         overflow: 'hidden',
                         display: '-webkit-box',
                         WebkitLineClamp: 3,
@@ -1468,7 +1430,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       borderRadius: '16px',
                       overflow: 'hidden',
                       backgroundColor: 'rgba(2, 6, 23, 0.4)',
-                      boxShadow: '0 12px 36px rgba(0, 0, 0, 0.26), 0 0 0 1px rgba(238, 247, 242, 0.12)',
+                      boxShadow: '0 6px 16px rgba(0, 0, 0, 0.2)',
                     }}
                   >
                     <img

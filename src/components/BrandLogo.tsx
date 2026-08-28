@@ -8,137 +8,36 @@ export interface BrandLogoProps {
   tagline?: string;
   size?: BrandLogoSize;
   markStyle?: BrandLogoMarkStyle;
-  /**
-   * 배경 클립 그라데이션. 예: CHART_EDITOR_THEME.titleGradient
-   */
   gradient?: string;
-  /**
-   * 텍스트 외곽선(스트로크) 색상. 어두운 배경에서 글자가 더 또렷해짐.
-   */
   strokeColor?: string;
-  /**
-   * 글로우(텍스트 섀도우) 값. 예: CHART_EDITOR_THEME.titleGlow
-   */
   glow?: string;
 }
 
-const SIZE_STYLES: Record<
-  BrandLogoSize,
-  { titlePx: number; markPx: number; letterSpacingEm: number; strokePx: number }
-> =
-  {
-    lg: { titlePx: 40, markPx: 40, letterSpacingEm: 0.12, strokePx: 2 },
-    md: { titlePx: 33, markPx: 33, letterSpacingEm: 0.1, strokePx: 2 },
-  };
+const SIZE_STYLES: Record<BrandLogoSize, { titlePx: number; markPx: number; letterSpacingEm: number }> = {
+  lg: { titlePx: 42, markPx: 42, letterSpacingEm: 0.06 },
+  md: { titlePx: 33, markPx: 34, letterSpacingEm: 0.05 },
+};
 
-export const BrandLogo: React.FC<BrandLogoProps> = ({
-  title = 'UseRhythm',
-  tagline,
-  size = 'lg',
-  markStyle = 'left',
-  gradient = 'linear-gradient(135deg, #38bdf8 0%, #818cf8 45%, #f0abfc 100%)',
-  strokeColor = 'rgba(2, 6, 23, 0.95)',
-  glow = '0 0 22px rgba(56,189,248,0.35), 0 0 42px rgba(129,140,248,0.22)',
-}) => {
-  const s = SIZE_STYLES[size];
-
+export const BrandLogo: React.FC<BrandLogoProps> = ({ title = 'UseRhythm', tagline, size = 'lg', markStyle = 'left' }) => {
+  const styles = SIZE_STYLES[size];
   return (
     <div className="ur-brand">
       <div
-        className={
-          markStyle === 'overlap' ? 'ur-brand__grid ur-brand__grid--overlap' : 'ur-brand__grid'
-        }
-        style={
-          {
-            // CSS 변수로 넘겨서 스타일을 컴포넌트 밖(CSS)에서도 재사용
-            '--ur-logo-gradient': gradient,
-            '--ur-logo-stroke': strokeColor,
-            '--ur-logo-glow': glow,
-            '--ur-logo-size': `${s.titlePx}px`,
-            '--ur-logo-letter-spacing': `${s.letterSpacingEm}em`,
-            '--ur-logo-stroke-width': `${s.strokePx}px`,
-          } as React.CSSProperties
-        }
+        className={markStyle === 'overlap' ? 'ur-brand__grid ur-brand__grid--overlap' : 'ur-brand__grid'}
+        style={{
+          '--ur-logo-size': `${styles.titlePx}px`,
+          '--ur-logo-mark-size': `${styles.markPx}px`,
+          '--ur-logo-letter-spacing': `${styles.letterSpacingEm}em`,
+        } as React.CSSProperties}
       >
-        {markStyle === 'left' && (
-          <svg
-            className="ur-brand__mark"
-            width={s.markPx}
-            height={s.markPx}
-            viewBox="0 0 64 64"
-            aria-hidden="true"
-          >
-            {/* Neon ring */}
-            <defs>
-              <linearGradient id="urMarkGrad" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stopColor="#22d3ee" />
-                <stop offset="0.55" stopColor="#818cf8" />
-                <stop offset="1" stopColor="#f0abfc" />
-              </linearGradient>
-            </defs>
-            <circle
-              cx="32"
-              cy="32"
-              r="22"
-              fill="none"
-              stroke="url(#urMarkGrad)"
-              strokeWidth="4"
-            />
-            {/* Waveform */}
-            <path
-              d="M16 35c4 0 4-10 8-10s4 18 8 18 4-26 8-26 4 22 8 22 4-14 8-14"
-              fill="none"
-              stroke="white"
-              strokeOpacity="0.9"
-              strokeWidth="3.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        )}
-
-        <div className="ur-brand__titleWrap">
-          {markStyle === 'overlap' && (
-            <svg
-              className="ur-brand__mark ur-brand__mark--overlap"
-              width={s.markPx}
-              height={s.markPx}
-              viewBox="0 0 64 64"
-              aria-hidden="true"
-            >
-              <defs>
-                <linearGradient id="urMarkGradOverlap" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0" stopColor="#22d3ee" />
-                  <stop offset="0.55" stopColor="#818cf8" />
-                  <stop offset="1" stopColor="#f0abfc" />
-                </linearGradient>
-              </defs>
-              <circle
-                cx="32"
-                cy="32"
-                r="22"
-                fill="none"
-                stroke="url(#urMarkGradOverlap)"
-                strokeWidth="4"
-              />
-              <path
-                d="M16 35c4 0 4-10 8-10s4 18 8 18 4-26 8-26 4 22 8 22 4-14 8-14"
-                fill="none"
-                stroke="white"
-                strokeOpacity="0.9"
-                strokeWidth="3.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          )}
-          <h1 className="ur-logo" aria-label={title}>
-            <span className="ur-logo__fill">{title}</span>
-          </h1>
+        <svg className="ur-brand__mark" width={styles.markPx} height={styles.markPx} viewBox="0 0 48 48" aria-hidden="true">
+          <path d="M4 39h40M8 34V12m11 22V7m10 27V15m11 19V10" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+        </svg>
+        <div className="ur-brand__text">
+          <h1 className="ur-logo" aria-label={title}>{title}</h1>
+          {tagline ? <p className="ur-tagline">{tagline}</p> : null}
         </div>
-        {tagline ? <p className="ur-tagline">{tagline}</p> : null}
       </div>
     </div>
   );
 };
-

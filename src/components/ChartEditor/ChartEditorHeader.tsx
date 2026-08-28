@@ -122,15 +122,14 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
       onClickCapture={blurEditorTransientAction}
       onChangeCapture={blurEditorSelectAfterChange}
       style={{
-        background:
-          'linear-gradient(90deg, rgba(15,23,42,0.98), rgba(17,24,39,0.98))',
+        background: '#0d131b',
         padding: '12px 16px',
-        borderRadius: CHART_EDITOR_THEME.radiusLg,
-        border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+        borderRadius: 6,
+        border: '1px solid #27313c',
         display: 'flex',
         flexDirection: 'column',
         gap: '12px',
-        boxShadow: CHART_EDITOR_THEME.shadowSoft,
+        boxShadow: '0 8px 20px rgba(0,0,0,0.2)',
       }}
     >
       <div
@@ -148,9 +147,8 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
             gap: '6px',
             alignItems: 'center',
             padding: '6px 10px',
-            borderRadius: CHART_EDITOR_THEME.radiusMd,
-            background:
-              'radial-gradient(circle at top left, rgba(56,189,248,0.22), transparent 55%)',
+            borderRadius: 6,
+            background: '#121a24',
             flexWrap: 'wrap',
           }}
         >
@@ -171,7 +169,7 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
               fontSize: '12px',
           }}
         >
-          ⏮
+          처음
         </button>
         <button
           data-editor-transient-action="true"
@@ -182,17 +180,16 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
           onMouseDown={(e) => e.preventDefault()}
           style={{
               padding: '8px 14px',
-              background:
-                'linear-gradient(135deg, #22d3ee, #38bdf8)',
+              background: '#6ef2c3',
               color: '#0b1120',
             border: 'none',
               borderRadius: CHART_EDITOR_THEME.radiusMd,
             cursor: 'pointer',
               fontWeight: 600,
-              boxShadow: CHART_EDITOR_THEME.shadowSoft,
+              boxShadow: 'none',
           }}
         >
-          {isPlaying ? '⏸' : '▶'}
+          {isPlaying ? '일시정지' : '재생'}
         </button>
         <button
           data-editor-transient-action="true"
@@ -211,7 +208,7 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
               fontSize: '12px',
           }}
         >
-          ⏹
+          정지
         </button>
           <label
             style={{

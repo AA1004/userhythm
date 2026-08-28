@@ -1082,8 +1082,8 @@ export const Game: React.FC = () => {
           onLogout={handleLogout}
           onSettings={() => setIsSettingsOpen(true)}
           ensureEditorAccess={ensureEditorAccess}
-          leftPanel={<MainMenuSidebar type="version" />}
-          rightPanel={<MainMenuSidebar type="notice" />}
+          leftPanel={<MainMenuSidebar type="version" compact />}
+          rightPanel={<MainMenuSidebar type="notice" compact />}
         />
       )}
 

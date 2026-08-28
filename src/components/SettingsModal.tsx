@@ -66,11 +66,9 @@ interface NoteColorEditorProps {
 type SettingsTab = 'gameplay' | 'visual' | 'advanced' | 'account';
 
 const sectionCardStyle: React.CSSProperties = {
-  marginBottom: '18px',
-  padding: '14px',
-  borderRadius: CHART_EDITOR_THEME.radiusMd,
-  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-  background: CHART_EDITOR_THEME.surface,
+  marginBottom: '16px',
+  padding: '0 0 16px',
+  borderBottom: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
 };
 
 const VisualSliderRow = memo<VisualSliderRowProps>(({
