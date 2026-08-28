@@ -50,6 +50,7 @@ import {
   blurEditorTransientAction,
   isInteractiveElementFocused,
   isTextEditingTarget,
+  prepareEditorPointerFocus,
   preventTransientEditorActionFocus,
 } from '../utils/editorFocus';
 
@@ -2759,7 +2760,7 @@ export const ChartEditor: React.FC<ChartEditorProps> = ({
 
       <div
         className="chart-editor-workbench"
-        onPointerDownCapture={preventTransientEditorActionFocus}
+        onPointerDownCapture={prepareEditorPointerFocus}
         onPointerUpCapture={blurEditorNonTextControlAfterPointer}
         onMouseDownCapture={preventTransientEditorActionFocus}
         onClickCapture={blurEditorTransientAction}

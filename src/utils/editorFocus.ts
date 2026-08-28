@@ -13,6 +13,23 @@ const POINTER_CLEANUP_SELECTOR =
 
 const CHANGE_CLEANUP_SELECTOR = 'select';
 
+let pendingPointerCleanupElement: HTMLElement | null = null;
+
+const removePendingPointerCleanupListeners = () => {
+  window.removeEventListener('pointerup', finishPendingEditorPointerCleanup, true);
+  window.removeEventListener('pointercancel', finishPendingEditorPointerCleanup, true);
+};
+
+function finishPendingEditorPointerCleanup() {
+  const focusElement = pendingPointerCleanupElement;
+  pendingPointerCleanupElement = null;
+  removePendingPointerCleanupListeners();
+
+  if (focusElement && document.activeElement === focusElement) {
+    focusElement.blur();
+  }
+}
+
 export const isInteractiveElementFocused = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement && target.closest(INTERACTIVE_EDITOR_TARGET_SELECTOR) !== null;
 
@@ -33,11 +50,23 @@ export const getTransientEditorActionElement = (target: EventTarget | null): HTM
 export const preventTransientEditorActionFocus = (
   event: React.MouseEvent<HTMLElement> | React.PointerEvent<HTMLElement>
 ) => {
-  if (event.detail <= 0) return;
   if (isTextEditingTarget(event.target)) return;
-  if (getTransientEditorActionElement(event.target)) {
-    event.preventDefault();
+  const actionElement = getTransientEditorActionElement(event.target);
+  if (!actionElement) return;
+
+  // Preventing the action button from taking focus would otherwise leave a
+  // previously edited input/select focused. Blur it first so its value commits
+  // and editor shortcuts become available immediately after the action.
+  const activeElement = document.activeElement;
+  if (
+    activeElement instanceof HTMLElement &&
+    activeElement !== actionElement &&
+    isInteractiveElementFocused(activeElement)
+  ) {
+    activeElement.blur();
   }
+
+  event.preventDefault();
 };
 
 export const blurEditorTransientAction = (event: React.MouseEvent<HTMLElement>) => {
@@ -49,6 +78,27 @@ export const getEditorFocusCleanupElement = (target: EventTarget | null): HTMLEl
   if (!(target instanceof HTMLElement)) return null;
   const candidate = target.closest(POINTER_CLEANUP_SELECTOR);
   return candidate instanceof HTMLElement ? candidate : null;
+};
+
+// Pointer release can happen outside the slider or editor after a drag. Keep a
+// window-level release guard so non-text controls never retain editor focus.
+export const armEditorPointerFocusCleanup = (event: React.PointerEvent<HTMLElement>) => {
+  if (isTextEditingTarget(event.target)) return;
+  const focusElement = getEditorFocusCleanupElement(event.target);
+  if (!focusElement) return;
+
+  if (pendingPointerCleanupElement) {
+    finishPendingEditorPointerCleanup();
+  }
+
+  pendingPointerCleanupElement = focusElement;
+  window.addEventListener('pointerup', finishPendingEditorPointerCleanup, true);
+  window.addEventListener('pointercancel', finishPendingEditorPointerCleanup, true);
+};
+
+export const prepareEditorPointerFocus = (event: React.PointerEvent<HTMLElement>) => {
+  armEditorPointerFocusCleanup(event);
+  preventTransientEditorActionFocus(event);
 };
 
 export const blurEditorNonTextControlAfterPointer = (

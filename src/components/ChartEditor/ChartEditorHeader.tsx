@@ -1,5 +1,12 @@
 import React from 'react';
 import { BPMChange } from '../../types/game';
+import {
+  blurEditorNonTextControlAfterPointer,
+  blurEditorSelectAfterChange,
+  blurEditorTransientAction,
+  prepareEditorPointerFocus,
+  preventTransientEditorActionFocus,
+} from '../../utils/editorFocus';
 import { CHART_EDITOR_THEME } from './constants';
 
 interface SongInfo {
@@ -109,6 +116,11 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
   return (
     <div
       className="chart-editor-header"
+      onPointerDownCapture={prepareEditorPointerFocus}
+      onPointerUpCapture={blurEditorNonTextControlAfterPointer}
+      onMouseDownCapture={preventTransientEditorActionFocus}
+      onClickCapture={blurEditorTransientAction}
+      onChangeCapture={blurEditorSelectAfterChange}
       style={{
         background:
           'linear-gradient(90deg, rgba(15,23,42,0.98), rgba(17,24,39,0.98))',
