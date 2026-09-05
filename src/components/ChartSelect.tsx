@@ -1408,7 +1408,14 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
           </div>
           {selectedChart ? (
             <aside
-              className="chart-select-detail-panel"
+              className={`chart-select-detail-panel${isDetailExpanded ? ' chart-select-detail-panel--expanded' : ''}`}
+              aria-label="채보 상세정보"
+              onKeyDown={(event) => {
+                if (isDetailExpanded && event.key === 'Escape') {
+                  event.stopPropagation();
+                  setIsDetailExpanded(false);
+                }
+              }}
               key={selectedChart.id}
               style={{
                 position: 'relative',
@@ -1465,6 +1472,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   </button>
                 </div>
 
+                <div className="chart-select-detail-panel__hero">
                 {selectedChart.preview_image && (
                   <div
                     className="chart-select-detail-panel__preview"
@@ -1495,6 +1503,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   </div>
                 )}
 
+                <div className="chart-select-detail-panel__heading">
                 <h2
                   className="chart-select-detail-panel__title"
                   style={{
@@ -1556,6 +1565,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   )}
                 </div>
 
+                </div>
+                </div>
                 <div
                   className="chart-select-detail-panel__summary"
                   style={{
@@ -1611,6 +1622,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 <button
                   className="chart-select-detail-panel__toggle"
                   type="button"
+                  aria-expanded={isDetailExpanded}
                   onClick={() => setIsDetailExpanded((prev) => !prev)}
                   style={{
                     width: 'fit-content',
@@ -1628,7 +1640,8 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 </button>
 
                 {isDetailExpanded && (
-                  <>
+                  <div className="chart-select-detail-panel__expanded-body">
+                    <section className="chart-select-detail-panel__description" aria-label="곡 설명">
                     {selectedChart.description && (
                       <div
                         className="chart-select-detail-panel__fact chart-select-detail-panel__fact--wide"
@@ -1640,16 +1653,20 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                           background: 'rgba(8, 12, 24, 0.46)',
                         }}
                       >
-                        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '10px', marginBottom: '6px', letterSpacing: '0.08em' }}>DESCRIPTION</div>
-                        <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '13px', lineHeight: 1.55 }}>
+                        <h3 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px', marginBottom: '12px' }}>곡 설명</h3>
+                        <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '14px', lineHeight: 1.8, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
                           {selectedChart.description}
                         </div>
                       </div>
                     )}
                     {renderWipNote()}
+                    </section>
+                    <section className="chart-select-detail-panel__metadata" aria-label="곡 정보">
+                    <h3 style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '16px', marginBottom: '12px' }}>곡 정보</h3>
                     {renderDetailFacts()}
+                    </section>
                     {renderDetailLeaderboard()}
-                  </>
+                  </div>
                 )}
               </div>
             </aside>
