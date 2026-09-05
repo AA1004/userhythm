@@ -815,7 +815,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
         </div>
         <div>
           <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
-            글로벌 상위 기록
+            글로벌 상위 기록 · 사용자별 최고
           </div>
           <LeaderboardList scores={globalScores} emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'} />
         </div>

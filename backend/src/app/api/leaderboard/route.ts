@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import type { Score } from '@prisma/client';
 import { prisma } from '../../../lib/prisma';
 import { getSessionFromRequest } from '../../../lib/auth';
 import { validateScoreSubmission } from '../../../lib/scoreValidation';
@@ -49,10 +50,17 @@ export async function GET(req: NextRequest) {
             take: 20,
           })
         : Promise.resolve([]),
-      prisma.score.findMany({
-        orderBy: { accuracy: 'desc' },
-        take: 20,
-      }),
+      // Pick each account's best score before limiting the global ranking.
+      // Equal accuracies keep the earliest achievement, with ID as a stable tie-break.
+      prisma.$queryRaw<Score[]>`
+        SELECT * FROM (
+          SELECT DISTINCT ON ("userId") *
+          FROM "Score"
+          ORDER BY "userId", "accuracy" DESC, "createdAt" ASC, "id" ASC
+        ) AS best_scores
+        ORDER BY "accuracy" DESC, "createdAt" ASC, "id" ASC
+        LIMIT 20
+      `,
       prisma.score.findMany({
         select: {
           userId: true,
