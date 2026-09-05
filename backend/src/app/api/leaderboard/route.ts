@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const chartId = searchParams.get('chartId');
 
-    const [perChartRaw, globalRaw, aggregateRaw] = await Promise.all([
+    const [perChartRaw, globalRaw] = await Promise.all([
       chartId
         ? prisma.score.findMany({
             where: { chartId },
@@ -61,34 +61,10 @@ export async function GET(req: NextRequest) {
         ORDER BY "accuracy" DESC, "createdAt" ASC, "id" ASC
         LIMIT 20
       `,
-      prisma.score.findMany({
-        select: {
-          userId: true,
-          accuracy: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 2000,
-      }),
     ]);
 
     const scoreRows = [...perChartRaw, ...globalRaw];
-    const aggregateByUser = new Map<
-      string,
-      { total: number; count: number; max: number }
-    >();
-    aggregateRaw.forEach((score) => {
-      const current = aggregateByUser.get(score.userId) ?? {
-        total: 0,
-        count: 0,
-        max: 0,
-      };
-      current.total += score.accuracy;
-      current.count += 1;
-      current.max = Math.max(current.max, score.accuracy);
-      aggregateByUser.set(score.userId, current);
-    });
-
-    const userIds = Array.from(new Set([...scoreRows.map((score) => score.userId), ...aggregateByUser.keys()]));
+    const userIds = Array.from(new Set(scoreRows.map((score) => score.userId)));
     const chartIds = Array.from(new Set(scoreRows.map((score) => score.chartId)));
 
     const [users, charts] = await Promise.all([
@@ -111,31 +87,11 @@ export async function GET(req: NextRequest) {
     const perChart = perChartRaw.map((score) => serializeScore(score, userMap, chartMap));
     const global = globalRaw.map((score) => serializeScore(score, userMap, chartMap));
 
-    const perUser = Array.from(aggregateByUser.entries())
-      .map(([userId, aggregate]) => {
-        const u = userMap.get(userId);
-        return {
-          user_id: userId,
-          avg_accuracy: aggregate.count > 0 ? aggregate.total / aggregate.count : null,
-          max_accuracy: aggregate.max,
-          play_count: aggregate.count,
-          user: u
-            ? {
-                id: u.id,
-                email: u.email,
-                role: u.role,
-                nickname: u.profile?.nickname || (u.profile as any)?.display_name || null,
-              }
-            : null,
-        };
-      })
-      .sort((a, b) => (b.avg_accuracy ?? 0) - (a.avg_accuracy ?? 0))
-      .slice(0, 20);
-
     return NextResponse.json({
       perChart: perChart || [],
       global,
-      perUser,
+      // Keep older clients compatible without computing averages.
+      perUser: [],
     });
   } catch (error) {
     console.error('leaderboard get error', error);

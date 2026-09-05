@@ -46,19 +46,6 @@ export interface ApiScore {
   } | null;
 }
 
-export interface ApiUserAggregate {
-  user_id: string;
-  avg_accuracy: number | null;
-  max_accuracy: number | null;
-  play_count: number;
-  user?: {
-    id: string;
-    email: string;
-    role?: string;
-    nickname?: string | null;
-  } | null;
-}
-
 export interface ApiNotice {
   title: string;
   content: string;
@@ -219,7 +206,7 @@ export const api = {
   async getLeaderboard(chartId?: string) {
     const qs = chartId ? `?chartId=${encodeURIComponent(chartId)}` : '';
     const res = await fetch(`${API_BASE}/api/leaderboard${qs}`, { credentials: 'include' });
-    return toJson(res) as Promise<{ perChart: ApiScore[]; global: ApiScore[]; perUser: ApiUserAggregate[] }>;
+    return toJson(res) as Promise<{ perChart: ApiScore[]; global: ApiScore[] }>;
   },
 
   async createPlaySession(chartId: string) {

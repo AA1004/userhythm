@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { api, ApiChart, ApiScore, ApiUserAggregate } from '../lib/api';
+import { api, ApiChart, ApiScore } from '../lib/api';
 import { chartAPI } from '../lib/supabaseClient';
 import { extractYouTubeVideoId } from '../utils/youtube';
 import { measureToTime } from '../utils/bpmUtils';
@@ -104,7 +104,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   // leaderboards
   const [perChartScores, setPerChartScores] = useState<ApiScore[]>([]);
   const [globalScores, setGlobalScores] = useState<ApiScore[]>([]);
-  const [perUserScores, setPerUserScores] = useState<ApiUserAggregate[]>([]);
   const [leaderboardStatus, setLeaderboardStatus] =
     useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
@@ -285,13 +284,11 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
         const data = await api.getLeaderboard(chartId);
         setPerChartScores(data.perChart || []);
         setGlobalScores(data.global || []);
-        setPerUserScores(data.perUser || []);
         setLeaderboardStatus('success');
       } catch (e: any) {
         console.error('Failed to load leaderboard:', e);
         setPerChartScores([]);
         setGlobalScores([]);
-        setPerUserScores([]);
         setLeaderboardStatus('error');
         setLeaderboardError(e?.message || '리더보드를 불러오지 못했습니다.');
       }
@@ -307,7 +304,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
     } else {
       setPerChartScores([]);
       setGlobalScores([]);
-      setPerUserScores([]);
       setLeaderboardStatus('success');
       setLeaderboardError(null);
     }
@@ -817,14 +813,9 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
           <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
             글로벌 상위 기록 · 사용자별 최고
           </div>
-          <LeaderboardList scores={globalScores} emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'} />
+          <LeaderboardList scores={globalScores} showDate emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'} />
         </div>
-        <div>
-          <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
-            사용자별 평균 정확도
-          </div>
-          <UserLeaderboardList entries={perUserScores} emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'} />
-        </div>
+
       </div>
     </div>
   );
@@ -1678,13 +1669,20 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   );
 };
 
-const LeaderboardList: React.FC<{ scores: ApiScore[]; emptyText?: string }> = ({ scores, emptyText }) => {
+const recordDateFormatter = new Intl.DateTimeFormat('ko-KR', {
+  year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Seoul',
+});
+
+const LeaderboardList: React.FC<{ scores: ApiScore[]; emptyText?: string; showDate?: boolean }> = ({ scores, emptyText, showDate = false }) => {
   if (!scores || scores.length === 0) {
     return <div className="chart-select-leaderboard__empty" style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px' }}>{emptyText || '데이터 없음'}</div>;
   }
   return (
     <div className="chart-select-leaderboard__list" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-      {scores.map((s, idx) => (
+      {scores.map((s, idx) => {
+        const recordDate = showDate && s.created_at ? new Date(s.created_at) : null;
+        const validDate = recordDate && Number.isFinite(recordDate.getTime()) ? recordDate : null;
+        return (
         <div
           className="chart-select-leaderboard__row"
           key={s.id}
@@ -1699,7 +1697,7 @@ const LeaderboardList: React.FC<{ scores: ApiScore[]; emptyText?: string }> = ({
             color: CHART_EDITOR_THEME.textPrimary,
           }}
         >
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', minWidth: 0, overflowWrap: 'anywhere' }}>
             <span style={{ color: CHART_EDITOR_THEME.textSecondary, width: '20px' }}>{idx + 1}</span>
             <span>
               {s.user?.nickname || s.user?.email?.split('@')[0] || '알 수 없음'}
@@ -1710,52 +1708,17 @@ const LeaderboardList: React.FC<{ scores: ApiScore[]; emptyText?: string }> = ({
               )}
             </span>
           </div>
-          <div style={{ fontWeight: 'bold', color: '#facc15' }}>{s.accuracy.toFixed(2)}%</div>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-const UserLeaderboardList: React.FC<{ entries: ApiUserAggregate[]; emptyText?: string }> = ({ entries, emptyText }) => {
-  if (!entries || entries.length === 0) {
-    return <div className="chart-select-leaderboard__empty" style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px' }}>{emptyText || '데이터 없음'}</div>;
-  }
-  return (
-    <div className="chart-select-leaderboard__list" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-      {entries.map((e, idx) => (
-        <div
-          className="chart-select-leaderboard__row"
-          key={e.user_id}
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '8px 10px',
-            borderRadius: CHART_EDITOR_THEME.radiusSm,
-            backgroundColor: CHART_EDITOR_THEME.surfaceElevated,
-            border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-            color: CHART_EDITOR_THEME.textPrimary,
-          }}
-        >
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <span style={{ color: CHART_EDITOR_THEME.textSecondary, width: '20px' }}>{idx + 1}</span>
-            <span>
-              {e.user?.nickname || e.user?.email?.split('@')[0] || '알 수 없음'}
-              {e.user?.role === 'admin' && (
-                <span style={{ fontSize: '10px', marginLeft: '6px', padding: '2px 6px', borderRadius: '999px', background: '#b91c1c', color: '#fff' }}>
-                  ADMIN
-                </span>
-              )}
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <span style={{ color: '#facc15' }}>avg {e.avg_accuracy?.toFixed?.(2) ?? '-' }%</span>
-            <span style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px' }}>max {e.max_accuracy?.toFixed?.(2) ?? '-' }%</span>
-            <span style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px' }}>plays {e.play_count}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flexShrink: 0, textAlign: 'right', marginLeft: '10px' }}>
+            <div style={{ fontWeight: 'bold', color: '#facc15' }}>{s.accuracy.toFixed(2)}%</div>
+            {showDate && (
+              <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px' }}>
+                {validDate ? <time dateTime={validDate.toISOString()}>기록일 {recordDateFormatter.format(validDate)}</time> : '날짜 정보 없음'}
+              </div>
+            )}
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
