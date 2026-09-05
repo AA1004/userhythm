@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
         : Promise.resolve([]),
       // Pick each account's best score before limiting the global ranking.
       // Equal accuracies keep the earliest achievement, with ID as a stable tie-break.
-      chartId ? Promise.resolve([]) : prisma.$queryRaw<Score[]>`
+      prisma.$queryRaw<Score[]>`
         SELECT * FROM (
           SELECT DISTINCT ON ("userId") *
           FROM "Score"
