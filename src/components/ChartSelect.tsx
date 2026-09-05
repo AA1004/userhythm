@@ -104,6 +104,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   // leaderboards
   const [perChartScores, setPerChartScores] = useState<ApiScore[]>([]);
   const [globalScores, setGlobalScores] = useState<ApiScore[]>([]);
+  const leaderboardRequestId = useRef(0);
   const [leaderboardStatus, setLeaderboardStatus] =
     useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
@@ -278,14 +279,19 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
 
   const fetchLeaderboards = useCallback(
     async (chartId?: string) => {
+      const requestId = ++leaderboardRequestId.current;
       setLeaderboardStatus('loading');
       setLeaderboardError(null);
+      setPerChartScores([]);
+      setGlobalScores([]);
       try {
         const data = await api.getLeaderboard(chartId);
+        if (requestId !== leaderboardRequestId.current) return;
         setPerChartScores(data.perChart || []);
         setGlobalScores(data.global || []);
         setLeaderboardStatus('success');
       } catch (e: any) {
+        if (requestId !== leaderboardRequestId.current) return;
         console.error('Failed to load leaderboard:', e);
         setPerChartScores([]);
         setGlobalScores([]);
@@ -299,15 +305,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   // 최초 로드 및 새로고침 버튼/외부 트리거 시 호출
   useEffect(() => {
     refreshCharts(true);
-    if (chartStatus === 'approved') {
-      fetchLeaderboards();
-    } else {
-      setPerChartScores([]);
-      setGlobalScores([]);
-      setLeaderboardStatus('success');
-      setLeaderboardError(null);
-    }
-  }, [refreshCharts, fetchLeaderboards, chartStatus]);
+  }, [refreshCharts, chartStatus]);
 
   // 외부 트리거로 새로고침
   useEffect(() => {
@@ -339,24 +337,22 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
   }, [charts, selectedChart]);
 
   useEffect(() => {
-    // when selected chart changes, load per-chart leaderboard
     if (chartStatus !== 'approved') {
+      ++leaderboardRequestId.current;
       setPerChartScores([]);
+      setGlobalScores([]);
+      setLeaderboardStatus('success');
+      setLeaderboardError(null);
       return;
     }
-    if (selectedChart) {
-      fetchLeaderboards(selectedChart.id);
-    } else {
-      setPerChartScores([]);
-    }
-  }, [selectedChart, fetchLeaderboards, chartStatus]);
+    fetchLeaderboards(selectedChart?.id);
+    return () => { ++leaderboardRequestId.current; };
+  }, [selectedChart?.id, fetchLeaderboards, chartStatus]);
 
   useEffect(() => {
-    const handleLeaderboardUpdated = (event: Event) => {
-      const customEvent = event as CustomEvent<{ chartId?: string }>;
-      const updatedChartId = customEvent.detail?.chartId;
+    const handleLeaderboardUpdated = () => {
       if (chartStatus !== 'approved') return;
-      fetchLeaderboards(selectedChart?.id ?? updatedChartId);
+      fetchLeaderboards(selectedChart?.id);
     };
 
     window.addEventListener('userhythm:leaderboard-updated', handleLeaderboardUpdated as EventListener);
@@ -798,25 +794,17 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
 
   const renderDetailLeaderboard = () => (
     <div className="chart-select-leaderboard" style={{ marginTop: '20px' }}>
-      <h3 className="chart-select-leaderboard__title" style={{ color: CHART_EDITOR_THEME.textPrimary, marginBottom: '10px' }}>정확도 리더보드</h3>
+      <h3 className="chart-select-leaderboard__title" style={{ color: CHART_EDITOR_THEME.textPrimary, marginBottom: '10px' }}>
+        {selectedChart ? '곡별 상위 기록' : '글로벌 상위 기록 · 사용자별 최고'}
+      </h3>
       <div style={{ color: leaderboardStatus === 'error' ? '#fca5a5' : CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '10px' }}>
         {leaderboardHint}
       </div>
-      <div className="chart-select-leaderboard__grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
-        <div>
-          <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
-            곡별 상위 기록 (현재 선택)
-          </div>
-          <LeaderboardList scores={perChartScores} emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'} />
-        </div>
-        <div>
-          <div style={{ color: CHART_EDITOR_THEME.textSecondary, fontSize: '12px', marginBottom: '6px' }}>
-            글로벌 상위 기록 · 사용자별 최고
-          </div>
-          <LeaderboardList scores={globalScores} showDate emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'} />
-        </div>
-
-      </div>
+      <LeaderboardList
+        scores={selectedChart ? perChartScores : globalScores}
+        showDate={!selectedChart}
+        emptyText={leaderboardStatus === 'loading' ? '불러오는 중...' : '데이터 없음'}
+      />
     </div>
   );
 
@@ -1660,6 +1648,14 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   </div>
                 )}
               </div>
+            </aside>
+          ) : chartStatus === 'approved' ? (
+            <aside
+              className="chart-select-global-leaderboard"
+              aria-label="글로벌 순위"
+              style={{ position: 'relative', alignSelf: 'end', justifySelf: 'end', width: 'min(100%, 480px)', minHeight: 0, maxHeight: '100%', overflowY: 'auto', padding: '16px', boxSizing: 'border-box' }}
+            >
+              {renderDetailLeaderboard()}
             </aside>
           ) : null}
           </div>

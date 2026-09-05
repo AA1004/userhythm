@@ -1023,7 +1023,8 @@ body {
   .chart-select-detail-panel--expanded .chart-select-leaderboard__grid { grid-template-columns: minmax(0, 1fr) !important; }
 }
 @media (max-width: 760px) {
-  .chart-select-layout:has(.chart-select-detail-panel--expanded) {
+  .chart-select-layout:has(.chart-select-detail-panel--expanded),
+  .chart-select-layout:has(.chart-select-global-leaderboard) {
     grid-template-rows: minmax(150px, .4fr) minmax(0, .6fr);
     gap: 12px !important;
   }
