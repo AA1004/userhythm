@@ -7,7 +7,7 @@ import {
   prepareEditorPointerFocus,
   preventTransientEditorActionFocus,
 } from '../../utils/editorFocus';
-import { CHART_EDITOR_THEME } from './constants';
+import { WORKSPACE_THEME as CHART_EDITOR_THEME } from '../../styles/workspaceTheme';
 
 interface SongInfo {
   durationFormatted: string;
@@ -123,7 +123,7 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
       onChangeCapture={blurEditorSelectAfterChange}
       style={{
         background:
-          'linear-gradient(90deg, rgba(15,23,42,0.98), rgba(17,24,39,0.98))',
+          '#10181f',
         padding: '12px 16px',
         borderRadius: CHART_EDITOR_THEME.radiusLg,
         border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
@@ -150,11 +150,12 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
             padding: '6px 10px',
             borderRadius: CHART_EDITOR_THEME.radiusMd,
             background:
-              'radial-gradient(circle at top left, rgba(56,189,248,0.22), transparent 55%)',
+              'transparent',
             flexWrap: 'wrap',
           }}
         >
           <button
+            aria-label="처음으로"
             data-editor-transient-action="true"
             onClick={(e) => {
               onRewind();
@@ -171,9 +172,10 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
               fontSize: '12px',
           }}
         >
-          ⏮
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 5h2v14H4zm16 0v14L8 12z" /></svg>
         </button>
         <button
+          aria-label={isPlaying ? '일시정지' : '재생'}
           data-editor-transient-action="true"
           onClick={(e) => {
             onTogglePlayback();
@@ -183,7 +185,7 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
           style={{
               padding: '8px 14px',
               background:
-                'linear-gradient(135deg, #22d3ee, #38bdf8)',
+                CHART_EDITOR_THEME.buttonPrimaryBg,
               color: '#0b1120',
             border: 'none',
               borderRadius: CHART_EDITOR_THEME.radiusMd,
@@ -192,9 +194,10 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
               boxShadow: CHART_EDITOR_THEME.shadowSoft,
           }}
         >
-          {isPlaying ? '⏸' : '▶'}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d={isPlaying ? 'M6 4h4v16H6zm8 0h4v16h-4z' : 'M7 4v16l13-8z'} /></svg>
         </button>
         <button
+          aria-label="정지"
           data-editor-transient-action="true"
           onClick={(e) => {
             onStop();
@@ -211,7 +214,7 @@ const ChartEditorHeaderInner: React.FC<ChartEditorHeaderProps> = ({
               fontSize: '12px',
           }}
         >
-          ⏹
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 5h14v14H5z" /></svg>
         </button>
           <label
             style={{

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api, ApiNotice, ApiVersion } from '../lib/api';
-import { CHART_EDITOR_THEME } from './ChartEditor/constants';
+import { WORKSPACE_THEME as CHART_EDITOR_THEME } from '../styles/workspaceTheme';
 import { useAuth } from '../hooks/useAuth';
 import { NoticeVersionAdmin } from './NoticeVersionAdmin';
 
@@ -66,15 +66,15 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({ type }) => {
     width: '100%',
     height: '100%',
     minHeight: 0,
-    background: 'linear-gradient(145deg, rgba(8, 13, 26, 0.86), rgba(3, 7, 18, 0.74))',
-    border: `1px solid ${CHART_EDITOR_THEME.borderStrong}`,
+    background: 'transparent',
+    border: 'none',
     borderRadius: CHART_EDITOR_THEME.radiusLg,
     padding: 'clamp(14px, 1.2vw, 22px)',
-    boxShadow: '0 18px 44px rgba(0, 0, 0, 0.36)',
+    boxShadow: 'none',
     overflow: 'hidden',
     display: 'flex',
     flexDirection: 'column',
-    backdropFilter: 'blur(10px)',
+    backdropFilter: 'none',
   };
 
   const sidebarClassName = [
@@ -127,14 +127,14 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({ type }) => {
             alignItems: 'center',
             gap: '12px',
             marginBottom: '16px',
-            borderBottom: `2px solid ${CHART_EDITOR_THEME.borderStrong}`,
+            borderBottom: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
             paddingBottom: '12px',
           }}
         >
           <h2
             className="main-menu-sidebar__title"
             style={{
-              fontSize: getFontSize(22, 19, 17),
+              fontSize: '14px',
               fontWeight: 'bold',
               color: CHART_EDITOR_THEME.textPrimary,
               margin: 0,
@@ -144,7 +144,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({ type }) => {
               whiteSpace: 'nowrap',
             }}
           >
-            {type === 'notice' ? '📢 공지사항' : '📋 버전 리포트'}
+            {type === 'notice' ? '공지사항' : '버전 리포트'}
           </h2>
           {isAdmin && (
             <button
@@ -171,7 +171,7 @@ export const MainMenuSidebar: React.FC<MainMenuSidebarProps> = ({ type }) => {
                 e.currentTarget.style.color = CHART_EDITOR_THEME.textPrimary;
               }}
             >
-              ✏️ 편집
+              편집
             </button>
           )}
         </div>

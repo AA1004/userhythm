@@ -5,7 +5,7 @@ import { extractYouTubeVideoId } from '../utils/youtube';
 import { measureToTime } from '../utils/bpmUtils';
 import { validateNotes } from '../utils/noteValidation';
 import { getChartPayload } from '../utils/chartPayload';
-import { CHART_EDITOR_THEME } from './ChartEditor/constants';
+import { WORKSPACE_THEME as CHART_EDITOR_THEME } from '../styles/workspaceTheme';
 import { useChartSelectPreview, type ChartSelectPreviewSpec } from '../hooks/useChartSelectPreview';
 import { ChartSelectPreviewStage } from './chart-select/ChartSelectPreviewStage';
 import {
@@ -943,7 +943,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 e.currentTarget.style.background = 'rgba(8, 12, 24, 0.34)';
               }}
             >
-              🔄 새로고침
+              새로고침
             </button>
             <button
               className="chart-select-toolbar-button"
@@ -981,7 +981,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
             height: '100%',
             overflowY: 'hidden',
             padding: '18px 28px 36px',
-            background: 'linear-gradient(180deg, rgba(10,15,28,0.18), rgba(10,15,28,0.5))',
+            background: 'transparent',
             transition: 'background 0.6s ease',
           }}
         >
@@ -999,7 +999,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
               alignItems: 'stretch',
             }}
           >
-            <div style={{ minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            <div className="chart-select-rail" style={{ minHeight: 0, display: 'flex', flexDirection: 'column' }}>
             <div
               className="chart-select-filter"
               style={{
@@ -1033,7 +1033,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                   lineHeight: 1,
                 }}
               >
-                🔍
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5" /></svg>
               </button>
               {isSearchOpen && (
                 <input
@@ -1124,11 +1124,6 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
           >
           {status === 'loading' ? (
             <div className="chart-list-loading" role="status" aria-live="polite">
-              <div className="chart-list-loading__orbit" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-              </div>
               <strong>곡 목록 동기화 중</strong>
               <p>
                 Railway 서버에서 최신 {chartStatus === 'wip' ? '제작 중인' : '공개'} 채보를 불러오고 있습니다.
@@ -1177,7 +1172,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 overflowY: 'visible',
               }}
             >
-              {charts.map((chart, index) => {
+              {charts.map((chart) => {
                 const displayDifficulty = (chart as any)._displayDifficulty || chart.difficulty || 'Normal';
                 const difficultyVisual = getDifficultyBadgeVisual(displayDifficulty);
                 const noteCount = (chart as any).notes_count ?? 0;
@@ -1185,13 +1180,21 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 <div
                   key={chart.id}
                   className={`chart-select-card${selectedChart?.id === chart.id ? ' chart-select-card--selected' : ''}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={selectedChart?.id === chart.id}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setSelectedChart(chart);
+                    }
+                  }}
                   onClick={() => {
                     setSelectedChart(chart);
                   }}
                   style={{
-                    animationDelay: `${Math.min(index, 11) * 36}ms`,
                     background: selectedChart?.id === chart.id
-                      ? 'linear-gradient(145deg, rgba(34,211,238,0.18), rgba(129,140,248,0.16))'
+                      ? 'rgba(25, 50, 42, 0.94)'
                       : 'rgba(2,6,23,0.38)',
                     borderRadius: CHART_EDITOR_THEME.radiusMd,
                     padding: '0',
@@ -1199,15 +1202,15 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     border: selectedChart?.id === chart.id
                       ? `1px solid ${CHART_EDITOR_THEME.accentStrong}`
                       : `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-                    transition: 'all 0.2s ease-out',
+                    transition: 'background-color 120ms, border-color 120ms',
                     boxShadow: selectedChart?.id === chart.id
                       ? CHART_EDITOR_THEME.shadowStrong
-                      : '0 16px 34px rgba(0,0,0,0.24)',
+                      : 'none',
                     minHeight: '96px',
                     overflow: 'hidden',
                     position: 'relative',
                     display: 'grid',
-                    gridTemplateColumns: '170px minmax(0, 1fr)',
+                    gridTemplateColumns: '136px minmax(0, 1fr)',
                     alignItems: 'stretch',
                   }}
                   onMouseEnter={(e) => {
@@ -1296,6 +1299,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                     }}
                   >
                     <div
+                      className="chart-select-card__title"
                       style={{
                         color: CHART_EDITOR_THEME.textPrimary,
                         fontSize: '13px',
@@ -1318,6 +1322,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       {chart.title}
                     </div>
                     <div
+                      className="chart-select-card__metadata"
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -1433,6 +1438,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 }}
               >
                 <div
+                  className="chart-select-detail-panel__close"
                   style={{
                     display: 'flex',
                     justifyContent: 'flex-end',
@@ -1477,7 +1483,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       style={{
                         width: '100%',
                         aspectRatio: '16 / 9',
-                        objectFit: 'cover',
+                        objectFit: 'contain',
                         display: 'block',
                         background: 'rgba(2, 6, 23, 0.42)',
                       }}
@@ -1526,7 +1532,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       transition: 'all 0.15s ease-out',
                     }}
                   >
-                    {chartStatus === 'wip' ? '이 WIP 채보로 테스트' : '🎮 이 채보로 플레이'}
+                    {chartStatus === 'wip' ? '이 WIP 채보로 테스트' : '이 채보로 플레이'}
                   </button>
                   {chartStatus === 'wip' && onContribute && (
                     <button
@@ -1551,6 +1557,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 </div>
 
                 <div
+                  className="chart-select-detail-panel__summary"
                   style={{
                     display: 'flex',
                     flexWrap: 'wrap',
@@ -1578,7 +1585,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                       <div style={{ color: CHART_EDITOR_THEME.textPrimary, fontSize: '14px', fontWeight: 800 }}>{value}</div>
                     </div>
                   ))}
-                  {selectedChart.description && (
+                  {selectedChart.description && !isDetailExpanded && (
                     <div
                       style={{
                         flex: '1 1 260px',
@@ -1602,6 +1609,7 @@ export const ChartSelect: React.FC<ChartSelectProps> = ({
                 </div>
 
                 <button
+                  className="chart-select-detail-panel__toggle"
                   type="button"
                   onClick={() => setIsDetailExpanded((prev) => !prev)}
                   style={{

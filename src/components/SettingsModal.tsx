@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { CHART_EDITOR_THEME } from './ChartEditor/constants';
+import { WORKSPACE_THEME as CHART_EDITOR_THEME } from '../styles/workspaceTheme';
 import {
   GAME_VISUAL_PRESETS,
   GameVisualSettings,
@@ -67,10 +67,9 @@ type SettingsTab = 'gameplay' | 'visual' | 'advanced' | 'account';
 
 const sectionCardStyle: React.CSSProperties = {
   marginBottom: '18px',
-  padding: '14px',
-  borderRadius: CHART_EDITOR_THEME.radiusMd,
-  border: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
-  background: CHART_EDITOR_THEME.surface,
+  padding: '16px 0',
+  borderBottom: `1px solid ${CHART_EDITOR_THEME.borderSubtle}`,
+  background: 'transparent',
 };
 
 const VisualSliderRow = memo<VisualSliderRowProps>(({
@@ -388,8 +387,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           background: CHART_EDITOR_THEME.surfaceElevated,
           borderRadius: CHART_EDITOR_THEME.radiusLg,
           padding: '24px',
-          width: '560px',
-          maxHeight: '84vh',
+          width: 'min(560px, calc(100vw - 28px))',
+          maxHeight: 'calc(100dvh - 40px)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
@@ -569,7 +568,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <span>+200ms</span>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '8px', marginTop: '10px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px', alignItems: 'center' }}>
                 <button
                   onClick={() => onTimingOffsetChange(Math.max(-200, timingOffsetMs - 5))}
                   style={{

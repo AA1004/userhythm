@@ -1,25 +1,8 @@
 import React from 'react';
-import { CHART_EDITOR_THEME } from './ChartEditor/constants';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { BrandLogo } from './BrandLogo';
 
-const MENU_NOTE_PALETTES = [
-  { head: 'rgba(119, 255, 214, 0.08)', core: 'rgba(119, 255, 214, 0.72)', glow: 'rgba(119, 255, 214, 0.3)' },
-  { head: 'rgba(255, 78, 122, 0.08)', core: 'rgba(255, 78, 122, 0.68)', glow: 'rgba(255, 78, 122, 0.28)' },
-  { head: 'rgba(255, 184, 77, 0.08)', core: 'rgba(255, 184, 77, 0.7)', glow: 'rgba(255, 184, 77, 0.26)' },
-  { head: 'rgba(56, 189, 248, 0.08)', core: 'rgba(56, 189, 248, 0.7)', glow: 'rgba(56, 189, 248, 0.28)' },
-  { head: 'rgba(167, 139, 250, 0.08)', core: 'rgba(167, 139, 250, 0.68)', glow: 'rgba(167, 139, 250, 0.26)' },
-  { head: 'rgba(251, 113, 133, 0.08)', core: 'rgba(251, 113, 133, 0.68)', glow: 'rgba(251, 113, 133, 0.26)' },
-] as const;
 
-const pickMenuNotePalettes = () => {
-  const shuffled = [...MENU_NOTE_PALETTES];
-  for (let index = shuffled.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
-    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
-  }
-  return shuffled.slice(0, 4);
-};
 
 type AuthUser = {
   id: string;
@@ -69,7 +52,6 @@ export const GameMenu: React.FC<GameMenuProps> = ({
   leftPanel,
   rightPanel,
 }) => {
-  const menuNotePalettes = React.useMemo(pickMenuNotePalettes, []);
   const editorTitle =
     !canEditCharts && isSupabaseConfigured
       ? 'Google 로그인 후 이용할 수 있습니다.'
@@ -77,19 +59,8 @@ export const GameMenu: React.FC<GameMenuProps> = ({
 
   return (
     <div className="game-menu-shell">
-      <div className="game-menu-grid" aria-hidden="true" />
-      <div className="game-menu-stage-glow" aria-hidden="true" />
       <div className="game-menu-lanes" aria-hidden="true">
-        {menuNotePalettes.map((palette, index) => (
-          <span
-            key={`${palette.core}-${index}`}
-            style={{
-              '--menu-note-head': palette.head,
-              '--menu-note-core': palette.core,
-              '--menu-note-glow': palette.glow,
-            } as React.CSSProperties}
-          />
-        ))}
+        <span /><span /><span /><span />
       </div>
 
       <div className="game-menu-layout">
@@ -101,24 +72,18 @@ export const GameMenu: React.FC<GameMenuProps> = ({
 
         <section className="game-menu-panel" aria-label="UseRhythm main menu">
           <div className="game-menu-main">
-            <div className="game-menu-kicker">RHYTHM LAB</div>
             <div className="game-menu-hero">
               <BrandLogo
                 title="UseRhythm"
-                tagline={'직접 만든 채보로 바로 플레이하고,\n친구들과 리듬을 공유하세요.'}
+                tagline={'리듬을 플레이하고, 직접 만드세요.'}
                 size="lg"
                 markStyle="overlap"
-                gradient={CHART_EDITOR_THEME.titleGradient}
-                strokeColor={CHART_EDITOR_THEME.rootBackground}
-                glow={CHART_EDITOR_THEME.titleGlow}
+                gradient="linear-gradient(#e5f2ed, #e5f2ed)"
+                strokeColor="transparent"
+                glow="none"
               />
             </div>
 
-            <div className="game-menu-equalizer" aria-hidden="true">
-              {Array.from({ length: 22 }).map((_, index) => (
-                <i key={index} style={{ animationDelay: `${index * 42}ms` }} />
-              ))}
-            </div>
           </div>
 
           <div className="game-menu-actions">
@@ -127,7 +92,7 @@ export const GameMenu: React.FC<GameMenuProps> = ({
               onClick={onPlay}
             >
               <span>플레이</span>
-              <small>PLAY</small>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
             </button>
 
             <button
